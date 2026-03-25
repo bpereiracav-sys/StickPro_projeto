@@ -3,18 +3,22 @@ import { Sidebar } from './Sidebar';
 import { TopNavBar } from './TopNavBar';
 import { Toaster } from '../ui/sonner';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 import { teamsApi } from '../../services/api';
 
 export function AppLayout({ children }) {
   const { isAuthenticated } = useAuth();
+  const { refreshTheme } = useTheme();
   const [teams, setTeams] = useState([]);
   const [selectedTeam, setSelectedTeam] = useState(null);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchTeams();
+      // Refresh theme when user is authenticated
+      refreshTheme();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, refreshTheme]);
 
   const fetchTeams = async () => {
     try {

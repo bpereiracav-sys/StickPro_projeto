@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { clubApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -18,7 +19,8 @@ import {
   Save,
   X,
   Loader2,
-  Palette
+  Palette,
+  Check
 } from 'lucide-react';
 import { LogoUpload } from '../components/ImageUpload';
 
@@ -36,10 +38,12 @@ const COLOR_PALETTES = [
 
 export default function ClubPage() {
   const { user } = useAuth();
+  const { refreshTheme } = useTheme();
   const [club, setClub] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedPalette, setSelectedPalette] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     logo_url: '',
@@ -111,6 +115,8 @@ export default function ClubPage() {
       await clubApi.update(club.id, formData);
       setClub({ ...club, ...formData });
       setEditing(false);
+      // Refresh global theme after updating colors
+      refreshTheme();
       toast.success('Clube atualizado com sucesso!');
     } catch (error) {
       const message = typeof error.response?.data?.detail === 'string' 
@@ -120,6 +126,16 @@ export default function ClubPage() {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handlePaletteSelect = (palette) => {
+    setSelectedPalette(palette.name);
+    setFormData(prev => ({
+      ...prev,
+      primary_color: palette.primary,
+      secondary_color: palette.secondary,
+      accent_color: palette.accent
+    }));
   };
 
   const handleChange = (field, value) => {
@@ -379,6 +395,85 @@ export default function ClubPage() {
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
                 />
+              </div>
+            </div>
+
+            {/* Theme Color Selection */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div className="flex items-center gap-2">
+                <Palette className="w-5 h-5 text-primary" />
+                <Label className="text-base font-medium">Cores do Tema</Label>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Escolha uma paleta de cores para personalizar a aparência da aplicação.
+              </p>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {COLOR_PALETTES.map((palette) => {
+                  const isSelected = selectedPalette === palette.name || 
+                    (formData.primary_color === palette.primary && 
+                     formData.secondary_color === palette.secondary);
+                  
+                  return (
+                    <button
+                      key={palette.name}
+                      type="button"
+                      onClick={() => handlePaletteSelect(palette)}
+                      className={`relative p-3 rounded-lg border-2 transition-all hover:scale-105 ${
+                        isSelected 
+                          ? 'border-primary ring-2 ring-primary/20' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      data-testid={`palette-${palette.name.toLowerCase().replace(/\s/g, '-')}`}
+                    >
+                      {isSelected && (
+                        <div className="absolute -top-2 -right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                          <Check className="w-3 h-3 text-primary-foreground" />
+                        </div>
+                      )}
+                      <div className="flex gap-1 mb-2">
+                        <div 
+                          className="w-6 h-6 rounded-full border border-border"
+                          style={{ backgroundColor: palette.primary }}
+                          title="Cor Principal"
+                        />
+                        <div 
+                          className="w-6 h-6 rounded-full border border-border"
+                          style={{ backgroundColor: palette.secondary }}
+                          title="Cor Secundária"
+                        />
+                        <div 
+                          className="w-6 h-6 rounded-full border border-border"
+                          style={{ backgroundColor: palette.accent }}
+                          title="Cor de Destaque"
+                        />
+                      </div>
+                      <p className="text-xs font-medium truncate">{palette.name}</p>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Current colors preview */}
+              <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
+                <span className="text-sm text-muted-foreground">Cores atuais:</span>
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-8 h-8 rounded-full border-2 border-border shadow-sm"
+                    style={{ backgroundColor: formData.primary_color }}
+                    title="Principal"
+                  />
+                  <div 
+                    className="w-8 h-8 rounded-full border-2 border-border shadow-sm"
+                    style={{ backgroundColor: formData.secondary_color }}
+                    title="Secundária"
+                  />
+                  <div 
+                    className="w-8 h-8 rounded-full border-2 border-border shadow-sm"
+                    style={{ backgroundColor: formData.accent_color }}
+                    title="Destaque"
+                  />
+                </div>
               </div>
             </div>
 

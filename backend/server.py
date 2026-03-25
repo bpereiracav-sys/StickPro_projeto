@@ -4,6 +4,7 @@ from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
+from enum import Enum
 import os
 import logging
 from pathlib import Path
@@ -939,7 +940,7 @@ async def update_club(club_id: str, updates: dict, current_user: dict = Depends(
     if current_user['role'] != 'admin' and current_user['id'] not in club.get('admin_ids', []):
         raise HTTPException(status_code=403, detail="Sem permissão")
     
-    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone']
+    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'primary_color', 'secondary_color', 'accent_color']
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
     
     if filtered_updates:
@@ -2441,18 +2442,6 @@ async def delete_image(filename: str, current_user: dict = Depends(get_current_u
         return {"message": "Ficheiro eliminado"}
     raise HTTPException(status_code=404, detail="Ficheiro não encontrado")
 
-# ==================== MAIN ====================
-
-app.include_router(api_router)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # =====================
 # Library Endpoints
 # =====================
@@ -2592,12 +2581,12 @@ Responde sempre em português de forma clara e útil. Se não souberes a respost
             system_message=system_message
         ).with_model("openai", "gpt-4o-mini")
         
-        # Add history to context
+        # Add history to context by directly appending to messages list
         for msg in history[-10:]:  # Last 10 messages
-            if msg['role'] == 'user':
-                chat.add_user_message(msg['content'])
-            else:
-                chat.add_assistant_message(msg['content'])
+            chat.messages.append({
+                'role': msg['role'],
+                'content': msg['content']
+            })
         
         # Send message
         user_message = UserMessage(text=request.message)
@@ -2648,7 +2637,17 @@ async def clear_ai_chat_history(session_id: Optional[str] = None, current_user: 
     await db.ai_chat_history.delete_many(query)
     return {"message": "Histórico apagado"}
 
+# ==================== MAIN ====================
 
+app.include_router(api_router)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_credentials=True,
+    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
