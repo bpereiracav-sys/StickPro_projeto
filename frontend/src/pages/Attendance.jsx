@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { teamsApi, championshipsApi, eventsApi } from '../services/api';
+import { teamsApi, championshipsApi, eventsApi, convocationsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -93,6 +93,7 @@ export default function Attendance() {
   const [viewMode, setViewMode] = useState('player');
   const [attendance, setAttendance] = useState([]);
   const [summary, setSummary] = useState(null);
+  const [eventAttendance, setEventAttendance] = useState({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -134,7 +135,25 @@ export default function Attendance() {
   const fetchEvents = async () => {
     try {
       const response = await eventsApi.getAll({ team_id: selectedTeamId });
-      setEvents(response.data);
+      const eventsData = response.data;
+      setEvents(eventsData);
+      
+      // Fetch attendance for each event
+      const attendancePromises = eventsData.slice(0, 20).map(async (event) => {
+        try {
+          const attResponse = await eventsApi.getAttendance(event.id);
+          return { eventId: event.id, data: attResponse.data };
+        } catch (err) {
+          return { eventId: event.id, data: { summary: { total: 0, confirmado: 0, ausente: 0, pendente: 0 } } };
+        }
+      });
+      
+      const attendanceResults = await Promise.all(attendancePromises);
+      const attendanceMap = {};
+      attendanceResults.forEach(({ eventId, data }) => {
+        attendanceMap[eventId] = data;
+      });
+      setEventAttendance(attendanceMap);
     } catch (error) {
       console.error('Error fetching events:', error);
     }
@@ -177,7 +196,7 @@ export default function Attendance() {
     ? Math.round((totals.confirmed / totals.total) * 100) 
     : 0;
 
-  // Group events by week
+  // Group events by week with attendance calculations
   const getEventsByWeek = () => {
     const now = new Date();
     const weeks = [];
@@ -193,19 +212,35 @@ export default function Attendance() {
         return isSameWeek(eventDate, weekStart, { weekStartsOn: 1 });
       });
       
+      // Calculate attendance for this week
+      let totalRecords = 0;
+      let confirmed = 0;
+      weekEvents.forEach(event => {
+        const att = eventAttendance[event.id];
+        if (att?.summary) {
+          totalRecords += att.summary.total || 0;
+          confirmed += att.summary.confirmado || 0;
+        }
+      });
+      
+      const rate = totalRecords > 0 ? Math.round((confirmed / totalRecords) * 100) : 0;
+      
       weeks.push({
         start: weekStart,
         end: weekEnd,
         label: `${format(weekStart, 'd MMM', { locale: pt })} - ${format(weekEnd, 'd MMM', { locale: pt })}`,
         events: weekEvents,
-        total: weekEvents.length
+        total: weekEvents.length,
+        totalRecords,
+        confirmed,
+        rate
       });
     }
     
     return weeks.reverse();
   };
 
-  // Group events by month
+  // Group events by month with attendance calculations
   const getEventsByMonth = () => {
     const monthsData = [];
     
@@ -221,11 +256,27 @@ export default function Attendance() {
         return isSameMonth(eventDate, monthStart);
       });
       
+      // Calculate attendance for this month
+      let totalRecords = 0;
+      let confirmed = 0;
+      monthEvents.forEach(event => {
+        const att = eventAttendance[event.id];
+        if (att?.summary) {
+          totalRecords += att.summary.total || 0;
+          confirmed += att.summary.confirmado || 0;
+        }
+      });
+      
+      const rate = totalRecords > 0 ? Math.round((confirmed / totalRecords) * 100) : 0;
+      
       monthsData.push({
         date: monthStart,
         label: format(monthStart, 'MMMM yyyy', { locale: pt }),
         events: monthEvents,
-        total: monthEvents.length
+        total: monthEvents.length,
+        totalRecords,
+        confirmed,
+        rate
       });
     }
     
@@ -516,36 +567,55 @@ export default function Attendance() {
                 <CardContent>
                   {events.length > 0 ? (
                     <div className="space-y-3">
-                      {events.slice(0, 10).map(event => (
-                        <div 
-                          key={event.id}
-                          className="flex items-center justify-between p-3 border border-border rounded-sm"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 bg-primary/10 rounded-sm flex items-center justify-center">
-                              <Calendar className="w-5 h-5 text-primary" />
+                      {events.slice(0, 15).map(event => {
+                        const att = eventAttendance[event.id];
+                        const summary = att?.summary || { total: 0, confirmado: 0, ausente: 0 };
+                        return (
+                          <div 
+                            key={event.id}
+                            className="flex items-center justify-between p-3 border border-border rounded-sm hover:bg-muted/30 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-primary/10 rounded-sm flex items-center justify-center">
+                                <Calendar className="w-5 h-5 text-primary" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{event.title}</p>
+                                <p className="text-sm text-muted-foreground">
+                                  {event.start_time && format(parseISO(event.start_time), 'd MMM yyyy', { locale: pt })}
+                                  {' - '}
+                                  {getEventTypeLabel(event.event_type)}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-medium">{event.title}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {event.start_time && format(parseISO(event.start_time), 'd MMM yyyy', { locale: pt })}
-                                {' - '}
-                                {getEventTypeLabel(event.event_type)}
-                              </p>
+                            <div className="flex items-center gap-6">
+                              <div className="text-center min-w-[60px]">
+                                <p className="text-lg font-heading text-green-600">{summary.confirmado}</p>
+                                <p className="text-xs text-muted-foreground">Confirmados</p>
+                              </div>
+                              <div className="text-center min-w-[60px]">
+                                <p className="text-lg font-heading text-red-600">{summary.ausente}</p>
+                                <p className="text-xs text-muted-foreground">Ausentes</p>
+                              </div>
+                              <div className="text-center min-w-[60px]">
+                                <p className="text-lg font-heading text-amber-600">{summary.pendente || 0}</p>
+                                <p className="text-xs text-muted-foreground">Pendentes</p>
+                              </div>
+                              {summary.total > 0 && (
+                                <div className="flex items-center gap-2 min-w-[100px]">
+                                  <Progress 
+                                    value={Math.round((summary.confirmado / summary.total) * 100)} 
+                                    className="w-16 h-2"
+                                  />
+                                  <span className="text-sm font-mono">
+                                    {Math.round((summary.confirmado / summary.total) * 100)}%
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
-                            <div className="text-center">
-                              <p className="text-lg font-heading text-green-600">--</p>
-                              <p className="text-xs text-muted-foreground">Confirmados</p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-lg font-heading text-red-600">--</p>
-                              <p className="text-xs text-muted-foreground">Ausentes</p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-8">
@@ -570,7 +640,7 @@ export default function Attendance() {
                     {getEventsByWeek().map((week, index) => (
                       <div 
                         key={index}
-                        className="flex items-center justify-between p-3 border border-border rounded-sm"
+                        className="flex items-center justify-between p-3 border border-border rounded-sm hover:bg-muted/30 transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-blue-100 rounded-sm flex items-center justify-center">
@@ -580,12 +650,13 @@ export default function Attendance() {
                             <p className="font-medium">{week.label}</p>
                             <p className="text-sm text-muted-foreground">
                               {week.total} {week.total === 1 ? 'evento' : 'eventos'}
+                              {week.totalRecords > 0 && ` • ${week.confirmed}/${week.totalRecords} presenças`}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Progress value={75} className="w-24 h-2" />
-                          <span className="text-sm font-mono">75%</span>
+                          <Progress value={week.rate} className="w-24 h-2" />
+                          <span className="text-sm font-mono w-12 text-right">{week.rate}%</span>
                         </div>
                       </div>
                     ))}
@@ -607,7 +678,7 @@ export default function Attendance() {
                     {getEventsByMonth().map((month, index) => (
                       <div 
                         key={index}
-                        className="flex items-center justify-between p-3 border border-border rounded-sm"
+                        className="flex items-center justify-between p-3 border border-border rounded-sm hover:bg-muted/30 transition-colors"
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-purple-100 rounded-sm flex items-center justify-center">
@@ -617,12 +688,13 @@ export default function Attendance() {
                             <p className="font-medium capitalize">{month.label}</p>
                             <p className="text-sm text-muted-foreground">
                               {month.total} {month.total === 1 ? 'evento' : 'eventos'}
+                              {month.totalRecords > 0 && ` • ${month.confirmed}/${month.totalRecords} presenças`}
                             </p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Progress value={80} className="w-24 h-2" />
-                          <span className="text-sm font-mono">80%</span>
+                          <Progress value={month.rate} className="w-24 h-2" />
+                          <span className="text-sm font-mono w-12 text-right">{month.rate}%</span>
                         </div>
                       </div>
                     ))}
@@ -668,23 +740,23 @@ export default function Attendance() {
                 <CardHeader className="pb-2">
                   <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
                     <Users className="w-5 h-5 text-amber-500" />
-                    JOGOS
+                    JOGOS CAMPEONATO
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total:</span>
-                      <span className="font-mono">{summary.by_event_type?.jogo?.total || 0}</span>
+                      <span className="font-mono">{summary.by_event_type?.jogo_campeonato?.total || 0}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Confirmados:</span>
-                      <span className="font-mono text-green-600">{summary.by_event_type?.jogo?.confirmado || 0}</span>
+                      <span className="font-mono text-green-600">{summary.by_event_type?.jogo_campeonato?.confirmado || 0}</span>
                     </div>
                     <Progress 
                       value={
-                        summary.by_event_type?.jogo?.total > 0 
-                          ? (summary.by_event_type?.jogo?.confirmado / summary.by_event_type?.jogo?.total) * 100
+                        summary.by_event_type?.jogo_campeonato?.total > 0 
+                          ? (summary.by_event_type?.jogo_campeonato?.confirmado / summary.by_event_type?.jogo_campeonato?.total) * 100
                           : 0
                       } 
                       className="h-2"

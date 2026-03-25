@@ -1471,7 +1471,13 @@ async def get_team_attendance_summary(team_id: str, current_user: dict = Depends
     
     # Group by month
     monthly = {}
-    by_event_type = {"treino": {"total": 0, "confirmado": 0}, "jogo": {"total": 0, "confirmado": 0}, "campeonato": {"total": 0, "confirmado": 0}}
+    by_event_type = {
+        "treino": {"total": 0, "confirmado": 0}, 
+        "jogo_campeonato": {"total": 0, "confirmado": 0}, 
+        "jogo_amigavel": {"total": 0, "confirmado": 0},
+        "torneio": {"total": 0, "confirmado": 0},
+        "outro": {"total": 0, "confirmado": 0}
+    }
     
     for att in attendances:
         event_date = datetime.fromisoformat(att['event_date']) if isinstance(att['event_date'], str) else att['event_date']
@@ -1491,6 +1497,33 @@ async def get_team_attendance_summary(team_id: str, current_user: dict = Depends
                 by_event_type[et]["confirmado"] += 1
     
     return {"monthly": monthly, "by_event_type": by_event_type, "total_records": len(attendances)}
+
+@api_router.get("/events/{event_id}/attendance")
+async def get_event_attendance(event_id: str, current_user: dict = Depends(get_current_user)):
+    """Get attendance records for a specific event"""
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    
+    attendances = await db.attendance.find({"event_id": event_id}, {"_id": 0}).to_list(100)
+    
+    # Enrich with player info
+    result = []
+    for att in attendances:
+        player = await db.users.find_one({"id": att['player_id']}, {"_id": 0, "password": 0})
+        if player:
+            att['player'] = player
+        result.append(att)
+    
+    # Calculate summary
+    summary = {
+        "total": len(result),
+        "confirmado": len([a for a in result if a['status'] == 'confirmado']),
+        "ausente": len([a for a in result if a['status'] == 'ausente']),
+        "pendente": len([a for a in result if a['status'] == 'pendente'])
+    }
+    
+    return {"attendance": result, "summary": summary}
 
 # ==================== STATISTICS ROUTES ====================
 
