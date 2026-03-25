@@ -174,7 +174,7 @@ export default function Login() {
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{ 
-            backgroundImage: 'url(https://images.pexels.com/photos/30756235/pexels-photo-30756235.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940)'
+            backgroundImage: 'url(https://images.pexels.com/photos/36074810/pexels-photo-36074810.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940)'
           }}
         />
         <div className="absolute inset-0 bg-primary/20" />

@@ -608,6 +608,57 @@ async def send_email_notification(to_email: str, subject: str, html_content: str
     logger.info(f"[MOCK EMAIL] To: {to_email}, Subject: {subject}")
     return True
 
+# ==================== PUSH NOTIFICATIONS HELPER ====================
+
+async def send_push_to_users(user_ids: List[str], title: str, body: str, url: str = "/"):
+    """Send push notifications to specific users"""
+    from pywebpush import webpush, WebPushException
+    import json
+    
+    vapid_private_key = os.environ.get('VAPID_PRIVATE_KEY')
+    vapid_claims_email = os.environ.get('VAPID_CLAIMS_EMAIL', 'noreply@stickpro.com')
+    
+    if not vapid_private_key:
+        logger.warning("VAPID_PRIVATE_KEY not configured, skipping push notifications")
+        return
+    
+    # Get subscriptions for these users
+    subscriptions = await db.push_subscriptions.find(
+        {"user_id": {"$in": user_ids}}, 
+        {"_id": 0}
+    ).to_list(1000)
+    
+    if not subscriptions:
+        logger.info(f"No push subscriptions found for users: {user_ids}")
+        return
+    
+    payload = json.dumps({
+        "title": title,
+        "body": body,
+        "url": url,
+        "icon": "/icons/icon-192x192.png"
+    })
+    
+    for sub in subscriptions:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": sub['endpoint'],
+                    "keys": sub['keys']
+                },
+                data=payload,
+                vapid_private_key=vapid_private_key,
+                vapid_claims={"sub": f"mailto:{vapid_claims_email}"}
+            )
+            logger.info(f"Push sent to user {sub['user_id']}")
+        except WebPushException as e:
+            logger.error(f"Push failed for user {sub['user_id']}: {e}")
+            # Remove invalid subscriptions
+            if e.response and e.response.status_code in [404, 410]:
+                await db.push_subscriptions.delete_one({"endpoint": sub['endpoint']})
+        except Exception as e:
+            logger.error(f"Push error: {e}")
+
 # ==================== AUTH ROUTES ====================
 
 async def build_available_profiles(user: dict) -> List[dict]:
@@ -2176,6 +2227,17 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
                 f"<h1>Foste convocado!</h1><p>{conv_data.message or 'Por favor confirma a tua presença.'}</p>"
             )
     
+    # Send push notifications to convoked players
+    try:
+        await send_push_to_users(
+            user_ids=conv_data.player_ids,
+            title="Nova Convocatória!",
+            body=f"{event.get('title', 'Evento')} - {event_date.strftime('%d/%m às %H:%M')}",
+            url="/attendance"
+        )
+    except Exception as e:
+        logging.error(f"Failed to send push notifications: {e}")
+    
     return conv_dict
 
 @api_router.get("/convocations/my")
@@ -2751,6 +2813,115 @@ async def clear_ai_chat_history(session_id: Optional[str] = None, current_user: 
     
     await db.ai_chat_history.delete_many(query)
     return {"message": "Histórico apagado"}
+
+# =====================
+# Push Notifications Endpoints
+# =====================
+
+@api_router.get("/notifications/vapid-public-key")
+async def get_vapid_public_key():
+    """Get VAPID public key for push subscription"""
+    public_key = os.environ.get('VAPID_PUBLIC_KEY')
+    if not public_key:
+        raise HTTPException(status_code=500, detail="Push notifications não configuradas")
+    return {"publicKey": public_key}
+
+@api_router.post("/notifications/subscribe")
+async def subscribe_to_notifications(subscription: dict, current_user: dict = Depends(get_current_user)):
+    """Subscribe user to push notifications"""
+    # Store subscription in database
+    subscription_data = {
+        "user_id": current_user['id'],
+        "endpoint": subscription.get('endpoint'),
+        "keys": subscription.get('keys'),
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    # Update or insert subscription
+    await db.push_subscriptions.update_one(
+        {"user_id": current_user['id'], "endpoint": subscription.get('endpoint')},
+        {"$set": subscription_data},
+        upsert=True
+    )
+    
+    return {"message": "Subscribed to notifications"}
+
+@api_router.delete("/notifications/unsubscribe")
+async def unsubscribe_from_notifications(current_user: dict = Depends(get_current_user)):
+    """Unsubscribe user from push notifications"""
+    await db.push_subscriptions.delete_many({"user_id": current_user['id']})
+    return {"message": "Unsubscribed from notifications"}
+
+@api_router.post("/notifications/send")
+async def send_notification(notification_data: dict, current_user: dict = Depends(get_current_user)):
+    """Send push notification - Admin/Coach only"""
+    if current_user['role'] not in ['admin', 'treinador', 'treinador_adjunto']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    from pywebpush import webpush, WebPushException
+    import json
+    
+    vapid_private_key = os.environ.get('VAPID_PRIVATE_KEY')
+    vapid_claims_email = os.environ.get('VAPID_CLAIMS_EMAIL', 'noreply@stickpro.com')
+    
+    if not vapid_private_key:
+        raise HTTPException(status_code=500, detail="Push notifications não configuradas")
+    
+    # Get target user subscriptions
+    user_ids = notification_data.get('user_ids', [])
+    team_id = notification_data.get('team_id')
+    
+    query = {}
+    if user_ids:
+        query["user_id"] = {"$in": user_ids}
+    elif team_id:
+        # Get all team members
+        members = await db.team_members.find({"team_id": team_id}, {"user_id": 1}).to_list(1000)
+        member_ids = [m['user_id'] for m in members]
+        query["user_id"] = {"$in": member_ids}
+    else:
+        # Send to all users
+        pass
+    
+    subscriptions = await db.push_subscriptions.find(query, {"_id": 0}).to_list(1000)
+    
+    payload = json.dumps({
+        "title": notification_data.get('title', 'Stick Pro'),
+        "body": notification_data.get('body', 'Nova notificação'),
+        "url": notification_data.get('url', '/'),
+        "icon": "/icons/icon-192x192.png"
+    })
+    
+    success_count = 0
+    failed_count = 0
+    
+    for sub in subscriptions:
+        try:
+            webpush(
+                subscription_info={
+                    "endpoint": sub['endpoint'],
+                    "keys": sub['keys']
+                },
+                data=payload,
+                vapid_private_key=vapid_private_key,
+                vapid_claims={"sub": f"mailto:{vapid_claims_email}"}
+            )
+            success_count += 1
+        except WebPushException as e:
+            logging.error(f"Push failed: {e}")
+            # Remove invalid subscriptions
+            if e.response and e.response.status_code in [404, 410]:
+                await db.push_subscriptions.delete_one({"endpoint": sub['endpoint']})
+            failed_count += 1
+        except Exception as e:
+            logging.error(f"Push error: {e}")
+            failed_count += 1
+    
+    return {
+        "message": f"Notificações enviadas",
+        "success": success_count,
+        "failed": failed_count
+    }
 
 # ==================== MAIN ====================
 

@@ -40,36 +40,52 @@ const POSITIONS = [
   { id: 'avancado_direita', name: 'Avançado Direita', shortName: 'AD', x: 75, y: 30 },
 ];
 
-// Hockey Rink SVG Component
+// Hockey Rink SVG Component - Roller Hockey (Hóquei em Patins)
 function HockeyRink({ positions, players, onPositionClick, selectedPosition }) {
   return (
     <div className="relative w-full aspect-[2/3] max-w-md mx-auto">
-      {/* Rink background */}
+      {/* Rink background - Roller Hockey Field */}
       <svg viewBox="0 0 100 150" className="w-full h-full">
-        {/* Outer rink */}
-        <rect x="2" y="2" width="96" height="146" rx="20" ry="20" 
-          fill="#f0e6d3" stroke="#8B4513" strokeWidth="2"/>
+        {/* Outer field border */}
+        <rect x="2" y="2" width="96" height="146" rx="8" ry="8" 
+          fill="#e8d4b8" stroke="#8B4513" strokeWidth="3"/>
+        
+        {/* Playing surface lines */}
+        <rect x="5" y="5" width="90" height="140" rx="5" ry="5" 
+          fill="none" stroke="#8B4513" strokeWidth="1"/>
         
         {/* Center line */}
-        <line x1="2" y1="75" x2="98" y2="75" stroke="#dc2626" strokeWidth="1"/>
+        <line x1="5" y1="75" x2="95" y2="75" stroke="#dc2626" strokeWidth="2"/>
         
         {/* Center circle */}
-        <circle cx="50" cy="75" r="15" fill="none" stroke="#dc2626" strokeWidth="1"/>
-        <circle cx="50" cy="75" r="2" fill="#dc2626"/>
+        <circle cx="50" cy="75" r="12" fill="none" stroke="#dc2626" strokeWidth="2"/>
+        <circle cx="50" cy="75" r="1.5" fill="#dc2626"/>
         
-        {/* Goal areas */}
-        <rect x="35" y="135" width="30" height="12" fill="none" stroke="#1e40af" strokeWidth="1"/>
-        <rect x="35" y="3" width="30" height="12" fill="none" stroke="#1e40af" strokeWidth="1"/>
+        {/* Goal area - Bottom (semicircle) */}
+        <path d="M 35 145 A 15 15 0 0 1 65 145" fill="none" stroke="#1e40af" strokeWidth="2"/>
+        <line x1="35" y1="145" x2="35" y2="140" stroke="#1e40af" strokeWidth="2"/>
+        <line x1="65" y1="145" x2="65" y2="140" stroke="#1e40af" strokeWidth="2"/>
         
-        {/* Goals */}
-        <rect x="40" y="145" width="20" height="4" fill="#dc2626" rx="1"/>
-        <rect x="40" y="1" width="20" height="4" fill="#dc2626" rx="1"/>
+        {/* Goal area - Top (semicircle) */}
+        <path d="M 35 5 A 15 15 0 0 0 65 5" fill="none" stroke="#1e40af" strokeWidth="2"/>
+        <line x1="35" y1="5" x2="35" y2="10" stroke="#1e40af" strokeWidth="2"/>
+        <line x1="65" y1="5" x2="65" y2="10" stroke="#1e40af" strokeWidth="2"/>
         
-        {/* Face-off circles */}
-        <circle cx="25" cy="30" r="8" fill="none" stroke="#1e40af" strokeWidth="0.5"/>
-        <circle cx="75" cy="30" r="8" fill="none" stroke="#1e40af" strokeWidth="0.5"/>
-        <circle cx="25" cy="120" r="8" fill="none" stroke="#1e40af" strokeWidth="0.5"/>
-        <circle cx="75" cy="120" r="8" fill="none" stroke="#1e40af" strokeWidth="0.5"/>
+        {/* Goals - Bottom */}
+        <rect x="38" y="146" width="24" height="3" fill="#dc2626" stroke="#8B0000" strokeWidth="1" rx="1"/>
+        
+        {/* Goals - Top */}
+        <rect x="38" y="1" width="24" height="3" fill="#dc2626" stroke="#8B0000" strokeWidth="1" rx="1"/>
+        
+        {/* Penalty spots */}
+        <circle cx="50" cy="35" r="1.5" fill="#1e40af"/>
+        <circle cx="50" cy="115" r="1.5" fill="#1e40af"/>
+        
+        {/* Field markings - corner arcs */}
+        <path d="M 5 15 A 10 10 0 0 0 15 5" fill="none" stroke="#8B4513" strokeWidth="1"/>
+        <path d="M 85 5 A 10 10 0 0 0 95 15" fill="none" stroke="#8B4513" strokeWidth="1"/>
+        <path d="M 5 135 A 10 10 0 0 1 15 145" fill="none" stroke="#8B4513" strokeWidth="1"/>
+        <path d="M 85 145 A 10 10 0 0 1 95 135" fill="none" stroke="#8B4513" strokeWidth="1"/>
       </svg>
       
       {/* Player positions */}

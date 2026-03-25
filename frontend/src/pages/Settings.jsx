@@ -44,10 +44,12 @@ import {
   Trash2, 
   Shield,
   Mail,
-  Globe
+  Globe,
+  Bell
 } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 import { ImageUpload } from '../components/ImageUpload';
+import { NotificationPermission } from '../components/NotificationPermission';
 
 export default function Settings() {
   const { user, updateUser, logout, refreshProfiles } = useAuth();
@@ -301,6 +303,29 @@ export default function Settings() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notifications Card */}
+      <Card className="border border-border">
+        <CardHeader>
+          <CardTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+            <Bell className="w-6 h-6 text-primary" />
+            NOTIFICAÇÕES
+          </CardTitle>
+          <CardDescription>
+            Recebe alertas push quando fores convocado para eventos
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Ativa as notificações para seres avisado de novas convocatórias mesmo quando a app está fechada.
+              </p>
+            </div>
+            <NotificationPermission />
           </div>
         </CardContent>
       </Card>

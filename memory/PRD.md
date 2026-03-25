@@ -322,7 +322,7 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Filtro de mensagens por relevância (broadcast + privadas para mim)
 - **Editor de Line-ups por Período:**
   - Novo botão "Line-up" em cada jogo do campeonato
-  - Interface visual com campo de hóquei em patins
+  - Interface visual com campo de hóquei em patins (CORRIGIDO)
   - 5 posições: GR, DE, DD, AE, AD
   - Navegação por períodos (1ª Parte, 2ª Parte, + Período)
   - Arrastar jogadores para posições
@@ -332,6 +332,15 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Link "Definições Clube" acessível no menu lateral mobile
   - Apenas visível para Admins
   - Hamburger menu funcional em smartphones
+- **Notificações Push para Convocatórias:**
+  - Service Worker com suporte a push notifications
+  - Botão "Ativar Notificações" na página de Settings
+  - Envio automático quando nova convocatória é criada
+  - Subscrição VAPID com chaves únicas
+  - Endpoints: GET /api/notifications/vapid-public-key, POST /api/notifications/subscribe, DELETE /api/notifications/unsubscribe
+- **Imagens Corrigidas:**
+  - Página de Login: imagem de roller hockey (hóquei em patins)
+  - Editor de Line-up: campo de hóquei em patins (retangular com áreas semicirculares)
 
 ---
 
@@ -343,5 +352,4 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - Exportar calendário em PDF
 
 ### P2 - Futuro
-- Notificações push para convocatórias
 - Dashboard com métricas e gráficos
