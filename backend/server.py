@@ -412,6 +412,7 @@ class Event(BaseModel):
     end_time: Optional[datetime] = None
     opponent: Optional[str] = None
     championship_id: Optional[str] = None
+    championship_match_id: Optional[str] = None
     status: str = "scheduled"  # scheduled, postponed, cancelled
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -1091,12 +1092,13 @@ async def create_championship_match(championship_id: str, data: ChampionshipMatc
     # Also create an event for this match
     event = Event(
         team_id=championship['team_id'],
-        event_type="campeonato",
+        event_type="jogo_campeonato",
         title=f"vs {data.opponent_team}",
         location=data.venue or ("Casa" if data.location == "casa" else "Fora"),
         start_time=data.match_date,
         opponent=data.opponent_team,
         championship_id=championship_id,
+        championship_match_id=match.id,
         created_by=current_user['id']
     )
     event_dict = event.model_dump()
@@ -1132,6 +1134,48 @@ async def update_match_result(match_id: str, result: MatchResultUpdate, current_
         }}
     )
     return {"message": "Resultado atualizado"}
+
+class MatchUpdate(BaseModel):
+    opponent_team: Optional[str] = None
+    match_date: Optional[datetime] = None
+    location: Optional[MatchLocation] = None
+    venue: Optional[str] = None
+
+@api_router.put("/championships/matches/{match_id}")
+async def update_match(match_id: str, updates: MatchUpdate, current_user: dict = Depends(get_current_user)):
+    """Update match details (date, time, location, opponent)"""
+    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+    
+    update_data = {k: v for k, v in updates.model_dump().items() if v is not None}
+    if update_data:
+        await db.championship_matches.update_one({"id": match_id}, {"$set": update_data})
+    
+    return {"message": "Jogo atualizado"}
+
+@api_router.delete("/championships/matches/{match_id}")
+async def delete_match(match_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a championship match"""
+    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+    
+    # Delete associated event and attendance
+    event = await db.events.find_one({"championship_match_id": match_id}, {"_id": 0})
+    if event:
+        await db.attendance.delete_many({"event_id": event['id']})
+        await db.convocations.delete_many({"event_id": event['id']})
+        await db.events.delete_one({"id": event['id']})
+    
+    await db.championship_matches.delete_one({"id": match_id})
+    return {"message": "Jogo eliminado"}
 
 @api_router.get("/championships/{championship_id}/standings")
 async def get_championship_standings(championship_id: str, current_user: dict = Depends(get_current_user)):

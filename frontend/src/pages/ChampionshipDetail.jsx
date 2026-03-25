@@ -35,7 +35,7 @@ import {
 import { toast } from 'sonner';
 import { 
   ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin, Home, Plane, 
-  Target, Edit, Check, X
+  Target, Edit, Check, X, Trash2, Users, Zap
 } from 'lucide-react';
 import { formatDate, formatTime } from '../lib/utils';
 
@@ -49,8 +49,10 @@ export default function ChampionshipDetail() {
   const [loading, setLoading] = useState(true);
   const [matchDialogOpen, setMatchDialogOpen] = useState(false);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
+  const [editMatchDialogOpen, setEditMatchDialogOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState(null);
   
   const [matchForm, setMatchForm] = useState({
     opponent_team: '',
@@ -143,6 +145,55 @@ export default function ChampionshipDetail() {
     setResultDialogOpen(true);
   };
 
+  const openEditMatchDialog = (match) => {
+    setSelectedMatch(match);
+    const matchDate = new Date(match.match_date);
+    const localDatetime = matchDate.toISOString().slice(0, 16);
+    setMatchForm({
+      opponent_team: match.opponent_team,
+      match_date: localDatetime,
+      location: match.location,
+      venue: match.venue || ''
+    });
+    setEditMatchDialogOpen(true);
+  };
+
+  const handleUpdateMatch = async (e) => {
+    e.preventDefault();
+    if (!selectedMatch) return;
+    setCreating(true);
+
+    try {
+      await championshipsApi.updateMatch(selectedMatch.id, {
+        ...matchForm,
+        match_date: new Date(matchForm.match_date).toISOString()
+      });
+      toast.success('Jogo atualizado!');
+      setEditMatchDialogOpen(false);
+      setSelectedMatch(null);
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao atualizar jogo');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteMatch = async (matchId) => {
+    if (!confirm('Tem a certeza que quer eliminar este jogo? Esta ação é irreversível.')) return;
+    setDeleting(matchId);
+
+    try {
+      await championshipsApi.deleteMatch(matchId);
+      toast.success('Jogo eliminado!');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao eliminar jogo');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   const getLocationIcon = (loc) => {
     if (loc === 'casa') return <Home className="w-4 h-4 text-secondary" />;
     if (loc === 'fora') return <Plane className="w-4 h-4 text-primary" />;
@@ -197,6 +248,14 @@ export default function ChampionshipDetail() {
           </h1>
           <div className="flex items-center gap-3 mt-2">
             <Badge variant="outline">{championship.season}</Badge>
+            <Badge variant="secondary" className="flex items-center gap-1">
+              <Users className="w-3 h-3" />
+              {championship.format || '5x5'}
+            </Badge>
+            <Badge variant={championship.convocation_type === 'automatica' ? 'default' : 'outline'} className="flex items-center gap-1">
+              <Zap className="w-3 h-3" />
+              {championship.convocation_type === 'automatica' ? 'Convocatória Automática' : 'Convocatória Manual'}
+            </Badge>
             <span className="text-muted-foreground">{team?.name}</span>
           </div>
         </div>
@@ -287,11 +346,18 @@ export default function ChampionshipDetail() {
                             <Button 
                               variant="outline" 
                               size="sm"
+                              onClick={() => openEditMatchDialog(match)}
+                              data-testid={`edit-match-${match.id}`}
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
                               onClick={() => openResultDialog(match)}
                               data-testid={`edit-result-${match.id}`}
                             >
-                              <Edit className="w-4 h-4 mr-1" />
-                              {match.is_completed ? 'Editar' : 'Resultado'}
+                              {match.is_completed ? 'Resultado' : 'Inserir Resultado'}
                             </Button>
                             <Button 
                               variant="outline" 
@@ -299,8 +365,18 @@ export default function ChampionshipDetail() {
                               asChild
                             >
                               <Link to={`/championships/${championshipId}/matches/${match.id}/stats`}>
-                                Estatísticas
+                                Stats
                               </Link>
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="text-destructive border-destructive hover:bg-destructive/10"
+                              onClick={() => handleDeleteMatch(match.id)}
+                              disabled={deleting === match.id}
+                              data-testid={`delete-match-${match.id}`}
+                            >
+                              {deleting === match.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
                             </Button>
                           </div>
                         )}
@@ -523,6 +599,75 @@ export default function ChampionshipDetail() {
                 Cancelar
               </Button>
               <Button type="submit" disabled={creating} data-testid="submit-result-btn">
+                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Match Dialog */}
+      <Dialog open={editMatchDialogOpen} onOpenChange={setEditMatchDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide">EDITAR JOGO</DialogTitle>
+            <DialogDescription>
+              Alterar detalhes do jogo
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateMatch}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Equipa Adversária</Label>
+                <Input
+                  placeholder="Nome da equipa"
+                  value={matchForm.opponent_team}
+                  onChange={(e) => setMatchForm({ ...matchForm, opponent_team: e.target.value })}
+                  required
+                  data-testid="edit-match-opponent-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data e Hora</Label>
+                <Input
+                  type="datetime-local"
+                  value={matchForm.match_date}
+                  onChange={(e) => setMatchForm({ ...matchForm, match_date: e.target.value })}
+                  required
+                  data-testid="edit-match-date-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Local</Label>
+                <Select
+                  value={matchForm.location}
+                  onValueChange={(v) => setMatchForm({ ...matchForm, location: v })}
+                >
+                  <SelectTrigger data-testid="edit-match-location-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="casa">Casa</SelectItem>
+                    <SelectItem value="fora">Fora</SelectItem>
+                    <SelectItem value="neutro">Campo Neutro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Pavilhão/Recinto (opcional)</Label>
+                <Input
+                  placeholder="Ex: Pavilhão Municipal"
+                  value={matchForm.venue}
+                  onChange={(e) => setMatchForm({ ...matchForm, venue: e.target.value })}
+                  data-testid="edit-match-venue-input"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditMatchDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating} data-testid="submit-edit-match-btn">
                 {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
               </Button>
             </DialogFooter>

@@ -25,9 +25,17 @@ import {
   SelectValue,
 } from '../components/ui/select';
 import { toast } from 'sonner';
-import { Plus, Trophy, ChevronRight, Loader2, Calendar } from 'lucide-react';
+import { Plus, Trophy, ChevronRight, Loader2, Calendar, Users, Zap } from 'lucide-react';
 
 const seasons = ['2023/2024', '2024/2025', '2025/2026'];
+const formats = [
+  { value: '5x5', label: '5x5 (Campo Inteiro)' },
+  { value: '3x3', label: '3x3 (Meio Campo)' }
+];
+const convocationTypes = [
+  { value: 'manual', label: 'Manual' },
+  { value: 'automatica', label: 'Automática' }
+];
 
 export default function Championships() {
   const { canManageEvents } = useAuth();
@@ -41,6 +49,8 @@ export default function Championships() {
   const [formData, setFormData] = useState({
     name: '',
     season: '2024/2025',
+    format: '5x5',
+    convocation_type: 'manual',
     description: ''
   });
 
@@ -88,7 +98,7 @@ export default function Championships() {
       });
       toast.success('Campeonato criado com sucesso!');
       setCreateDialogOpen(false);
-      setFormData({ name: '', season: '2024/2025', description: '' });
+      setFormData({ name: '', season: '2024/2025', format: '5x5', convocation_type: 'manual', description: '' });
       fetchChampionships();
     } catch (error) {
       toast.error('Erro ao criar campeonato');
@@ -186,9 +196,20 @@ export default function Championships() {
                 {champ.description && (
                   <p className="text-sm text-muted-foreground mb-4">{champ.description}</p>
                 )}
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                  <Calendar className="w-4 h-4" />
-                  {champ.participating_teams?.length || 0} equipas inscritas
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    <Users className="w-3 h-3" />
+                    {champ.format || '5x5'}
+                  </Badge>
+                  <Badge variant={champ.convocation_type === 'automatica' ? 'default' : 'outline'} className="flex items-center gap-1">
+                    <Zap className="w-3 h-3" />
+                    {champ.convocation_type === 'automatica' ? 'Auto' : 'Manual'}
+                  </Badge>
+                  {champ.participating_teams?.length > 0 && (
+                    <span className="text-xs text-muted-foreground">
+                      {champ.participating_teams.length} equipas
+                    </span>
+                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button asChild variant="default" className="flex-1" data-testid={`view-championship-${champ.id}`}>
@@ -265,6 +286,40 @@ export default function Championships() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Formato</Label>
+                  <Select
+                    value={formData.format}
+                    onValueChange={(v) => setFormData({ ...formData, format: v })}
+                  >
+                    <SelectTrigger data-testid="championship-format-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {formats.map(f => (
+                        <SelectItem key={f.value} value={f.value}>{f.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Convocatória</Label>
+                  <Select
+                    value={formData.convocation_type}
+                    onValueChange={(v) => setFormData({ ...formData, convocation_type: v })}
+                  >
+                    <SelectTrigger data-testid="championship-convocation-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {convocationTypes.map(c => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Descrição (opcional)</Label>
