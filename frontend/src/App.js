@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Toaster } from "./components/ui/sonner";
+import { AppLayout } from "./components/layout/AppLayout";
 
 // Pages
 import Landing from "./pages/Landing";
@@ -14,6 +15,7 @@ import PlayerProfile from "./pages/PlayerProfile";
 import CalendarPage from "./pages/Calendar";
 import Convocations from "./pages/Convocations";
 import Chat from "./pages/Chat";
+import Stats from "./pages/Stats";
 import Settings from "./pages/Settings";
 
 // Protected Route Component
@@ -32,7 +34,7 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  return children;
+  return <AppLayout>{children}</AppLayout>;
 }
 
 // Public Route Component (redirects to dashboard if logged in)
@@ -137,6 +139,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Chat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/stats"
+        element={
+          <ProtectedRoute>
+            <Stats />
           </ProtectedRoute>
         }
       />

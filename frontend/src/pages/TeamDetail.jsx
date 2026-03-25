@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { teamsApi, usersApi } from '../services/api';
-import { Layout } from '../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -117,29 +116,25 @@ export default function TeamDetail() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Skeleton className="h-10 w-48 mb-8" />
-          <Skeleton className="h-64 mb-8" />
-          <Skeleton className="h-96" />
-        </div>
-      </Layout>
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-64" />
+        <Skeleton className="h-96" />
+      </div>
     );
   }
 
   if (!team) {
     return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="empty-state">
-            <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
-            <h2 className="font-heading text-2xl">Equipa não encontrada</h2>
-            <Button asChild className="mt-4">
-              <Link to="/teams">Voltar às Equipas</Link>
-            </Button>
-          </div>
+      <div className="space-y-6">
+        <div className="empty-state">
+          <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
+          <h2 className="font-heading text-2xl">Equipa não encontrada</h2>
+          <Button asChild className="mt-4">
+            <Link to="/teams">Voltar às Equipas</Link>
+          </Button>
         </div>
-      </Layout>
+      </div>
     );
   }
 
@@ -148,17 +143,16 @@ export default function TeamDetail() {
   const players = members.filter(m => m.team_role === 'jogador');
 
   return (
-    <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="team-detail-page">
-        {/* Back Button */}
-        <Link 
-          to="/teams" 
-          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
-          data-testid="back-to-teams"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Voltar às Equipas
-        </Link>
+    <div className="space-y-6" data-testid="team-detail-page">
+      {/* Back Button */}
+      <Link 
+        to="/teams" 
+        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+        data-testid="back-to-teams"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Voltar às Equipas
+      </Link>
 
         {/* Team Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
@@ -435,7 +429,6 @@ export default function TeamDetail() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </Layout>
+    </div>
   );
 }

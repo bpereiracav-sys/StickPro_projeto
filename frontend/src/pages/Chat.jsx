@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { messagesApi, teamsApi } from '../services/api';
-import { Layout } from '../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -116,31 +115,28 @@ export default function Chat() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Skeleton className="h-10 w-48 mb-8" />
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
-            <Skeleton className="h-full" />
-            <Skeleton className="h-full lg:col-span-3" />
-          </div>
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-200px)]">
+          <Skeleton className="h-full" />
+          <Skeleton className="h-full lg:col-span-3" />
         </div>
-      </Layout>
+      </div>
     );
   }
 
   const groupedMessages = groupMessagesByDate(messages);
 
   return (
-    <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="chat-page">
-        {/* Header */}
-        <div className="mb-6">
-          <h1 className="font-heading text-4xl text-foreground tracking-wide">CHAT</h1>
-          <p className="text-muted-foreground mt-1">Comunique com a sua equipa</p>
-        </div>
+    <div className="space-y-6" data-testid="chat-page">
+      {/* Header */}
+      <div>
+        <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">MENSAGENS</h1>
+        <p className="text-muted-foreground mt-1">Comunique com a sua equipa</p>
+      </div>
 
-        {teams.length > 0 ? (
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-250px)]">
+      {teams.length > 0 ? (
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-300px)]">
             {/* Teams List */}
             <Card className="border border-border">
               <CardHeader className="pb-2">
@@ -293,7 +289,6 @@ export default function Chat() {
             </p>
           </div>
         )}
-      </div>
-    </Layout>
+    </div>
   );
 }

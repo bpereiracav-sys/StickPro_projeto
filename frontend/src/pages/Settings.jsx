@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usersApi } from '../services/api';
-import { Layout } from '../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
-import { Separator } from '../components/ui/separator';
 import { toast } from 'sonner';
-import { Loader2, Save, User } from 'lucide-react';
+import { Loader2, Save } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 
 export default function Settings() {
@@ -38,13 +36,12 @@ export default function Settings() {
   };
 
   return (
-    <Layout>
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="settings-page">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="font-heading text-4xl text-foreground tracking-wide">DEFINIÇÕES</h1>
-          <p className="text-muted-foreground mt-1">Gerir o seu perfil e preferências</p>
-        </div>
+    <div className="max-w-3xl mx-auto space-y-6" data-testid="settings-page">
+      {/* Header */}
+      <div>
+        <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">DEFINIÇÕES</h1>
+        <p className="text-muted-foreground mt-1">Gerir o seu perfil e preferências</p>
+      </div>
 
         {/* Profile Card */}
         <Card className="border border-border mb-6">
@@ -154,7 +151,6 @@ export default function Settings() {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </Layout>
+    </div>
   );
 }

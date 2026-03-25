@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { usersApi } from '../services/api';
-import { Layout } from '../components/layout/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -20,7 +18,6 @@ import {
 import { 
   ArrowLeft, 
   Trophy,
-  Target,
   AlertTriangle,
   Users,
   Mail,
@@ -59,38 +56,33 @@ export default function PlayerProfile() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Skeleton className="h-10 w-48 mb-8" />
-          <Skeleton className="h-64 mb-8" />
-          <Skeleton className="h-96" />
-        </div>
-      </Layout>
+      <div className="max-w-5xl mx-auto space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-64" />
+        <Skeleton className="h-96" />
+      </div>
     );
   }
 
   if (error || !data) {
     return (
-      <Layout>
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="empty-state">
-            <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
-            <h2 className="font-heading text-2xl">{error || 'Jogador não encontrado'}</h2>
-            <Button asChild className="mt-4">
-              <Link to="/teams">Voltar às Equipas</Link>
-            </Button>
-          </div>
+      <div className="max-w-5xl mx-auto space-y-6">
+        <div className="empty-state">
+          <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
+          <h2 className="font-heading text-2xl">{error || 'Jogador não encontrado'}</h2>
+          <Button asChild className="mt-4">
+            <Link to="/teams">Voltar às Equipas</Link>
+          </Button>
         </div>
-      </Layout>
+      </div>
     );
   }
 
   const { player, consolidated, per_team_stats, teams } = data;
 
   return (
-    <Layout>
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="player-profile-page">
-        {/* Back Button */}
+    <div className="max-w-5xl mx-auto space-y-6" data-testid="player-profile-page">
+      {/* Back Button */}
         <Link 
           to="/teams" 
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
@@ -324,7 +316,6 @@ export default function PlayerProfile() {
             </Card>
           </TabsContent>
         </Tabs>
-      </div>
-    </Layout>
+    </div>
   );
 }

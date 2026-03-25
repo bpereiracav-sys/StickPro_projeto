@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { teamsApi, usersApi } from '../services/api';
-import { Layout } from '../components/layout/Layout';
+import { teamsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -29,7 +28,7 @@ import { toast } from 'sonner';
 import { Plus, Users, ChevronRight, Loader2 } from 'lucide-react';
 
 export default function Teams() {
-  const { canManageTeam, isAdmin } = useAuth();
+  const { canManageTeam } = useAuth();
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -81,25 +80,22 @@ export default function Teams() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex justify-between items-center mb-8">
-            <Skeleton className="h-10 w-48" />
-            <Skeleton className="h-10 w-32" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
-              <Skeleton key={i} className="h-48" />
-            ))}
-          </div>
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <Skeleton className="h-10 w-48" />
+          <Skeleton className="h-10 w-32" />
         </div>
-      </Layout>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="teams-page">
+    <div className="space-y-6" data-testid="teams-page">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
@@ -258,7 +254,6 @@ export default function Teams() {
             )}
           </div>
         )}
-      </div>
-    </Layout>
+    </div>
   );
 }

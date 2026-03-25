@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { convocationsApi, eventsApi, teamsApi } from '../services/api';
-import { Layout } from '../components/layout/Layout';
+import { convocationsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -86,27 +85,24 @@ export default function Convocations() {
 
   if (loading) {
     return (
-      <Layout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Skeleton className="h-10 w-48 mb-8" />
-          <div className="space-y-4">
-            {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-32" />
-            ))}
-          </div>
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <div className="space-y-4">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
+          ))}
         </div>
-      </Layout>
+      </div>
     );
   }
 
   return (
-    <Layout>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-testid="convocations-page">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="font-heading text-4xl text-foreground tracking-wide">CONVOCATÓRIAS</h1>
-          <p className="text-muted-foreground mt-1">Confirme a sua presença nos eventos</p>
-        </div>
+    <div className="space-y-6" data-testid="convocations-page">
+      {/* Header */}
+      <div>
+        <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">CONVOCATÓRIAS</h1>
+        <p className="text-muted-foreground mt-1">Confirme a sua presença nos eventos</p>
+      </div>
 
         <Tabs defaultValue="my" className="space-y-6">
           <TabsList className="bg-muted">
@@ -315,7 +311,6 @@ export default function Convocations() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
-    </Layout>
+    </div>
   );
 }
