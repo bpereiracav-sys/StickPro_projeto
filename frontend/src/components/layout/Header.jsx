@@ -50,7 +50,7 @@ export function Header() {
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-2">
               <div className="w-10 h-10 bg-primary rounded-sm flex items-center justify-center">
-                <span className="text-white font-heading text-xl">RH</span>
+                <span className="text-white font-heading text-xl">SP</span>
               </div>
               <span className="font-heading text-2xl text-foreground tracking-wide">
                 ROLLER HOCKEY HUB

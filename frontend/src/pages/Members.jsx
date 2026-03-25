@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { teamsApi, usersApi } from '../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -22,21 +25,69 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Users, Plus, Loader2, UserPlus, ChevronRight } from 'lucide-react';
+import { 
+  Users, 
+  Plus, 
+  Loader2, 
+  UserPlus, 
+  ChevronRight, 
+  Upload, 
+  FileSpreadsheet,
+  UserMinus,
+  MoreVertical,
+  Download,
+  Mail,
+  Phone
+} from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
 export default function Members() {
-  const { canManageTeam } = useAuth();
+  const { canManageTeam, token } = useAuth();
   const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [members, setMembers] = useState([]);
-  const [availableUsers, setAvailableUsers] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [selectedMember, setSelectedMember] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [importing, setImporting] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState('jogador');
+  const [importResults, setImportResults] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const [newMember, setNewMember] = useState({
+    name: '',
+    email: '',
+    role: 'jogador',
+    jersey_number: '',
+    position: '',
+    phone: ''
+  });
 
   useEffect(() => {
     fetchTeams();
@@ -69,21 +120,20 @@ export default function Members() {
 
       if (canManageTeam) {
         const usersRes = await usersApi.getAll();
-        const memberIds = response.data.map(m => m.id);
-        setAvailableUsers(usersRes.data.filter(u => !memberIds.includes(u.id)));
+        setAllUsers(usersRes.data);
       }
     } catch (error) {
       console.error('Error fetching members:', error);
     }
   };
 
-  const handleAddMember = async () => {
+  const handleAddExistingMember = async () => {
     if (!selectedUserId) return;
     setAdding(true);
 
     try {
       await teamsApi.addMember(selectedTeamId, { user_id: selectedUserId, role: selectedRole });
-      toast.success('Membro adicionado!');
+      toast.success('Membro adicionado à equipa!');
       setAddDialogOpen(false);
       setSelectedUserId('');
       fetchMembers();
@@ -94,29 +144,114 @@ export default function Members() {
     }
   };
 
-  const handleRemoveMember = async (userId) => {
-    if (!confirm('Tem a certeza que quer remover este membro?')) return;
+  const handleCreateMember = async () => {
+    if (!newMember.name || !newMember.email) {
+      toast.error('Preencha nome e email');
+      return;
+    }
+    setAdding(true);
 
     try {
-      await teamsApi.removeMember(selectedTeamId, userId);
-      toast.success('Membro removido');
+      const response = await fetch(`${API_URL}/api/members`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...newMember,
+          team_id: selectedTeamId
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao criar membro');
+      }
+
+      const data = await response.json();
+      toast.success(`Membro criado! Password temporária: ${data.temp_password}`);
+      setCreateDialogOpen(false);
+      setNewMember({ name: '', email: '', role: 'jogador', jersey_number: '', position: '', phone: '' });
+      fetchMembers();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImporting(true);
+    setImportResults(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${API_URL}/api/members/import?team_id=${selectedTeamId}`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao importar');
+      }
+
+      const results = await response.json();
+      setImportResults(results);
+      
+      if (results.success > 0) {
+        toast.success(`${results.success} membros importados!`);
+        fetchMembers();
+      }
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleRemoveMember = async () => {
+    if (!selectedMember) return;
+
+    try {
+      await teamsApi.removeMember(selectedTeamId, selectedMember.id);
+      toast.success('Membro removido da equipa (estatísticas preservadas)');
+      setRemoveDialogOpen(false);
+      setSelectedMember(null);
       fetchMembers();
     } catch (error) {
       toast.error('Erro ao remover membro');
     }
   };
 
+  const downloadTemplate = () => {
+    const csvContent = "nome,email,funcao,numero,posicao,telefone\nJoão Silva,joao@exemplo.com,jogador,10,JC,912345678\nMaria Santos,maria@exemplo.com,jogador,1,GR,923456789";
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'template_membros.csv';
+    link.click();
+  };
+
+  const availableUsers = allUsers.filter(u => !members.find(m => m.id === u.id));
   const selectedTeam = teams.find(t => t.id === selectedTeamId);
-  const coaches = members.filter(m => m.team_role === 'treinador');
-  const delegates = members.filter(m => m.team_role === 'delegado');
-  const players = members.filter(m => m.team_role === 'jogador');
 
   if (loading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-24" />)}
+        <div className="grid gap-4">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-20" />)}
         </div>
       </div>
     );
@@ -131,159 +266,183 @@ export default function Members() {
             <Users className="w-8 h-8 text-primary" />
             MEMBROS
           </h1>
-          <p className="text-muted-foreground mt-1">Plantel e staff técnico</p>
+          <p className="text-muted-foreground mt-1">Gestão de jogadores e staff</p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
-          <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-            <SelectTrigger className="w-48" data-testid="team-filter">
-              <SelectValue placeholder="Equipa" />
-            </SelectTrigger>
-            <SelectContent className="bg-white">
-              {teams.map(team => (
-                <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          {canManageTeam && (
-            <Button onClick={() => setAddDialogOpen(true)} data-testid="add-member-btn">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Adicionar
+        {canManageTeam && selectedTeamId && (
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => setImportDialogOpen(true)} data-testid="import-members-btn">
+              <Upload className="w-4 h-4 mr-2" />
+              Importar Excel
             </Button>
-          )}
-        </div>
+            <Button variant="outline" onClick={() => setAddDialogOpen(true)} data-testid="add-existing-btn">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Adicionar Existente
+            </Button>
+            <Button onClick={() => setCreateDialogOpen(true)} data-testid="create-member-btn">
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Membro
+            </Button>
+          </div>
+        )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      {teams.length === 0 ? (
         <Card className="border border-border">
-          <CardContent className="p-4 text-center">
-            <p className="text-3xl font-heading text-primary">{coaches.length}</p>
-            <p className="text-xs text-muted-foreground uppercase">Treinadores</p>
+          <CardContent className="py-16 text-center">
+            <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="font-heading text-xl mb-2">Sem Equipas</h3>
+            <p className="text-muted-foreground mb-4">Crie uma equipa primeiro</p>
+            <Button asChild>
+              <Link to="/teams">Criar Equipa</Link>
+            </Button>
           </CardContent>
         </Card>
-        <Card className="border border-border">
-          <CardContent className="p-4 text-center">
-            <p className="text-3xl font-heading text-secondary">{delegates.length}</p>
-            <p className="text-xs text-muted-foreground uppercase">Delegados</p>
-          </CardContent>
-        </Card>
-        <Card className="border border-border">
-          <CardContent className="p-4 text-center">
-            <p className="text-3xl font-heading">{players.length}</p>
-            <p className="text-xs text-muted-foreground uppercase">Jogadores</p>
-          </CardContent>
-        </Card>
-      </div>
+      ) : (
+        <>
+          {/* Team Selector */}
+          <Card className="border border-border">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <Label className="whitespace-nowrap">Equipa:</Label>
+                <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                  <SelectTrigger className="max-w-xs" data-testid="team-selector">
+                    <SelectValue placeholder="Selecione uma equipa" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {teams.map(team => (
+                      <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Badge variant="secondary">{members.length} membros</Badge>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Staff */}
-      {(coaches.length > 0 || delegates.length > 0) && (
-        <Card className="border border-border">
-          <CardHeader>
-            <CardTitle className="font-heading text-xl tracking-wide">STAFF TÉCNICO</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...coaches, ...delegates].map(member => (
-                <div 
-                  key={member.id}
-                  className="flex items-center gap-3 p-3 border border-border rounded-sm"
-                >
-                  <Link to={`/players/${member.id}`}>
-                    <Avatar className="cursor-pointer hover:ring-2 hover:ring-primary">
-                      <AvatarImage src={member.avatar_url} />
-                      <AvatarFallback className="bg-primary text-white text-sm">
-                        {getInitials(member.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                  </Link>
-                  <div className="flex-1 min-w-0">
-                    <Link to={`/players/${member.id}`} className="font-semibold hover:text-primary truncate block">
-                      {member.name}
-                    </Link>
-                    <Badge className={`${getRoleColor(member.team_role)} text-xs`}>
-                      {getRoleName(member.team_role)}
-                    </Badge>
-                  </div>
+          {/* Members List */}
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl tracking-wide">
+                {selectedTeam?.name || 'Membros'}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {members.length === 0 ? (
+                <div className="text-center py-12">
+                  <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">Sem membros nesta equipa</p>
                   {canManageTeam && (
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="text-destructive"
-                      onClick={() => handleRemoveMember(member.id)}
-                    >
-                      Remover
-                    </Button>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Use os botões acima para adicionar membros
+                    </p>
                   )}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+              ) : (
+                <div className="space-y-2">
+                  {members.map(member => (
+                    <div 
+                      key={member.id}
+                      className="flex items-center justify-between p-3 border border-border rounded-sm hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar>
+                          <AvatarImage src={member.avatar_url} />
+                          <AvatarFallback className={`${getRoleColor(member.team_role)} text-white`}>
+                            {getInitials(member.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <Link 
+                            to={`/players/${member.id}`}
+                            className="font-medium hover:text-primary transition-colors"
+                          >
+                            {member.name}
+                          </Link>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Badge variant="outline" className="text-xs">
+                              {getRoleName(member.team_role)}
+                            </Badge>
+                            {member.profile?.sports_info?.jersey_number && (
+                              <span>#{member.profile.sports_info.jersey_number}</span>
+                            )}
+                            {member.profile?.sports_info?.position && (
+                              <span>{member.profile.sports_info.position}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {member.email && (
+                          <a href={`mailto:${member.email}`} className="text-muted-foreground hover:text-primary">
+                            <Mail className="w-4 h-4" />
+                          </a>
+                        )}
+                        {member.profile?.identity?.phone && (
+                          <a href={`tel:${member.profile.identity.phone}`} className="text-muted-foreground hover:text-primary">
+                            <Phone className="w-4 h-4" />
+                          </a>
+                        )}
+                        
+                        {canManageTeam && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8">
+                                <MoreVertical className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="bg-white">
+                              <DropdownMenuItem asChild>
+                                <Link to={`/players/${member.id}`}>
+                                  <ChevronRight className="w-4 h-4 mr-2" />
+                                  Ver Perfil
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem 
+                                className="text-destructive"
+                                onClick={() => { setSelectedMember(member); setRemoveDialogOpen(true); }}
+                              >
+                                <UserMinus className="w-4 h-4 mr-2" />
+                                Remover da Equipa
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
       )}
 
-      {/* Players */}
-      <Card className="border border-border">
-        <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-wide">JOGADORES</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {players.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {players.map(player => (
-                <Link 
-                  key={player.id}
-                  to={`/players/${player.id}`}
-                  className="flex items-center gap-3 p-3 border border-border rounded-sm card-hover"
-                >
-                  <Avatar>
-                    <AvatarImage src={player.avatar_url} />
-                    <AvatarFallback className="bg-secondary text-white text-sm">
-                      {getInitials(player.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold truncate">{player.name}</p>
-                    <p className="text-xs text-muted-foreground">{player.email}</p>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <p className="text-muted-foreground text-center py-8">Sem jogadores registados</p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Add Member Dialog */}
+      {/* Add Existing Member Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR MEMBRO</DialogTitle>
-            <DialogDescription>
-              Adicionar um utilizador existente à equipa
-            </DialogDescription>
+            <DialogDescription>Adicionar utilizador existente à equipa</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Utilizador</label>
+              <Label>Utilizador</Label>
               <Select value={selectedUserId} onValueChange={setSelectedUserId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione" />
+                <SelectTrigger data-testid="select-user">
+                  <SelectValue placeholder="Selecione um utilizador" />
                 </SelectTrigger>
-                <SelectContent className="bg-white">
-                  {availableUsers.map(u => (
-                    <SelectItem key={u.id} value={u.id}>
-                      {u.name} ({u.email})
-                    </SelectItem>
+                <SelectContent className="bg-white max-h-60">
+                  {availableUsers.map(user => (
+                    <SelectItem key={user.id} value={user.id}>{user.name} ({user.email})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Função</label>
+              <Label>Função na Equipa</Label>
               <Select value={selectedRole} onValueChange={setSelectedRole}>
                 <SelectTrigger>
                   <SelectValue />
@@ -297,15 +456,185 @@ export default function Members() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleAddMember} disabled={adding || !selectedUserId}>
+            <Button variant="outline" onClick={() => setAddDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleAddExistingMember} disabled={adding || !selectedUserId}>
               {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create New Member Dialog */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide">NOVO MEMBRO</DialogTitle>
+            <DialogDescription>Criar novo membro e adicionar à equipa</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Nome *</Label>
+                <Input
+                  placeholder="Nome completo"
+                  value={newMember.name}
+                  onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
+                  data-testid="new-member-name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Email *</Label>
+                <Input
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={newMember.email}
+                  onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
+                  data-testid="new-member-email"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label>Função</Label>
+                <Select value={newMember.role} onValueChange={(v) => setNewMember({ ...newMember, role: v })}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="jogador">Jogador</SelectItem>
+                    <SelectItem value="treinador">Treinador</SelectItem>
+                    <SelectItem value="delegado">Delegado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Número</Label>
+                <Input
+                  placeholder="10"
+                  value={newMember.jersey_number}
+                  onChange={(e) => setNewMember({ ...newMember, jersey_number: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Posição</Label>
+                <Select value={newMember.position} onValueChange={(v) => setNewMember({ ...newMember, position: v })}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="GR">Guarda-Redes</SelectItem>
+                    <SelectItem value="JC">Jogador de Campo</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Telefone</Label>
+              <Input
+                placeholder="912345678"
+                value={newMember.phone}
+                onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateMember} disabled={adding}>
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Membro'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide">IMPORTAR MEMBROS</DialogTitle>
+            <DialogDescription>Importar membros a partir de ficheiro Excel ou CSV</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
+              <FileSpreadsheet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground mb-4">
+                Arraste um ficheiro .xlsx ou .csv ou clique para selecionar
+              </p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleImportFile}
+                className="hidden"
+                id="file-upload"
+              />
+              <div className="flex justify-center gap-2">
+                <Button variant="outline" onClick={downloadTemplate}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Template
+                </Button>
+                <Button onClick={() => fileInputRef.current?.click()} disabled={importing}>
+                  {importing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Upload className="w-4 h-4 mr-2" />}
+                  Selecionar Ficheiro
+                </Button>
+              </div>
+            </div>
+
+            {importResults && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="default">{importResults.success} importados</Badge>
+                  {importResults.errors.length > 0 && (
+                    <Badge variant="destructive">{importResults.errors.length} erros</Badge>
+                  )}
+                </div>
+                {importResults.created.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto text-sm border rounded p-2">
+                    <p className="font-medium mb-1">Passwords temporárias:</p>
+                    {importResults.created.map((u, i) => (
+                      <p key={i} className="text-muted-foreground">{u.name}: <code className="bg-muted px-1">{u.temp_password}</code></p>
+                    ))}
+                  </div>
+                )}
+                {importResults.errors.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto text-sm text-destructive border border-destructive/20 rounded p-2">
+                    {importResults.errors.map((e, i) => <p key={i}>{e}</p>)}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="text-sm text-muted-foreground">
+              <p className="font-medium mb-1">Colunas esperadas:</p>
+              <code className="text-xs bg-muted px-2 py-1 rounded">nome, email, funcao, numero, posicao, telefone</code>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setImportDialogOpen(false); setImportResults(null); }}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove Member Confirmation */}
+      <AlertDialog open={removeDialogOpen} onOpenChange={setRemoveDialogOpen}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remover da Equipa</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem a certeza que quer remover <strong>{selectedMember?.name}</strong> desta equipa?
+              <br /><br />
+              As estatísticas do jogador serão preservadas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRemoveMember} className="bg-destructive text-white hover:bg-destructive/90">
+              Remover
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -123,7 +123,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-border z-50 flex items-center justify-between px-4">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-sm flex items-center justify-center">
-            <span className="text-white font-heading text-sm">RH</span>
+            <span className="text-white font-heading text-sm">SP</span>
           </div>
           <span className="font-heading text-lg text-foreground tracking-wide">
             ROLLER HOCKEY

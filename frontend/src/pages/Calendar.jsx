@@ -120,6 +120,7 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month');
+  const [visibleEventTypes, setVisibleEventTypes] = useState(['treino', 'jogo_campeonato', 'jogo_amigavel', 'torneio', 'outro']);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [convocationDialogOpen, setConvocationDialogOpen] = useState(false);
@@ -374,7 +375,7 @@ export default function CalendarPage() {
     setSelectedDate(new Date());
   };
 
-  // Get events for current view
+  // Get events for current view (filtered by visible types)
   const getViewEvents = () => {
     let start, end;
     if (viewMode === 'day') {
@@ -390,6 +391,7 @@ export default function CalendarPage() {
 
     return events.filter(event => {
       if (!event.start_time) return false;
+      if (!visibleEventTypes.includes(event.event_type)) return false;
       const eventDate = parseISO(event.start_time);
       return eventDate >= start && eventDate <= end;
     });
@@ -398,8 +400,17 @@ export default function CalendarPage() {
   const getEventsForDay = (date) => {
     return events.filter(event => {
       if (!event.start_time) return false;
+      if (!visibleEventTypes.includes(event.event_type)) return false;
       return isSameDay(parseISO(event.start_time), date);
     });
+  };
+
+  const toggleEventType = (type) => {
+    setVisibleEventTypes(prev => 
+      prev.includes(type) 
+        ? prev.filter(t => t !== type)
+        : [...prev, type]
+    );
   };
 
   const getViewTitle = () => {
@@ -433,7 +444,7 @@ export default function CalendarPage() {
           <div className="flex items-start gap-2 min-w-0">
             <Icon className={`w-4 h-4 mt-0.5 ${eventType.textColor} shrink-0`} />
             <div className="min-w-0">
-              <p className={`font-medium text-sm truncate ${eventType.textColor}`}>
+              <p className="font-medium text-sm truncate text-foreground">
                 {event.title}
               </p>
               {!compact && (
@@ -706,6 +717,28 @@ export default function CalendarPage() {
             );
           })}
         </div>
+      </div>
+
+      {/* Event Type Filters */}
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm text-muted-foreground mr-2">Filtrar:</span>
+        {Object.entries(EVENT_TYPES).map(([key, type]) => {
+          const Icon = type.icon;
+          const isActive = visibleEventTypes.includes(key);
+          return (
+            <Button
+              key={key}
+              variant={isActive ? 'default' : 'outline'}
+              size="sm"
+              className={`gap-2 ${isActive ? type.color : ''}`}
+              onClick={() => toggleEventType(key)}
+              data-testid={`filter-${key}`}
+            >
+              <Icon className="w-4 h-4" />
+              {type.label}
+            </Button>
+          );
+        })}
       </div>
 
       {/* Calendar View */}

@@ -1006,6 +1006,157 @@ async def get_team_members(team_id: str, current_user: dict = Depends(get_curren
     
     return result
 
+class MemberCreate(BaseModel):
+    name: str
+    email: EmailStr
+    role: UserRole = "jogador"
+    team_id: Optional[str] = None
+    jersey_number: Optional[str] = None
+    position: Optional[str] = None
+    phone: Optional[str] = None
+
+@api_router.post("/members")
+async def create_member(data: MemberCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new member (user) and optionally add to a team"""
+    if current_user['role'] not in ['admin', 'treinador']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    # Check if email exists
+    existing = await db.users.find_one({"email": data.email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email já registado")
+    
+    # Create user with random password
+    import secrets
+    temp_password = secrets.token_urlsafe(8)
+    hashed_password = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    
+    user_id = str(uuid.uuid4())
+    user = {
+        "id": user_id,
+        "name": data.name,
+        "email": data.email,
+        "password": hashed_password,
+        "role": data.role,
+        "team_ids": [data.team_id] if data.team_id else [],
+        "profile": {
+            "sports_info": {
+                "jersey_number": data.jersey_number or "",
+                "position": data.position or ""
+            },
+            "identity": {
+                "phone": data.phone or ""
+            }
+        },
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.users.insert_one(user)
+    
+    # Add to team if specified
+    if data.team_id:
+        field_map = {'treinador': 'coach_ids', 'delegado': 'delegate_ids'}
+        field = field_map.get(data.role, 'player_ids')
+        await db.teams.update_one({"id": data.team_id}, {"$addToSet": {field: user_id}})
+    
+    user.pop("password")
+    user.pop("_id", None)
+    return {"user": user, "temp_password": temp_password}
+
+@api_router.post("/members/import")
+async def import_members(file: UploadFile = File(...), team_id: str = None, current_user: dict = Depends(get_current_user)):
+    """Import members from Excel/CSV file"""
+    if current_user['role'] not in ['admin', 'treinador']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    import io
+    content = await file.read()
+    
+    results = {"success": 0, "errors": [], "created": []}
+    
+    try:
+        # Try to parse as CSV first
+        if file.filename.endswith('.csv'):
+            import csv
+            reader = csv.DictReader(io.StringIO(content.decode('utf-8')))
+            rows = list(reader)
+        else:
+            # For Excel, we need openpyxl
+            try:
+                import openpyxl
+                wb = openpyxl.load_workbook(io.BytesIO(content))
+                ws = wb.active
+                headers = [cell.value for cell in ws[1]]
+                rows = []
+                for row in ws.iter_rows(min_row=2, values_only=True):
+                    if any(row):
+                        rows.append(dict(zip(headers, row)))
+            except ImportError:
+                # Fallback: try CSV
+                reader = csv.DictReader(io.StringIO(content.decode('utf-8')))
+                rows = list(reader)
+        
+        import secrets
+        for row in rows:
+            try:
+                name = row.get('nome') or row.get('name') or row.get('Nome') or ""
+                email = row.get('email') or row.get('Email') or ""
+                
+                if not name or not email:
+                    results["errors"].append(f"Linha sem nome ou email: {row}")
+                    continue
+                
+                # Check if exists
+                existing = await db.users.find_one({"email": email})
+                if existing:
+                    results["errors"].append(f"Email já existe: {email}")
+                    continue
+                
+                temp_password = secrets.token_urlsafe(8)
+                hashed = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                
+                user_id = str(uuid.uuid4())
+                role = row.get('role') or row.get('funcao') or row.get('Função') or 'jogador'
+                if role not in ['admin', 'treinador', 'treinador_adjunto', 'delegado', 'jogador', 'responsavel']:
+                    role = 'jogador'
+                
+                user = {
+                    "id": user_id,
+                    "name": name.strip(),
+                    "email": email.strip().lower(),
+                    "password": hashed,
+                    "role": role,
+                    "team_ids": [team_id] if team_id else [],
+                    "profile": {
+                        "sports_info": {
+                            "jersey_number": str(row.get('numero') or row.get('Número') or ""),
+                            "position": row.get('posicao') or row.get('Posição') or ""
+                        },
+                        "identity": {
+                            "phone": row.get('telefone') or row.get('Telefone') or ""
+                        }
+                    },
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                await db.users.insert_one(user)
+                
+                if team_id:
+                    field_map = {'treinador': 'coach_ids', 'delegado': 'delegate_ids'}
+                    field = field_map.get(role, 'player_ids')
+                    await db.teams.update_one({"id": team_id}, {"$addToSet": {field: user_id}})
+                
+                results["success"] += 1
+                results["created"].append({"name": name, "email": email, "temp_password": temp_password})
+                
+            except Exception as e:
+                results["errors"].append(f"Erro na linha: {str(e)}")
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao processar ficheiro: {str(e)}")
+    
+    return results
+
 # ==================== CHAMPIONSHIP ROUTES ====================
 
 @api_router.post("/championships")

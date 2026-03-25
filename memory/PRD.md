@@ -257,3 +257,8 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - Prompt de instalação automático
 - Funciona em Android e iOS
 - Atalhos rápidos: Calendário, Presenças
+
+### Melhorias Recentes (25 Mar 2026) ✅
+- **Calendário:** Filtro por tipo de evento, texto preto nos eventos
+- **Membros:** Importar via Excel/CSV, criar membro individual, remover da equipa preservando stats
+- **Logo:** Corrigido "RH" → "SP" em todas as páginas
