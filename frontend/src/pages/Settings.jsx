@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -8,6 +9,13 @@ import { Label } from '../components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
 import { Separator } from '../components/ui/separator';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -35,13 +43,15 @@ import {
   Search, 
   Trash2, 
   Shield,
-  Mail
+  Mail,
+  Globe
 } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 import { ImageUpload } from '../components/ImageUpload';
 
 export default function Settings() {
   const { user, updateUser, logout, refreshProfiles } = useAuth();
+  const { language, languages, languageNames, changeLanguage, t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -230,16 +240,68 @@ export default function Settings() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A guardar...
+                  {t('common.loading')}
                 </>
               ) : (
                 <>
                   <Save className="mr-2 h-4 w-4" />
-                  Guardar Alterações
+                  {t('common.save')}
                 </>
               )}
             </Button>
           </form>
+        </CardContent>
+      </Card>
+
+      {/* Language Card */}
+      <Card className="border border-border">
+        <CardHeader>
+          <CardTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+            <Globe className="w-6 h-6 text-primary" />
+            {t('settings.language').toUpperCase()}
+          </CardTitle>
+          <CardDescription>
+            {language === 'pt' ? 'Selecione o idioma da aplicação' :
+             language === 'es' ? 'Seleccione el idioma de la aplicación' :
+             language === 'fr' ? 'Sélectionnez la langue de l\'application' :
+             language === 'it' ? 'Seleziona la lingua dell\'applicazione' :
+             'Select the application language'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Label>{t('settings.language')}</Label>
+            <Select value={language} onValueChange={changeLanguage}>
+              <SelectTrigger className="w-full sm:w-[280px]" data-testid="language-selector">
+                <SelectValue>
+                  <span className="flex items-center gap-2">
+                    <span className="text-lg">
+                      {language === 'pt' ? '🇵🇹' :
+                       language === 'es' ? '🇪🇸' :
+                       language === 'fr' ? '🇫🇷' :
+                       language === 'it' ? '🇮🇹' : '🇬🇧'}
+                    </span>
+                    {languageNames[language]}
+                  </span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {languages.map((lang) => (
+                  <SelectItem key={lang} value={lang}>
+                    <span className="flex items-center gap-2">
+                      <span className="text-lg">
+                        {lang === 'pt' ? '🇵🇹' :
+                         lang === 'es' ? '🇪🇸' :
+                         lang === 'fr' ? '🇫🇷' :
+                         lang === 'it' ? '🇮🇹' : '🇬🇧'}
+                      </span>
+                      {languageNames[lang]}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </CardContent>
       </Card>
 

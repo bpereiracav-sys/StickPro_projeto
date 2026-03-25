@@ -1,6 +1,7 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { LanguageProvider } from "./context/LanguageContext";
 import { Toaster } from "./components/ui/sonner";
 import { AppLayout } from "./components/layout/AppLayout";
 import { PWAInstallPrompt, registerServiceWorker } from "./components/PWAInstallPrompt";
@@ -241,11 +242,13 @@ function App() {
 
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-        <Toaster position="top-right" richColors />
-        <PWAInstallPrompt />
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <AppRoutes />
+          <Toaster position="top-right" richColors />
+          <PWAInstallPrompt />
+        </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { dashboardApi, eventsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -22,12 +23,17 @@ import {
 } from 'lucide-react';
 import { formatDate, formatTime, getEventTypeName, getInitials } from '../lib/utils';
 import { format, isToday, isTomorrow, addDays, startOfWeek, endOfWeek } from 'date-fns';
-import { pt } from 'date-fns/locale';
+import { pt, es, fr, it, enUS } from 'date-fns/locale';
+
+const locales = { pt, es, fr, it, en: enUS };
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { t, language } = useLanguage();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const dateLocale = locales[language] || pt;
 
   useEffect(() => {
     fetchDashboard();
@@ -46,9 +52,17 @@ export default function Dashboard() {
 
   const getEventDateLabel = (date) => {
     const d = new Date(date);
-    if (isToday(d)) return 'HOJE';
-    if (isTomorrow(d)) return 'AMANHÃ';
-    return format(d, "EEE, d MMM", { locale: pt }).toUpperCase();
+    if (isToday(d)) return t('time.today').toUpperCase();
+    if (isTomorrow(d)) return t('time.tomorrow').toUpperCase();
+    return format(d, "EEE, d MMM", { locale: dateLocale }).toUpperCase();
+  };
+
+  // Greeting based on time of day
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return t('dashboard.goodMorning');
+    if (hour < 18) return t('dashboard.goodAfternoon');
+    return t('dashboard.goodEvening');
   };
 
   if (loading) {
@@ -72,15 +86,15 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">
-            BOM DIA, {user?.name?.split(' ')[0]?.toUpperCase()}!
+            {getGreeting().toUpperCase()}, {user?.name?.split(' ')[0]?.toUpperCase()}!
           </h1>
           <p className="text-muted-foreground mt-1">
-            {format(new Date(), "EEEE, d 'de' MMMM", { locale: pt })}
+            {format(new Date(), "EEEE, d 'de' MMMM", { locale: dateLocale })}
           </p>
         </div>
         {pendingCount > 0 && (
           <Badge className="bg-amber-500 text-white px-3 py-1.5 text-sm">
-            {pendingCount} convocatória{pendingCount > 1 ? 's' : ''} pendente{pendingCount > 1 ? 's' : ''}
+            {pendingCount} {t('dashboard.convocations').toLowerCase()} 
           </Badge>
         )}
       </div>
@@ -97,7 +111,7 @@ export default function Dashboard() {
                 {format(new Date(nextEvent.start_time), 'd')}
               </span>
               <span className="text-sm opacity-80">
-                {format(new Date(nextEvent.start_time), 'MMM', { locale: pt }).toUpperCase()}
+                {format(new Date(nextEvent.start_time), 'MMM', { locale: dateLocale }).toUpperCase()}
               </span>
             </div>
             <div className="flex-1 p-6">
@@ -148,10 +162,10 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
-              PRÓXIMOS EVENTOS
+              {t('dashboard.upcomingEvents').toUpperCase()}
             </CardTitle>
             <Button asChild variant="ghost" size="sm">
-              <Link to="/calendar">Ver Calendário</Link>
+              <Link to="/calendar">{t('dashboard.seeCalendar')}</Link>
             </Button>
           </CardHeader>
           <CardContent>
@@ -166,7 +180,7 @@ export default function Dashboard() {
                     <div className={`w-1.5 h-12 rounded-full ${event.event_type === 'jogo' ? 'bg-primary' : 'bg-secondary'}`} />
                     <div className="w-14 text-center">
                       <p className="text-xs text-muted-foreground uppercase">
-                        {format(new Date(event.start_time), 'EEE', { locale: pt })}
+                        {format(new Date(event.start_time), 'EEE', { locale: dateLocale })}
                       </p>
                       <p className="font-heading text-xl">{format(new Date(event.start_time), 'd')}</p>
                     </div>
@@ -185,9 +199,9 @@ export default function Dashboard() {
             ) : (
               <div className="text-center py-8">
                 <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">Sem eventos agendados</p>
+                <p className="text-muted-foreground">{t('common.noResults')}</p>
                 <Button asChild variant="outline" className="mt-4">
-                  <Link to="/calendar">Criar Evento</Link>
+                  <Link to="/calendar">{t('calendar.newEvent')}</Link>
                 </Button>
               </div>
             )}
@@ -199,10 +213,10 @@ export default function Dashboard() {
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5 text-amber-500" />
-              CONVOCATÓRIAS
+              {t('dashboard.convocations').toUpperCase()}
             </CardTitle>
             <Button asChild variant="ghost" size="sm">
-              <Link to="/convocations">Ver Todas</Link>
+              <Link to="/convocations">{t('dashboard.seeAll')}</Link>
             </Button>
           </CardHeader>
           <CardContent>
@@ -217,10 +231,10 @@ export default function Dashboard() {
                     <div className="flex items-center justify-between mb-2">
                       <Badge className="bg-amber-500 text-white text-xs">
                         <HelpCircle className="w-3 h-3 mr-1" />
-                        Pendente
+                        {t('attendance.pending')}
                       </Badge>
                       <span className="text-xs text-muted-foreground">
-                        {format(new Date(item.event?.start_time), "d MMM", { locale: pt })}
+                        {format(new Date(item.event?.start_time), "d MMM", { locale: dateLocale })}
                       </span>
                     </div>
                     <p className="font-semibold text-sm">{item.event?.title}</p>
@@ -230,11 +244,11 @@ export default function Dashboard() {
                     <div className="flex gap-2 mt-3">
                       <Button size="sm" className="flex-1 h-8 bg-secondary hover:bg-secondary/90">
                         <CheckCircle className="w-3 h-3 mr-1" />
-                        Presente
+                        {t('attendance.present')}
                       </Button>
                       <Button size="sm" variant="outline" className="flex-1 h-8 text-destructive border-destructive">
                         <XCircle className="w-3 h-3 mr-1" />
-                        Ausente
+                        {t('attendance.absent')}
                       </Button>
                     </div>
                   </div>
@@ -243,7 +257,7 @@ export default function Dashboard() {
             ) : (
               <div className="text-center py-8">
                 <CheckCircle className="w-12 h-12 text-secondary mx-auto mb-3" />
-                <p className="text-muted-foreground text-sm">Todas as convocatórias respondidas!</p>
+                <p className="text-muted-foreground text-sm">{t('dashboard.allConvocationsAnswered')}</p>
               </div>
             )}
           </CardContent>

@@ -272,7 +272,32 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Extrai cartões (amarelo, azul, vermelho)
   - Extrai penáltis e livres diretos (formato X/Y)
   - Importa local e árbitros
-  - Atualiza estatísticas dos jogadores correspondentes
+  - Atualiza estatísticas dos jogadores correspondentes (por número ou nome)
+  - Guarda dados raw da ficha mesmo sem correspondência de jogadores
+  - Novo endpoint: `/api/championships/matches/{match_id}/gamesheet-stats`
   - Endpoint `/api/championships/matches/import-gamesheet`
 - **Layout Mobile/Desktop:** TopNavBar com margem correta para não ser cortado pela sidebar
 - **Header Mobile:** Logo "SP" e "STICK PRO" com melhor posicionamento
+- **Internacionalização (i18n):** Suporte a 5 idiomas
+  - Português (pt) - Predefinido
+  - Espanhol (es)
+  - Francês (fr)
+  - Italiano (it)
+  - Inglês (en)
+  - Seletor de idioma nas Definições
+  - Traduções da sidebar, dashboard, convocatórias
+  - Context: `/src/context/LanguageContext.jsx`
+  - Traduções: `/src/i18n/translations.js`
+
+---
+
+## PRÓXIMAS TAREFAS (Backlog)
+
+### P1 - Pendente
+- Configurar API Key Resend para emails reais (atualmente MOCKED)
+- Exportar calendário em PDF
+
+### P2 - Futuro
+- Notificações push para convocatórias
+- Traduzir restantes páginas (Calendar, Members, Championships, etc.)
+

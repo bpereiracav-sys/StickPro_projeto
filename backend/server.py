@@ -1534,20 +1534,59 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
     team_id = championship['team_id'] if championship else None
     
     stats_updated = 0
+    unmatched_players = []
+    
     if team_id and result_data.get('player_stats'):
+        # Get all team members once for efficient matching
+        team_members = await db.users.find({"team_ids": team_id}, {"_id": 0}).to_list(200)
+        
         for ps in result_data['player_stats']:
-            # Try to find matching player by jersey number
-            player = await db.users.find_one({
-                "team_ids": team_id,
-                "profile.sports_info.jersey_number": ps['jersey_number']
-            }, {"_id": 0})
+            player = None
             
+            # Method 1: Try to find by exact jersey number
+            for member in team_members:
+                jersey = member.get('profile', {}).get('sports_info', {}).get('jersey_number')
+                if jersey and str(jersey) == str(ps['jersey_number']):
+                    player = member
+                    break
+            
+            # Method 2: Try by full name match (case insensitive)
             if not player:
-                # Try by name
-                player = await db.users.find_one({
-                    "team_ids": team_id,
-                    "name": {"$regex": ps['name'], "$options": "i"}
-                }, {"_id": 0})
+                ps_name = ps['name'].upper().strip()
+                for member in team_members:
+                    member_name = member.get('name', '').upper().strip()
+                    if member_name == ps_name:
+                        player = member
+                        break
+            
+            # Method 3: Try by partial name match (first or last name)
+            if not player:
+                ps_name_parts = ps['name'].upper().split()
+                for member in team_members:
+                    member_name = member.get('name', '').upper()
+                    member_parts = member_name.split()
+                    # Match if first name or last name matches
+                    for ps_part in ps_name_parts:
+                        if len(ps_part) >= 3:  # Minimum 3 chars to avoid false positives
+                            for mem_part in member_parts:
+                                if ps_part == mem_part:
+                                    player = member
+                                    break
+                            if player:
+                                break
+                    if player:
+                        break
+            
+            # Method 4: Try fuzzy match - name contains or is contained
+            if not player:
+                ps_name = ps['name'].upper()
+                for member in team_members:
+                    member_name = member.get('name', '').upper()
+                    # Check if the gamesheet name contains the member name or vice versa
+                    if len(ps_name) >= 4 and len(member_name) >= 4:
+                        if ps_name in member_name or member_name in ps_name:
+                            player = member
+                            break
             
             if player:
                 # Create or update player match stats
@@ -1570,19 +1609,66 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }
                 
-                await db.match_player_stats.update_one(
+                # Use the same collection as the rest of the app: player_match_stats
+                await db.player_match_stats.update_one(
                     {"id": stat_id},
                     {"$set": stat_doc},
                     upsert=True
                 )
                 stats_updated += 1
+            else:
+                # Track unmatched players (with stats) for feedback
+                if ps['goals'] > 0 or ps['assists'] > 0 or ps['yellow_cards'] > 0 or ps['blue_cards'] > 0 or ps['red_cards'] > 0:
+                    unmatched_players.append(f"#{ps['jersey_number']} {ps['name']}")
     
-    return {
+    # Save raw gamesheet stats in match document for reference (even if no players matched)
+    if result_data.get('player_stats'):
+        await db.championship_matches.update_one(
+            {"id": data.match_id},
+            {"$set": {
+                "gamesheet_player_stats": result_data['player_stats'],
+                "gamesheet_raw_data": {
+                    "home_score": result_data.get('home_score', 0),
+                    "away_score": result_data.get('away_score', 0),
+                    "venue": result_data.get('venue'),
+                    "referee": result_data.get('referee'),
+                    "total_players": len(result_data['player_stats']),
+                    "imported_at": datetime.now(timezone.utc).isoformat()
+                }
+            }}
+        )
+    
+    response = {
         "message": "Ficha de jogo importada com sucesso",
         "result": f"{result_data.get('home_score', 0)} - {result_data.get('away_score', 0)}",
         "players_found": len(result_data.get('player_stats', [])),
         "stats_updated": stats_updated
     }
+    
+    if unmatched_players:
+        response["unmatched_players"] = unmatched_players
+        response["message"] += f" ({len(unmatched_players)} jogadores com estatísticas não encontrados na equipa)"
+    
+    return response
+
+
+@api_router.get("/championships/matches/{match_id}/gamesheet-stats")
+async def get_match_gamesheet_stats(match_id: str, current_user: dict = Depends(get_current_user)):
+    """Get the raw gamesheet stats for a match"""
+    match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+    
+    return {
+        "match_id": match_id,
+        "home_score": match.get('home_score'),
+        "away_score": match.get('away_score'),
+        "gamesheet_url": match.get('gamesheet_url'),
+        "gamesheet_imported_at": match.get('gamesheet_imported_at'),
+        "player_stats": match.get('gamesheet_player_stats', []),
+        "raw_data": match.get('gamesheet_raw_data', {})
+    }
+
 
 @api_router.get("/championships/{championship_id}/standings")
 async def get_championship_standings(championship_id: str, current_user: dict = Depends(get_current_user)):

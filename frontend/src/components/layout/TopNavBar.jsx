@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import {
@@ -43,6 +44,7 @@ const StickProLogo = ({ size = 'md' }) => {
 
 export function TopNavBar() {
   const { user, logout, isAuthenticated, hasAssociatedAccounts, availableProfiles } = useAuth();
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -115,15 +117,15 @@ export function TopNavBar() {
 
   const navItems = [
     {
-      label: 'Meu Clube',
+      label: t('nav.myClub'),
       icon: Building2,
       href: '/club',
       items: club ? [
-        { label: club.name, href: '/club', description: 'Informações do clube' }
+        { label: club.name, href: '/club', description: t('nav.myClub') }
       ] : []
     },
     {
-      label: 'Minhas Equipas',
+      label: t('nav.myTeams'),
       icon: Users,
       href: '/teams',
       items: myTeams.map(team => ({
@@ -133,7 +135,7 @@ export function TopNavBar() {
       }))
     },
     {
-      label: 'Equipas dos Meus Filhos',
+      label: t('nav.childrenTeams'),
       icon: Baby,
       href: '/children-teams',
       show: hasAssociatedAccounts,
@@ -144,7 +146,7 @@ export function TopNavBar() {
       }))
     },
     {
-      label: 'Meu Perfil',
+      label: t('nav.myProfile'),
       icon: UserCircle,
       href: '/profile',
       items: []
@@ -281,13 +283,13 @@ export function TopNavBar() {
                 <DropdownMenuItem asChild>
                   <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
                     <UserCircle className="w-4 h-4" />
-                    Meu Perfil
+                    {t('nav.myProfile')}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
                     <Settings className="w-4 h-4" />
-                    Definições
+                    {t('nav.settings')}
                   </Link>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
@@ -296,7 +298,7 @@ export function TopNavBar() {
                   onClick={handleLogout}
                 >
                   <LogOut className="w-4 h-4" />
-                  Sair
+                  {t('auth.logout')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>

@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { ScrollArea } from '../ui/scroll-area';
@@ -62,21 +63,22 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
     switchProfile,
     effectiveRole
   } = useAuth();
+  const { t } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [switchingProfile, setSwitchingProfile] = useState(false);
 
-  // Menu items based on selected team context
+  // Menu items based on selected team context - with translations
   const navLinks = [
-    { href: '/dashboard', label: 'Início', icon: Home },
-    { href: '/calendar', label: 'Calendário', icon: Calendar },
-    { href: '/members', label: 'Membros', icon: Users },
-    { href: '/championships', label: 'Campeonatos', icon: Trophy },
-    { href: '/attendance', label: 'Presenças', icon: ClipboardCheck },
-    { href: '/stats', label: 'Estatísticas', icon: BarChart3 },
-    { href: '/messages', label: 'Mensagens', icon: MessageSquare },
-    { href: '/settings', label: 'Definições', icon: Settings },
+    { href: '/dashboard', label: t('nav.home'), icon: Home },
+    { href: '/calendar', label: t('nav.calendar'), icon: Calendar },
+    { href: '/members', label: t('nav.members'), icon: Users },
+    { href: '/championships', label: t('nav.championships'), icon: Trophy },
+    { href: '/attendance', label: t('nav.attendance'), icon: ClipboardCheck },
+    { href: '/stats', label: t('nav.stats'), icon: BarChart3 },
+    { href: '/messages', label: t('nav.messages'), icon: MessageSquare },
+    { href: '/settings', label: t('nav.settings'), icon: Settings },
   ];
 
   const handleLogout = () => {
