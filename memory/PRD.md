@@ -30,6 +30,7 @@ Construir uma aplicação semelhante ao SportEasy mas exclusivamente para hóque
 - ✅ Messages: Team chat
 - ✅ Game Stats: Track player performance
 - ✅ Dashboard: Aggregated data
+- ✅ **Player Consolidated Stats**: View stats across all teams
 
 ### Frontend (React + Tailwind + Shadcn/UI)
 - ✅ Landing page with hero section
@@ -37,6 +38,7 @@ Construir uma aplicação semelhante ao SportEasy mas exclusivamente para hóque
 - ✅ Dashboard with stats and events
 - ✅ Teams management
 - ✅ Team detail with roster & stats
+- ✅ **Player Profile page with consolidated stats**
 - ✅ Calendar with event creation
 - ✅ Convocations with attendance
 - ✅ Team chat
@@ -56,11 +58,11 @@ Construir uma aplicação semelhante ao SportEasy mas exclusivamente para hóque
 - Calendar
 - Convocations
 - Chat
+- Player profile with consolidated stats
 
 ### P1 (Next)
 - Email notifications (configure Resend API)
 - Game detail page with live stats entry
-- Player profile page with full stats
 
 ### P2 (Backlog)
 - Push notifications

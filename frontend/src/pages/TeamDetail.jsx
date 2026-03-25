@@ -286,14 +286,21 @@ export default function TeamDetail() {
                         className="flex items-center gap-3 p-3 border border-border rounded-sm card-hover"
                         data-testid={`player-${player.id}`}
                       >
-                        <Avatar>
-                          <AvatarImage src={player.avatar_url} />
-                          <AvatarFallback className="bg-secondary text-secondary-foreground text-sm">
-                            {getInitials(player.name)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <Link to={`/players/${player.id}`}>
+                          <Avatar className="cursor-pointer hover:ring-2 hover:ring-primary transition-all">
+                            <AvatarImage src={player.avatar_url} />
+                            <AvatarFallback className="bg-secondary text-secondary-foreground text-sm">
+                              {getInitials(player.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Link>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold truncate">{player.name}</p>
+                          <Link 
+                            to={`/players/${player.id}`}
+                            className="font-semibold truncate hover:text-primary transition-colors block"
+                          >
+                            {player.name}
+                          </Link>
                           <p className="text-xs text-muted-foreground">{player.email}</p>
                         </div>
                         {canManageTeam && (
@@ -342,14 +349,17 @@ export default function TeamDetail() {
                         {stats.map(stat => (
                           <TableRow key={stat.player_id} data-testid={`stat-row-${stat.player_id}`}>
                             <TableCell className="font-medium">
-                              <div className="flex items-center gap-2">
+                              <Link 
+                                to={`/players/${stat.player_id}`}
+                                className="flex items-center gap-2 hover:text-primary transition-colors"
+                              >
                                 <Avatar className="w-8 h-8">
                                   <AvatarFallback className="text-xs">
                                     {getInitials(stat.player?.name)}
                                   </AvatarFallback>
                                 </Avatar>
                                 {stat.player?.name || 'Jogador'}
-                              </div>
+                              </Link>
                             </TableCell>
                             <TableCell className="text-center font-mono">{stat.games_played || 0}</TableCell>
                             <TableCell className="text-center font-mono text-secondary font-semibold">{stat.goals || 0}</TableCell>

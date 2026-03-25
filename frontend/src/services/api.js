@@ -70,7 +70,8 @@ export const usersApi = {
   getAll: (params) => api.get('/users', { params }),
   getOne: (id) => api.get(`/users/${id}`),
   update: (id, data) => api.put(`/users/${id}`, data),
-  getStats: (id, teamId) => api.get(`/player-stats/${id}`, { params: { team_id: teamId } })
+  getStats: (id, teamId) => api.get(`/player-stats/${id}`, { params: { team_id: teamId } }),
+  getConsolidatedStats: (id) => api.get(`/player-stats/${id}/consolidated`)
 };
 
 // Game Stats API

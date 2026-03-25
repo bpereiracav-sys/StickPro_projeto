@@ -10,6 +10,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import Teams from "./pages/Teams";
 import TeamDetail from "./pages/TeamDetail";
+import PlayerProfile from "./pages/PlayerProfile";
 import CalendarPage from "./pages/Calendar";
 import Convocations from "./pages/Convocations";
 import Chat from "./pages/Chat";
@@ -104,6 +105,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <TeamDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/players/:playerId"
+        element={
+          <ProtectedRoute>
+            <PlayerProfile />
           </ProtectedRoute>
         }
       />

@@ -704,6 +704,65 @@ async def get_player_stats(player_id: str, team_id: Optional[str] = None, curren
     stats = await db.player_stats.find(query, {"_id": 0}).to_list(10)
     return stats
 
+@api_router.get("/player-stats/{player_id}/consolidated")
+async def get_player_consolidated_stats(player_id: str, current_user: dict = Depends(get_current_user)):
+    """Get consolidated statistics for a player across all teams"""
+    
+    # Get player info
+    player = await db.users.find_one({"id": player_id}, {"_id": 0, "password": 0})
+    if not player:
+        raise HTTPException(status_code=404, detail="Jogador não encontrado")
+    
+    # Get all stats for this player across all teams
+    all_stats = await db.player_stats.find({"player_id": player_id}, {"_id": 0}).to_list(100)
+    
+    # Consolidate stats
+    consolidated = {
+        "games_played": 0,
+        "goals": 0,
+        "assists": 0,
+        "yellow_cards": 0,
+        "red_cards": 0,
+        "blue_cards": 0,
+        "saves": 0
+    }
+    
+    teams_stats = []
+    for stat in all_stats:
+        # Add to consolidated totals
+        consolidated["games_played"] += stat.get("games_played", 0)
+        consolidated["goals"] += stat.get("goals", 0)
+        consolidated["assists"] += stat.get("assists", 0)
+        consolidated["yellow_cards"] += stat.get("yellow_cards", 0)
+        consolidated["red_cards"] += stat.get("red_cards", 0)
+        consolidated["blue_cards"] += stat.get("blue_cards", 0)
+        consolidated["saves"] += stat.get("saves", 0)
+        
+        # Get team info for per-team breakdown
+        team = await db.teams.find_one({"id": stat.get("team_id")}, {"_id": 0})
+        teams_stats.append({
+            **stat,
+            "team": team
+        })
+    
+    # Get all teams the player belongs to
+    player_teams = []
+    if player.get("team_ids"):
+        for team_id in player["team_ids"]:
+            team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+            if team:
+                if isinstance(team.get('created_at'), str):
+                    team['created_at'] = datetime.fromisoformat(team['created_at'])
+                player_teams.append(team)
+    
+    return {
+        "player": player,
+        "consolidated": consolidated,
+        "per_team_stats": teams_stats,
+        "teams": player_teams,
+        "teams_count": len(player_teams)
+    }
+
 @api_router.get("/teams/{team_id}/stats")
 async def get_team_stats(team_id: str, current_user: dict = Depends(get_current_user)):
     stats = await db.player_stats.find({"team_id": team_id}, {"_id": 0}).to_list(100)
