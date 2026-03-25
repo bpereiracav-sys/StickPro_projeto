@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -460,6 +460,142 @@ async def get_users(role: Optional[str] = None, current_user: dict = Depends(get
         query["role"] = role
     users = await db.users.find(query, {"_id": 0, "password": 0}).to_list(1000)
     return [UserResponse(**u) for u in users]
+
+# ==================== ASSOCIATED ACCOUNTS ROUTES ====================
+# NOTE: These routes MUST be defined BEFORE /users/{user_id} to avoid route conflicts
+
+@api_router.get("/users/associated")
+async def get_associated_accounts(current_user: dict = Depends(get_current_user)):
+    """Get all accounts associated with the current user (children/athletes)"""
+    associated_ids = current_user.get('associated_accounts', [])
+    
+    if not associated_ids:
+        return []
+    
+    associated_users = await db.users.find(
+        {"id": {"$in": associated_ids}}, 
+        {"_id": 0, "password": 0}
+    ).to_list(100)
+    
+    # Add relationship info
+    for user in associated_users:
+        user['relationship'] = 'filho/a'
+    
+    return associated_users
+
+@api_router.post("/users/associate")
+async def associate_account(request: AssociateAccountRequest, current_user: dict = Depends(get_current_user)):
+    """Associate a child/athlete account with the current user (parent/guardian)"""
+    
+    child = await db.users.find_one({"id": request.child_user_id}, {"_id": 0})
+    if not child:
+        raise HTTPException(status_code=404, detail="Conta não encontrada")
+    
+    if request.child_user_id in current_user.get('associated_accounts', []):
+        raise HTTPException(status_code=400, detail="Conta já está associada")
+    
+    if child.get('parent_account_id'):
+        raise HTTPException(status_code=400, detail="Esta conta já tem um responsável associado")
+    
+    await db.users.update_one(
+        {"id": current_user['id']},
+        {"$addToSet": {"associated_accounts": request.child_user_id}}
+    )
+    
+    await db.users.update_one(
+        {"id": request.child_user_id},
+        {"$set": {"parent_account_id": current_user['id']}}
+    )
+    
+    return {"message": f"Conta de {child['name']} associada com sucesso", "child": child}
+
+@api_router.post("/users/associate/search")
+async def search_user_to_associate(email: str, current_user: dict = Depends(get_current_user)):
+    """Search for a user by email to associate"""
+    user = await db.users.find_one({"email": email}, {"_id": 0, "password": 0})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado com este email")
+    
+    if user['id'] == current_user['id']:
+        raise HTTPException(status_code=400, detail="Não pode associar a sua própria conta")
+    
+    if user['id'] in current_user.get('associated_accounts', []):
+        raise HTTPException(status_code=400, detail="Esta conta já está associada")
+    
+    if user.get('parent_account_id'):
+        raise HTTPException(status_code=400, detail="Esta conta já tem um responsável")
+    
+    return {
+        "id": user['id'],
+        "name": user['name'],
+        "email": user['email'],
+        "role": user['role'],
+        "team_ids": user.get('team_ids', [])
+    }
+
+@api_router.delete("/users/associate/{child_id}")
+async def remove_association(child_id: str, current_user: dict = Depends(get_current_user)):
+    """Remove association with a child account"""
+    
+    if child_id not in current_user.get('associated_accounts', []):
+        raise HTTPException(status_code=404, detail="Associação não encontrada")
+    
+    await db.users.update_one(
+        {"id": current_user['id']},
+        {"$pull": {"associated_accounts": child_id}}
+    )
+    
+    await db.users.update_one(
+        {"id": child_id},
+        {"$set": {"parent_account_id": None}}
+    )
+    
+    return {"message": "Associação removida com sucesso"}
+
+@api_router.post("/auth/switch-profile")
+async def switch_profile(request: ActiveProfileRequest, current_user: dict = Depends(get_current_user)):
+    """Switch to a different profile (self or associated account)"""
+    
+    if request.profile_type == "self":
+        target_user = current_user
+        active_role = request.active_role or current_user['role']
+    elif request.profile_type == "associated":
+        if not request.associated_user_id:
+            raise HTTPException(status_code=400, detail="ID da conta associada é obrigatório")
+        
+        if request.associated_user_id not in current_user.get('associated_accounts', []):
+            raise HTTPException(status_code=403, detail="Conta não está associada a si")
+        
+        target_user = await db.users.find_one({"id": request.associated_user_id}, {"_id": 0, "password": 0})
+        if not target_user:
+            raise HTTPException(status_code=404, detail="Conta associada não encontrada")
+        
+        active_role = "responsavel"
+    else:
+        raise HTTPException(status_code=400, detail="Tipo de perfil inválido")
+    
+    teams = []
+    for team_id in target_user.get('team_ids', []):
+        team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+        if team:
+            teams.append(team)
+    
+    return {
+        "profile_type": request.profile_type,
+        "viewing_as": {
+            "id": target_user['id'],
+            "name": target_user['name'],
+            "role": active_role,
+            "teams": teams
+        },
+        "original_user": {
+            "id": current_user['id'],
+            "name": current_user['name']
+        }
+    }
+
+# ==================== USER BY ID ROUTES ====================
 
 @api_router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str, current_user: dict = Depends(get_current_user)):

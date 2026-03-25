@@ -87,7 +87,18 @@ export const usersApi = {
   getOne: (id) => api.get(`/users/${id}`),
   update: (id, data) => api.put(`/users/${id}`, data),
   getConsolidatedStats: (id) => api.get(`/player-stats/${id}/consolidated`),
-  getMatchStats: (id, championshipId) => api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } })
+  getMatchStats: (id, championshipId) => api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } }),
+  // Associated accounts
+  getAssociated: () => api.get('/users/associated'),
+  searchToAssociate: (email) => api.post('/users/associate/search', null, { params: { email } }),
+  associate: (childUserId, relationship) => api.post('/users/associate', { child_user_id: childUserId, relationship }),
+  removeAssociation: (childId) => api.delete(`/users/associate/${childId}`)
+};
+
+// Auth API
+export const authApi = {
+  getProfiles: () => api.get('/auth/profiles'),
+  switchProfile: (data) => api.post('/auth/switch-profile', data)
 };
 
 // Dashboard API

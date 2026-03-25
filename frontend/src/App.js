@@ -75,11 +75,7 @@ function AppRoutes() {
       />
       <Route
         path="/login"
-        element={
-          <PublicRoute>
-            <Login />
-          </PublicRoute>
-        }
+        element={<Login />}
       />
       <Route
         path="/register"

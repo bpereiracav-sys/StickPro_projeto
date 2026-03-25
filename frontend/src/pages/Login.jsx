@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/button';
@@ -6,28 +6,64 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { toast } from 'sonner';
 import { Loader2, ArrowLeft } from 'lucide-react';
+import ProfileSelectionModal from '../components/profile/ProfileSelectionModal';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login } = useAuth();
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [loginResult, setLoginResult] = useState(null);
+  const { login, switchProfile, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect to dashboard if already authenticated (but not during profile selection)
+  useEffect(() => {
+    if (isAuthenticated && !authLoading && !showProfileModal && !loginResult) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [isAuthenticated, authLoading, showProfileModal, loginResult, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      await login(email, password);
+      const result = await login(email, password);
       toast.success('Login efetuado com sucesso!');
-      navigate('/dashboard');
+      
+      // Check if user has associated accounts (multiple profiles)
+      const hasMultipleProfiles = result.availableProfiles && result.availableProfiles.length > 1;
+      
+      if (hasMultipleProfiles) {
+        // Show profile selection modal
+        setLoginResult(result);
+        setShowProfileModal(true);
+      } else {
+        // Go directly to dashboard
+        navigate('/dashboard');
+      }
     } catch (error) {
       const message = error.response?.data?.detail || 'Erro ao fazer login';
       toast.error(message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleProfileSelect = async (profile) => {
+    try {
+      await switchProfile(profile);
+      toast.success(`Perfil selecionado: ${profile.label || profile.user_name}`);
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error('Erro ao selecionar perfil');
+    }
+  };
+
+  const handleSkipProfileSelection = () => {
+    setShowProfileModal(false);
+    navigate('/dashboard');
   };
 
   return (
@@ -129,6 +165,20 @@ export default function Login() {
         />
         <div className="absolute inset-0 bg-primary/20" />
       </div>
+
+      {/* Profile Selection Modal */}
+      {loginResult && (
+        <ProfileSelectionModal
+          open={showProfileModal}
+          onOpenChange={(open) => {
+            setShowProfileModal(open);
+            if (!open) handleSkipProfileSelection();
+          }}
+          profiles={loginResult.availableProfiles || []}
+          onSelectProfile={handleProfileSelect}
+          currentUser={loginResult.user}
+        />
+      )}
     </div>
   );
 }

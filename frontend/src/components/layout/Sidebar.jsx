@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { ScrollArea } from '../ui/scroll-area';
+import { Badge } from '../ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -25,16 +26,30 @@ import {
   Bell,
   User,
   Trophy,
-  ClipboardCheck
+  ClipboardCheck,
+  RefreshCw,
+  Shield
 } from 'lucide-react';
 import { useState } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
+import { toast } from 'sonner';
 
 export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
-  const { user, logout, isAuthenticated } = useAuth();
+  const { 
+    user, 
+    logout, 
+    isAuthenticated, 
+    availableProfiles, 
+    activeProfile, 
+    viewingAs,
+    isViewingAsAssociated,
+    switchProfile,
+    effectiveRole
+  } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const [switchingProfile, setSwitchingProfile] = useState(false);
 
   // Menu items based on selected team context
   const navLinks = [
@@ -53,7 +68,38 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
     navigate('/');
   };
 
+  const handleSwitchProfile = async (profile) => {
+    setSwitchingProfile(true);
+    try {
+      await switchProfile(profile);
+      toast.success(`Perfil alterado: ${profile.label || profile.user_name}`);
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error('Erro ao mudar de perfil');
+    } finally {
+      setSwitchingProfile(false);
+    }
+  };
+
+  const handleSwitchToSelf = async () => {
+    const selfProfile = availableProfiles.find(p => p.type === 'self' && p.user_id === user?.id);
+    if (selfProfile) {
+      await handleSwitchProfile(selfProfile);
+    }
+  };
+
   if (!isAuthenticated) return null;
+
+  // Display name - show viewed user if viewing as associated
+  const displayName = viewingAs?.name || user?.name;
+  const displayRole = viewingAs?.role || user?.role;
+
+  // Filter profiles for switching (exclude current)
+  const otherProfiles = availableProfiles.filter(p => {
+    if (activeProfile?.type === 'self' && p.type === 'self' && p.user_id === user?.id) return false;
+    if (activeProfile?.type === 'associated' && p.type === 'associated' && p.user_id === activeProfile?.user_id) return false;
+    return true;
+  });
 
   return (
     <>
@@ -110,6 +156,32 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
             </div>
           </div>
 
+          {/* Viewing As Banner */}
+          {isViewingAsAssociated && viewingAs && (
+            <div className="px-3 py-2 bg-amber-500/20 border-b border-amber-500/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-4 h-4 text-amber-400" />
+                  <span className="text-xs text-amber-200">
+                    A ver como responsável de
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 px-2 text-xs text-amber-200 hover:text-white hover:bg-amber-500/30"
+                  onClick={handleSwitchToSelf}
+                  disabled={switchingProfile}
+                  data-testid="switch-to-self-btn"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Voltar
+                </Button>
+              </div>
+              <p className="text-sm font-semibold text-amber-100 mt-1">{viewingAs.name}</p>
+            </div>
+          )}
+
           {/* Team Selector */}
           {teams.length > 0 && (
             <div className="px-3 py-4 border-b border-slate-700">
@@ -163,6 +235,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
               {navLinks.map((link) => {
                 const Icon = link.icon;
                 const isActive = location.pathname === link.href || location.pathname.startsWith(link.href + '/');
+                const testId = `nav-${link.href.replace('/', '')}`;
                 return (
                   <Link
                     key={link.href}
@@ -174,7 +247,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                         ? 'bg-primary text-white' 
                         : 'text-slate-300 hover:bg-slate-800 hover:text-white'}
                     `}
-                    data-testid={`nav-${link.label.toLowerCase().replace('í', 'i').replace('ã', 'a').replace('ç', 'c')}`}
+                    data-testid={testId}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="font-medium">{link.label}</span>
@@ -193,20 +266,52 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                   className="w-full justify-start text-white hover:bg-slate-800 h-auto py-3"
                   data-testid="user-menu-sidebar"
                 >
-                  <Avatar className="h-9 w-9 mr-3">
-                    <AvatarImage src={user?.avatar_url} alt={user?.name} />
-                    <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-                      {getInitials(user?.name)}
+                  <Avatar className={`h-9 w-9 mr-3 ${isViewingAsAssociated ? 'ring-2 ring-amber-400' : ''}`}>
+                    <AvatarImage src={user?.avatar_url} alt={displayName} />
+                    <AvatarFallback className={`${isViewingAsAssociated ? 'bg-amber-500' : 'bg-primary'} text-primary-foreground text-sm font-semibold`}>
+                      {getInitials(displayName)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left flex-1">
-                    <p className="font-semibold text-sm truncate">{user?.name}</p>
-                    <p className="text-xs text-slate-400">{getRoleName(user?.role)}</p>
+                    <p className="font-semibold text-sm truncate">{displayName}</p>
+                    <p className="text-xs text-slate-400">{getRoleName(displayRole)}</p>
                   </div>
                   <ChevronDown className="w-4 h-4 text-slate-400" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-slate-800 border-slate-700" align="end">
+              <DropdownMenuContent className="w-64 bg-slate-800 border-slate-700" align="end">
+                {/* Profile switching section */}
+                {otherProfiles.length > 0 && (
+                  <>
+                    <DropdownMenuLabel className="text-slate-400 flex items-center gap-1">
+                      <RefreshCw className="w-3 h-3" />
+                      Mudar Perfil
+                    </DropdownMenuLabel>
+                    {otherProfiles.map((profile, idx) => (
+                      <DropdownMenuItem 
+                        key={`profile-${idx}`}
+                        className={`cursor-pointer ${profile.type === 'associated' ? 'text-amber-300 hover:bg-amber-500/20' : 'text-white hover:bg-slate-700'}`}
+                        onClick={() => handleSwitchProfile(profile)}
+                        disabled={switchingProfile}
+                        data-testid={`switch-profile-${profile.user_id}`}
+                      >
+                        {profile.type === 'associated' ? (
+                          <Shield className="w-4 h-4 mr-2" />
+                        ) : (
+                          <User className="w-4 h-4 mr-2" />
+                        )}
+                        <div>
+                          <p className="font-medium text-sm">{profile.label || profile.user_name}</p>
+                          {profile.type === 'associated' && (
+                            <p className="text-xs opacity-70">Como responsável</p>
+                          )}
+                        </div>
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator className="bg-slate-700" />
+                  </>
+                )}
+                
                 <DropdownMenuItem asChild>
                   <Link to={`/players/${user?.id}`} className="text-white hover:bg-slate-700 cursor-pointer">
                     <User className="w-4 h-4 mr-2" />
