@@ -4,9 +4,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  headers: { 'Content-Type': 'application/json' }
 });
 
 // Add token to requests
@@ -36,9 +34,27 @@ export const teamsApi = {
   getOne: (id) => api.get(`/teams/${id}`),
   create: (data) => api.post('/teams', data),
   getMembers: (id) => api.get(`/teams/${id}/members`),
+  getMembersForMessage: (id) => api.get(`/teams/${id}/members-for-message`),
   addMember: (teamId, data) => api.post(`/teams/${teamId}/members`, data),
   removeMember: (teamId, userId) => api.delete(`/teams/${teamId}/members/${userId}`),
-  getStats: (id) => api.get(`/teams/${id}/stats`)
+  getStats: (id, championshipId) => api.get(`/teams/${id}/stats`, { params: { championship_id: championshipId } }),
+  getAttendance: (id, params) => api.get(`/teams/${id}/attendance`, { params }),
+  getAttendanceSummary: (id) => api.get(`/teams/${id}/attendance/summary`)
+};
+
+// Championships API
+export const championshipsApi = {
+  getAll: (params) => api.get('/championships', { params }),
+  getOne: (id) => api.get(`/championships/${id}`),
+  create: (data) => api.post('/championships', data),
+  update: (id, data) => api.put(`/championships/${id}`, data),
+  delete: (id) => api.delete(`/championships/${id}`),
+  getMatches: (id) => api.get(`/championships/${id}/matches`),
+  createMatch: (id, data) => api.post(`/championships/${id}/matches`, data),
+  updateMatchResult: (matchId, data) => api.put(`/championships/matches/${matchId}/result`, data),
+  getStandings: (id) => api.get(`/championships/${id}/standings`),
+  getMatchPlayerStats: (matchId) => api.get(`/matches/${matchId}/player-stats`),
+  createMatchPlayerStats: (matchId, data) => api.post(`/matches/${matchId}/player-stats`, data)
 };
 
 // Events API
@@ -70,14 +86,8 @@ export const usersApi = {
   getAll: (params) => api.get('/users', { params }),
   getOne: (id) => api.get(`/users/${id}`),
   update: (id, data) => api.put(`/users/${id}`, data),
-  getStats: (id, teamId) => api.get(`/player-stats/${id}`, { params: { team_id: teamId } }),
-  getConsolidatedStats: (id) => api.get(`/player-stats/${id}/consolidated`)
-};
-
-// Game Stats API
-export const gameStatsApi = {
-  get: (eventId) => api.get(`/game-stats/${eventId}`),
-  create: (data) => api.post('/game-stats', data)
+  getConsolidatedStats: (id) => api.get(`/player-stats/${id}/consolidated`),
+  getMatchStats: (id, championshipId) => api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } })
 };
 
 // Dashboard API

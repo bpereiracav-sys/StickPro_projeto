@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, status
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, status, UploadFile, File
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -7,12 +7,12 @@ import os
 import logging
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
-from typing import List, Optional, Literal
+from typing import List, Optional, Literal, Dict, Any
 import uuid
 from datetime import datetime, timezone, timedelta
 import jwt
 import bcrypt
-import asyncio
+import base64
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -37,24 +37,16 @@ api_router = APIRouter(prefix="/api")
 security = HTTPBearer()
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 # ==================== MODELS ====================
 
 UserRole = Literal["admin", "treinador", "delegado", "jogador", "responsavel"]
-EventType = Literal["jogo", "treino"]
+EventType = Literal["jogo", "treino", "campeonato"]
 AttendanceStatus = Literal["confirmado", "ausente", "pendente"]
-
-class UserBase(BaseModel):
-    email: EmailStr
-    name: str
-    role: UserRole
-    phone: Optional[str] = None
-    avatar_url: Optional[str] = None
+MatchLocation = Literal["casa", "fora", "neutro"]
+PlayerPosition = Literal["GR", "JC"]
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -62,15 +54,24 @@ class UserCreate(BaseModel):
     name: str
     role: UserRole = "jogador"
     phone: Optional[str] = None
+    additional_roles: List[UserRole] = []  # Can have multiple roles
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-class User(UserBase):
+class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    email: EmailStr
+    name: str
+    role: UserRole  # Primary role
+    additional_roles: List[UserRole] = []  # Additional roles (e.g., treinador AND responsavel)
+    phone: Optional[str] = None
+    avatar_url: Optional[str] = None
     team_ids: List[str] = []
+    associated_accounts: List[str] = []  # IDs of associated users (e.g., children for a parent)
+    parent_account_id: Optional[str] = None  # If this is a child account, reference to parent
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserResponse(BaseModel):
@@ -78,18 +79,32 @@ class UserResponse(BaseModel):
     email: str
     name: str
     role: UserRole
+    additional_roles: List[UserRole] = []
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
     team_ids: List[str] = []
+    associated_accounts: List[str] = []
+    parent_account_id: Optional[str] = None
+
+class AssociateAccountRequest(BaseModel):
+    child_user_id: str
+    relationship: str = "filho/a"  # filho/a, atleta, etc.
+
+class ActiveProfileRequest(BaseModel):
+    profile_type: str  # "self" or "associated"
+    associated_user_id: Optional[str] = None  # If viewing as associated account
+    active_role: Optional[UserRole] = None  # Which role to use
+    team_id: Optional[str] = None  # Which team context
 
 class AuthResponse(BaseModel):
     token: str
     user: UserResponse
+    available_profiles: List[dict] = []  # List of profiles user can access
 
 class TeamCreate(BaseModel):
     name: str
-    category: str  # e.g., "Sub-15", "Seniores", "Feminino"
-    season: str  # e.g., "2024/2025"
+    category: str
+    season: str
 
 class Team(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -102,20 +117,102 @@ class Team(BaseModel):
     player_ids: List[str] = []
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class PlayerStats(BaseModel):
+# Championship Models
+class ChampionshipCreate(BaseModel):
+    name: str
+    season: str
+    team_id: str  # Team that owns this championship view
+    description: Optional[str] = None
+
+class Championship(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    player_id: str
-    team_id: str
+    name: str
     season: str
-    games_played: int = 0
+    team_id: str
+    description: Optional[str] = None
+    participating_teams: List[str] = []  # Names of teams in the championship
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ChampionshipMatchCreate(BaseModel):
+    championship_id: str
+    opponent_team: str
+    match_date: datetime
+    location: MatchLocation
+    venue: Optional[str] = None
+
+class ChampionshipMatch(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    championship_id: str
+    team_id: str
+    opponent_team: str
+    match_date: datetime
+    location: MatchLocation
+    venue: Optional[str] = None
+    home_score: Optional[int] = None
+    away_score: Optional[int] = None
+    is_completed: bool = False
+    bonus_points: int = 0
+    penalty_points: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class MatchResultUpdate(BaseModel):
+    home_score: int
+    away_score: int
+    bonus_points: int = 0
+    penalty_points: int = 0
+
+# Player Match Stats - comprehensive stats per match
+class PlayerMatchStatsCreate(BaseModel):
+    match_id: str
+    player_id: str
+    position: PlayerPosition
+    minutes_played: int = 0
     goals: int = 0
     assists: int = 0
+    penalties_scored: int = 0
+    penalties_missed: int = 0
+    penalties_saved: int = 0
+    penalties_conceded: int = 0
+    free_kicks_scored: int = 0
+    free_kicks_missed: int = 0
+    free_kicks_saved: int = 0
+    free_kicks_conceded: int = 0
+    saves: int = 0
+    blue_cards: int = 0
     yellow_cards: int = 0
+    white_cards: int = 0
     red_cards: int = 0
-    blue_cards: int = 0  # specific to roller hockey
-    saves: int = 0  # for goalkeepers
 
+class PlayerMatchStats(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    match_id: str
+    player_id: str
+    team_id: str
+    championship_id: str
+    position: PlayerPosition
+    minutes_played: int = 0
+    goals: int = 0
+    assists: int = 0
+    penalties_scored: int = 0
+    penalties_missed: int = 0
+    penalties_saved: int = 0
+    penalties_conceded: int = 0
+    free_kicks_scored: int = 0
+    free_kicks_missed: int = 0
+    free_kicks_saved: int = 0
+    free_kicks_conceded: int = 0
+    saves: int = 0
+    blue_cards: int = 0
+    yellow_cards: int = 0
+    white_cards: int = 0
+    red_cards: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Event Models
 class EventCreate(BaseModel):
     team_id: str
     event_type: EventType
@@ -124,7 +221,8 @@ class EventCreate(BaseModel):
     location: str
     start_time: datetime
     end_time: Optional[datetime] = None
-    opponent: Optional[str] = None  # for games
+    opponent: Optional[str] = None
+    championship_id: Optional[str] = None
 
 class Event(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -137,9 +235,30 @@ class Event(BaseModel):
     start_time: datetime
     end_time: Optional[datetime] = None
     opponent: Optional[str] = None
+    championship_id: Optional[str] = None
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# Attendance Models
+class Attendance(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    event_id: str
+    convocation_id: Optional[str] = None
+    player_id: str
+    team_id: str
+    event_type: str
+    championship_id: Optional[str] = None
+    status: AttendanceStatus = "pendente"
+    reason: Optional[str] = None
+    event_date: datetime
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AttendanceUpdate(BaseModel):
+    status: AttendanceStatus
+    reason: Optional[str] = None
+
+# Convocation Models
 class ConvocationCreate(BaseModel):
     event_id: str
     player_ids: List[str]
@@ -154,23 +273,13 @@ class Convocation(BaseModel):
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-class AttendanceUpdate(BaseModel):
-    status: AttendanceStatus
-    reason: Optional[str] = None
-
-class Attendance(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    convocation_id: str
-    event_id: str
-    player_id: str
-    status: AttendanceStatus = "pendente"
-    reason: Optional[str] = None
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
+# Message Models with attachments
 class MessageCreate(BaseModel):
     team_id: str
     content: str
+    recipient_ids: List[str] = []  # Empty = all team members
+    attachment_name: Optional[str] = None
+    attachment_data: Optional[str] = None  # Base64 encoded
 
 class Message(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -179,21 +288,9 @@ class Message(BaseModel):
     sender_id: str
     sender_name: str
     content: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-
-class GameStatsCreate(BaseModel):
-    event_id: str
-    home_score: int = 0
-    away_score: int = 0
-    player_stats: List[dict] = []  # [{player_id, goals, assists, cards}]
-
-class GameStats(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    event_id: str
-    home_score: int = 0
-    away_score: int = 0
-    player_stats: List[dict] = []
+    recipient_ids: List[str] = []
+    attachment_name: Optional[str] = None
+    attachment_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # ==================== AUTH HELPERS ====================
@@ -227,75 +324,132 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
 # ==================== EMAIL MOCK ====================
 
-async def send_email_notification(to_email: str, subject: str, html_content: str):
+async def send_email_notification(to_email: str, subject: str, html_content: str, attachment_name: str = None, attachment_data: bytes = None):
     """MOCK: Email sending - configure Resend API key to enable"""
     logger.info(f"[MOCK EMAIL] To: {to_email}, Subject: {subject}")
-    # When Resend is configured, uncomment:
-    # import resend
-    # resend.api_key = os.environ.get('RESEND_API_KEY')
-    # params = {"from": os.environ.get('SENDER_EMAIL'), "to": [to_email], "subject": subject, "html": html_content}
-    # await asyncio.to_thread(resend.Emails.send, params)
     return True
 
 # ==================== AUTH ROUTES ====================
 
-@api_router.post("/auth/register", response_model=AuthResponse)
+async def build_available_profiles(user: dict) -> List[dict]:
+    """Build list of all profiles a user can access"""
+    profiles = []
+    
+    # Own profile with all roles
+    all_roles = [user['role']] + user.get('additional_roles', [])
+    for role in all_roles:
+        # Get teams for this role
+        user_teams = []
+        for team_id in user.get('team_ids', []):
+            team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+            if team:
+                user_teams.append(team)
+        
+        profiles.append({
+            "type": "self",
+            "user_id": user['id'],
+            "user_name": user['name'],
+            "role": role,
+            "label": f"{user['name']} ({getRoleNamePt(role)})",
+            "teams": user_teams
+        })
+    
+    # Associated accounts (e.g., children)
+    for assoc_id in user.get('associated_accounts', []):
+        assoc_user = await db.users.find_one({"id": assoc_id}, {"_id": 0, "password": 0})
+        if assoc_user:
+            assoc_teams = []
+            for team_id in assoc_user.get('team_ids', []):
+                team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+                if team:
+                    assoc_teams.append(team)
+            
+            profiles.append({
+                "type": "associated",
+                "user_id": assoc_user['id'],
+                "user_name": assoc_user['name'],
+                "role": "responsavel",
+                "label": f"Responsável de {assoc_user['name']}",
+                "teams": assoc_teams
+            })
+    
+    return profiles
+
+def getRoleNamePt(role: str) -> str:
+    roles = {
+        "admin": "Administrador",
+        "treinador": "Treinador",
+        "delegado": "Delegado",
+        "jogador": "Jogador",
+        "responsavel": "Responsável"
+    }
+    return roles.get(role, role)
+
+@api_router.post("/auth/register")
 async def register(user_data: UserCreate):
     existing = await db.users.find_one({"email": user_data.email})
     if existing:
         raise HTTPException(status_code=400, detail="Email já registado")
     
     user = User(
-        email=user_data.email,
-        name=user_data.name,
-        role=user_data.role,
-        phone=user_data.phone
+        email=user_data.email, 
+        name=user_data.name, 
+        role=user_data.role, 
+        phone=user_data.phone,
+        additional_roles=user_data.additional_roles
     )
-    
     user_dict = user.model_dump()
     user_dict['password'] = hash_password(user_data.password)
     user_dict['created_at'] = user_dict['created_at'].isoformat()
     
     await db.users.insert_one(user_dict)
-    
     token = create_token(user.id, user.email, user.role)
     
-    return AuthResponse(
-        token=token,
-        user=UserResponse(
-            id=user.id,
-            email=user.email,
-            name=user.name,
-            role=user.role,
-            phone=user.phone,
-            team_ids=user.team_ids
-        )
-    )
+    profiles = await build_available_profiles(user_dict)
+    
+    return {
+        "token": token,
+        "user": UserResponse(**user.model_dump()).model_dump(),
+        "available_profiles": profiles
+    }
 
-@api_router.post("/auth/login", response_model=AuthResponse)
+@api_router.post("/auth/login")
 async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
     if not user or not verify_password(credentials.password, user['password']):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
     
     token = create_token(user['id'], user['email'], user['role'])
+    profiles = await build_available_profiles(user)
     
-    return AuthResponse(
-        token=token,
-        user=UserResponse(
-            id=user['id'],
-            email=user['email'],
-            name=user['name'],
-            role=user['role'],
-            phone=user.get('phone'),
-            avatar_url=user.get('avatar_url'),
-            team_ids=user.get('team_ids', [])
-        )
-    )
+    return {
+        "token": token,
+        "user": {
+            "id": user['id'],
+            "email": user['email'],
+            "name": user['name'],
+            "role": user['role'],
+            "additional_roles": user.get('additional_roles', []),
+            "phone": user.get('phone'),
+            "avatar_url": user.get('avatar_url'),
+            "team_ids": user.get('team_ids', []),
+            "associated_accounts": user.get('associated_accounts', [])
+        },
+        "available_profiles": profiles
+    }
 
-@api_router.get("/auth/me", response_model=UserResponse)
+@api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
-    return UserResponse(**current_user)
+    profiles = await build_available_profiles(current_user)
+    return {
+        **UserResponse(**current_user).model_dump(),
+        "available_profiles": profiles
+    }
+
+@api_router.get("/auth/profiles")
+async def get_my_profiles(current_user: dict = Depends(get_current_user)):
+    """Get all available profiles for the current user"""
+    return await build_available_profiles(current_user)
 
 # ==================== USER ROUTES ====================
 
@@ -340,7 +494,6 @@ async def create_team(team_data: TeamCreate, current_user: dict = Depends(get_cu
     
     team_dict = team.model_dump()
     team_dict['created_at'] = team_dict['created_at'].isoformat()
-    
     await db.teams.insert_one(team_dict)
     return team
 
@@ -351,27 +504,22 @@ async def get_teams(current_user: dict = Depends(get_current_user)):
     else:
         user_id = current_user['id']
         teams = await db.teams.find({
-            "$or": [
-                {"coach_ids": user_id},
-                {"delegate_ids": user_id},
-                {"player_ids": user_id}
-            ]
+            "$or": [{"coach_ids": user_id}, {"delegate_ids": user_id}, {"player_ids": user_id}]
         }, {"_id": 0}).to_list(100)
     
     for team in teams:
         if isinstance(team.get('created_at'), str):
             team['created_at'] = datetime.fromisoformat(team['created_at'])
-    
     return teams
 
-@api_router.get("/teams/{team_id}", response_model=Team)
+@api_router.get("/teams/{team_id}")
 async def get_team(team_id: str, current_user: dict = Depends(get_current_user)):
     team = await db.teams.find_one({"id": team_id}, {"_id": 0})
     if not team:
         raise HTTPException(status_code=404, detail="Equipa não encontrada")
     if isinstance(team.get('created_at'), str):
         team['created_at'] = datetime.fromisoformat(team['created_at'])
-    return Team(**team)
+    return team
 
 @api_router.post("/teams/{team_id}/members")
 async def add_team_member(team_id: str, member_data: dict, current_user: dict = Depends(get_current_user)):
@@ -385,18 +533,9 @@ async def add_team_member(team_id: str, member_data: dict, current_user: dict = 
     user_id = member_data.get('user_id')
     role = member_data.get('role', 'jogador')
     
-    user = await db.users.find_one({"id": user_id})
-    if not user:
-        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
-    
-    field_map = {
-        'treinador': 'coach_ids',
-        'delegado': 'delegate_ids',
-        'jogador': 'player_ids',
-        'responsavel': 'player_ids'
-    }
-    
+    field_map = {'treinador': 'coach_ids', 'delegado': 'delegate_ids', 'jogador': 'player_ids', 'responsavel': 'player_ids'}
     field = field_map.get(role, 'player_ids')
+    
     await db.teams.update_one({"id": team_id}, {"$addToSet": {field: user_id}})
     await db.users.update_one({"id": user_id}, {"$addToSet": {"team_ids": team_id}})
     
@@ -407,13 +546,7 @@ async def remove_team_member(team_id: str, user_id: str, current_user: dict = De
     if current_user['role'] not in ['admin', 'treinador']:
         raise HTTPException(status_code=403, detail="Sem permissão")
     
-    await db.teams.update_one({"id": team_id}, {
-        "$pull": {
-            "coach_ids": user_id,
-            "delegate_ids": user_id,
-            "player_ids": user_id
-        }
-    })
+    await db.teams.update_one({"id": team_id}, {"$pull": {"coach_ids": user_id, "delegate_ids": user_id, "player_ids": user_id}})
     await db.users.update_one({"id": user_id}, {"$pull": {"team_ids": team_id}})
     
     return {"message": "Membro removido da equipa"}
@@ -438,9 +571,259 @@ async def get_team_members(team_id: str, current_user: dict = Depends(get_curren
     
     return result
 
+# ==================== CHAMPIONSHIP ROUTES ====================
+
+@api_router.post("/championships")
+async def create_championship(data: ChampionshipCreate, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    championship = Championship(**data.model_dump(), created_by=current_user['id'])
+    champ_dict = championship.model_dump()
+    champ_dict['created_at'] = champ_dict['created_at'].isoformat()
+    
+    await db.championships.insert_one(champ_dict)
+    # Remove MongoDB _id before returning
+    champ_dict.pop('_id', None)
+    return champ_dict
+
+@api_router.get("/championships")
+async def get_championships(team_id: Optional[str] = None, season: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {}
+    if team_id:
+        query["team_id"] = team_id
+    if season:
+        query["season"] = season
+    
+    championships = await db.championships.find(query, {"_id": 0}).to_list(100)
+    return championships
+
+@api_router.get("/championships/{championship_id}")
+async def get_championship(championship_id: str, current_user: dict = Depends(get_current_user)):
+    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+    if not championship:
+        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+    return championship
+
+@api_router.put("/championships/{championship_id}")
+async def update_championship(championship_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    allowed = ['name', 'description', 'participating_teams']
+    filtered = {k: v for k, v in updates.items() if k in allowed}
+    
+    if filtered:
+        await db.championships.update_one({"id": championship_id}, {"$set": filtered})
+    return {"message": "Campeonato atualizado"}
+
+@api_router.delete("/championships/{championship_id}")
+async def delete_championship(championship_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] not in ['admin', 'treinador']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    await db.championships.delete_one({"id": championship_id})
+    await db.championship_matches.delete_many({"championship_id": championship_id})
+    return {"message": "Campeonato eliminado"}
+
+# ==================== CHAMPIONSHIP MATCH ROUTES ====================
+
+@api_router.post("/championships/{championship_id}/matches")
+async def create_championship_match(championship_id: str, data: ChampionshipMatchCreate, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+    if not championship:
+        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+    
+    match = ChampionshipMatch(
+        championship_id=championship_id,
+        team_id=championship['team_id'],
+        opponent_team=data.opponent_team,
+        match_date=data.match_date,
+        location=data.location,
+        venue=data.venue
+    )
+    
+    match_dict = match.model_dump()
+    match_dict['match_date'] = match_dict['match_date'].isoformat()
+    match_dict['created_at'] = match_dict['created_at'].isoformat()
+    
+    await db.championship_matches.insert_one(match_dict)
+    # Remove MongoDB _id before returning
+    match_dict.pop('_id', None)
+    
+    # Also create an event for this match
+    event = Event(
+        team_id=championship['team_id'],
+        event_type="campeonato",
+        title=f"vs {data.opponent_team}",
+        location=data.venue or ("Casa" if data.location == "casa" else "Fora"),
+        start_time=data.match_date,
+        opponent=data.opponent_team,
+        championship_id=championship_id,
+        created_by=current_user['id']
+    )
+    event_dict = event.model_dump()
+    event_dict['start_time'] = event_dict['start_time'].isoformat()
+    event_dict['created_at'] = event_dict['created_at'].isoformat()
+    await db.events.insert_one(event_dict)
+    
+    return match_dict
+
+@api_router.get("/championships/{championship_id}/matches")
+async def get_championship_matches(championship_id: str, current_user: dict = Depends(get_current_user)):
+    matches = await db.championship_matches.find({"championship_id": championship_id}, {"_id": 0}).sort("match_date", 1).to_list(100)
+    
+    for match in matches:
+        if isinstance(match.get('match_date'), str):
+            match['match_date'] = datetime.fromisoformat(match['match_date'])
+    
+    return matches
+
+@api_router.put("/championships/matches/{match_id}/result")
+async def update_match_result(match_id: str, result: MatchResultUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {"$set": {
+            "home_score": result.home_score,
+            "away_score": result.away_score,
+            "bonus_points": result.bonus_points,
+            "penalty_points": result.penalty_points,
+            "is_completed": True
+        }}
+    )
+    return {"message": "Resultado atualizado"}
+
+@api_router.get("/championships/{championship_id}/standings")
+async def get_championship_standings(championship_id: str, current_user: dict = Depends(get_current_user)):
+    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+    if not championship:
+        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+    
+    matches = await db.championship_matches.find({"championship_id": championship_id, "is_completed": True}, {"_id": 0}).to_list(100)
+    
+    # Build standings
+    standings = {}
+    team_name = (await db.teams.find_one({"id": championship['team_id']}, {"_id": 0, "name": 1}))['name']
+    
+    # Initialize our team
+    standings[team_name] = {"team": team_name, "played": 0, "won": 0, "drawn": 0, "lost": 0, "goals_for": 0, "goals_against": 0, "bonus": 0, "penalty": 0, "points": 0}
+    
+    # Initialize opponents
+    for match in matches:
+        opp = match['opponent_team']
+        if opp not in standings:
+            standings[opp] = {"team": opp, "played": 0, "won": 0, "drawn": 0, "lost": 0, "goals_for": 0, "goals_against": 0, "bonus": 0, "penalty": 0, "points": 0}
+    
+    # Calculate stats
+    for match in matches:
+        home_score = match.get('home_score', 0)
+        away_score = match.get('away_score', 0)
+        opp = match['opponent_team']
+        loc = match.get('location', 'casa')
+        bonus = match.get('bonus_points', 0)
+        penalty = match.get('penalty_points', 0)
+        
+        # Our team stats
+        if loc == 'casa':
+            our_goals = home_score
+            their_goals = away_score
+        else:
+            our_goals = away_score
+            their_goals = home_score
+        
+        standings[team_name]['played'] += 1
+        standings[team_name]['goals_for'] += our_goals
+        standings[team_name]['goals_against'] += their_goals
+        standings[team_name]['bonus'] += bonus
+        standings[team_name]['penalty'] += penalty
+        
+        standings[opp]['played'] += 1
+        standings[opp]['goals_for'] += their_goals
+        standings[opp]['goals_against'] += our_goals
+        
+        if our_goals > their_goals:
+            standings[team_name]['won'] += 1
+            standings[team_name]['points'] += 3
+            standings[opp]['lost'] += 1
+        elif our_goals < their_goals:
+            standings[team_name]['lost'] += 1
+            standings[opp]['won'] += 1
+            standings[opp]['points'] += 3
+        else:
+            standings[team_name]['drawn'] += 1
+            standings[team_name]['points'] += 1
+            standings[opp]['drawn'] += 1
+            standings[opp]['points'] += 1
+    
+    # Apply bonus/penalty
+    for team in standings.values():
+        team['points'] += team['bonus'] - team['penalty']
+        team['goal_diff'] = team['goals_for'] - team['goals_against']
+    
+    # Sort by points, then goal difference, then goals for
+    sorted_standings = sorted(standings.values(), key=lambda x: (-x['points'], -x['goal_diff'], -x['goals_for']))
+    
+    return sorted_standings
+
+# ==================== PLAYER MATCH STATS ROUTES ====================
+
+@api_router.post("/matches/{match_id}/player-stats")
+async def create_player_match_stats(match_id: str, stats: PlayerMatchStatsCreate, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+    
+    player_stats = PlayerMatchStats(
+        **stats.model_dump(),
+        team_id=match['team_id'],
+        championship_id=match['championship_id']
+    )
+    
+    stats_dict = player_stats.model_dump()
+    stats_dict['created_at'] = stats_dict['created_at'].isoformat()
+    
+    # Upsert - update if exists, insert if not
+    await db.player_match_stats.update_one(
+        {"match_id": match_id, "player_id": stats.player_id},
+        {"$set": stats_dict},
+        upsert=True
+    )
+    
+    return stats_dict
+
+@api_router.get("/matches/{match_id}/player-stats")
+async def get_match_player_stats(match_id: str, current_user: dict = Depends(get_current_user)):
+    stats = await db.player_match_stats.find({"match_id": match_id}, {"_id": 0}).to_list(100)
+    
+    # Enrich with player info
+    for stat in stats:
+        player = await db.users.find_one({"id": stat['player_id']}, {"_id": 0, "password": 0})
+        if player:
+            stat['player'] = player
+    
+    return stats
+
+@api_router.get("/players/{player_id}/match-stats")
+async def get_player_all_match_stats(player_id: str, championship_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {"player_id": player_id}
+    if championship_id:
+        query["championship_id"] = championship_id
+    
+    stats = await db.player_match_stats.find(query, {"_id": 0}).to_list(500)
+    return stats
+
 # ==================== EVENT ROUTES ====================
 
-@api_router.post("/events", response_model=Event)
+@api_router.post("/events")
 async def create_event(event_data: EventCreate, current_user: dict = Depends(get_current_user)):
     if current_user['role'] not in ['admin', 'treinador', 'delegado']:
         raise HTTPException(status_code=403, detail="Sem permissão")
@@ -453,30 +836,32 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
     event_dict['created_at'] = event_dict['created_at'].isoformat()
     
     await db.events.insert_one(event_dict)
-    return event
+    # Remove MongoDB _id before returning
+    event_dict.pop('_id', None)
+    return event_dict
 
 @api_router.get("/events")
-async def get_events(team_id: Optional[str] = None, event_type: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+async def get_events(team_id: Optional[str] = None, event_type: Optional[str] = None, championship_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
     query = {}
     if team_id:
         query["team_id"] = team_id
     if event_type:
         query["event_type"] = event_type
+    if championship_id:
+        query["championship_id"] = championship_id
     
     if current_user['role'] != 'admin':
         user_teams = current_user.get('team_ids', [])
         if user_teams:
             query["team_id"] = {"$in": user_teams}
     
-    events = await db.events.find(query, {"_id": 0}).sort("start_time", 1).to_list(100)
+    events = await db.events.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
     
     for event in events:
         if isinstance(event.get('start_time'), str):
             event['start_time'] = datetime.fromisoformat(event['start_time'])
         if event.get('end_time') and isinstance(event['end_time'], str):
             event['end_time'] = datetime.fromisoformat(event['end_time'])
-        if isinstance(event.get('created_at'), str):
-            event['created_at'] = datetime.fromisoformat(event['created_at'])
     
     return events
 
@@ -485,26 +870,7 @@ async def get_event(event_id: str, current_user: dict = Depends(get_current_user
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
     if not event:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
-    
-    if isinstance(event.get('start_time'), str):
-        event['start_time'] = datetime.fromisoformat(event['start_time'])
-    if event.get('end_time') and isinstance(event['end_time'], str):
-        event['end_time'] = datetime.fromisoformat(event['end_time'])
-    
     return event
-
-@api_router.put("/events/{event_id}")
-async def update_event(event_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
-    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
-        raise HTTPException(status_code=403, detail="Sem permissão")
-    
-    if 'start_time' in updates and isinstance(updates['start_time'], datetime):
-        updates['start_time'] = updates['start_time'].isoformat()
-    if 'end_time' in updates and isinstance(updates['end_time'], datetime):
-        updates['end_time'] = updates['end_time'].isoformat()
-    
-    await db.events.update_one({"id": event_id}, {"$set": updates})
-    return {"message": "Evento atualizado"}
 
 @api_router.delete("/events/{event_id}")
 async def delete_event(event_id: str, current_user: dict = Depends(get_current_user)):
@@ -519,7 +885,7 @@ async def delete_event(event_id: str, current_user: dict = Depends(get_current_u
 
 # ==================== CONVOCATION ROUTES ====================
 
-@api_router.post("/convocations", response_model=Convocation)
+@api_router.post("/convocations")
 async def create_convocation(conv_data: ConvocationCreate, current_user: dict = Depends(get_current_user)):
     if current_user['role'] not in ['admin', 'treinador']:
         raise HTTPException(status_code=403, detail="Apenas treinadores podem criar convocatórias")
@@ -533,19 +899,28 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
     conv_dict['created_at'] = conv_dict['created_at'].isoformat()
     
     await db.convocations.insert_one(conv_dict)
+    # Remove MongoDB _id before returning
+    conv_dict.pop('_id', None)
     
-    # Create attendance records for each player
+    # Create attendance records
+    event_date = event['start_time'] if isinstance(event['start_time'], datetime) else datetime.fromisoformat(event['start_time'])
+    
     for player_id in conv_data.player_ids:
         attendance = Attendance(
-            convocation_id=convocation.id,
             event_id=conv_data.event_id,
-            player_id=player_id
+            convocation_id=convocation.id,
+            player_id=player_id,
+            team_id=event['team_id'],
+            event_type=event['event_type'],
+            championship_id=event.get('championship_id'),
+            event_date=event_date
         )
         att_dict = attendance.model_dump()
+        att_dict['event_date'] = att_dict['event_date'].isoformat()
         att_dict['updated_at'] = att_dict['updated_at'].isoformat()
         await db.attendance.insert_one(att_dict)
         
-        # Send email notification (MOCK)
+        # Send email (MOCK)
         player = await db.users.find_one({"id": player_id}, {"_id": 0})
         if player:
             await send_email_notification(
@@ -554,40 +929,21 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
                 f"<h1>Foste convocado!</h1><p>{conv_data.message or 'Por favor confirma a tua presença.'}</p>"
             )
     
-    return convocation
-
-@api_router.get("/convocations")
-async def get_convocations(event_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    query = {}
-    if event_id:
-        query["event_id"] = event_id
-    
-    convocations = await db.convocations.find(query, {"_id": 0}).to_list(100)
-    
-    for conv in convocations:
-        if isinstance(conv.get('created_at'), str):
-            conv['created_at'] = datetime.fromisoformat(conv['created_at'])
-    
-    return convocations
+    return conv_dict
 
 @api_router.get("/convocations/my")
 async def get_my_convocations(current_user: dict = Depends(get_current_user)):
-    # Get all attendance records for this player
     attendances = await db.attendance.find({"player_id": current_user['id']}, {"_id": 0}).to_list(100)
     
     result = []
     for att in attendances:
         event = await db.events.find_one({"id": att['event_id']}, {"_id": 0})
-        convocation = await db.convocations.find_one({"id": att['convocation_id']}, {"_id": 0})
+        convocation = await db.convocations.find_one({"id": att.get('convocation_id')}, {"_id": 0}) if att.get('convocation_id') else None
         
-        if event and convocation:
+        if event:
             if isinstance(event.get('start_time'), str):
                 event['start_time'] = datetime.fromisoformat(event['start_time'])
-            result.append({
-                "attendance": att,
-                "event": event,
-                "convocation": convocation
-            })
+            result.append({"attendance": att, "event": event, "convocation": convocation})
     
     return result
 
@@ -602,43 +958,219 @@ async def update_attendance(attendance_id: str, update: AttendanceUpdate, curren
     
     await db.attendance.update_one(
         {"id": attendance_id},
-        {"$set": {
-            "status": update.status,
-            "reason": update.reason,
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }}
+        {"$set": {"status": update.status, "reason": update.reason, "updated_at": datetime.now(timezone.utc).isoformat()}}
     )
     
     return {"message": "Presença atualizada"}
 
-@api_router.get("/events/{event_id}/attendance")
-async def get_event_attendance(event_id: str, current_user: dict = Depends(get_current_user)):
-    attendances = await db.attendance.find({"event_id": event_id}, {"_id": 0}).to_list(100)
+# ==================== ATTENDANCE ANALYTICS ROUTES ====================
+
+@api_router.get("/teams/{team_id}/attendance")
+async def get_team_attendance(team_id: str, season: Optional[str] = None, month: Optional[int] = None, 
+                              event_type: Optional[str] = None, championship_id: Optional[str] = None,
+                              current_user: dict = Depends(get_current_user)):
+    query = {"team_id": team_id}
     
-    result = []
+    if event_type:
+        query["event_type"] = event_type
+    if championship_id:
+        query["championship_id"] = championship_id
+    
+    attendances = await db.attendance.find(query, {"_id": 0}).to_list(5000)
+    
+    # Filter by month if specified
+    if month:
+        attendances = [a for a in attendances if datetime.fromisoformat(a['event_date']).month == month]
+    
+    # Group by player
+    player_stats = {}
     for att in attendances:
-        player = await db.users.find_one({"id": att['player_id']}, {"_id": 0, "password": 0})
+        pid = att['player_id']
+        if pid not in player_stats:
+            player_stats[pid] = {"total": 0, "confirmado": 0, "ausente": 0, "pendente": 0}
+        player_stats[pid]["total"] += 1
+        player_stats[pid][att['status']] += 1
+    
+    # Enrich with player info
+    result = []
+    for pid, stats in player_stats.items():
+        player = await db.users.find_one({"id": pid}, {"_id": 0, "password": 0})
         if player:
-            result.append({**att, "player": player})
+            stats['player'] = player
+            stats['attendance_rate'] = round((stats['confirmado'] / stats['total']) * 100, 1) if stats['total'] > 0 else 0
+            result.append(stats)
+    
+    result.sort(key=lambda x: -x['attendance_rate'])
+    return result
+
+@api_router.get("/teams/{team_id}/attendance/summary")
+async def get_team_attendance_summary(team_id: str, current_user: dict = Depends(get_current_user)):
+    # Get all attendance for this team
+    attendances = await db.attendance.find({"team_id": team_id}, {"_id": 0}).to_list(5000)
+    
+    # Group by month
+    monthly = {}
+    by_event_type = {"treino": {"total": 0, "confirmado": 0}, "jogo": {"total": 0, "confirmado": 0}, "campeonato": {"total": 0, "confirmado": 0}}
+    
+    for att in attendances:
+        event_date = datetime.fromisoformat(att['event_date']) if isinstance(att['event_date'], str) else att['event_date']
+        month_key = event_date.strftime("%Y-%m")
+        
+        if month_key not in monthly:
+            monthly[month_key] = {"total": 0, "confirmado": 0}
+        
+        monthly[month_key]["total"] += 1
+        if att['status'] == 'confirmado':
+            monthly[month_key]["confirmado"] += 1
+        
+        et = att.get('event_type', 'treino')
+        if et in by_event_type:
+            by_event_type[et]["total"] += 1
+            if att['status'] == 'confirmado':
+                by_event_type[et]["confirmado"] += 1
+    
+    return {"monthly": monthly, "by_event_type": by_event_type, "total_records": len(attendances)}
+
+# ==================== STATISTICS ROUTES ====================
+
+@api_router.get("/teams/{team_id}/stats")
+async def get_team_stats(team_id: str, championship_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    query = {"team_id": team_id}
+    if championship_id:
+        query["championship_id"] = championship_id
+    
+    all_stats = await db.player_match_stats.find(query, {"_id": 0}).to_list(5000)
+    
+    # Aggregate by player
+    player_totals = {}
+    for stat in all_stats:
+        pid = stat['player_id']
+        if pid not in player_totals:
+            player_totals[pid] = {
+                "player_id": pid, "games_played": 0, "minutes_played": 0, "goals": 0, "assists": 0,
+                "penalties_scored": 0, "penalties_missed": 0, "penalties_saved": 0, "penalties_conceded": 0,
+                "free_kicks_scored": 0, "free_kicks_missed": 0, "free_kicks_saved": 0, "free_kicks_conceded": 0,
+                "saves": 0, "blue_cards": 0, "yellow_cards": 0, "white_cards": 0, "red_cards": 0
+            }
+        
+        pt = player_totals[pid]
+        pt['games_played'] += 1
+        for key in ['minutes_played', 'goals', 'assists', 'penalties_scored', 'penalties_missed', 
+                    'penalties_saved', 'penalties_conceded', 'free_kicks_scored', 'free_kicks_missed',
+                    'free_kicks_saved', 'free_kicks_conceded', 'saves', 'blue_cards', 'yellow_cards', 
+                    'white_cards', 'red_cards']:
+            pt[key] += stat.get(key, 0)
+    
+    # Enrich with player info
+    result = []
+    for pid, stats in player_totals.items():
+        player = await db.users.find_one({"id": pid}, {"_id": 0, "password": 0})
+        if player:
+            stats['player'] = player
+            result.append(stats)
     
     return result
 
-# ==================== CHAT ROUTES ====================
+@api_router.get("/player-stats/{player_id}/consolidated")
+async def get_player_consolidated_stats(player_id: str, current_user: dict = Depends(get_current_user)):
+    player = await db.users.find_one({"id": player_id}, {"_id": 0, "password": 0})
+    if not player:
+        raise HTTPException(status_code=404, detail="Jogador não encontrado")
+    
+    # Get all match stats for this player
+    all_stats = await db.player_match_stats.find({"player_id": player_id}, {"_id": 0}).to_list(1000)
+    
+    # Consolidated totals
+    consolidated = {
+        "games_played": 0, "minutes_played": 0, "goals": 0, "assists": 0,
+        "penalties_scored": 0, "penalties_missed": 0, "penalties_saved": 0, "penalties_conceded": 0,
+        "free_kicks_scored": 0, "free_kicks_missed": 0, "free_kicks_saved": 0, "free_kicks_conceded": 0,
+        "saves": 0, "blue_cards": 0, "yellow_cards": 0, "white_cards": 0, "red_cards": 0
+    }
+    
+    # Per team stats
+    team_stats = {}
+    for stat in all_stats:
+        tid = stat.get('team_id')
+        if tid not in team_stats:
+            team_stats[tid] = {k: 0 for k in consolidated.keys()}
+            team_stats[tid]['team_id'] = tid
+        
+        consolidated['games_played'] += 1
+        team_stats[tid]['games_played'] += 1
+        
+        for key in list(consolidated.keys())[1:]:
+            consolidated[key] += stat.get(key, 0)
+            team_stats[tid][key] += stat.get(key, 0)
+    
+    # Enrich team stats with team info
+    per_team_stats = []
+    for tid, ts in team_stats.items():
+        team = await db.teams.find_one({"id": tid}, {"_id": 0})
+        if team:
+            ts['team'] = team
+            per_team_stats.append(ts)
+    
+    # Get teams the player belongs to
+    teams = []
+    for tid in player.get('team_ids', []):
+        team = await db.teams.find_one({"id": tid}, {"_id": 0})
+        if team:
+            teams.append(team)
+    
+    return {
+        "player": player,
+        "consolidated": consolidated,
+        "per_team_stats": per_team_stats,
+        "teams": teams,
+        "teams_count": len(teams)
+    }
 
-@api_router.post("/messages", response_model=Message)
+# ==================== MESSAGE ROUTES ====================
+
+@api_router.post("/messages")
 async def send_message(msg_data: MessageCreate, current_user: dict = Depends(get_current_user)):
     message = Message(
         team_id=msg_data.team_id,
         sender_id=current_user['id'],
         sender_name=current_user['name'],
-        content=msg_data.content
+        content=msg_data.content,
+        recipient_ids=msg_data.recipient_ids,
+        attachment_name=msg_data.attachment_name
     )
+    
+    # Handle attachment (store as base64 in DB for simplicity - in production use object storage)
+    if msg_data.attachment_data:
+        message.attachment_url = f"data:{msg_data.attachment_name};base64,{msg_data.attachment_data}"
     
     msg_dict = message.model_dump()
     msg_dict['created_at'] = msg_dict['created_at'].isoformat()
     
     await db.messages.insert_one(msg_dict)
-    return message
+    # Remove MongoDB _id before returning
+    msg_dict.pop('_id', None)
+    
+    # Send email notifications
+    if msg_data.recipient_ids:
+        recipients = await db.users.find({"id": {"$in": msg_data.recipient_ids}}, {"_id": 0, "email": 1, "name": 1}).to_list(100)
+    else:
+        # Send to all team members
+        team = await db.teams.find_one({"id": msg_data.team_id}, {"_id": 0})
+        if team:
+            all_ids = team.get('coach_ids', []) + team.get('delegate_ids', []) + team.get('player_ids', [])
+            recipients = await db.users.find({"id": {"$in": all_ids}}, {"_id": 0, "email": 1, "name": 1}).to_list(100)
+        else:
+            recipients = []
+    
+    for recipient in recipients:
+        if recipient['email'] != current_user['email']:
+            await send_email_notification(
+                recipient['email'],
+                f"Nova mensagem de {current_user['name']}",
+                f"<p>{msg_data.content}</p>"
+            )
+    
+    return msg_dict
 
 @api_router.get("/messages/{team_id}")
 async def get_messages(team_id: str, limit: int = 50, current_user: dict = Depends(get_current_user)):
@@ -647,151 +1179,31 @@ async def get_messages(team_id: str, limit: int = 50, current_user: dict = Depen
         {"_id": 0}
     ).sort("created_at", -1).limit(limit).to_list(limit)
     
-    for msg in messages:
-        if isinstance(msg.get('created_at'), str):
-            msg['created_at'] = datetime.fromisoformat(msg['created_at'])
-    
     return list(reversed(messages))
 
-# ==================== STATS ROUTES ====================
+@api_router.get("/teams/{team_id}/members-for-message")
+async def get_members_for_message(team_id: str, current_user: dict = Depends(get_current_user)):
+    team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+    if not team:
+        raise HTTPException(status_code=404, detail="Equipa não encontrada")
+    
+    all_ids = team.get('coach_ids', []) + team.get('delegate_ids', []) + team.get('player_ids', [])
+    members = await db.users.find({"id": {"$in": all_ids}}, {"_id": 0, "password": 0, "id": 1, "name": 1, "email": 1, "role": 1}).to_list(100)
+    
+    return members
 
-@api_router.post("/game-stats", response_model=GameStats)
-async def create_game_stats(stats_data: GameStatsCreate, current_user: dict = Depends(get_current_user)):
-    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
-        raise HTTPException(status_code=403, detail="Sem permissão")
-    
-    game_stats = GameStats(**stats_data.model_dump())
-    stats_dict = game_stats.model_dump()
-    stats_dict['created_at'] = stats_dict['created_at'].isoformat()
-    
-    await db.game_stats.insert_one(stats_dict)
-    
-    # Update player season stats
-    event = await db.events.find_one({"id": stats_data.event_id}, {"_id": 0})
-    if event:
-        for ps in stats_data.player_stats:
-            await db.player_stats.update_one(
-                {"player_id": ps.get('player_id'), "team_id": event['team_id']},
-                {
-                    "$inc": {
-                        "games_played": 1,
-                        "goals": ps.get('goals', 0),
-                        "assists": ps.get('assists', 0),
-                        "yellow_cards": ps.get('yellow_cards', 0),
-                        "red_cards": ps.get('red_cards', 0),
-                        "blue_cards": ps.get('blue_cards', 0),
-                        "saves": ps.get('saves', 0)
-                    }
-                },
-                upsert=True
-            )
-    
-    return game_stats
-
-@api_router.get("/game-stats/{event_id}")
-async def get_game_stats(event_id: str, current_user: dict = Depends(get_current_user)):
-    stats = await db.game_stats.find_one({"event_id": event_id}, {"_id": 0})
-    if not stats:
-        raise HTTPException(status_code=404, detail="Estatísticas não encontradas")
-    return stats
-
-@api_router.get("/player-stats/{player_id}")
-async def get_player_stats(player_id: str, team_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    query = {"player_id": player_id}
-    if team_id:
-        query["team_id"] = team_id
-    
-    stats = await db.player_stats.find(query, {"_id": 0}).to_list(10)
-    return stats
-
-@api_router.get("/player-stats/{player_id}/consolidated")
-async def get_player_consolidated_stats(player_id: str, current_user: dict = Depends(get_current_user)):
-    """Get consolidated statistics for a player across all teams"""
-    
-    # Get player info
-    player = await db.users.find_one({"id": player_id}, {"_id": 0, "password": 0})
-    if not player:
-        raise HTTPException(status_code=404, detail="Jogador não encontrado")
-    
-    # Get all stats for this player across all teams
-    all_stats = await db.player_stats.find({"player_id": player_id}, {"_id": 0}).to_list(100)
-    
-    # Consolidate stats
-    consolidated = {
-        "games_played": 0,
-        "goals": 0,
-        "assists": 0,
-        "yellow_cards": 0,
-        "red_cards": 0,
-        "blue_cards": 0,
-        "saves": 0
-    }
-    
-    teams_stats = []
-    for stat in all_stats:
-        # Add to consolidated totals
-        consolidated["games_played"] += stat.get("games_played", 0)
-        consolidated["goals"] += stat.get("goals", 0)
-        consolidated["assists"] += stat.get("assists", 0)
-        consolidated["yellow_cards"] += stat.get("yellow_cards", 0)
-        consolidated["red_cards"] += stat.get("red_cards", 0)
-        consolidated["blue_cards"] += stat.get("blue_cards", 0)
-        consolidated["saves"] += stat.get("saves", 0)
-        
-        # Get team info for per-team breakdown
-        team = await db.teams.find_one({"id": stat.get("team_id")}, {"_id": 0})
-        teams_stats.append({
-            **stat,
-            "team": team
-        })
-    
-    # Get all teams the player belongs to
-    player_teams = []
-    if player.get("team_ids"):
-        for team_id in player["team_ids"]:
-            team = await db.teams.find_one({"id": team_id}, {"_id": 0})
-            if team:
-                if isinstance(team.get('created_at'), str):
-                    team['created_at'] = datetime.fromisoformat(team['created_at'])
-                player_teams.append(team)
-    
-    return {
-        "player": player,
-        "consolidated": consolidated,
-        "per_team_stats": teams_stats,
-        "teams": player_teams,
-        "teams_count": len(player_teams)
-    }
-
-@api_router.get("/teams/{team_id}/stats")
-async def get_team_stats(team_id: str, current_user: dict = Depends(get_current_user)):
-    stats = await db.player_stats.find({"team_id": team_id}, {"_id": 0}).to_list(100)
-    
-    # Enrich with player info
-    result = []
-    for stat in stats:
-        player = await db.users.find_one({"id": stat['player_id']}, {"_id": 0, "password": 0})
-        if player:
-            result.append({**stat, "player": player})
-    
-    return result
-
-# ==================== DASHBOARD ROUTES ====================
+# ==================== DASHBOARD ROUTE ====================
 
 @api_router.get("/dashboard")
 async def get_dashboard(current_user: dict = Depends(get_current_user)):
     user_teams = current_user.get('team_ids', [])
     
-    # Upcoming events
     now = datetime.now(timezone.utc).isoformat()
     upcoming_query = {"start_time": {"$gte": now}}
     if current_user['role'] != 'admin' and user_teams:
         upcoming_query["team_id"] = {"$in": user_teams}
     
-    upcoming_events = await db.events.find(
-        upcoming_query,
-        {"_id": 0}
-    ).sort("start_time", 1).limit(5).to_list(5)
+    upcoming_events = await db.events.find(upcoming_query, {"_id": 0}).sort("start_time", 1).limit(5).to_list(5)
     
     for event in upcoming_events:
         if isinstance(event.get('start_time'), str):
@@ -799,11 +1211,7 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         team = await db.teams.find_one({"id": event['team_id']}, {"_id": 0})
         event['team'] = team
     
-    # Pending convocations
-    pending_attendances = await db.attendance.find({
-        "player_id": current_user['id'],
-        "status": "pendente"
-    }, {"_id": 0}).to_list(10)
+    pending_attendances = await db.attendance.find({"player_id": current_user['id'], "status": "pendente"}, {"_id": 0}).to_list(10)
     
     pending_convocations = []
     for att in pending_attendances:
@@ -813,19 +1221,11 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
                 event['start_time'] = datetime.fromisoformat(event['start_time'])
             pending_convocations.append({"attendance": att, "event": event})
     
-    # Teams count
-    if current_user['role'] == 'admin':
-        teams_count = await db.teams.count_documents({})
-    else:
-        teams_count = len(user_teams)
+    teams_count = await db.teams.count_documents({}) if current_user['role'] == 'admin' else len(user_teams)
     
-    # Recent messages
     recent_messages = []
     if user_teams:
-        recent_messages = await db.messages.find(
-            {"team_id": {"$in": user_teams}},
-            {"_id": 0}
-        ).sort("created_at", -1).limit(5).to_list(5)
+        recent_messages = await db.messages.find({"team_id": {"$in": user_teams}}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
     
     return {
         "upcoming_events": upcoming_events,
@@ -838,9 +1238,9 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/")
 async def root():
-    return {"message": "Roller Hockey Hub API", "version": "1.0.0"}
+    return {"message": "Roller Hockey Hub API", "version": "2.0.0"}
 
-# Include the router in the main app
+# Include router
 app.include_router(api_router)
 
 app.add_middleware(

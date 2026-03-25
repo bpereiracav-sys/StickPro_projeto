@@ -53,7 +53,8 @@ export function getRoleName(role) {
 export function getEventTypeName(type) {
   const types = {
     jogo: 'Jogo',
-    treino: 'Treino'
+    treino: 'Treino',
+    campeonato: 'Campeonato'
   };
   return types[type] || type;
 }

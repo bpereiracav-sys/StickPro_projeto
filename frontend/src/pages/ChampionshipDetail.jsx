@@ -1,0 +1,534 @@
+import { useState, useEffect } from 'react';
+import { useParams, Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { championshipsApi, teamsApi } from '../services/api';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Badge } from '../components/ui/badge';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Skeleton } from '../components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '../components/ui/table';
+import { toast } from 'sonner';
+import { 
+  ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin, Home, Plane, 
+  Target, Edit, Check, X
+} from 'lucide-react';
+import { formatDate, formatTime } from '../lib/utils';
+
+export default function ChampionshipDetail() {
+  const { championshipId } = useParams();
+  const { canManageEvents } = useAuth();
+  const [championship, setChampionship] = useState(null);
+  const [matches, setMatches] = useState([]);
+  const [standings, setStandings] = useState([]);
+  const [team, setTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [matchDialogOpen, setMatchDialogOpen] = useState(false);
+  const [resultDialogOpen, setResultDialogOpen] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState(null);
+  const [creating, setCreating] = useState(false);
+  
+  const [matchForm, setMatchForm] = useState({
+    opponent_team: '',
+    match_date: '',
+    location: 'casa',
+    venue: ''
+  });
+  
+  const [resultForm, setResultForm] = useState({
+    home_score: 0,
+    away_score: 0,
+    bonus_points: 0,
+    penalty_points: 0
+  });
+
+  useEffect(() => {
+    fetchData();
+  }, [championshipId]);
+
+  const fetchData = async () => {
+    try {
+      const [champRes, matchesRes, standingsRes] = await Promise.all([
+        championshipsApi.getOne(championshipId),
+        championshipsApi.getMatches(championshipId),
+        championshipsApi.getStandings(championshipId)
+      ]);
+      
+      setChampionship(champRes.data);
+      setMatches(matchesRes.data);
+      setStandings(standingsRes.data);
+      
+      // Get team info
+      const teamRes = await teamsApi.getOne(champRes.data.team_id);
+      setTeam(teamRes.data);
+    } catch (error) {
+      console.error('Error fetching data:', error);
+      toast.error('Erro ao carregar dados');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateMatch = async (e) => {
+    e.preventDefault();
+    setCreating(true);
+
+    try {
+      await championshipsApi.createMatch(championshipId, {
+        ...matchForm,
+        championship_id: championshipId,
+        match_date: new Date(matchForm.match_date).toISOString()
+      });
+      toast.success('Jogo adicionado!');
+      setMatchDialogOpen(false);
+      setMatchForm({ opponent_team: '', match_date: '', location: 'casa', venue: '' });
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao adicionar jogo');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleUpdateResult = async (e) => {
+    e.preventDefault();
+    if (!selectedMatch) return;
+    setCreating(true);
+
+    try {
+      await championshipsApi.updateMatchResult(selectedMatch.id, resultForm);
+      toast.success('Resultado atualizado!');
+      setResultDialogOpen(false);
+      setSelectedMatch(null);
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao atualizar resultado');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const openResultDialog = (match) => {
+    setSelectedMatch(match);
+    setResultForm({
+      home_score: match.home_score || 0,
+      away_score: match.away_score || 0,
+      bonus_points: match.bonus_points || 0,
+      penalty_points: match.penalty_points || 0
+    });
+    setResultDialogOpen(true);
+  };
+
+  const getLocationIcon = (loc) => {
+    if (loc === 'casa') return <Home className="w-4 h-4 text-secondary" />;
+    if (loc === 'fora') return <Plane className="w-4 h-4 text-primary" />;
+    return <Target className="w-4 h-4 text-muted-foreground" />;
+  };
+
+  const getLocationLabel = (loc) => {
+    if (loc === 'casa') return 'Casa';
+    if (loc === 'fora') return 'Fora';
+    return 'Neutro';
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="h-10 w-48" />
+        <Skeleton className="h-32" />
+        <Skeleton className="h-96" />
+      </div>
+    );
+  }
+
+  if (!championship) {
+    return (
+      <div className="text-center py-16">
+        <Trophy className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+        <p className="text-muted-foreground">Campeonato não encontrado</p>
+        <Button asChild className="mt-4">
+          <Link to="/championships">Voltar</Link>
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6" data-testid="championship-detail-page">
+      {/* Back Button */}
+      <Link 
+        to="/championships" 
+        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Voltar aos Campeonatos
+      </Link>
+
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div>
+          <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide flex items-center gap-3">
+            <Trophy className="w-8 h-8 text-primary" />
+            {championship.name}
+          </h1>
+          <div className="flex items-center gap-3 mt-2">
+            <Badge variant="outline">{championship.season}</Badge>
+            <span className="text-muted-foreground">{team?.name}</span>
+          </div>
+        </div>
+
+        {canManageEvents && (
+          <Button onClick={() => setMatchDialogOpen(true)} data-testid="add-match-btn">
+            <Plus className="w-4 h-4 mr-2" />
+            Adicionar Jogo
+          </Button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <Tabs defaultValue="matches" className="space-y-6">
+        <TabsList className="bg-muted">
+          <TabsTrigger value="matches">Jogos ({matches.length})</TabsTrigger>
+          <TabsTrigger value="standings">Classificação</TabsTrigger>
+        </TabsList>
+
+        {/* Matches Tab */}
+        <TabsContent value="matches" className="space-y-4">
+          {matches.length > 0 ? (
+            <div className="space-y-3">
+              {matches.map((match) => (
+                <Card key={match.id} className="border border-border" data-testid={`match-${match.id}`}>
+                  <CardContent className="p-4">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                        <div className="text-center min-w-[80px]">
+                          <p className="text-xs text-muted-foreground uppercase">
+                            {formatDate(match.match_date)}
+                          </p>
+                          <p className="font-heading text-lg">{formatTime(match.match_date)}</p>
+                        </div>
+                        
+                        <div className="flex items-center gap-2">
+                          {getLocationIcon(match.location)}
+                          <Badge variant="outline" className="text-xs">
+                            {getLocationLabel(match.location)}
+                          </Badge>
+                        </div>
+
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3">
+                            <span className="font-semibold">{team?.name}</span>
+                            <span className="text-muted-foreground">vs</span>
+                            <span className="font-semibold">{match.opponent_team}</span>
+                          </div>
+                          {match.venue && (
+                            <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
+                              <MapPin className="w-3 h-3" />
+                              {match.venue}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4">
+                        {match.is_completed ? (
+                          <div className="flex items-center gap-2">
+                            <div className="text-center px-4 py-2 bg-muted rounded-sm">
+                              <span className="font-heading text-2xl">
+                                {match.location === 'casa' 
+                                  ? `${match.home_score} - ${match.away_score}`
+                                  : `${match.away_score} - ${match.home_score}`
+                                }
+                              </span>
+                            </div>
+                            {(match.bonus_points > 0 || match.penalty_points > 0) && (
+                              <div className="text-xs">
+                                {match.bonus_points > 0 && (
+                                  <span className="text-secondary">+{match.bonus_points} bónus</span>
+                                )}
+                                {match.penalty_points > 0 && (
+                                  <span className="text-destructive ml-1">-{match.penalty_points} penalização</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <Badge variant="outline" className="text-amber-600 border-amber-600">
+                            Por jogar
+                          </Badge>
+                        )}
+
+                        {canManageEvents && (
+                          <div className="flex gap-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => openResultDialog(match)}
+                              data-testid={`edit-result-${match.id}`}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              {match.is_completed ? 'Editar' : 'Resultado'}
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              asChild
+                            >
+                              <Link to={`/championships/${championshipId}/matches/${match.id}/stats`}>
+                                Estatísticas
+                              </Link>
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="border border-border">
+              <CardContent className="py-12 text-center">
+                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Nenhum jogo agendado</p>
+                {canManageEvents && (
+                  <Button className="mt-4" onClick={() => setMatchDialogOpen(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Jogo
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Standings Tab */}
+        <TabsContent value="standings">
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl tracking-wide">CLASSIFICAÇÃO</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {standings.length > 0 ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-12">#</TableHead>
+                        <TableHead>Equipa</TableHead>
+                        <TableHead className="text-center">J</TableHead>
+                        <TableHead className="text-center">V</TableHead>
+                        <TableHead className="text-center">E</TableHead>
+                        <TableHead className="text-center">D</TableHead>
+                        <TableHead className="text-center">GM</TableHead>
+                        <TableHead className="text-center">GS</TableHead>
+                        <TableHead className="text-center">DG</TableHead>
+                        <TableHead className="text-center">B</TableHead>
+                        <TableHead className="text-center">P</TableHead>
+                        <TableHead className="text-center font-bold">Pts</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {standings.map((row, index) => (
+                        <TableRow 
+                          key={row.team} 
+                          className={row.team === team?.name ? 'bg-primary/5' : ''}
+                        >
+                          <TableCell className="font-bold">{index + 1}</TableCell>
+                          <TableCell className="font-semibold">
+                            {row.team === team?.name && <Trophy className="w-4 h-4 inline mr-2 text-primary" />}
+                            {row.team}
+                          </TableCell>
+                          <TableCell className="text-center">{row.played}</TableCell>
+                          <TableCell className="text-center text-secondary">{row.won}</TableCell>
+                          <TableCell className="text-center">{row.drawn}</TableCell>
+                          <TableCell className="text-center text-destructive">{row.lost}</TableCell>
+                          <TableCell className="text-center">{row.goals_for}</TableCell>
+                          <TableCell className="text-center">{row.goals_against}</TableCell>
+                          <TableCell className="text-center font-mono">
+                            {row.goal_diff > 0 ? `+${row.goal_diff}` : row.goal_diff}
+                          </TableCell>
+                          <TableCell className="text-center text-secondary">{row.bonus}</TableCell>
+                          <TableCell className="text-center text-destructive">{row.penalty}</TableCell>
+                          <TableCell className="text-center font-bold text-lg">{row.points}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  Sem dados de classificação. Adicione resultados aos jogos.
+                </p>
+              )}
+              <p className="text-xs text-muted-foreground mt-4">
+                J=Jogos | V=Vitórias (3pts) | E=Empates (1pt) | D=Derrotas | GM=Golos Marcados | GS=Golos Sofridos | DG=Diferença | B=Bónus | P=Penalização
+              </p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Add Match Dialog */}
+      <Dialog open={matchDialogOpen} onOpenChange={setMatchDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR JOGO</DialogTitle>
+            <DialogDescription>
+              Agendar um novo jogo no campeonato
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateMatch}>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Equipa Adversária</Label>
+                <Input
+                  placeholder="Nome da equipa"
+                  value={matchForm.opponent_team}
+                  onChange={(e) => setMatchForm({ ...matchForm, opponent_team: e.target.value })}
+                  required
+                  data-testid="match-opponent-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Data e Hora</Label>
+                <Input
+                  type="datetime-local"
+                  value={matchForm.match_date}
+                  onChange={(e) => setMatchForm({ ...matchForm, match_date: e.target.value })}
+                  required
+                  data-testid="match-date-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Local</Label>
+                <Select
+                  value={matchForm.location}
+                  onValueChange={(v) => setMatchForm({ ...matchForm, location: v })}
+                >
+                  <SelectTrigger data-testid="match-location-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="casa">Casa</SelectItem>
+                    <SelectItem value="fora">Fora</SelectItem>
+                    <SelectItem value="neutro">Campo Neutro</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Pavilhão/Recinto (opcional)</Label>
+                <Input
+                  placeholder="Ex: Pavilhão Municipal"
+                  value={matchForm.venue}
+                  onChange={(e) => setMatchForm({ ...matchForm, venue: e.target.value })}
+                  data-testid="match-venue-input"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setMatchDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating} data-testid="submit-match-btn">
+                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Result Dialog */}
+      <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide">RESULTADO DO JOGO</DialogTitle>
+            <DialogDescription>
+              {selectedMatch && `${team?.name} vs ${selectedMatch.opponent_team}`}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateResult}>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>{selectedMatch?.location === 'casa' ? team?.name : selectedMatch?.opponent_team}</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={resultForm.home_score}
+                    onChange={(e) => setResultForm({ ...resultForm, home_score: parseInt(e.target.value) || 0 })}
+                    data-testid="home-score-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>{selectedMatch?.location === 'casa' ? selectedMatch?.opponent_team : team?.name}</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={resultForm.away_score}
+                    onChange={(e) => setResultForm({ ...resultForm, away_score: parseInt(e.target.value) || 0 })}
+                    data-testid="away-score-input"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Pontos Bónus</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={resultForm.bonus_points}
+                    onChange={(e) => setResultForm({ ...resultForm, bonus_points: parseInt(e.target.value) || 0 })}
+                    data-testid="bonus-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Pontos Penalização</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={resultForm.penalty_points}
+                    onChange={(e) => setResultForm({ ...resultForm, penalty_points: parseInt(e.target.value) || 0 })}
+                    data-testid="penalty-input"
+                  />
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setResultDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating} data-testid="submit-result-btn">
+                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

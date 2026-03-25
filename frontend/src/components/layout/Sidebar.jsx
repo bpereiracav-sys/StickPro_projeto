@@ -15,7 +15,6 @@ import {
   Calendar, 
   Users, 
   MessageSquare, 
-  ClipboardCheck,
   Settings,
   LogOut,
   Menu,
@@ -24,7 +23,9 @@ import {
   Home,
   ChevronDown,
   Bell,
-  User
+  User,
+  Trophy,
+  ClipboardCheck
 } from 'lucide-react';
 import { useState } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -35,13 +36,16 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
 
+  // Menu items based on selected team context
   const navLinks = [
     { href: '/dashboard', label: 'Início', icon: Home },
     { href: '/calendar', label: 'Calendário', icon: Calendar },
-    { href: '/convocations', label: 'Convocatórias', icon: ClipboardCheck },
-    { href: '/teams', label: 'Plantel', icon: Users },
+    { href: '/members', label: 'Membros', icon: Users },
+    { href: '/championships', label: 'Campeonatos', icon: Trophy },
+    { href: '/attendance', label: 'Presenças', icon: ClipboardCheck },
     { href: '/stats', label: 'Estatísticas', icon: BarChart3 },
-    { href: '/chat', label: 'Mensagens', icon: MessageSquare },
+    { href: '/messages', label: 'Mensagens', icon: MessageSquare },
+    { href: '/settings', label: 'Definições', icon: Settings },
   ];
 
   const handleLogout = () => {
@@ -158,7 +162,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
             <nav className="px-3 space-y-1">
               {navLinks.map((link) => {
                 const Icon = link.icon;
-                const isActive = location.pathname === link.href;
+                const isActive = location.pathname === link.href || location.pathname.startsWith(link.href + '/');
                 return (
                   <Link
                     key={link.href}
@@ -170,7 +174,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                         ? 'bg-primary text-white' 
                         : 'text-slate-300 hover:bg-slate-800 hover:text-white'}
                     `}
-                    data-testid={`nav-${link.label.toLowerCase()}`}
+                    data-testid={`nav-${link.label.toLowerCase().replace('í', 'i').replace('ã', 'a').replace('ç', 'c')}`}
                   >
                     <Icon className="w-5 h-5" />
                     <span className="font-medium">{link.label}</span>

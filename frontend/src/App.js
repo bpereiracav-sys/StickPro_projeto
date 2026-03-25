@@ -17,6 +17,11 @@ import Convocations from "./pages/Convocations";
 import Chat from "./pages/Chat";
 import Stats from "./pages/Stats";
 import Settings from "./pages/Settings";
+import Members from "./pages/Members";
+import Championships from "./pages/Championships";
+import ChampionshipDetail from "./pages/ChampionshipDetail";
+import MatchStats from "./pages/MatchStats";
+import Attendance from "./pages/Attendance";
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -155,6 +160,54 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Settings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/members"
+        element={
+          <ProtectedRoute>
+            <Members />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/championships"
+        element={
+          <ProtectedRoute>
+            <Championships />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/championships/:championshipId"
+        element={
+          <ProtectedRoute>
+            <ChampionshipDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/championships/:championshipId/matches/:matchId/stats"
+        element={
+          <ProtectedRoute>
+            <MatchStats />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/attendance"
+        element={
+          <ProtectedRoute>
+            <Attendance />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/messages"
+        element={
+          <ProtectedRoute>
+            <Chat />
           </ProtectedRoute>
         }
       />
