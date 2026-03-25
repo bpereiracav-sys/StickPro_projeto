@@ -31,7 +31,8 @@ import {
   ClipboardCheck,
   RefreshCw,
   Shield,
-  BookOpen
+  BookOpen,
+  Building2
 } from 'lucide-react';
 import { useState } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -85,6 +86,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
     { href: '/stats', label: t('nav.stats'), icon: BarChart3 },
     { href: '/library', label: 'Biblioteca', icon: BookOpen },
     { href: '/messages', label: t('nav.messages'), icon: MessageSquare },
+    { href: '/club', label: 'Definições Clube', icon: Building2, adminOnly: true },
     { href: '/settings', label: t('nav.settings'), icon: Settings },
   ];
 
@@ -233,6 +235,10 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
           <ScrollArea className="flex-1 py-4">
             <nav className="px-3 space-y-1">
               {navLinks.map((link) => {
+                // Skip admin-only links for non-admin users
+                if (link.adminOnly && effectiveRole !== 'admin') {
+                  return null;
+                }
                 const Icon = link.icon;
                 const isActive = location.pathname === link.href || location.pathname.startsWith(link.href + '/');
                 const testId = `nav-${link.href.replace('/', '')}`;
