@@ -1540,8 +1540,21 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
         # Get all team members once for efficient matching
         team_members = await db.users.find({"team_ids": team_id}, {"_id": 0}).to_list(200)
         
+        # Helper function to normalize text (remove accents, uppercase)
+        def normalize_name(name):
+            """Remove accents and normalize name for comparison"""
+            import unicodedata
+            if not name:
+                return ""
+            # Normalize unicode and remove diacritics
+            normalized = unicodedata.normalize('NFD', name)
+            ascii_text = ''.join(c for c in normalized if unicodedata.category(c) != 'Mn')
+            return ascii_text.upper().strip()
+        
         for ps in result_data['player_stats']:
             player = None
+            ps_name_normalized = normalize_name(ps['name'])
+            ps_name_parts = ps_name_normalized.split()
             
             # Method 1: Try to find by exact jersey number
             for member in team_members:
@@ -1550,41 +1563,53 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
                     player = member
                     break
             
-            # Method 2: Try by full name match (case insensitive)
+            # Method 2: Try by full name match (normalized, no accents)
             if not player:
-                ps_name = ps['name'].upper().strip()
                 for member in team_members:
-                    member_name = member.get('name', '').upper().strip()
-                    if member_name == ps_name:
+                    member_name_normalized = normalize_name(member.get('name', ''))
+                    if member_name_normalized == ps_name_normalized:
                         player = member
                         break
             
-            # Method 3: Try by partial name match (first or last name)
-            if not player:
-                ps_name_parts = ps['name'].upper().split()
+            # Method 3: Try by first + last name match (ignoring middle names)
+            # "ANTONIO PEREIRA" should match "António Matias Pereira"
+            if not player and len(ps_name_parts) >= 2:
+                ps_first = ps_name_parts[0]
+                ps_last = ps_name_parts[-1]
                 for member in team_members:
-                    member_name = member.get('name', '').upper()
-                    member_parts = member_name.split()
-                    # Match if first name or last name matches
+                    member_name_normalized = normalize_name(member.get('name', ''))
+                    member_parts = member_name_normalized.split()
+                    if len(member_parts) >= 2:
+                        mem_first = member_parts[0]
+                        mem_last = member_parts[-1]
+                        # Match if first AND last name match
+                        if ps_first == mem_first and ps_last == mem_last:
+                            player = member
+                            break
+            
+            # Method 4: Try by partial name match (any matching part with min 3 chars)
+            if not player:
+                for member in team_members:
+                    member_name_normalized = normalize_name(member.get('name', ''))
+                    member_parts = member_name_normalized.split()
+                    matches = 0
                     for ps_part in ps_name_parts:
-                        if len(ps_part) >= 3:  # Minimum 3 chars to avoid false positives
+                        if len(ps_part) >= 3:
                             for mem_part in member_parts:
                                 if ps_part == mem_part:
-                                    player = member
+                                    matches += 1
                                     break
-                            if player:
-                                break
-                    if player:
+                    # Need at least 2 matching parts for a positive match
+                    if matches >= 2:
+                        player = member
                         break
             
-            # Method 4: Try fuzzy match - name contains or is contained
+            # Method 5: Try fuzzy match - name contains or is contained
             if not player:
-                ps_name = ps['name'].upper()
                 for member in team_members:
-                    member_name = member.get('name', '').upper()
-                    # Check if the gamesheet name contains the member name or vice versa
-                    if len(ps_name) >= 4 and len(member_name) >= 4:
-                        if ps_name in member_name or member_name in ps_name:
+                    member_name_normalized = normalize_name(member.get('name', ''))
+                    if len(ps_name_normalized) >= 4 and len(member_name_normalized) >= 4:
+                        if ps_name_normalized in member_name_normalized or member_name_normalized in ps_name_normalized:
                             player = member
                             break
             
