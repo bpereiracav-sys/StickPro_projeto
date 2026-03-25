@@ -1,155 +1,97 @@
-# Roller Hockey Hub - Product Requirements Document
+# StickPro - Product Requirements Document
 
 ## Declaração do Problema Original
 Construir uma aplicação web para gestão de equipas de hóquei em patins, similar ao SportEasy.
 
-## User Personas
-- **Jogador**: Consulta calendário, confirma presenças, vê estatísticas pessoais
-- **Treinador/Adjunto**: Gere equipas, cria eventos, convocatórias (sem acesso a dados familiares)
-- **Delegado**: Apoia o treinador na gestão administrativa (sem acesso a dados familiares)
-- **Responsável/Encarregado**: Acompanha os filhos/atletas
-- **Administrador do Clube**: Gestão global, define permissões, acesso total
+## Branding
+- **Nome**: StickPro
+- **Tagline**: Gestão de Hóquei
+- **Logo**: Stick de hóquei azul estilizado
+- **URL Logo**: https://static.prod-images.emergentagent.com/jobs/d39c85da-551e-47cd-abe4-e0c16122ddb6/images/0327f0512a725879e3e9730c371dab74d12bc7910dd11250c0a4a7862d160c05.png
 
 ---
 
-## FASE 1 - Sistema de Permissões ✅ CONCLUÍDO
+## FUNCIONALIDADES IMPLEMENTADAS
 
-### Perfis Implementados:
+### FASE 1 - Sistema de Permissões ✅
 | Perfil | Acesso | Edição |
 |--------|--------|--------|
-| **Admin** | Total | Total + Define permissões |
-| **Treinador** | Equipa | Equipa (sem dados familiares) |
-| **Treinador Adjunto** | Equipa | Equipa (sem dados familiares) |
-| **Delegado** | Equipa | Equipa (sem dados familiares) |
-| **Jogador** | Equipa (leitura) | Apenas próprio perfil |
-| **Responsável** | Filhos | Dados familiares |
+| Admin | Total | Total + Define permissões |
+| Treinador/Adjunto | Equipa | Equipa (sem dados familiares) |
+| Delegado | Equipa | Equipa (sem dados familiares) |
+| Jogador | Equipa (leitura) | Apenas próprio perfil |
+| Responsável | Filhos | Dados familiares |
 
-### Endpoints Implementados:
-- `GET /api/permissions/defaults` - Ver permissões por defeito (admin)
-- `GET /api/permissions/{user_id}` - Ver permissões de utilizador
-- `PUT /api/permissions/{user_id}` - Modificar permissões (admin)
+### FASE 2 - Novo Layout e Navegação ✅
+- **TopNavBar**: Meu Clube, Minhas Equipas, Equipas dos Meus Filhos, Meu Perfil
+- **Página do Clube**: Logo URL, info completa
+- **Página de Perfil**: 5 tabs (Identidade, Familiares, Biométricos, Desportivo, Equipamento)
 
----
+### FASE 4 - Calendário Avançado ✅ NOVO
 
-## FASE 2 - Novo Layout e Navegação ✅ CONCLUÍDO
+**Vistas de Calendário:**
+- Dia - Vista detalhada do dia selecionado
+- Semana - 7 colunas com eventos compactos
+- Mês - Grelha mensal completa
 
-### Barra de Navegação Superior (TopNavBar):
-- **Meu Clube** - Página do clube com logo e informações
-- **Minhas Equipas** - Dropdown com lista de equipas do utilizador
-- **Equipas dos Meus Filhos** - Só aparece se tiver contas associadas
-- **Meu Perfil** - Acesso rápido ao perfil
+**Tipos de Evento:**
+| Tipo | Ícone | Cor |
+|------|-------|-----|
+| Treino | Dumbbell | Azul |
+| Jogo Campeonato | Trophy | Âmbar |
+| Jogo Amigável | Swords | Verde |
+| Torneio | Flag | Roxo |
+| Outro | HelpCircle | Cinza |
 
-### Página do Clube (/club):
-- Logo do clube (URL)
-- Nome, Morada, Cidade, País
-- Ano de Fundação
-- Website, Email, Telefone
-- Admin pode criar/editar, outros só visualizam
+**Funcionalidades:**
+- Criar evento com: equipa, tipo, título, adversário, data, hora início/fim, local, descrição
+- Editar evento (alterar todos os campos)
+- Estados: Agendado, Adiado, Cancelado
+- Eliminar evento (com confirmação)
+- Convocatória: selecionar jogadores, visibilidade, mensagem
+- Exportar/Imprimir calendário
 
-### Página de Perfil Completa (/profile):
-
-**Tab 1 - Identidade:**
-- Foto (URL)
-- Nome, Apelido, Alcunha
-- Email da conta
-- Data de nascimento
-- Licença FPP
-
-**Tab 2 - Familiares:**
-- Pai/Responsável 1 (nome, apelido, email, telefone)
-- Pai/Responsável 2 (nome, apelido, email, telefone)
-- Outros familiares (adicionar/remover)
-
-**Tab 3 - Dados Biométricos:**
-- Peso (kg)
-- Altura (cm)
-- Tamanho do calçado (texto livre)
-
-**Tab 4 - Informação Desportiva:**
-- Ano de chegada ao clube
-- Nº da FPP
-- Função (Jogador/Treinador/Treinador Adjunto/Delegado)
-- Posição (GR/JC)
-- Nº da camisola
-
-**Tab 5 - Equipamento:**
-- Tamanho kit de treino
-- Tamanho fato de treino
-- Tamanho polo de saída
-- Tamanho meia de treino
+**Endpoints:**
+- `POST /api/events` - Criar evento
+- `GET /api/events` - Listar eventos
+- `PUT /api/events/{id}` - Atualizar evento
+- `DELETE /api/events/{id}` - Eliminar evento
 
 ---
 
-## FUNCIONALIDADES ANTERIORES ✅
-
-### Contas Associadas
-- Vincular contas pai/filho
-- Seleção de perfil no login
-- Alternar perfis no sidebar
-
-### Autenticação
-- JWT login (email/password)
-- Registo com seleção de role
-
-### Gestão de Equipas
-- Criar/editar equipas
-- Adicionar/remover membros
-- Seletor de equipa no sidebar
-
-### Calendário & Eventos
-- Criar eventos (treinos, jogos)
-- Dashboard com próximos eventos
-
-### Convocatórias
-- Criar e responder a convocatórias
-- Dashboard com pendentes
-
-### Campeonatos
-- Criar campeonatos por época
-- Registar resultados
-- Tabela classificativa
-
-### Estatísticas
-- Stats por jogador
-- Stats consolidadas
-
-### Presenças
-- Vista por equipa
-- Filtros por mês/evento
-
-### Mensagens
-- Chat por equipa
+### Funcionalidades Anteriores ✅
+- Contas Associadas (vincular pai/filho)
+- Autenticação JWT
+- Gestão de Equipas
+- Convocatórias
+- Campeonatos (criar, jogos, classificação)
+- Estatísticas por jogador
+- Presenças
+- Mensagens/Chat
 
 ---
 
-## PRÓXIMAS FASES (A Implementar)
-
-### FASE 3 - Membros Expandido
-- Já implementado através da página de Perfil
-
-### FASE 4 - Calendário Avançado
-- Vistas: Diária, Semanal, Mensal
-- Tipos: Treino, Jogo Campeonato, Amigável, Torneio, Outros
-- Convocatórias: Escolher jogadores, enviar mensagem, visibilidade
-- Edição: Alterar data/hora/local, adiar, cancelar
-- Exportar PDF
+## PRÓXIMAS FASES
 
 ### FASE 5 - Presenças Avançadas
 - Filtros: Época, Evento (CN 1ª fase, etc.)
 - Vistas: Por evento, semana, mês, época
+- Estatísticas de assiduidade por jogador
 
 ### FASE 6 - Estatísticas Completas
 - Seletor de época e evento
 - Classificação do campeonato
-- Stats consolidadas
+- Stats equipa/jogadores por evento/época
+- Stats consolidadas (todas as equipas do jogador)
 
 ### FASE 7 - Campeonatos Expandido
 - Formato (5x5/3x3)
 - Convocatória automática/manual
+- Editar resultados, datas, horas
 
 ---
 
-## Arquitetura Técnica
+## Arquitetura
 
 ### Stack
 - **Frontend**: React 18, TailwindCSS, Shadcn/UI
@@ -162,21 +104,20 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 /app
 ├── backend/
 │   ├── server.py
-│   ├── tests/
-│   │   ├── test_phase1_phase2.py
-│   └── requirements.txt
+│   └── tests/
+│       ├── test_phase1_phase2.py
+│       └── test_phase4_calendar.py
 ├── frontend/src/
 │   ├── components/
 │   │   ├── layout/
-│   │   │   ├── TopNavBar.jsx    # NOVO
-│   │   │   ├── Sidebar.jsx
+│   │   │   ├── TopNavBar.jsx    # Barra superior
+│   │   │   ├── Sidebar.jsx      # Menu lateral
 │   │   │   └── AppLayout.jsx
-│   │   ├── profile/
-│   │   │   └── ProfileSelectionModal.jsx
 │   │   └── ui/
 │   ├── pages/
-│   │   ├── ClubPage.jsx         # NOVO
-│   │   ├── ProfilePage.jsx      # NOVO
+│   │   ├── Calendar.jsx         # NOVO - Calendário avançado
+│   │   ├── ClubPage.jsx
+│   │   ├── ProfilePage.jsx
 │   │   └── ...
 │   └── services/api.js
 └── memory/PRD.md
@@ -185,28 +126,29 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 ### Credenciais de Teste
 - **Admin**: admin@example.com / test123456
 - **Treinador**: test@example.com / test123456
-- **Filho**: filho@example.com / test123456
 
 ### Preview URL
 https://roller-hockey-hub-1.preview.emergentagent.com
 
 ---
 
-## Testes Realizados
+## Testes
 
-### Iteração 4 (Fase 1 & 2):
-- Backend: 16/16 testes (100%)
-- Frontend: 100% funcional
+### Iteração 5 (Fase 4):
+- Backend: 85% (11/13 - 2 são comportamento esperado)
+- Frontend: 100%
 
 ### Funcionalidades Verificadas:
-- TopNavBar com 4 menus
-- ClubPage (criar/editar como admin)
-- ProfilePage com 5 tabs
-- Sistema de permissões
-- Menu "Equipas dos Meus Filhos" condicional
+- StickPro branding
+- 3 vistas de calendário
+- 5 tipos de evento
+- CRUD de eventos
+- Estados de evento (adiar/cancelar)
+- Convocatórias
+- Exportar
 
 ---
 
 ## Notas
 - Emails **MOCKED** (Resend não configurado)
-- Tamanhos de equipamento são texto livre (S/M/L ou 8/10/12)
+- Exportar PDF usa `window.print()` (nativo do browser)
