@@ -27,7 +27,7 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - **Página do Clube**: Logo URL, info completa
 - **Página de Perfil**: 5 tabs (Identidade, Familiares, Biométricos, Desportivo, Equipamento)
 
-### FASE 4 - Calendário Avançado ✅ NOVO
+### FASE 4 - Calendário Avançado ✅
 
 **Vistas de Calendário:**
 - Dia - Vista detalhada do dia selecionado
@@ -59,6 +59,40 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ---
 
+### FASE 5 - Presenças Avançadas ✅ NOVO (25 Mar 2026)
+
+**Filtros:**
+- Equipa - Seletor de equipa
+- Época - 2023/2024, 2024/2025, 2025/2026
+- Mês - Janeiro a Dezembro
+- Tipo de Evento - Treino, Jogo Campeonato, Jogo Amigável, Torneio, Outro
+
+**Vistas de Presenças:**
+| Vista | Descrição |
+|-------|-----------|
+| Por Jogador | Tabela com Total, Confirmado, Ausente, Pendente, Taxa |
+| Por Evento | Lista de eventos com contagem de presenças |
+| Por Semana | Últimas 8 semanas com taxa de presença |
+| Por Mês | Últimos 6 meses com taxa de presença |
+
+**Cards de Resumo:**
+- Total Registos
+- Confirmados (verde)
+- Ausentes (vermelho)
+- Taxa Presença (âmbar)
+
+**Resumo por Tipo de Evento:**
+- Treinos
+- Jogos Campeonato
+- Torneios
+
+**Endpoints:**
+- `GET /api/teams/{team_id}/attendance` - Presenças por equipa (com filtros)
+- `GET /api/teams/{team_id}/attendance/summary` - Resumo de presenças
+- `GET /api/events/{event_id}/attendance` - Presenças por evento
+
+---
+
 ### Funcionalidades Anteriores ✅
 - Contas Associadas (vincular pai/filho)
 - Autenticação JWT
@@ -66,17 +100,12 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - Convocatórias
 - Campeonatos (criar, jogos, classificação)
 - Estatísticas por jogador
-- Presenças
+- Presenças básicas
 - Mensagens/Chat
 
 ---
 
 ## PRÓXIMAS FASES
-
-### FASE 5 - Presenças Avançadas
-- Filtros: Época, Evento (CN 1ª fase, etc.)
-- Vistas: Por evento, semana, mês, época
-- Estatísticas de assiduidade por jogador
 
 ### FASE 6 - Estatísticas Completas
 - Seletor de época e evento
@@ -134,18 +163,23 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 ## Testes
 
+### Iteração 6 (Fase 5 - Presenças Avançadas):
+- Backend: 100% (13/13 testes)
+- Frontend: 100%
+
 ### Iteração 5 (Fase 4):
 - Backend: 85% (11/13 - 2 são comportamento esperado)
 - Frontend: 100%
 
 ### Funcionalidades Verificadas:
-- StickPro branding
+- StickPro branding (SP logo)
 - 3 vistas de calendário
 - 5 tipos de evento
 - CRUD de eventos
 - Estados de evento (adiar/cancelar)
 - Convocatórias
 - Exportar
+- Presenças avançadas com 4 filtros e 4 vistas
 
 ---
 
