@@ -266,3 +266,8 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Perfil, Clube, Definições usam agora upload de ficheiro
   - Endpoint `/api/upload/image` para guardar imagens
   - Formatos: JPEG, PNG, GIF, WebP (máx 5MB)
+- **Importação Ficha de Jogo APL:** Integração com boletim eletrónico
+  - Cole o link da ficha de jogo oficial
+  - Importa automaticamente: resultado, golos, assistências, cartões
+  - Atualiza estatísticas dos jogadores
+  - Endpoint `/api/championships/matches/import-gamesheet`

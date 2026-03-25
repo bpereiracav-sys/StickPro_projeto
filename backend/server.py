@@ -15,6 +15,9 @@ import jwt
 import bcrypt
 import base64
 import shutil
+import httpx
+from bs4 import BeautifulSoup
+import re
 
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
@@ -1334,6 +1337,210 @@ async def delete_match(match_id: str, current_user: dict = Depends(get_current_u
     
     await db.championship_matches.delete_one({"id": match_id})
     return {"message": "Jogo eliminado"}
+
+class GameSheetImport(BaseModel):
+    url: str
+    match_id: str
+
+@api_router.post("/championships/matches/import-gamesheet")
+async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(get_current_user)):
+    """Import match data from APL game sheet URL"""
+    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    # Fetch and parse the game sheet
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(data.url)
+            response.raise_for_status()
+            html = response.text
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao aceder à ficha de jogo: {str(e)}")
+    
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    # Extract match result
+    result_data = {}
+    
+    try:
+        # Find the score - look for pattern like "11 - 2"
+        score_pattern = re.search(r'(\d+)\s*-\s*(\d+)', html)
+        if score_pattern:
+            result_data['home_score'] = int(score_pattern.group(1))
+            result_data['away_score'] = int(score_pattern.group(2))
+        
+        # Extract teams
+        tables = soup.find_all('table')
+        
+        # Find player stats tables
+        player_stats = []
+        current_team = None
+        
+        for table in tables:
+            rows = table.find_all('tr')
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                cell_texts = [c.get_text(strip=True) for c in cells]
+                
+                # Check if this is a team header
+                for cell in cells:
+                    img = cell.find('img')
+                    if img and 'logos' in str(img.get('src', '')):
+                        team_name = cell.get_text(strip=True)
+                        if team_name:
+                            current_team = team_name
+                
+                # Check if this is a player row (has jersey number)
+                if len(cell_texts) >= 4:
+                    try:
+                        jersey = cell_texts[0]
+                        if jersey.isdigit():
+                            name = cell_texts[3] if len(cell_texts) > 3 else cell_texts[2]
+                            # Clean up name (remove links, captain markers)
+                            name = re.sub(r'\s*©\s*', '', name).strip()
+                            
+                            # Extract stats
+                            goals = 0
+                            assists = 0
+                            yellow_cards = 0
+                            blue_cards = 0
+                            red_cards = 0
+                            
+                            if len(cell_texts) > 4:
+                                try:
+                                    goals = int(cell_texts[4]) if cell_texts[4].isdigit() else 0
+                                except Exception:
+                                    pass
+                            if len(cell_texts) > 5:
+                                try:
+                                    assists = int(cell_texts[5]) if cell_texts[5].isdigit() else 0
+                                except Exception:
+                                    pass
+                            if len(cell_texts) > 9:
+                                try:
+                                    yellow_cards = int(cell_texts[9]) if cell_texts[9].isdigit() else 0
+                                except Exception:
+                                    pass
+                            if len(cell_texts) > 10:
+                                try:
+                                    blue_cards = int(cell_texts[10]) if cell_texts[10].isdigit() else 0
+                                except Exception:
+                                    pass
+                            if len(cell_texts) > 11:
+                                try:
+                                    red_cards = int(cell_texts[11]) if cell_texts[11].isdigit() else 0
+                                except Exception:
+                                    pass
+                            
+                            if name and current_team:
+                                player_stats.append({
+                                    'team': current_team,
+                                    'jersey_number': jersey,
+                                    'name': name,
+                                    'goals': goals,
+                                    'assists': assists,
+                                    'yellow_cards': yellow_cards,
+                                    'blue_cards': blue_cards,
+                                    'red_cards': red_cards
+                                })
+                    except Exception:
+                        continue
+        
+        result_data['player_stats'] = player_stats
+        
+        # Extract competition and date info
+        text_content = soup.get_text()
+        
+        # Find date
+        date_pattern = re.search(r'(\d{1,2})/(\d{1,2})/(\d{4})', text_content)
+        if date_pattern:
+            result_data['match_date'] = f"{date_pattern.group(3)}-{date_pattern.group(2).zfill(2)}-{date_pattern.group(1).zfill(2)}"
+        
+        # Find venue
+        venue_pattern = re.search(r'Recinto:\s*([^\n|]+)', text_content)
+        if venue_pattern:
+            result_data['venue'] = venue_pattern.group(1).strip()
+        
+        # Find referee
+        referee_pattern = re.search(r'Árbitros?:\s*([^\n,]+)', text_content)
+        if referee_pattern:
+            result_data['referee'] = referee_pattern.group(1).strip()
+            
+    except Exception as e:
+        logging.error(f"Error parsing gamesheet: {e}")
+        raise HTTPException(status_code=400, detail=f"Erro ao processar ficha de jogo: {str(e)}")
+    
+    # Update match with imported data
+    match = await db.championship_matches.find_one({"id": data.match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+    
+    update_fields = {
+        "home_score": result_data.get('home_score', 0),
+        "away_score": result_data.get('away_score', 0),
+        "is_completed": True,
+        "gamesheet_url": data.url,
+        "gamesheet_imported_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    if result_data.get('venue'):
+        update_fields['venue'] = result_data['venue']
+    if result_data.get('referee'):
+        update_fields['referee'] = result_data['referee']
+    
+    await db.championship_matches.update_one({"id": data.match_id}, {"$set": update_fields})
+    
+    # Update player statistics
+    championship = await db.championships.find_one({"id": match['championship_id']}, {"_id": 0})
+    team_id = championship['team_id'] if championship else None
+    
+    stats_updated = 0
+    if team_id and result_data.get('player_stats'):
+        for ps in result_data['player_stats']:
+            # Try to find matching player by jersey number
+            player = await db.users.find_one({
+                "team_ids": team_id,
+                "profile.sports_info.jersey_number": ps['jersey_number']
+            }, {"_id": 0})
+            
+            if not player:
+                # Try by name
+                player = await db.users.find_one({
+                    "team_ids": team_id,
+                    "name": {"$regex": ps['name'], "$options": "i"}
+                }, {"_id": 0})
+            
+            if player:
+                # Create or update player match stats
+                stat_id = f"{data.match_id}_{player['id']}"
+                stat_doc = {
+                    "id": stat_id,
+                    "match_id": data.match_id,
+                    "championship_id": match['championship_id'],
+                    "player_id": player['id'],
+                    "team_id": team_id,
+                    "goals": ps['goals'],
+                    "assists": ps['assists'],
+                    "yellow_cards": ps['yellow_cards'],
+                    "blue_cards": ps['blue_cards'],
+                    "red_cards": ps['red_cards'],
+                    "imported_from_gamesheet": True,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                await db.match_player_stats.update_one(
+                    {"id": stat_id},
+                    {"$set": stat_doc},
+                    upsert=True
+                )
+                stats_updated += 1
+    
+    return {
+        "message": "Ficha de jogo importada com sucesso",
+        "result": f"{result_data.get('home_score', 0)} - {result_data.get('away_score', 0)}",
+        "players_found": len(result_data.get('player_stats', [])),
+        "stats_updated": stats_updated
+    }
 
 @api_router.get("/championships/{championship_id}/standings")
 async def get_championship_standings(championship_id: str, current_user: dict = Depends(get_current_user)):

@@ -35,13 +35,15 @@ import {
 import { toast } from 'sonner';
 import { 
   ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin, Home, Plane, 
-  Target, Edit, Check, X, Trash2, Users, Zap
+  Target, Edit, Check, X, Trash2, Users, Zap, FileSpreadsheet, Download, ExternalLink
 } from 'lucide-react';
 import { formatDate, formatTime } from '../lib/utils';
 
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
 export default function ChampionshipDetail() {
   const { championshipId } = useParams();
-  const { canManageEvents } = useAuth();
+  const { canManageEvents, token } = useAuth();
   const [championship, setChampionship] = useState(null);
   const [matches, setMatches] = useState([]);
   const [standings, setStandings] = useState([]);
@@ -50,9 +52,12 @@ export default function ChampionshipDetail() {
   const [matchDialogOpen, setMatchDialogOpen] = useState(false);
   const [resultDialogOpen, setResultDialogOpen] = useState(false);
   const [editMatchDialogOpen, setEditMatchDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [selectedMatch, setSelectedMatch] = useState(null);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [gamesheetUrl, setGamesheetUrl] = useState('');
   
   const [matchForm, setMatchForm] = useState({
     opponent_team: '',
@@ -191,6 +196,50 @@ export default function ChampionshipDetail() {
       toast.error('Erro ao eliminar jogo');
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const openImportDialog = (match) => {
+    setSelectedMatch(match);
+    setGamesheetUrl(match.gamesheet_url || '');
+    setImportDialogOpen(true);
+  };
+
+  const handleImportGamesheet = async () => {
+    if (!gamesheetUrl || !selectedMatch) {
+      toast.error('Insira o link da ficha de jogo');
+      return;
+    }
+    setImporting(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/championships/matches/import-gamesheet`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          url: gamesheetUrl,
+          match_id: selectedMatch.id
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao importar');
+      }
+
+      const data = await response.json();
+      toast.success(`Importado! Resultado: ${data.result} | ${data.stats_updated} jogadores atualizados`);
+      setImportDialogOpen(false);
+      setSelectedMatch(null);
+      setGamesheetUrl('');
+      fetchData();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -358,6 +407,16 @@ export default function ChampionshipDetail() {
                               data-testid={`edit-result-${match.id}`}
                             >
                               {match.is_completed ? 'Resultado' : 'Inserir Resultado'}
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => openImportDialog(match)}
+                              className="gap-1"
+                              data-testid={`import-gamesheet-${match.id}`}
+                            >
+                              <FileSpreadsheet className="w-4 h-4" />
+                              {match.gamesheet_url ? 'Ficha' : 'Importar'}
                             </Button>
                             <Button 
                               variant="outline" 
@@ -672,6 +731,92 @@ export default function ChampionshipDetail() {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Gamesheet Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="bg-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+              <FileSpreadsheet className="w-6 h-6 text-primary" />
+              IMPORTAR FICHA DE JOGO
+            </DialogTitle>
+            <DialogDescription>
+              Introduza o link da ficha de jogo oficial para importar automaticamente o resultado e estatísticas dos jogadores.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {selectedMatch && (
+              <div className="p-3 bg-muted/30 rounded-lg">
+                <p className="font-medium">{team?.name} vs {selectedMatch.opponent_team}</p>
+                <p className="text-sm text-muted-foreground">
+                  {selectedMatch.match_date && new Date(selectedMatch.match_date).toLocaleDateString('pt-PT')}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-2">
+              <Label htmlFor="gamesheet-url">Link da Ficha de Jogo</Label>
+              <Input
+                id="gamesheet-url"
+                placeholder="https://aplisboa.assyssoftware.es/intranet/web/partido2.asp?id=..."
+                value={gamesheetUrl}
+                onChange={(e) => setGamesheetUrl(e.target.value)}
+                data-testid="gamesheet-url-input"
+              />
+              <p className="text-xs text-muted-foreground">
+                Cole o link completo da ficha de jogo da Associação de Patinagem
+              </p>
+            </div>
+
+            {selectedMatch?.gamesheet_url && (
+              <div className="flex items-center gap-2 text-sm">
+                <Check className="w-4 h-4 text-green-600" />
+                <span className="text-muted-foreground">Ficha já importada</span>
+                <a 
+                  href={selectedMatch.gamesheet_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline flex items-center gap-1"
+                >
+                  Ver <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+            )}
+
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-sm text-blue-800">
+                <strong>O que será importado:</strong>
+              </p>
+              <ul className="text-sm text-blue-700 mt-1 space-y-0.5">
+                <li>• Resultado final do jogo</li>
+                <li>• Golos e assistências de cada jogador</li>
+                <li>• Cartões (amarelos, azuis, vermelhos)</li>
+                <li>• Local e árbitros</li>
+              </ul>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleImportGamesheet} disabled={importing || !gamesheetUrl}>
+              {importing ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                  A importar...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Importar Dados
+                </>
+              )}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
