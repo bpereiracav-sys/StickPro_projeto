@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTeam } from '../context/TeamContext';
 import { championshipsApi, teamsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -39,6 +40,7 @@ const convocationTypes = [
 
 export default function Championships() {
   const { canManageEvents } = useAuth();
+  const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const [teams, setTeams] = useState([]);
   const [championships, setChampionships] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -54,29 +56,25 @@ export default function Championships() {
     description: ''
   });
 
+  // Set selected team from context
   useEffect(() => {
-    fetchTeams();
-  }, []);
+    if (selectedTeam) {
+      setSelectedTeamId(selectedTeam.id);
+    } else if (contextTeams.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(contextTeams[0].id);
+    }
+    setTeams(contextTeams);
+    if (contextTeams.length > 0) {
+      setLoading(false);
+    }
+  }, [selectedTeam, contextTeams]);
 
+  // Fetch championships when team or season changes
   useEffect(() => {
     if (selectedTeamId) {
       fetchChampionships();
     }
   }, [selectedTeamId, selectedSeason]);
-
-  const fetchTeams = async () => {
-    try {
-      const response = await teamsApi.getAll();
-      setTeams(response.data);
-      if (response.data.length > 0) {
-        setSelectedTeamId(response.data[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchChampionships = async () => {
     try {

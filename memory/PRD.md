@@ -263,42 +263,33 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - **Membros:** Importar via Excel/CSV, criar membro individual, remover da equipa preservando stats
 - **Logo:** Corrigido "RH" → "SP" em todas as páginas
 - **Upload de Imagens:** Fotos carregadas do PC/smartphone em vez de URL
-  - Perfil, Clube, Definições usam agora upload de ficheiro
-  - Endpoint `/api/upload/image` para guardar imagens
-  - Formatos: JPEG, PNG, GIF, WebP (máx 5MB)
-- **Importação Ficha de Jogo APL:** Integração com boletim eletrónico (CORRIGIDO)
-  - Cole o link da ficha de jogo oficial (aplisboa.assyssoftware.es)
-  - Importa automaticamente: resultado final, golos, assistências, defesas
-  - Extrai cartões (amarelo, azul, vermelho)
-  - Extrai penáltis e livres diretos (formato X/Y)
-  - Importa local e árbitros
-  - Atualiza estatísticas dos jogadores correspondentes (por número ou nome)
-  - Guarda dados raw da ficha mesmo sem correspondência de jogadores
+- **Importação Ficha de Jogo APL:** Integração com boletim eletrónico
   - Matching de nomes com normalização de acentos e primeiro+último nome
-  - Novo endpoint: `/api/championships/matches/{match_id}/gamesheet-stats`
-- **Layout Mobile/Desktop:** TopNavBar com margem correta para não ser cortado pela sidebar
-- **Header Mobile:** Logo "SP" e "STICK PRO" com melhor posicionamento
+  - Guarda dados raw da ficha mesmo sem correspondência de jogadores
 - **Internacionalização (i18n):** Suporte a 5 idiomas (PT, ES, FR, IT, EN)
 - **Gestão de Equipas:** Nova página /teams-management
-  - Criar equipas com nome, escalão, época e foto
-  - Editar equipas existentes
-  - Eliminar equipas (apenas admin)
+  - Criar/Editar/Eliminar equipas com nome, escalão, época e foto
   - Endpoints: PUT /api/teams/{id}, DELETE /api/teams/{id}
 - **TopNavBar Reestruturado:**
-  - "Meu Clube" → Seleciona todas as equipas (dados agregados)
+  - "Meu Clube" → Seleciona todas as equipas (dados agregados) com ✓
   - "Minhas Equipas" → Dropdown com seleção de equipa específica
-  - "Os Meus Filhos" → Acesso a contas associadas
+  - "Os Meus Filhos" → Acesso a contas associadas (/children)
   - "Meu Perfil" → Perfil do utilizador
 - **Contexto de Equipa (TeamContext):** 
   - Filtrar dados por equipa selecionada em toda a app
   - Persistência da seleção em localStorage
+- **Filtro por Equipa nas Páginas:** ✅ IMPLEMENTADO
+  - Calendar: Filtra eventos pela equipa selecionada
+  - Members: Mostra membros da equipa selecionada
+  - Championships: Filtra campeonatos pela equipa selecionada
+  - Stats: Estatísticas filtradas por equipa
+  - Attendance: Presenças filtradas por equipa
 
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
 
 ### P1 - Pendente
-- Implementar filtro de dados por equipa nas páginas (Calendar, Members, Championships, Stats)
 - Configurar API Key Resend para emails reais (atualmente MOCKED)
 - Exportar calendário em PDF
 

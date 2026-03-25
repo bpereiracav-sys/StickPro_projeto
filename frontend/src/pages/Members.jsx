@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTeam } from '../context/TeamContext';
 import { teamsApi, usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -63,6 +64,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function Members() {
   const { canManageTeam, token } = useAuth();
+  const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const [teams, setTeams] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [members, setMembers] = useState([]);
@@ -89,29 +91,29 @@ export default function Members() {
     phone: ''
   });
 
+  // Set selected team from context
   useEffect(() => {
-    fetchTeams();
-  }, []);
+    if (selectedTeam) {
+      setSelectedTeamId(selectedTeam.id);
+    } else if (contextTeams.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(contextTeams[0].id);
+    }
+    setTeams(contextTeams);
+  }, [selectedTeam, contextTeams]);
 
+  // Fetch members when team changes
   useEffect(() => {
     if (selectedTeamId) {
       fetchMembers();
     }
   }, [selectedTeamId]);
 
-  const fetchTeams = async () => {
-    try {
-      const response = await teamsApi.getAll();
-      setTeams(response.data);
-      if (response.data.length > 0) {
-        setSelectedTeamId(response.data[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-    } finally {
+  // Initial load
+  useEffect(() => {
+    if (contextTeams.length > 0) {
       setLoading(false);
     }
-  };
+  }, [contextTeams]);
 
   const fetchMembers = async () => {
     try {
@@ -244,7 +246,7 @@ export default function Members() {
   };
 
   const availableUsers = allUsers.filter(u => !members.find(m => m.id === u.id));
-  const selectedTeam = teams.find(t => t.id === selectedTeamId);
+  const currentTeam = teams.find(t => t.id === selectedTeamId);
 
   if (loading) {
     return (
@@ -324,7 +326,7 @@ export default function Members() {
           <Card className="border border-border">
             <CardHeader>
               <CardTitle className="font-heading text-xl tracking-wide">
-                {selectedTeam?.name || 'Membros'}
+                {currentTeam?.name || 'Membros'}
               </CardTitle>
             </CardHeader>
             <CardContent>

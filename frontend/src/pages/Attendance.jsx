@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTeam } from '../context/TeamContext';
 import { teamsApi, championshipsApi, eventsApi, convocationsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -82,6 +83,7 @@ const viewModes = [
 
 export default function Attendance() {
   const { user } = useAuth();
+  const { selectedTeam, teams: contextTeams } = useTeam();
   const [teams, setTeams] = useState([]);
   const [championships, setChampionships] = useState([]);
   const [events, setEvents] = useState([]);
@@ -96,9 +98,18 @@ export default function Attendance() {
   const [eventAttendance, setEventAttendance] = useState({});
   const [loading, setLoading] = useState(true);
 
+  // Set selected team from context
   useEffect(() => {
-    fetchTeams();
-  }, []);
+    if (selectedTeam) {
+      setSelectedTeamId(selectedTeam.id);
+    } else if (contextTeams.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(contextTeams[0].id);
+    }
+    setTeams(contextTeams);
+    if (contextTeams.length > 0) {
+      setLoading(false);
+    }
+  }, [selectedTeam, contextTeams]);
 
   useEffect(() => {
     if (selectedTeamId) {
@@ -108,20 +119,6 @@ export default function Attendance() {
       fetchEvents();
     }
   }, [selectedTeamId, selectedSeason, selectedMonth, selectedEventType, selectedChampionship]);
-
-  const fetchTeams = async () => {
-    try {
-      const response = await teamsApi.getAll();
-      setTeams(response.data);
-      if (response.data.length > 0) {
-        setSelectedTeamId(response.data[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchChampionships = async () => {
     try {
@@ -182,7 +179,7 @@ export default function Attendance() {
     }
   };
 
-  const selectedTeam = teams.find(t => t.id === selectedTeamId);
+  const currentTeam = teams.find(t => t.id === selectedTeamId);
 
   // Calculate totals
   const totals = attendance.reduce((acc, a) => ({

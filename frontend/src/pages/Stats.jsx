@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTeam } from '../context/TeamContext';
 import { teamsApi, championshipsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -43,6 +44,7 @@ const seasons = [
 
 export default function Stats() {
   const { user } = useAuth();
+  const { selectedTeam, teams: contextTeams } = useTeam();
   const [teams, setTeams] = useState([]);
   const [championships, setChampionships] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -53,9 +55,18 @@ export default function Stats() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('players');
 
+  // Set selected team from context
   useEffect(() => {
-    fetchTeams();
-  }, []);
+    if (selectedTeam) {
+      setSelectedTeamId(selectedTeam.id);
+    } else if (contextTeams.length > 0 && !selectedTeamId) {
+      setSelectedTeamId(contextTeams[0].id);
+    }
+    setTeams(contextTeams);
+    if (contextTeams.length > 0) {
+      setLoading(false);
+    }
+  }, [selectedTeam, contextTeams]);
 
   useEffect(() => {
     if (selectedTeamId) {
@@ -71,20 +82,6 @@ export default function Stats() {
       setStandings([]);
     }
   }, [selectedChampionshipId]);
-
-  const fetchTeams = async () => {
-    try {
-      const response = await teamsApi.getAll();
-      setTeams(response.data);
-      if (response.data.length > 0) {
-        setSelectedTeamId(response.data[0].id);
-      }
-    } catch (error) {
-      console.error('Error fetching teams:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchChampionships = async () => {
     try {
@@ -121,8 +118,8 @@ export default function Stats() {
     }
   };
 
-  const selectedTeam = teams.find(t => t.id === selectedTeamId);
-  const selectedChampionship = championships.find(c => c.id === selectedChampionshipId);
+  const currentTeam = teams.find(t => t.id === selectedTeamId);
+  const currentChampionship = championships.find(c => c.id === selectedChampionshipId);
 
   // Calculate team totals
   const teamTotals = stats.reduce((acc, s) => ({
@@ -278,8 +275,8 @@ export default function Stats() {
                     <CardTitle className="font-heading text-xl tracking-wide">
                       ESTATÍSTICAS INDIVIDUAIS
                     </CardTitle>
-                    {selectedChampionship && (
-                      <CardDescription>{selectedChampionship.name} - {selectedSeason}</CardDescription>
+                    {currentChampionship && (
+                      <CardDescription>{currentChampionship.name} - {selectedSeason}</CardDescription>
                     )}
                   </CardHeader>
                   <CardContent>

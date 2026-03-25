@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTeam } from '../context/TeamContext';
 import { eventsApi, teamsApi, usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -114,6 +115,7 @@ const VIEW_MODES = {
 
 export default function CalendarPage() {
   const { canManageEvents, user } = useAuth();
+  const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const [events, setEvents] = useState([]);
   const [teams, setTeams] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -145,19 +147,32 @@ export default function CalendarPage() {
     status: 'scheduled' // scheduled, postponed, cancelled
   });
 
+  // Fetch events when selected team changes
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [selectedTeam]);
 
   const fetchData = async () => {
+    setLoading(true);
     try {
       const [eventsRes, teamsRes] = await Promise.all([
         eventsApi.getAll(),
         teamsApi.getAll()
       ]);
-      setEvents(eventsRes.data);
+      
+      // Filter events by selected team
+      let filteredEvents = eventsRes.data;
+      if (selectedTeam) {
+        filteredEvents = eventsRes.data.filter(e => e.team_id === selectedTeam.id);
+      }
+      
+      setEvents(filteredEvents);
       setTeams(teamsRes.data);
-      if (teamsRes.data.length > 0 && !formData.team_id) {
+      
+      // Set default team for form
+      if (selectedTeam) {
+        setFormData(prev => ({ ...prev, team_id: selectedTeam.id }));
+      } else if (teamsRes.data.length > 0 && !formData.team_id) {
         setFormData(prev => ({ ...prev, team_id: teamsRes.data[0].id }));
       }
     } catch (error) {
