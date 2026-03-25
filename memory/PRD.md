@@ -15,7 +15,7 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 ### Autenticação
 - [x] JWT-based login (email/password)
 - [x] Registo de utilizadores com role selection
-- [ ] Contas Associadas (em progresso) - vincular contas pai/filho
+- [x] **Contas Associadas** - vincular contas pai/filho ✅ NOVO
 
 ### Gestão de Equipas
 - [x] Criar/editar equipas com nome, categoria, época
@@ -63,45 +63,50 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - [ ] Anexos de ficheiros (futuro)
 - [ ] Envio por email (MOCKED - requer API key Resend)
 
+### Contas Associadas ✅ NOVO
+- [x] Pesquisar utilizador por email para associar
+- [x] Vincular conta filho a responsável
+- [x] Lista de contas associadas na página de Definições
+- [x] Remover associação
+- [x] Modal de seleção de perfil após login (quando há múltiplos perfis)
+- [x] Alternar entre perfis no menu do sidebar
+- [x] Banner visual quando a ver como responsável
+- [x] Botão "Voltar" para retornar ao perfil original
+
 ---
 
-## O Que Foi Implementado (Março 2025)
+## O Que Foi Implementado
 
-### Estabilização da Aplicação ✅
-- Corrigidas rotas em falta no App.js (Members, Championships, ChampionshipDetail, MatchStats, Attendance, Messages)
-- Criada página Attendance.jsx completa
-- Corrigido bug do Select component com valores vazios
-- Corrigidos 5 endpoints com erro de serialização MongoDB ObjectId:
-  - POST /api/championships
-  - POST /api/events
-  - POST /api/messages
-  - POST /api/championships/{id}/matches
-  - POST /api/convocations
+### 25 Março 2025 - Contas Associadas ✅
+**Backend (server.py):**
+- `GET /api/users/associated` - Lista contas associadas
+- `POST /api/users/associate` - Associar conta filho
+- `POST /api/users/associate/search?email=X` - Pesquisar por email
+- `DELETE /api/users/associate/{child_id}` - Remover associação
+- `POST /api/auth/switch-profile` - Alternar perfil
 
-### Funcionalidades Completas
-1. **Dashboard** - Próximos eventos, convocatórias pendentes, estatísticas rápidas
-2. **Calendário** - Visualização e criação de eventos
-3. **Membros** - Gestão de plantel e staff técnico
-4. **Campeonatos** - CRUD de campeonatos, jogos, resultados, classificação
-5. **Presenças** - Assiduidade por jogador com filtros avançados
-6. **Estatísticas** - Estatísticas individuais e da equipa
-7. **Mensagens** - Chat por equipa com polling de 5s
-8. **Definições** - Perfil do utilizador
+**Frontend:**
+- `ProfileSelectionModal.jsx` - Modal de seleção após login
+- `Settings.jsx` - Secção de gestão de contas associadas
+- `Sidebar.jsx` - Profile switcher no menu do utilizador + banner amarelo
+- `AuthContext.jsx` - Estado de perfil ativo, switching, localStorage
 
-### Status dos Testes
+**Testes:**
+- Backend: 16/16 testes passados (100%)
+- Frontend: Todas as funcionalidades verificadas
+
+### 25 Março 2025 - Estabilização
+- Corrigidas rotas em falta no App.js
+- Criada página Attendance.jsx
+- Corrigidos 5 bugs de serialização MongoDB ObjectId
 - Backend: 23/23 testes passados (100%)
-- Frontend: Todas as páginas funcionais
-- Navegação: Todos os links da sidebar funcionam
 
 ---
 
 ## Backlog Prioritizado
 
-### P0 - Crítico (Próximas tarefas)
-- [ ] Completar funcionalidade "Contas Associadas":
-  - Permitir vincular contas (pai/filho)
-  - UI de seleção de perfil no login
-  - Alternar entre perfis no sidebar
+### P0 - Crítico
+- ✅ Contas Associadas (CONCLUÍDO)
 
 ### P1 - Alta Prioridade
 - [ ] Configurar API Resend para emails reais
@@ -135,29 +140,33 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 │   ├── server.py          # FastAPI app, todos os endpoints
 │   ├── requirements.txt
 │   └── tests/
-│       └── test_api.py    # Testes pytest
+│       └── test_associated_accounts.py
 ├── frontend/
 │   ├── src/
-│   │   ├── App.js         # Router principal
+│   │   ├── App.js
 │   │   ├── components/
-│   │   │   ├── layout/    # AppLayout, Sidebar, Header
-│   │   │   └── ui/        # Componentes Shadcn
+│   │   │   ├── layout/
+│   │   │   │   ├── AppLayout.jsx
+│   │   │   │   ├── Sidebar.jsx    # Profile switcher
+│   │   │   │   └── Header.jsx
+│   │   │   ├── profile/
+│   │   │   │   └── ProfileSelectionModal.jsx
+│   │   │   └── ui/
 │   │   ├── context/
-│   │   │   └── AuthContext.jsx
-│   │   ├── pages/         # Todas as páginas
-│   │   ├── services/
-│   │   │   └── api.js     # Cliente Axios
-│   │   └── lib/
-│   │       └── utils.js   # Helpers
+│   │   │   └── AuthContext.jsx    # Profile state management
+│   │   ├── pages/
+│   │   │   ├── Settings.jsx       # Associated accounts section
+│   │   │   └── ...
+│   │   └── services/
+│   │       └── api.js
 │   └── package.json
 └── memory/
-    └── PRD.md             # Este ficheiro
+    └── PRD.md
 ```
 
 ### Credenciais de Teste
-- Email: test@example.com
-- Password: test123456
-- Role: treinador
+- **Responsável:** test@example.com / test123456
+- **Filho associado:** filho@example.com / test123456
 
 ### Preview URL
 https://roller-hockey-hub-1.preview.emergentagent.com
@@ -166,5 +175,5 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 ## Notas Importantes
 - Emails estão **MOCKED** - para ativar, configurar RESEND_API_KEY no backend/.env
-- MongoDB ObjectId deve ser excluído de todas as respostas (usar `.pop('_id', None)`)
-- Frontend usa hot reload - reiniciar supervisor apenas para .env ou dependências
+- MongoDB ObjectId deve ser excluído de todas as respostas
+- Contas associadas permitem ao responsável ver as atividades do filho
