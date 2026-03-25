@@ -8,6 +8,9 @@ import { toast } from 'sonner';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import ProfileSelectionModal from '../components/profile/ProfileSelectionModal';
 
+// StickPro Logo URL
+const STICKPRO_LOGO = "https://static.prod-images.emergentagent.com/jobs/d39c85da-551e-47cd-abe4-e0c16122ddb6/images/0327f0512a725879e3e9730c371dab74d12bc7910dd11250c0a4a7862d160c05.png";
+
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -81,11 +84,13 @@ export default function Login() {
           </Link>
 
           <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 bg-primary rounded-sm flex items-center justify-center">
-              <span className="text-white font-heading text-xl">RH</span>
-            </div>
+            <img 
+              src={STICKPRO_LOGO} 
+              alt="StickPro" 
+              className="w-10 h-10 object-contain"
+            />
             <span className="font-heading text-2xl text-foreground tracking-wide">
-              ROLLER HOCKEY HUB
+              STICKPRO
             </span>
           </div>
 

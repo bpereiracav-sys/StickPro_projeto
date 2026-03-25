@@ -11,6 +11,9 @@ import {
   Zap
 } from 'lucide-react';
 
+// StickPro Logo URL
+const STICKPRO_LOGO = "https://static.prod-images.emergentagent.com/jobs/d39c85da-551e-47cd-abe4-e0c16122ddb6/images/0327f0512a725879e3e9730c371dab74d12bc7910dd11250c0a4a7862d160c05.png";
+
 const features = [
   {
     icon: Users,
@@ -167,15 +170,17 @@ export default function Landing() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-primary rounded-sm flex items-center justify-center">
-                <span className="text-white font-heading text-sm">RH</span>
-              </div>
+              <img 
+                src={STICKPRO_LOGO} 
+                alt="StickPro" 
+                className="w-8 h-8 object-contain"
+              />
               <span className="font-heading text-xl text-white tracking-wide">
-                ROLLER HOCKEY HUB
+                STICKPRO
               </span>
             </div>
             <p className="text-sm">
-              © 2024 Roller Hockey Hub. Feito para equipas de hóquei em patins.
+              © 2025 StickPro. Feito para equipas de hóquei em patins.
             </p>
           </div>
         </div>

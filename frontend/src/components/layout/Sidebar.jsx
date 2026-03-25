@@ -34,6 +34,9 @@ import { useState } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
 import { toast } from 'sonner';
 
+// StickPro Logo URL
+const STICKPRO_LOGO = "https://static.prod-images.emergentagent.com/jobs/d39c85da-551e-47cd-abe4-e0c16122ddb6/images/0327f0512a725879e3e9730c371dab74d12bc7910dd11250c0a4a7862d160c05.png";
+
 export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
   const { 
     user, 
@@ -145,14 +148,16 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="h-16 flex items-center gap-3 px-4 border-b border-slate-700">
-            <div className="w-10 h-10 bg-primary rounded-sm flex items-center justify-center">
-              <span className="text-white font-heading text-xl">RH</span>
-            </div>
+            <img 
+              src={STICKPRO_LOGO} 
+              alt="StickPro" 
+              className="w-10 h-10 object-contain"
+            />
             <div>
               <span className="font-heading text-lg tracking-wide block leading-tight">
-                ROLLER HOCKEY
+                STICKPRO
               </span>
-              <span className="text-xs text-slate-400">HUB</span>
+              <span className="text-xs text-slate-400">Gestão de Hóquei</span>
             </div>
           </div>
 

@@ -398,6 +398,7 @@ class EventCreate(BaseModel):
     end_time: Optional[datetime] = None
     opponent: Optional[str] = None
     championship_id: Optional[str] = None
+    status: Optional[str] = "scheduled"  # scheduled, postponed, cancelled
 
 class Event(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -411,6 +412,7 @@ class Event(BaseModel):
     end_time: Optional[datetime] = None
     opponent: Optional[str] = None
     championship_id: Optional[str] = None
+    status: str = "scheduled"  # scheduled, postponed, cancelled
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -1303,6 +1305,33 @@ async def get_event(event_id: str, current_user: dict = Depends(get_current_user
     if not event:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
     return event
+
+@api_router.put("/events/{event_id}")
+async def update_event(event_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] not in ['admin', 'treinador', 'treinador_adjunto', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    event = await db.events.find_one({"id": event_id})
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+    
+    allowed_fields = ['event_type', 'title', 'description', 'location', 'start_time', 'end_time', 'opponent', 'status']
+    filtered_updates = {}
+    
+    for key, value in updates.items():
+        if key in allowed_fields:
+            if key in ['start_time', 'end_time'] and value:
+                if isinstance(value, str):
+                    filtered_updates[key] = value
+                else:
+                    filtered_updates[key] = value.isoformat() if hasattr(value, 'isoformat') else value
+            else:
+                filtered_updates[key] = value
+    
+    if filtered_updates:
+        await db.events.update_one({"id": event_id}, {"$set": filtered_updates})
+    
+    return {"message": "Evento atualizado"}
 
 @api_router.delete("/events/{event_id}")
 async def delete_event(event_id: str, current_user: dict = Depends(get_current_user)):
