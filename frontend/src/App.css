@@ -1,34 +1,111 @@
-.App-logo {
-    height: 40vmin;
-    pointer-events: none;
+/* App-specific styles */
+
+/* Hero Section */
+.hero-overlay {
+    background: linear-gradient(
+        to bottom,
+        rgba(15, 23, 42, 0.7) 0%,
+        rgba(15, 23, 42, 0.9) 100%
+    );
 }
 
-@media (prefers-reduced-motion: no-preference) {
-    .App-logo {
-        animation: App-logo-spin infinite 20s linear;
-    }
+/* Event Type Badges */
+.badge-game {
+    @apply bg-blue-600 text-white;
+}
+.badge-training {
+    @apply bg-emerald-600 text-white;
 }
 
-.App-header {
-    background-color: #0f0f10;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-size: calc(10px + 2vmin);
-    color: white;
+/* Role Badges */
+.role-admin {
+    @apply bg-purple-100 text-purple-700;
+}
+.role-coach {
+    @apply bg-blue-100 text-blue-700;
+}
+.role-delegate {
+    @apply bg-cyan-100 text-cyan-700;
+}
+.role-player {
+    @apply bg-emerald-100 text-emerald-700;
+}
+.role-parent {
+    @apply bg-amber-100 text-amber-700;
 }
 
-.App-link {
-    color: #61dafb;
+/* Stats Card */
+.stats-card {
+    @apply border border-border bg-white p-6;
+    transition: border-color 150ms ease;
+}
+.stats-card:hover {
+    border-color: hsl(var(--primary));
 }
 
-@keyframes App-logo-spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
+/* Navigation Active State */
+.nav-link {
+    @apply relative px-4 py-2 text-muted-foreground transition-colors;
+}
+.nav-link:hover {
+    @apply text-foreground;
+}
+.nav-link.active {
+    @apply text-primary font-semibold;
+}
+.nav-link.active::after {
+    content: '';
+    @apply absolute bottom-0 left-0 right-0 h-0.5 bg-primary;
+}
+
+/* Mobile Bottom Navigation */
+.mobile-nav {
+    @apply fixed bottom-0 left-0 right-0 bg-white border-t border-border z-50;
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Form Input Focus */
+.input-focus {
+    @apply focus:ring-2 focus:ring-primary focus:border-transparent;
+}
+
+/* Table Styles */
+.stats-table {
+    @apply w-full border-collapse;
+}
+.stats-table th,
+.stats-table td {
+    @apply border border-border px-4 py-3 text-left;
+}
+.stats-table th {
+    @apply bg-muted font-semibold text-sm uppercase tracking-wide;
+}
+.stats-table tr:hover td {
+    @apply bg-muted/50;
+}
+
+/* Calendar Event Markers */
+.calendar-event-game {
+    @apply w-2 h-2 rounded-full bg-blue-600;
+}
+.calendar-event-training {
+    @apply w-2 h-2 rounded-full bg-emerald-600;
+}
+
+/* Loading Skeleton */
+.skeleton {
+    @apply bg-muted animate-pulse rounded;
+}
+
+/* Empty State */
+.empty-state {
+    @apply flex flex-col items-center justify-center py-16 text-center;
+}
+.empty-state-icon {
+    @apply w-16 h-16 text-muted-foreground mb-4;
+}
+
+/* Notification Badge */
+.notification-badge {
+    @apply absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs font-bold rounded-full flex items-center justify-center;
 }
