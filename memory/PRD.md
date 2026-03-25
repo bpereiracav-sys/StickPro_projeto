@@ -139,13 +139,39 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ---
 
+### FASE 6 - Estatísticas Completas ✅ NOVO (25 Mar 2026)
+
+**Filtros:**
+- Equipa - Seletor de equipa
+- Época - 2023/2024, 2024/2025, 2025/2026
+- Campeonato - Todos ou específico
+
+**Tabs:**
+| Tab | Descrição |
+|-----|-----------|
+| Jogadores | Estatísticas individuais por jogador |
+| Classificação | Tabela classificativa do campeonato |
+
+**Cards de Resumo:**
+- Golos Marcados
+- Assistências
+- Jogadores
+- Total Jogos
+
+**Tabela de Classificação:**
+- Posição, Equipa, Jogos, Vitórias, Empates, Derrotas, GM, GS, DG, Pontos
+- Destaque visual para a equipa selecionada
+
+**Melhores Jogadores:**
+- Top 5 Marcadores
+- Top 5 Assistências
+
+---
+
 ## PRÓXIMAS FASES
 
-### FASE 6 - Estatísticas Completas
-- Seletor de época e evento
-- Classificação do campeonato
-- Stats equipa/jogadores por evento/época
-- Stats consolidadas (todas as equipas do jogador)
+### Funcionalidades Implementadas ✅
+Todas as fases principais foram concluídas!
 
 ---
 
@@ -215,6 +241,7 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - Presenças avançadas com 4 filtros e 4 vistas
 - Campeonatos com formato (5x5/3x3) e tipo de convocatória
 - Editar e eliminar jogos de campeonato
+- Estatísticas com filtros e classificação
 
 ---
 
