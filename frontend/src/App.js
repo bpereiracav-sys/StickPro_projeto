@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { Toaster } from "./components/ui/sonner";
 import { AppLayout } from "./components/layout/AppLayout";
+import { PWAInstallPrompt, registerServiceWorker } from "./components/PWAInstallPrompt";
+import { useEffect } from "react";
 
 // Pages
 import Landing from "./pages/Landing";
@@ -233,11 +235,16 @@ function AppRoutes() {
 }
 
 function App() {
+  useEffect(() => {
+    registerServiceWorker();
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>
         <AppRoutes />
         <Toaster position="top-right" richColors />
+        <PWAInstallPrompt />
       </AuthProvider>
     </BrowserRouter>
   );

@@ -248,3 +248,12 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 ## Notas
 - Emails **MOCKED** (Resend não configurado)
 - Exportar PDF usa `window.print()` (nativo do browser)
+- **PWA Implementado** - App instalável em telemóveis
+
+### PWA (Progressive Web App) ✅
+- Manifest.json configurado
+- Service Worker para cache offline
+- Ícones em múltiplos tamanhos (72x72 a 512x512)
+- Prompt de instalação automático
+- Funciona em Android e iOS
+- Atalhos rápidos: Calendário, Presenças
