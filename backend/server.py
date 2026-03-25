@@ -1767,7 +1767,9 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
             
             # Method 1: Try to find by exact jersey number
             for member in team_members:
-                jersey = member.get('profile', {}).get('sports_info', {}).get('jersey_number')
+                profile = member.get('profile') or {}
+                sports_info = profile.get('sports_info') or {}
+                jersey = sports_info.get('jersey_number')
                 if jersey and str(jersey) == str(ps['jersey_number']):
                     player = member
                     break
