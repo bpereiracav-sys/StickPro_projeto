@@ -98,10 +98,44 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - Autenticação JWT
 - Gestão de Equipas
 - Convocatórias
-- Campeonatos (criar, jogos, classificação)
+- Campeonatos básicos (criar, jogos, classificação)
 - Estatísticas por jogador
 - Presenças básicas
 - Mensagens/Chat
+
+---
+
+### FASE 7 - Campeonatos Expandido ✅ NOVO (25 Mar 2026)
+
+**Formatos de Campeonato:**
+| Formato | Descrição |
+|---------|-----------|
+| 5x5 | Campo Inteiro (padrão) |
+| 3x3 | Meio Campo |
+
+**Tipos de Convocatória:**
+| Tipo | Descrição |
+|------|-----------|
+| Manual | Seleção manual de jogadores |
+| Automática | Convocatória automática |
+
+**Gestão de Jogos:**
+- Criar jogo com: adversário, data/hora, local (casa/fora/neutro), pavilhão
+- Editar jogo (alterar todos os campos)
+- Eliminar jogo (com confirmação)
+- Inserir resultado (golos casa/fora, pontos bónus, penalização)
+
+**Cards de Campeonato:**
+- Badge de formato (5x5/3x3)
+- Badge de convocatória (Manual/Auto)
+- Época
+- Número de equipas
+
+**Endpoints:**
+- `POST /api/championships/{id}/matches` - Criar jogo
+- `PUT /api/championships/matches/{id}` - Editar jogo
+- `DELETE /api/championships/matches/{id}` - Eliminar jogo
+- `PUT /api/championships/matches/{id}/result` - Inserir resultado
 
 ---
 
@@ -112,11 +146,6 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - Classificação do campeonato
 - Stats equipa/jogadores por evento/época
 - Stats consolidadas (todas as equipas do jogador)
-
-### FASE 7 - Campeonatos Expandido
-- Formato (5x5/3x3)
-- Convocatória automática/manual
-- Editar resultados, datas, horas
 
 ---
 
@@ -163,6 +192,10 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 ## Testes
 
+### Iteração 7 (Fase 7 - Campeonatos Expandido):
+- Backend: 100% (17/17 testes)
+- Frontend: 100%
+
 ### Iteração 6 (Fase 5 - Presenças Avançadas):
 - Backend: 100% (13/13 testes)
 - Frontend: 100%
@@ -180,6 +213,8 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - Convocatórias
 - Exportar
 - Presenças avançadas com 4 filtros e 4 vistas
+- Campeonatos com formato (5x5/3x3) e tipo de convocatória
+- Editar e eliminar jogos de campeonato
 
 ---
 
