@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -15,6 +16,25 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
+import { toast } from 'sonner';
 import { 
   ArrowLeft, 
   Trophy,
@@ -22,7 +42,9 @@ import {
   Users,
   Mail,
   Phone,
-  BarChart3
+  BarChart3,
+  Shield,
+  ChevronDown
 } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 import axios from 'axios';
@@ -35,6 +57,18 @@ export default function PlayerProfile() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showRoleConfirm, setShowRoleConfirm] = useState(false);
+  const [pendingRole, setPendingRole] = useState(null);
+  const [changingRole, setChangingRole] = useState(false);
+
+  const ROLES = [
+    { value: 'admin', label: 'Administrador', icon: '👑' },
+    { value: 'treinador', label: 'Treinador', icon: '📋' },
+    { value: 'treinador_adjunto', label: 'Treinador Adjunto', icon: '📋' },
+    { value: 'delegado', label: 'Delegado', icon: '📝' },
+    { value: 'jogador', label: 'Jogador', icon: '🏒' },
+    { value: 'responsavel', label: 'Responsável', icon: '👨‍👩‍👧' },
+  ];
 
   useEffect(() => {
     fetchPlayerData();
@@ -51,6 +85,33 @@ export default function PlayerProfile() {
       setError('Erro ao carregar dados do jogador');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRoleChange = (newRole) => {
+    setPendingRole(newRole);
+    setShowRoleConfirm(true);
+  };
+
+  const confirmRoleChange = async () => {
+    if (!pendingRole) return;
+    
+    setChangingRole(true);
+    try {
+      await usersApi.updateRole(playerId, pendingRole);
+      toast.success(`Permissão alterada para ${getRoleName(pendingRole)}`);
+      // Update local data
+      setData(prev => ({
+        ...prev,
+        player: { ...prev.player, role: pendingRole }
+      }));
+    } catch (error) {
+      console.error('Error changing role:', error);
+      toast.error(error.response?.data?.detail || 'Erro ao alterar permissão');
+    } finally {
+      setChangingRole(false);
+      setShowRoleConfirm(false);
+      setPendingRole(null);
     }
   };
 
@@ -108,9 +169,45 @@ export default function PlayerProfile() {
                   {player?.name?.toUpperCase()}
                 </h1>
                 <div className="flex flex-wrap items-center gap-3 mb-4">
-                  <Badge className={`${getRoleColor(player?.role)} text-sm`}>
-                    {getRoleName(player?.role)}
-                  </Badge>
+                  {/* Role Badge with Admin dropdown */}
+                  {user?.role === 'admin' && player?.id !== user?.id ? (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`${getRoleColor(player?.role)} gap-1`}
+                          data-testid="role-dropdown-trigger"
+                        >
+                          <Shield className="w-3 h-3" />
+                          {getRoleName(player?.role)}
+                          <ChevronDown className="w-3 h-3" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        <DropdownMenuLabel>Alterar Permissão</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        {ROLES.map(role => (
+                          <DropdownMenuItem
+                            key={role.value}
+                            onClick={() => handleRoleChange(role.value)}
+                            className={player?.role === role.value ? 'bg-primary/10' : ''}
+                            data-testid={`role-option-${role.value}`}
+                          >
+                            <span className="mr-2">{role.icon}</span>
+                            {role.label}
+                            {player?.role === role.value && (
+                              <Badge variant="secondary" className="ml-auto text-xs">Atual</Badge>
+                            )}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  ) : (
+                    <Badge className={`${getRoleColor(player?.role)} text-sm`}>
+                      {getRoleName(player?.role)}
+                    </Badge>
+                  )}
                   <Badge variant="outline" className="text-sm">
                     <Users className="w-3 h-3 mr-1" />
                     {teams?.length || 0} Equipa{teams?.length !== 1 ? 's' : ''}
@@ -316,6 +413,34 @@ export default function PlayerProfile() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* Role Change Confirmation Dialog */}
+        <AlertDialog open={showRoleConfirm} onOpenChange={setShowRoleConfirm}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Alterar Permissão</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tens a certeza que queres alterar a permissão de <strong>{player?.name}</strong> para{' '}
+                <strong>{ROLES.find(r => r.value === pendingRole)?.label}</strong>?
+                {pendingRole === 'admin' && (
+                  <span className="block mt-2 text-amber-600">
+                    ⚠️ Esta ação dará acesso total de administrador a este utilizador.
+                  </span>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={changingRole}>Cancelar</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={confirmRoleChange}
+                disabled={changingRole}
+                data-testid="confirm-role-change-btn"
+              >
+                {changingRole ? 'A alterar...' : 'Confirmar'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
     </div>
   );
 }

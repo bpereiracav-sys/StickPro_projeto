@@ -58,7 +58,11 @@ export const championshipsApi = {
   deleteMatch: (matchId) => api.delete(`/championships/matches/${matchId}`),
   getStandings: (id) => api.get(`/championships/${id}/standings`),
   getMatchPlayerStats: (matchId) => api.get(`/matches/${matchId}/player-stats`),
-  createMatchPlayerStats: (matchId, data) => api.post(`/matches/${matchId}/player-stats`, data)
+  createMatchPlayerStats: (matchId, data) => api.post(`/matches/${matchId}/player-stats`, data),
+  // Match Lineups
+  getMatchLineup: (matchId) => api.get(`/championships/matches/${matchId}/lineup`),
+  saveMatchLineup: (matchId, data) => api.post(`/championships/matches/${matchId}/lineup`, data),
+  deleteMatchLineup: (matchId) => api.delete(`/championships/matches/${matchId}/lineup`)
 };
 
 // Events API
@@ -91,6 +95,7 @@ export const usersApi = {
   getOne: (id) => api.get(`/users/${id}`),
   update: (id, data) => api.put(`/users/${id}`, data),
   updateProfile: (id, profileData) => api.put(`/users/${id}`, { profile: profileData }),
+  updateRole: (id, role) => api.put(`/users/${id}/role`, { role }),
   getConsolidatedStats: (id) => api.get(`/player-stats/${id}/consolidated`),
   getMatchStats: (id, championshipId) => api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } }),
   // Associated accounts

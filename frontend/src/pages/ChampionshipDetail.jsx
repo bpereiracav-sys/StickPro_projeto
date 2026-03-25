@@ -35,9 +35,11 @@ import {
 import { toast } from 'sonner';
 import { 
   ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin, Home, Plane, 
-  Target, Edit, Check, X, Trash2, Users, Zap, FileSpreadsheet, Download, ExternalLink
+  Target, Edit, Check, X, Trash2, Users, Zap, FileSpreadsheet, Download, ExternalLink,
+  LayoutGrid
 } from 'lucide-react';
 import { formatDate, formatTime } from '../lib/utils';
+import { MatchLineupEditor } from '../components/MatchLineupEditor';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -58,6 +60,8 @@ export default function ChampionshipDetail() {
   const [deleting, setDeleting] = useState(null);
   const [importing, setImporting] = useState(false);
   const [gamesheetUrl, setGamesheetUrl] = useState('');
+  const [lineupDialogOpen, setLineupDialogOpen] = useState(false);
+  const [lineupMatch, setLineupMatch] = useState(null);
   
   const [matchForm, setMatchForm] = useState({
     opponent_team: '',
@@ -426,6 +430,20 @@ export default function ChampionshipDetail() {
                               <Link to={`/championships/${championshipId}/matches/${match.id}/stats`}>
                                 Stats
                               </Link>
+                            </Button>
+                            {/* Line-up button - only for coaches and admins */}
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => {
+                                setLineupMatch(match);
+                                setLineupDialogOpen(true);
+                              }}
+                              className="gap-1"
+                              data-testid={`lineup-${match.id}`}
+                            >
+                              <LayoutGrid className="w-4 h-4" />
+                              Line-up
                             </Button>
                             <Button 
                               variant="outline" 
@@ -817,6 +835,36 @@ export default function ChampionshipDetail() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Lineup Dialog */}
+      <Dialog open={lineupDialogOpen} onOpenChange={setLineupDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LayoutGrid className="w-5 h-5 text-primary" />
+              Line-up do Jogo
+            </DialogTitle>
+            <DialogDescription>
+              {lineupMatch && (
+                <>
+                  {team?.name} vs {lineupMatch.opponent_team} - {formatDate(lineupMatch.match_date)}
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          {lineupMatch && (
+            <MatchLineupEditor 
+              matchId={lineupMatch.id}
+              teamId={championship?.team_id}
+              onClose={() => {
+                setLineupDialogOpen(false);
+                setLineupMatch(null);
+              }}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

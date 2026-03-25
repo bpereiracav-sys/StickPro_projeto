@@ -350,6 +350,33 @@ class LibraryItem(BaseModel):
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# Match Lineup Models (for coaches to manage game periods)
+class LineupPosition(BaseModel):
+    position: str  # "guarda_redes", "defesa_esquerda", "defesa_direita", "avancado_esquerda", "avancado_direita"
+    player_id: Optional[str] = None
+    player_name: Optional[str] = None
+
+class MatchPeriod(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str  # "1ª Parte", "2ª Parte", "Prolongamento", etc.
+    order: int
+    positions: List[LineupPosition] = []
+    notes: Optional[str] = None
+
+class MatchLineupCreate(BaseModel):
+    match_id: str
+    periods: List[MatchPeriod] = []
+
+class MatchLineup(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    match_id: str
+    team_id: str
+    periods: List[dict] = []
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # AI Chat Models
 class AIChatMessage(BaseModel):
     role: str  # "user" or "assistant"
@@ -889,6 +916,28 @@ async def update_user(user_id: str, updates: dict, current_user: dict = Depends(
         await db.users.update_one({"id": user_id}, {"$set": filtered_updates})
     
     return {"message": "Utilizador atualizado"}
+
+@api_router.put("/users/{user_id}/role")
+async def update_user_role(user_id: str, role_data: dict, current_user: dict = Depends(get_current_user)):
+    """Update user role - Admin only"""
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas administradores podem alterar permissões")
+    
+    new_role = role_data.get('role')
+    if new_role not in ['admin', 'treinador', 'treinador_adjunto', 'delegado', 'jogador', 'responsavel']:
+        raise HTTPException(status_code=400, detail="Role inválido")
+    
+    # Cannot demote yourself
+    if current_user['id'] == user_id and new_role != 'admin':
+        raise HTTPException(status_code=400, detail="Não podes remover o teu próprio privilégio de admin")
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    
+    await db.users.update_one({"id": user_id}, {"$set": {"role": new_role}})
+    
+    return {"message": f"Permissão alterada para {new_role}"}
 
 def get_user_permissions(user: dict) -> dict:
     """Get effective permissions for a user"""
@@ -1802,6 +1851,72 @@ async def get_match_gamesheet_stats(match_id: str, current_user: dict = Depends(
         "player_stats": match.get('gamesheet_player_stats', []),
         "raw_data": match.get('gamesheet_raw_data', {})
     }
+
+# =====================
+# Match Lineup Endpoints (for coaches)
+# =====================
+
+@api_router.get("/championships/matches/{match_id}/lineup")
+async def get_match_lineup(match_id: str, current_user: dict = Depends(get_current_user)):
+    """Get lineup for a match"""
+    lineup = await db.match_lineups.find_one({"match_id": match_id}, {"_id": 0})
+    if not lineup:
+        # Return empty lineup structure
+        return {
+            "match_id": match_id,
+            "periods": [],
+            "created_at": None
+        }
+    return lineup
+
+@api_router.post("/championships/matches/{match_id}/lineup")
+async def save_match_lineup(match_id: str, lineup_data: dict, current_user: dict = Depends(get_current_user)):
+    """Save or update lineup for a match - Coaches and Admins only"""
+    if current_user['role'] not in ['admin', 'treinador', 'treinador_adjunto']:
+        raise HTTPException(status_code=403, detail="Apenas treinadores e administradores podem gerir line-ups")
+    
+    # Verify match exists
+    match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+    
+    # Check if lineup already exists
+    existing = await db.match_lineups.find_one({"match_id": match_id})
+    
+    if existing:
+        # Update existing lineup
+        await db.match_lineups.update_one(
+            {"match_id": match_id},
+            {"$set": {
+                "periods": lineup_data.get('periods', []),
+                "updated_at": datetime.now(timezone.utc),
+                "updated_by": current_user['id']
+            }}
+        )
+        updated = await db.match_lineups.find_one({"match_id": match_id}, {"_id": 0})
+        return updated
+    else:
+        # Create new lineup
+        lineup = MatchLineup(
+            match_id=match_id,
+            team_id=match.get('team_id') or match.get('championship_id'),
+            periods=lineup_data.get('periods', []),
+            created_by=current_user['id']
+        )
+        await db.match_lineups.insert_one(lineup.model_dump())
+        return {**lineup.model_dump(), "_id": None}
+
+@api_router.delete("/championships/matches/{match_id}/lineup")
+async def delete_match_lineup(match_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete lineup for a match"""
+    if current_user['role'] not in ['admin', 'treinador', 'treinador_adjunto']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    result = await db.match_lineups.delete_one({"match_id": match_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Line-up não encontrado")
+    
+    return {"message": "Line-up eliminado"}
 
 
 @api_router.get("/championships/{championship_id}/standings")
