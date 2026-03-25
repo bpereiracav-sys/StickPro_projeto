@@ -255,6 +255,13 @@ class TeamCreate(BaseModel):
     name: str
     category: str
     season: str
+    photo_url: Optional[str] = None
+
+class TeamUpdate(BaseModel):
+    name: Optional[str] = None
+    category: Optional[str] = None
+    season: Optional[str] = None
+    photo_url: Optional[str] = None
 
 class Team(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -262,6 +269,7 @@ class Team(BaseModel):
     name: str
     category: str
     season: str
+    photo_url: Optional[str] = None
     coach_ids: List[str] = []
     assistant_coach_ids: List[str] = []  # Treinador adjunto
     delegate_ids: List[str] = []
@@ -965,6 +973,51 @@ async def get_team(team_id: str, current_user: dict = Depends(get_current_user))
     if isinstance(team.get('created_at'), str):
         team['created_at'] = datetime.fromisoformat(team['created_at'])
     return team
+
+@api_router.put("/teams/{team_id}")
+async def update_team(team_id: str, team_data: TeamUpdate, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] not in ['admin', 'treinador']:
+        raise HTTPException(status_code=403, detail="Sem permissão para editar equipas")
+    
+    team = await db.teams.find_one({"id": team_id})
+    if not team:
+        raise HTTPException(status_code=404, detail="Equipa não encontrada")
+    
+    # Build update dict with non-None values
+    update_data = {k: v for k, v in team_data.model_dump().items() if v is not None}
+    
+    if update_data:
+        await db.teams.update_one({"id": team_id}, {"$set": update_data})
+    
+    updated_team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+    return updated_team
+
+@api_router.delete("/teams/{team_id}")
+async def delete_team(team_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas administradores podem eliminar equipas")
+    
+    team = await db.teams.find_one({"id": team_id})
+    if not team:
+        raise HTTPException(status_code=404, detail="Equipa não encontrada")
+    
+    # Remove team from all users
+    await db.users.update_many(
+        {"team_ids": team_id},
+        {"$pull": {"team_ids": team_id}}
+    )
+    
+    # Delete related events
+    await db.events.delete_many({"team_id": team_id})
+    
+    # Delete related championships
+    await db.championships.delete_many({"team_id": team_id})
+    
+    # Delete the team
+    await db.teams.delete_one({"id": team_id})
+    
+    return {"message": "Equipa eliminada com sucesso"}
+
 
 @api_router.post("/teams/{team_id}/members")
 async def add_team_member(team_id: str, member_data: dict, current_user: dict = Depends(get_current_user)):

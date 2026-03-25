@@ -1,8 +1,10 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useTeam } from '../../context/TeamContext';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
+import { Badge } from '../ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +22,8 @@ import {
   Settings,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  Check
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -45,17 +48,16 @@ const StickProLogo = ({ size = 'md' }) => {
 export function TopNavBar() {
   const { user, logout, isAuthenticated, hasAssociatedAccounts, availableProfiles } = useAuth();
   const { t } = useLanguage();
+  const { teams, selectedTeam, selectTeam, selectAllTeams, isAllTeamsSelected } = useTeam();
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [club, setClub] = useState(null);
-  const [myTeams, setMyTeams] = useState([]);
   const [childrenTeams, setChildrenTeams] = useState([]);
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchClub();
-      fetchTeams();
       if (hasAssociatedAccounts) {
         fetchChildrenTeams();
       }
@@ -70,15 +72,6 @@ export function TopNavBar() {
       }
     } catch (error) {
       console.error('Error fetching club:', error);
-    }
-  };
-
-  const fetchTeams = async () => {
-    try {
-      const response = await teamsApi.getAll();
-      setMyTeams(response.data);
-    } catch (error) {
-      console.error('Error fetching teams:', error);
     }
   };
 
@@ -115,43 +108,18 @@ export function TopNavBar() {
     navigate('/');
   };
 
-  const navItems = [
-    {
-      label: t('nav.myClub'),
-      icon: Building2,
-      href: '/club',
-      items: club ? [
-        { label: club.name, href: '/club', description: t('nav.myClub') }
-      ] : []
-    },
-    {
-      label: t('nav.myTeams'),
-      icon: Users,
-      href: '/teams',
-      items: myTeams.map(team => ({
-        label: team.name,
-        href: `/teams/${team.id}`,
-        description: team.category
-      }))
-    },
-    {
-      label: t('nav.childrenTeams'),
-      icon: Baby,
-      href: '/children-teams',
-      show: hasAssociatedAccounts,
-      items: childrenTeams.map(team => ({
-        label: team.name,
-        href: `/teams/${team.id}`,
-        description: `${team.category} - ${team.childName}`
-      }))
-    },
-    {
-      label: t('nav.myProfile'),
-      icon: UserCircle,
-      href: '/profile',
-      items: []
-    }
-  ];
+  const handleSelectTeam = (team) => {
+    selectTeam(team);
+    navigate('/dashboard');
+  };
+
+  const handleSelectAllTeams = () => {
+    selectAllTeams();
+    navigate('/dashboard');
+  };
+
+  // Check if user has children accounts
+  const hasChildren = availableProfiles?.some(p => p.type === 'associated');
 
   if (!isAuthenticated) {
     return (
@@ -201,62 +169,99 @@ export function TopNavBar() {
 
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-1">
-            {navItems.filter(item => item.show !== false).map((item) => {
-              const Icon = item.icon;
-              const isActive = location.pathname.startsWith(item.href);
-              
-              if (item.items && item.items.length > 0) {
-                return (
-                  <DropdownMenu key={item.href}>
-                    <DropdownMenuTrigger asChild>
-                      <Button 
-                        variant="ghost" 
-                        className={`flex items-center gap-2 ${isActive ? 'text-primary bg-primary/5' : ''}`}
-                        data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-                      >
-                        <Icon className="w-4 h-4" />
-                        {item.label}
-                        <ChevronDown className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-56 bg-white">
-                      <DropdownMenuLabel>{item.label}</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      {item.items.map((subItem, idx) => (
-                        <DropdownMenuItem key={idx} asChild>
-                          <Link to={subItem.href} className="flex flex-col items-start cursor-pointer">
-                            <span className="font-medium">{subItem.label}</span>
-                            {subItem.description && (
-                              <span className="text-xs text-muted-foreground">{subItem.description}</span>
-                            )}
-                          </Link>
-                        </DropdownMenuItem>
-                      ))}
-                      {item.items.length === 0 && (
-                        <DropdownMenuItem disabled>
-                          <span className="text-muted-foreground">Nenhum item</span>
-                        </DropdownMenuItem>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                );
-              }
+            {/* Meu Clube */}
+            <Button
+              variant="ghost"
+              className={`flex items-center gap-2 ${isAllTeamsSelected ? 'text-primary bg-primary/5' : ''}`}
+              onClick={handleSelectAllTeams}
+              data-testid="nav-my-club"
+            >
+              <Building2 className="w-4 h-4" />
+              {t('nav.myClub')}
+              {isAllTeamsSelected && <Check className="w-3 h-3 ml-1" />}
+            </Button>
 
-              return (
-                <Button
-                  key={item.href}
-                  variant="ghost"
-                  className={`flex items-center gap-2 ${isActive ? 'text-primary bg-primary/5' : ''}`}
-                  asChild
-                  data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+            {/* Minhas Equipas */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="ghost" 
+                  className={`flex items-center gap-2 ${selectedTeam ? 'text-primary bg-primary/5' : ''}`}
+                  data-testid="nav-my-teams"
                 >
-                  <Link to={item.href}>
-                    <Icon className="w-4 h-4" />
-                    {item.label}
-                  </Link>
+                  <Users className="w-4 h-4" />
+                  {selectedTeam ? selectedTeam.name : t('nav.myTeams')}
+                  <ChevronDown className="w-4 h-4" />
                 </Button>
-              );
-            })}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-64 bg-white">
+                <DropdownMenuLabel>{t('nav.myTeams')}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {teams.length > 0 ? (
+                  teams.map((team) => (
+                    <DropdownMenuItem 
+                      key={team.id}
+                      onClick={() => handleSelectTeam(team)}
+                      className="flex items-center justify-between cursor-pointer"
+                    >
+                      <div className="flex items-center gap-2">
+                        {team.photo_url ? (
+                          <img src={team.photo_url} alt="" className="w-6 h-6 rounded object-cover" />
+                        ) : (
+                          <div className="w-6 h-6 bg-primary/10 rounded flex items-center justify-center">
+                            <Users className="w-3 h-3 text-primary" />
+                          </div>
+                        )}
+                        <div>
+                          <span className="font-medium">{team.name}</span>
+                          <span className="text-xs text-muted-foreground ml-2">{team.category}</span>
+                        </div>
+                      </div>
+                      {selectedTeam?.id === team.id && <Check className="w-4 h-4 text-primary" />}
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <DropdownMenuItem disabled>
+                    <span className="text-muted-foreground">Sem equipas</span>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link to="/teams-management" className="flex items-center gap-2 cursor-pointer">
+                    <Settings className="w-4 h-4" />
+                    Gerir Equipas
+                  </Link>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Os Meus Filhos */}
+            {hasChildren && (
+              <Button
+                variant="ghost"
+                className="flex items-center gap-2"
+                asChild
+                data-testid="nav-children"
+              >
+                <Link to="/children">
+                  <Baby className="w-4 h-4" />
+                  Os Meus Filhos
+                </Link>
+              </Button>
+            )}
+
+            {/* Meu Perfil */}
+            <Button
+              variant="ghost"
+              className={`flex items-center gap-2 ${location.pathname === '/profile' ? 'text-primary bg-primary/5' : ''}`}
+              asChild
+              data-testid="nav-my-profile"
+            >
+              <Link to="/profile">
+                <UserCircle className="w-4 h-4" />
+                {t('nav.myProfile')}
+              </Link>
+            </Button>
           </nav>
 
           {/* User Menu */}

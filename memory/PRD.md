@@ -274,26 +274,31 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Importa local e árbitros
   - Atualiza estatísticas dos jogadores correspondentes (por número ou nome)
   - Guarda dados raw da ficha mesmo sem correspondência de jogadores
+  - Matching de nomes com normalização de acentos e primeiro+último nome
   - Novo endpoint: `/api/championships/matches/{match_id}/gamesheet-stats`
-  - Endpoint `/api/championships/matches/import-gamesheet`
 - **Layout Mobile/Desktop:** TopNavBar com margem correta para não ser cortado pela sidebar
 - **Header Mobile:** Logo "SP" e "STICK PRO" com melhor posicionamento
-- **Internacionalização (i18n):** Suporte a 5 idiomas
-  - Português (pt) - Predefinido
-  - Espanhol (es)
-  - Francês (fr)
-  - Italiano (it)
-  - Inglês (en)
-  - Seletor de idioma nas Definições
-  - Traduções da sidebar, dashboard, convocatórias
-  - Context: `/src/context/LanguageContext.jsx`
-  - Traduções: `/src/i18n/translations.js`
+- **Internacionalização (i18n):** Suporte a 5 idiomas (PT, ES, FR, IT, EN)
+- **Gestão de Equipas:** Nova página /teams-management
+  - Criar equipas com nome, escalão, época e foto
+  - Editar equipas existentes
+  - Eliminar equipas (apenas admin)
+  - Endpoints: PUT /api/teams/{id}, DELETE /api/teams/{id}
+- **TopNavBar Reestruturado:**
+  - "Meu Clube" → Seleciona todas as equipas (dados agregados)
+  - "Minhas Equipas" → Dropdown com seleção de equipa específica
+  - "Os Meus Filhos" → Acesso a contas associadas
+  - "Meu Perfil" → Perfil do utilizador
+- **Contexto de Equipa (TeamContext):** 
+  - Filtrar dados por equipa selecionada em toda a app
+  - Persistência da seleção em localStorage
 
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
 
 ### P1 - Pendente
+- Implementar filtro de dados por equipa nas páginas (Calendar, Members, Championships, Stats)
 - Configurar API Key Resend para emails reais (atualmente MOCKED)
 - Exportar calendário em PDF
 

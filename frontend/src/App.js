@@ -2,6 +2,7 @@ import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LanguageProvider } from "./context/LanguageContext";
+import { TeamProvider } from "./context/TeamContext";
 import { Toaster } from "./components/ui/sonner";
 import { AppLayout } from "./components/layout/AppLayout";
 import { PWAInstallPrompt, registerServiceWorker } from "./components/PWAInstallPrompt";
@@ -27,6 +28,8 @@ import MatchStats from "./pages/MatchStats";
 import Attendance from "./pages/Attendance";
 import ClubPage from "./pages/ClubPage";
 import ProfilePage from "./pages/ProfilePage";
+import TeamsPage from "./pages/TeamsPage";
+import ChildrenPage from "./pages/ChildrenPage";
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -228,6 +231,22 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/teams-management"
+        element={
+          <ProtectedRoute>
+            <TeamsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/children"
+        element={
+          <ProtectedRoute>
+            <ChildrenPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Catch all - redirect to landing */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -244,9 +263,11 @@ function App() {
     <BrowserRouter>
       <LanguageProvider>
         <AuthProvider>
-          <AppRoutes />
-          <Toaster position="top-right" richColors />
-          <PWAInstallPrompt />
+          <TeamProvider>
+            <AppRoutes />
+            <Toaster position="top-right" richColors />
+            <PWAInstallPrompt />
+          </TeamProvider>
         </AuthProvider>
       </LanguageProvider>
     </BrowserRouter>
