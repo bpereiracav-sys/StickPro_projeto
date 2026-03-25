@@ -309,12 +309,35 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Conversão automática HEX→HSL para CSS variables
   - Persistência em localStorage para carregamento rápido
 
+### Funcionalidades de Gestão Avançada (25 Mar 2026) ✅
+- **Gestão de Permissões de Utilizadores:**
+  - Admin pode alterar role de qualquer membro via dropdown no PlayerProfile
+  - 6 roles disponíveis: Admin, Treinador, Treinador Adjunto, Delegado, Jogador, Responsável
+  - Confirmação obrigatória antes de alterar permissões
+  - Endpoint: PUT /api/users/{id}/role
+- **Mensagens com Destinatários:**
+  - Dropdown "Enviar para" na página de Chat
+  - Opções: "Toda a equipa" (broadcast) ou "Membro específico" (privado)
+  - Mensagens privadas marcadas com badge "Privada"
+  - Filtro de mensagens por relevância (broadcast + privadas para mim)
+- **Editor de Line-ups por Período:**
+  - Novo botão "Line-up" em cada jogo do campeonato
+  - Interface visual com campo de hóquei em patins
+  - 5 posições: GR, DE, DD, AE, AD
+  - Navegação por períodos (1ª Parte, 2ª Parte, + Período)
+  - Arrastar jogadores para posições
+  - Apenas visível para Treinadores e Admins
+  - Endpoints: GET/POST/DELETE /api/championships/matches/{id}/lineup
+- **Mobile Menu Melhorado:**
+  - Link "Definições Clube" acessível no menu lateral mobile
+  - Apenas visível para Admins
+  - Hamburger menu funcional em smartphones
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
 
 ### P1 - Pendente
-- Esconder equipa selecionada na sidebar quando "Meu Clube" está ativo
 - Expandir traduções i18n para restantes páginas (Calendar, Members, Championships, Stats)
 - Configurar API Key Resend para emails reais (atualmente MOCKED)
 - Exportar calendário em PDF
