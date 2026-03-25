@@ -25,8 +25,21 @@ import { useState, useEffect } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
 import { clubApi, teamsApi, usersApi } from '../../services/api';
 
-// StickPro Logo URL
-const STICKPRO_LOGO = "https://static.prod-images.emergentagent.com/jobs/d39c85da-551e-47cd-abe4-e0c16122ddb6/images/0327f0512a725879e3e9730c371dab74d12bc7910dd11250c0a4a7862d160c05.png";
+// StickPro Logo Component
+const StickProLogo = ({ size = 'md' }) => {
+  const sizes = {
+    sm: { box: 'w-8 h-8', text: 'text-sm' },
+    md: { box: 'w-10 h-10', text: 'text-xl' },
+    lg: { box: 'w-12 h-12', text: 'text-2xl' }
+  };
+  const s = sizes[size] || sizes.md;
+  
+  return (
+    <div className={`${s.box} bg-primary rounded-sm flex items-center justify-center`}>
+      <span className={`text-white font-heading ${s.text} font-bold`}>SP</span>
+    </div>
+  );
+};
 
 export function TopNavBar() {
   const { user, logout, isAuthenticated, hasAssociatedAccounts, availableProfiles } = useAuth();
@@ -144,13 +157,9 @@ export function TopNavBar() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3">
-              <img 
-                src={STICKPRO_LOGO} 
-                alt="StickPro" 
-                className="w-10 h-10 object-contain"
-              />
+              <StickProLogo size="md" />
               <span className="font-heading text-xl text-foreground tracking-wide">
-                STICKPRO
+                STICK PRO
               </span>
             </Link>
             <div className="flex items-center gap-3">
@@ -181,14 +190,10 @@ export function TopNavBar() {
                 data-testid="club-logo"
               />
             ) : (
-              <img 
-                src={STICKPRO_LOGO} 
-                alt="StickPro" 
-                className="w-10 h-10 object-contain"
-              />
+              <StickProLogo size="md" />
             )}
             <span className="font-heading text-xl text-foreground tracking-wide hidden sm:block">
-              {club?.name || 'STICKPRO'}
+              {club?.name || 'STICK PRO'}
             </span>
           </Link>
 
