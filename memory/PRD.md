@@ -5,175 +5,208 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ## User Personas
 - **Jogador**: Consulta calendário, confirma presenças, vê estatísticas pessoais
-- **Treinador**: Gere equipas, cria eventos, convocatórias, regista estatísticas
-- **Delegado**: Apoia o treinador na gestão administrativa
+- **Treinador/Adjunto**: Gere equipas, cria eventos, convocatórias (sem acesso a dados familiares)
+- **Delegado**: Apoia o treinador na gestão administrativa (sem acesso a dados familiares)
 - **Responsável/Encarregado**: Acompanha os filhos/atletas
-- **Administrador do Clube**: Gestão global de todas as equipas
+- **Administrador do Clube**: Gestão global, define permissões, acesso total
 
-## Requisitos Core
+---
+
+## FASE 1 - Sistema de Permissões ✅ CONCLUÍDO
+
+### Perfis Implementados:
+| Perfil | Acesso | Edição |
+|--------|--------|--------|
+| **Admin** | Total | Total + Define permissões |
+| **Treinador** | Equipa | Equipa (sem dados familiares) |
+| **Treinador Adjunto** | Equipa | Equipa (sem dados familiares) |
+| **Delegado** | Equipa | Equipa (sem dados familiares) |
+| **Jogador** | Equipa (leitura) | Apenas próprio perfil |
+| **Responsável** | Filhos | Dados familiares |
+
+### Endpoints Implementados:
+- `GET /api/permissions/defaults` - Ver permissões por defeito (admin)
+- `GET /api/permissions/{user_id}` - Ver permissões de utilizador
+- `PUT /api/permissions/{user_id}` - Modificar permissões (admin)
+
+---
+
+## FASE 2 - Novo Layout e Navegação ✅ CONCLUÍDO
+
+### Barra de Navegação Superior (TopNavBar):
+- **Meu Clube** - Página do clube com logo e informações
+- **Minhas Equipas** - Dropdown com lista de equipas do utilizador
+- **Equipas dos Meus Filhos** - Só aparece se tiver contas associadas
+- **Meu Perfil** - Acesso rápido ao perfil
+
+### Página do Clube (/club):
+- Logo do clube (URL)
+- Nome, Morada, Cidade, País
+- Ano de Fundação
+- Website, Email, Telefone
+- Admin pode criar/editar, outros só visualizam
+
+### Página de Perfil Completa (/profile):
+
+**Tab 1 - Identidade:**
+- Foto (URL)
+- Nome, Apelido, Alcunha
+- Email da conta
+- Data de nascimento
+- Licença FPP
+
+**Tab 2 - Familiares:**
+- Pai/Responsável 1 (nome, apelido, email, telefone)
+- Pai/Responsável 2 (nome, apelido, email, telefone)
+- Outros familiares (adicionar/remover)
+
+**Tab 3 - Dados Biométricos:**
+- Peso (kg)
+- Altura (cm)
+- Tamanho do calçado (texto livre)
+
+**Tab 4 - Informação Desportiva:**
+- Ano de chegada ao clube
+- Nº da FPP
+- Função (Jogador/Treinador/Treinador Adjunto/Delegado)
+- Posição (GR/JC)
+- Nº da camisola
+
+**Tab 5 - Equipamento:**
+- Tamanho kit de treino
+- Tamanho fato de treino
+- Tamanho polo de saída
+- Tamanho meia de treino
+
+---
+
+## FUNCIONALIDADES ANTERIORES ✅
+
+### Contas Associadas
+- Vincular contas pai/filho
+- Seleção de perfil no login
+- Alternar perfis no sidebar
 
 ### Autenticação
-- [x] JWT-based login (email/password)
-- [x] Registo de utilizadores com role selection
-- [x] **Contas Associadas** - vincular contas pai/filho ✅ NOVO
+- JWT login (email/password)
+- Registo com seleção de role
 
 ### Gestão de Equipas
-- [x] Criar/editar equipas com nome, categoria, época
-- [x] Adicionar/remover membros (treinadores, delegados, jogadores)
-- [x] Seletor de equipa no sidebar
+- Criar/editar equipas
+- Adicionar/remover membros
+- Seletor de equipa no sidebar
 
 ### Calendário & Eventos
-- [x] Criar eventos (treinos, jogos, campeonatos)
-- [x] Visualização de calendário
-- [x] Dashboard com próximos eventos
+- Criar eventos (treinos, jogos)
+- Dashboard com próximos eventos
 
 ### Convocatórias
-- [x] Criar convocatórias para eventos
-- [x] Jogadores confirmam/recusam presença
-- [x] Dashboard mostra convocatórias pendentes
+- Criar e responder a convocatórias
+- Dashboard com pendentes
 
-### Módulo de Campeonatos
-- [x] Criar campeonatos por época
-- [x] Agendar jogos (casa/fora/neutro)
-- [x] Registar resultados
-- [x] Tabela classificativa automática (V=3pts, E=1pt, D=0pts + bónus/penalização)
-
-### Estatísticas Detalhadas por Jogo
-- [x] Posição (GR/JC)
-- [x] Minutos jogados
-- [x] Golos e assistências
-- [x] Penaltis (marcados/falhados/defendidos/sofridos)
-- [x] Livres diretos (marcados/falhados/defendidos/sofridos)
-- [x] Defesas (guarda-redes)
-- [x] Cartões (azul, amarelo, branco, vermelho)
-
-### Presenças
-- [x] Vista de presenças por equipa
-- [x] Filtros por mês, tipo de evento, campeonato
-- [x] Taxa de assiduidade por jogador
+### Campeonatos
+- Criar campeonatos por época
+- Registar resultados
+- Tabela classificativa
 
 ### Estatísticas
-- [x] Estatísticas individuais por jogador
-- [x] Estatísticas consolidadas (agregadas de múltiplas equipas)
-- [x] Ranking de marcadores e assistências
+- Stats por jogador
+- Stats consolidadas
+
+### Presenças
+- Vista por equipa
+- Filtros por mês/evento
 
 ### Mensagens
-- [x] Chat por equipa
-- [x] Envio de mensagens em tempo real (polling)
-- [ ] Anexos de ficheiros (futuro)
-- [ ] Envio por email (MOCKED - requer API key Resend)
-
-### Contas Associadas ✅ NOVO
-- [x] Pesquisar utilizador por email para associar
-- [x] Vincular conta filho a responsável
-- [x] Lista de contas associadas na página de Definições
-- [x] Remover associação
-- [x] Modal de seleção de perfil após login (quando há múltiplos perfis)
-- [x] Alternar entre perfis no menu do sidebar
-- [x] Banner visual quando a ver como responsável
-- [x] Botão "Voltar" para retornar ao perfil original
+- Chat por equipa
 
 ---
 
-## O Que Foi Implementado
+## PRÓXIMAS FASES (A Implementar)
 
-### 25 Março 2025 - Contas Associadas ✅
-**Backend (server.py):**
-- `GET /api/users/associated` - Lista contas associadas
-- `POST /api/users/associate` - Associar conta filho
-- `POST /api/users/associate/search?email=X` - Pesquisar por email
-- `DELETE /api/users/associate/{child_id}` - Remover associação
-- `POST /api/auth/switch-profile` - Alternar perfil
+### FASE 3 - Membros Expandido
+- Já implementado através da página de Perfil
 
-**Frontend:**
-- `ProfileSelectionModal.jsx` - Modal de seleção após login
-- `Settings.jsx` - Secção de gestão de contas associadas
-- `Sidebar.jsx` - Profile switcher no menu do utilizador + banner amarelo
-- `AuthContext.jsx` - Estado de perfil ativo, switching, localStorage
+### FASE 4 - Calendário Avançado
+- Vistas: Diária, Semanal, Mensal
+- Tipos: Treino, Jogo Campeonato, Amigável, Torneio, Outros
+- Convocatórias: Escolher jogadores, enviar mensagem, visibilidade
+- Edição: Alterar data/hora/local, adiar, cancelar
+- Exportar PDF
 
-**Testes:**
-- Backend: 16/16 testes passados (100%)
-- Frontend: Todas as funcionalidades verificadas
+### FASE 5 - Presenças Avançadas
+- Filtros: Época, Evento (CN 1ª fase, etc.)
+- Vistas: Por evento, semana, mês, época
 
-### 25 Março 2025 - Estabilização
-- Corrigidas rotas em falta no App.js
-- Criada página Attendance.jsx
-- Corrigidos 5 bugs de serialização MongoDB ObjectId
-- Backend: 23/23 testes passados (100%)
+### FASE 6 - Estatísticas Completas
+- Seletor de época e evento
+- Classificação do campeonato
+- Stats consolidadas
 
----
-
-## Backlog Prioritizado
-
-### P0 - Crítico
-- ✅ Contas Associadas (CONCLUÍDO)
-
-### P1 - Alta Prioridade
-- [ ] Configurar API Resend para emails reais
-- [ ] Implementar anexos de ficheiros nas mensagens
-- [ ] Melhorar UI de estatísticas do jogo (MatchStats)
-
-### P2 - Média Prioridade
-- [ ] Notificações push para convocatórias
-- [ ] Exportar estatísticas para PDF/Excel
-- [ ] Histórico de épocas anteriores
-
-### P3 - Baixa Prioridade
-- [ ] App mobile (React Native)
-- [ ] Modo escuro
-- [ ] Dashboard administrativo do clube
+### FASE 7 - Campeonatos Expandido
+- Formato (5x5/3x3)
+- Convocatória automática/manual
 
 ---
 
 ## Arquitetura Técnica
 
 ### Stack
-- **Frontend**: React 18, TailwindCSS, Shadcn/UI, React Router
+- **Frontend**: React 18, TailwindCSS, Shadcn/UI
 - **Backend**: FastAPI, Python 3.11
-- **Database**: MongoDB (Motor async driver)
-- **Auth**: JWT tokens (24h expiration)
+- **Database**: MongoDB
+- **Auth**: JWT (24h)
 
-### Estrutura de Ficheiros
+### Estrutura
 ```
 /app
 ├── backend/
-│   ├── server.py          # FastAPI app, todos os endpoints
-│   ├── requirements.txt
-│   └── tests/
-│       └── test_associated_accounts.py
-├── frontend/
-│   ├── src/
-│   │   ├── App.js
-│   │   ├── components/
-│   │   │   ├── layout/
-│   │   │   │   ├── AppLayout.jsx
-│   │   │   │   ├── Sidebar.jsx    # Profile switcher
-│   │   │   │   └── Header.jsx
-│   │   │   ├── profile/
-│   │   │   │   └── ProfileSelectionModal.jsx
-│   │   │   └── ui/
-│   │   ├── context/
-│   │   │   └── AuthContext.jsx    # Profile state management
-│   │   ├── pages/
-│   │   │   ├── Settings.jsx       # Associated accounts section
-│   │   │   └── ...
-│   │   └── services/
-│   │       └── api.js
-│   └── package.json
-└── memory/
-    └── PRD.md
+│   ├── server.py
+│   ├── tests/
+│   │   ├── test_phase1_phase2.py
+│   └── requirements.txt
+├── frontend/src/
+│   ├── components/
+│   │   ├── layout/
+│   │   │   ├── TopNavBar.jsx    # NOVO
+│   │   │   ├── Sidebar.jsx
+│   │   │   └── AppLayout.jsx
+│   │   ├── profile/
+│   │   │   └── ProfileSelectionModal.jsx
+│   │   └── ui/
+│   ├── pages/
+│   │   ├── ClubPage.jsx         # NOVO
+│   │   ├── ProfilePage.jsx      # NOVO
+│   │   └── ...
+│   └── services/api.js
+└── memory/PRD.md
 ```
 
 ### Credenciais de Teste
-- **Responsável:** test@example.com / test123456
-- **Filho associado:** filho@example.com / test123456
+- **Admin**: admin@example.com / test123456
+- **Treinador**: test@example.com / test123456
+- **Filho**: filho@example.com / test123456
 
 ### Preview URL
 https://roller-hockey-hub-1.preview.emergentagent.com
 
 ---
 
-## Notas Importantes
-- Emails estão **MOCKED** - para ativar, configurar RESEND_API_KEY no backend/.env
-- MongoDB ObjectId deve ser excluído de todas as respostas
-- Contas associadas permitem ao responsável ver as atividades do filho
+## Testes Realizados
+
+### Iteração 4 (Fase 1 & 2):
+- Backend: 16/16 testes (100%)
+- Frontend: 100% funcional
+
+### Funcionalidades Verificadas:
+- TopNavBar com 4 menus
+- ClubPage (criar/editar como admin)
+- ProfilePage com 5 tabs
+- Sistema de permissões
+- Menu "Equipas dos Meus Filhos" condicional
+
+---
+
+## Notas
+- Emails **MOCKED** (Resend não configurado)
+- Tamanhos de equipamento são texto livre (S/M/L ou 8/10/12)
