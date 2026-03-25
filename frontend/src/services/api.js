@@ -126,4 +126,20 @@ export const dashboardApi = {
   get: () => api.get('/dashboard')
 };
 
+// Library API
+export const libraryApi = {
+  getAll: (params) => api.get('/library', { params }),
+  getCategories: () => api.get('/library/categories'),
+  create: (data) => api.post('/library', data),
+  update: (id, data) => api.put(`/library/${id}`, data),
+  delete: (id) => api.delete(`/library/${id}`)
+};
+
+// AI Assistant API
+export const aiApi = {
+  chat: (message, sessionId) => api.post('/ai/chat', { message, session_id: sessionId }),
+  getHistory: (sessionId) => api.get('/ai/chat/history', { params: { session_id: sessionId } }),
+  clearHistory: (sessionId) => api.delete('/ai/chat/history', { params: { session_id: sessionId } })
+};
+
 export default api;

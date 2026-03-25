@@ -17,9 +17,22 @@ import {
   Edit,
   Save,
   X,
-  Loader2
+  Loader2,
+  Palette
 } from 'lucide-react';
 import { LogoUpload } from '../components/ImageUpload';
+
+// Predefined color palettes
+const COLOR_PALETTES = [
+  { name: 'Verde Clássico', primary: '#006D5B', secondary: '#FFD700', accent: '#1a1a2e' },
+  { name: 'Azul Real', primary: '#1e40af', secondary: '#fbbf24', accent: '#0f172a' },
+  { name: 'Vermelho Paixão', primary: '#dc2626', secondary: '#facc15', accent: '#1c1917' },
+  { name: 'Verde Lima', primary: '#16a34a', secondary: '#f97316', accent: '#052e16' },
+  { name: 'Roxo Elegante', primary: '#7c3aed', secondary: '#fde047', accent: '#1e1b4b' },
+  { name: 'Azul Celeste', primary: '#0ea5e9', secondary: '#fcd34d', accent: '#0c4a6e' },
+  { name: 'Laranja Vibrante', primary: '#ea580c', secondary: '#14b8a6', accent: '#431407' },
+  { name: 'Rosa Moderno', primary: '#db2777', secondary: '#a3e635', accent: '#4a044e' },
+];
 
 export default function ClubPage() {
   const { user } = useAuth();
@@ -36,7 +49,10 @@ export default function ClubPage() {
     founded_year: '',
     website: '',
     email: '',
-    phone: ''
+    phone: '',
+    primary_color: '#006D5B',
+    secondary_color: '#FFD700',
+    accent_color: '#1a1a2e'
   });
 
   const isAdmin = user?.role === 'admin';
@@ -60,7 +76,10 @@ export default function ClubPage() {
           founded_year: clubData.founded_year || '',
           website: clubData.website || '',
           email: clubData.email || '',
-          phone: clubData.phone || ''
+          phone: clubData.phone || '',
+          primary_color: clubData.primary_color || '#006D5B',
+          secondary_color: clubData.secondary_color || '#FFD700',
+          accent_color: clubData.accent_color || '#1a1a2e'
         });
       }
     } catch (error) {

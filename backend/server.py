@@ -302,7 +302,62 @@ class Club(BaseModel):
     email: Optional[str] = None
     phone: Optional[str] = None
     admin_ids: List[str] = []  # Users with admin access to this club
+    # Theme colors
+    primary_color: Optional[str] = "#006D5B"  # Default teal
+    secondary_color: Optional[str] = "#FFD700"  # Default gold
+    accent_color: Optional[str] = "#1a1a2e"  # Default dark
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class ClubUpdate(BaseModel):
+    name: Optional[str] = None
+    logo_url: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
+    founded_year: Optional[int] = None
+    website: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    primary_color: Optional[str] = None
+    secondary_color: Optional[str] = None
+    accent_color: Optional[str] = None
+
+# Library Models
+class LibraryItemType(str, Enum):
+    pdf = "pdf"
+    link = "link"
+    video = "video"
+
+class LibraryItemCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    item_type: LibraryItemType
+    url: str  # For links/videos or file path for PDFs
+    category: Optional[str] = None  # e.g., "Regras", "Táticas", "Treino"
+    tags: List[str] = []
+
+class LibraryItem(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    title: str
+    description: Optional[str] = None
+    item_type: LibraryItemType
+    url: str
+    category: Optional[str] = None
+    tags: List[str] = []
+    thumbnail_url: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# AI Chat Models
+class AIChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class AIChatRequest(BaseModel):
+    message: str
+    session_id: Optional[str] = None
 
 # Championship Models
 class ChampionshipCreate(BaseModel):
@@ -2397,6 +2452,203 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# =====================
+# Library Endpoints
+# =====================
+
+@api_router.get("/library")
+async def get_library_items(
+    category: Optional[str] = None,
+    item_type: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get all library items with optional filters"""
+    query = {}
+    if category:
+        query["category"] = category
+    if item_type:
+        query["item_type"] = item_type
+    
+    items = await db.library_items.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return items
+
+@api_router.get("/library/categories")
+async def get_library_categories(current_user: dict = Depends(get_current_user)):
+    """Get all unique categories"""
+    categories = await db.library_items.distinct("category")
+    return [c for c in categories if c]
+
+@api_router.post("/library")
+async def create_library_item(item: LibraryItemCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new library item"""
+    if current_user['role'] not in ['admin', 'treinador']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    # Generate thumbnail for videos
+    thumbnail_url = None
+    if item.item_type == "video":
+        # Extract YouTube/Vimeo thumbnail
+        if "youtube.com" in item.url or "youtu.be" in item.url:
+            video_id = None
+            if "youtu.be" in item.url:
+                video_id = item.url.split("/")[-1].split("?")[0]
+            elif "v=" in item.url:
+                video_id = item.url.split("v=")[1].split("&")[0]
+            if video_id:
+                thumbnail_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+        elif "vimeo.com" in item.url:
+            video_id = item.url.split("/")[-1]
+            thumbnail_url = f"https://vumbnail.com/{video_id}.jpg"
+    
+    library_item = LibraryItem(
+        title=item.title,
+        description=item.description,
+        item_type=item.item_type,
+        url=item.url,
+        category=item.category,
+        tags=item.tags,
+        thumbnail_url=thumbnail_url,
+        created_by=current_user['id']
+    )
+    
+    await db.library_items.insert_one(library_item.model_dump())
+    return {**library_item.model_dump(), "_id": None}
+
+@api_router.put("/library/{item_id}")
+async def update_library_item(item_id: str, item: LibraryItemCreate, current_user: dict = Depends(get_current_user)):
+    """Update a library item"""
+    if current_user['role'] not in ['admin', 'treinador']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    existing = await db.library_items.find_one({"id": item_id})
+    if not existing:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    
+    update_data = item.model_dump()
+    await db.library_items.update_one({"id": item_id}, {"$set": update_data})
+    
+    updated = await db.library_items.find_one({"id": item_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/library/{item_id}")
+async def delete_library_item(item_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a library item"""
+    if current_user['role'] not in ['admin', 'treinador']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    result = await db.library_items.delete_one({"id": item_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Item não encontrado")
+    
+    return {"message": "Item eliminado com sucesso"}
+
+# =====================
+# AI Assistant Endpoints
+# =====================
+
+@api_router.post("/ai/chat")
+async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_current_user)):
+    """Chat with AI assistant about roller hockey and app help"""
+    from emergentintegrations.llm.chat import LlmChat, UserMessage
+    
+    api_key = os.environ.get('EMERGENT_LLM_KEY')
+    if not api_key:
+        raise HTTPException(status_code=500, detail="AI não configurado")
+    
+    session_id = request.session_id or f"user_{current_user['id']}_{datetime.now().strftime('%Y%m%d')}"
+    
+    # Get chat history for this session
+    history = await db.ai_chat_history.find(
+        {"session_id": session_id}
+    ).sort("timestamp", 1).to_list(50)
+    
+    # Build system message
+    system_message = """Tu és o Assistente StickPro, um especialista em hóquei em patins e na aplicação StickPro.
+
+SOBRE A APP STICKPRO:
+- Gestão de equipas de hóquei em patins
+- Calendário de eventos (treinos, jogos, torneios)
+- Convocatórias e presenças
+- Estatísticas de jogadores (golos, assistências, cartões)
+- Campeonatos (5x5 e 3x3)
+- Importação de fichas de jogo da APL
+- Gestão de membros e perfis
+- Biblioteca de documentos
+
+SOBRE HÓQUEI EM PATINS:
+- É um desporto com 5 jogadores (4 de campo + 1 guarda-redes)
+- Jogado com patins de 4 rodas, stick e bola
+- Duração: 2 partes de 25 minutos (seniores)
+- Penáltis, livres diretos, cartões (azul, amarelo, vermelho)
+- Principais ligas: Portugal (1ª Divisão), Espanha (OK Liga), Itália (Serie A1)
+
+Responde sempre em português de forma clara e útil. Se não souberes a resposta, diz que não tens certeza."""
+
+    try:
+        chat = LlmChat(
+            api_key=api_key,
+            session_id=session_id,
+            system_message=system_message
+        ).with_model("openai", "gpt-4o-mini")
+        
+        # Add history to context
+        for msg in history[-10:]:  # Last 10 messages
+            if msg['role'] == 'user':
+                chat.add_user_message(msg['content'])
+            else:
+                chat.add_assistant_message(msg['content'])
+        
+        # Send message
+        user_message = UserMessage(text=request.message)
+        response = await chat.send_message(user_message)
+        
+        # Save to history
+        await db.ai_chat_history.insert_one({
+            "session_id": session_id,
+            "user_id": current_user['id'],
+            "role": "user",
+            "content": request.message,
+            "timestamp": datetime.now(timezone.utc)
+        })
+        await db.ai_chat_history.insert_one({
+            "session_id": session_id,
+            "user_id": current_user['id'],
+            "role": "assistant",
+            "content": response,
+            "timestamp": datetime.now(timezone.utc)
+        })
+        
+        return {
+            "response": response,
+            "session_id": session_id
+        }
+        
+    except Exception as e:
+        logging.error(f"AI Chat error: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro no assistente: {str(e)}")
+
+@api_router.get("/ai/chat/history")
+async def get_ai_chat_history(session_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get chat history for user"""
+    query = {"user_id": current_user['id']}
+    if session_id:
+        query["session_id"] = session_id
+    
+    history = await db.ai_chat_history.find(query, {"_id": 0}).sort("timestamp", -1).to_list(100)
+    return history
+
+@api_router.delete("/ai/chat/history")
+async def clear_ai_chat_history(session_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Clear chat history"""
+    query = {"user_id": current_user['id']}
+    if session_id:
+        query["session_id"] = session_id
+    
+    await db.ai_chat_history.delete_many(query)
+    return {"message": "Histórico apagado"}
+
+
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

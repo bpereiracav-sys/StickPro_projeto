@@ -6,6 +6,7 @@ import { TeamProvider } from "./context/TeamContext";
 import { Toaster } from "./components/ui/sonner";
 import { AppLayout } from "./components/layout/AppLayout";
 import { PWAInstallPrompt, registerServiceWorker } from "./components/PWAInstallPrompt";
+import { AIAssistant } from "./components/AIAssistant";
 import { useEffect } from "react";
 
 // Pages
@@ -30,6 +31,7 @@ import ClubPage from "./pages/ClubPage";
 import ProfilePage from "./pages/ProfilePage";
 import TeamsPage from "./pages/TeamsPage";
 import ChildrenPage from "./pages/ChildrenPage";
+import LibraryPage from "./pages/LibraryPage";
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -247,6 +249,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/library"
+        element={
+          <ProtectedRoute>
+            <LibraryPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Catch all - redirect to landing */}
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -267,6 +277,7 @@ function App() {
             <AppRoutes />
             <Toaster position="top-right" richColors />
             <PWAInstallPrompt />
+            <AIAssistant />
           </TeamProvider>
         </AuthProvider>
       </LanguageProvider>

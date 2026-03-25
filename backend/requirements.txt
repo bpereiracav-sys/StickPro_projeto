@@ -125,3 +125,4 @@ zipp==3.23.0
 openpyxl==3.1.5
 beautifulsoup4==4.14.3
 httpx==0.28.1
+emergentintegrations==0.1.0

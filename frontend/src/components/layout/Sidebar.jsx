@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useTeam } from '../../context/TeamContext';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { ScrollArea } from '../ui/scroll-area';
@@ -29,7 +30,8 @@ import {
   Trophy,
   ClipboardCheck,
   RefreshCw,
-  Shield
+  Shield,
+  BookOpen
 } from 'lucide-react';
 import { useState } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -64,10 +66,14 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
     effectiveRole
   } = useAuth();
   const { t } = useLanguage();
+  const { selectedTeam: contextSelectedTeam, isAllTeamsSelected } = useTeam();
   const location = useLocation();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
   const [switchingProfile, setSwitchingProfile] = useState(false);
+
+  // Use context selected team if available
+  const activeTeam = contextSelectedTeam || selectedTeam;
 
   // Menu items based on selected team context - with translations
   const navLinks = [
@@ -77,6 +83,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
     { href: '/championships', label: t('nav.championships'), icon: Trophy },
     { href: '/attendance', label: t('nav.attendance'), icon: ClipboardCheck },
     { href: '/stats', label: t('nav.stats'), icon: BarChart3 },
+    { href: '/library', label: 'Biblioteca', icon: BookOpen },
     { href: '/messages', label: t('nav.messages'), icon: MessageSquare },
     { href: '/settings', label: t('nav.settings'), icon: Settings },
   ];
@@ -199,50 +206,26 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
             </div>
           )}
 
-          {/* Team Selector */}
-          {teams.length > 0 && (
+          {/* Team Selector - Only show when a specific team is selected (not "My Club" mode) */}
+          {activeTeam && !isAllTeamsSelected && (
             <div className="px-3 py-4 border-b border-slate-700">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    className="w-full justify-between text-white hover:bg-slate-800 h-auto py-3"
-                    data-testid="team-selector"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/20 rounded-sm flex items-center justify-center">
-                        <Users className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="text-left">
-                        <p className="font-semibold text-sm">
-                          {selectedTeam?.name || 'Selecionar Equipa'}
-                        </p>
-                        <p className="text-xs text-slate-400">
-                          {selectedTeam?.category || 'Escolha uma equipa'}
-                        </p>
-                      </div>
-                    </div>
-                    <ChevronDown className="w-4 h-4 text-slate-400" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56 bg-slate-800 border-slate-700" align="start">
-                  <DropdownMenuLabel className="text-slate-400">As Minhas Equipas</DropdownMenuLabel>
-                  <DropdownMenuSeparator className="bg-slate-700" />
-                  {teams.map(team => (
-                    <DropdownMenuItem 
-                      key={team.id}
-                      onClick={() => onSelectTeam(team)}
-                      className="text-white hover:bg-slate-700 cursor-pointer"
-                    >
-                      <Users className="w-4 h-4 mr-2" />
-                      <div>
-                        <p className="font-medium">{team.name}</p>
-                        <p className="text-xs text-slate-400">{team.category}</p>
-                      </div>
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="flex items-center gap-3 px-2 py-2">
+                <div className="w-10 h-10 bg-primary/20 rounded-sm flex items-center justify-center">
+                  {activeTeam.photo_url ? (
+                    <img src={activeTeam.photo_url} alt="" className="w-10 h-10 rounded-sm object-cover" />
+                  ) : (
+                    <Users className="w-5 h-5 text-primary" />
+                  )}
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="font-semibold text-sm text-white truncate">
+                    {activeTeam.name}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    {activeTeam.category} • {activeTeam.season}
+                  </p>
+                </div>
+              </div>
             </div>
           )}
 
