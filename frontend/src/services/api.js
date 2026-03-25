@@ -86,6 +86,7 @@ export const usersApi = {
   getAll: (params) => api.get('/users', { params }),
   getOne: (id) => api.get(`/users/${id}`),
   update: (id, data) => api.put(`/users/${id}`, data),
+  updateProfile: (id, profileData) => api.put(`/users/${id}`, { profile: profileData }),
   getConsolidatedStats: (id) => api.get(`/player-stats/${id}/consolidated`),
   getMatchStats: (id, championshipId) => api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } }),
   // Associated accounts
@@ -99,6 +100,21 @@ export const usersApi = {
 export const authApi = {
   getProfiles: () => api.get('/auth/profiles'),
   switchProfile: (data) => api.post('/auth/switch-profile', data)
+};
+
+// Club API
+export const clubApi = {
+  getAll: () => api.get('/clubs'),
+  getOne: (id) => api.get(`/clubs/${id}`),
+  create: (data) => api.post('/clubs', data),
+  update: (id, data) => api.put(`/clubs/${id}`, data)
+};
+
+// Permissions API
+export const permissionsApi = {
+  getDefaults: () => api.get('/permissions/defaults'),
+  getForUser: (userId) => api.get(`/permissions/${userId}`),
+  updateForUser: (userId, permissions) => api.put(`/permissions/${userId}`, permissions)
 };
 
 // Dashboard API

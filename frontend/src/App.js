@@ -22,6 +22,8 @@ import Championships from "./pages/Championships";
 import ChampionshipDetail from "./pages/ChampionshipDetail";
 import MatchStats from "./pages/MatchStats";
 import Attendance from "./pages/Attendance";
+import ClubPage from "./pages/ClubPage";
+import ProfilePage from "./pages/ProfilePage";
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -204,6 +206,22 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Chat />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/club"
+        element={
+          <ProtectedRoute>
+            <ClubPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+            <ProfilePage />
           </ProtectedRoute>
         }
       />

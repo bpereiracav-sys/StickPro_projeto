@@ -42,42 +42,180 @@ logger = logging.getLogger(__name__)
 
 # ==================== MODELS ====================
 
-UserRole = Literal["admin", "treinador", "delegado", "jogador", "responsavel"]
-EventType = Literal["jogo", "treino", "campeonato"]
+UserRole = Literal["admin", "treinador", "treinador_adjunto", "delegado", "jogador", "responsavel"]
+EventType = Literal["treino", "jogo_campeonato", "jogo_amigavel", "torneio", "outro"]
 AttendanceStatus = Literal["confirmado", "ausente", "pendente"]
 MatchLocation = Literal["casa", "fora", "neutro"]
 PlayerPosition = Literal["GR", "JC"]
+ChampionshipFormat = Literal["5x5", "3x3"]
+ConvocationType = Literal["automatica", "manual"]
+EquipmentSize = str  # Free text: S/M/L/XL or 8/10/12 etc
+
+# ==================== PERMISSION SYSTEM ====================
+
+# Default permissions by role
+DEFAULT_PERMISSIONS = {
+    "admin": {
+        "can_view_all": True,
+        "can_edit_all": True,
+        "can_manage_permissions": True,
+        "can_view_family_data": True,
+        "can_edit_family_data": True,
+        "can_manage_teams": True,
+        "can_manage_championships": True,
+        "can_manage_events": True,
+        "can_manage_members": True,
+    },
+    "treinador": {
+        "can_view_all": False,
+        "can_edit_all": False,
+        "can_manage_permissions": False,
+        "can_view_family_data": False,
+        "can_edit_family_data": False,
+        "can_manage_teams": True,
+        "can_manage_championships": True,
+        "can_manage_events": True,
+        "can_manage_members": True,
+    },
+    "treinador_adjunto": {
+        "can_view_all": False,
+        "can_edit_all": False,
+        "can_manage_permissions": False,
+        "can_view_family_data": False,
+        "can_edit_family_data": False,
+        "can_manage_teams": True,
+        "can_manage_championships": True,
+        "can_manage_events": True,
+        "can_manage_members": True,
+    },
+    "delegado": {
+        "can_view_all": False,
+        "can_edit_all": False,
+        "can_manage_permissions": False,
+        "can_view_family_data": False,
+        "can_edit_family_data": False,
+        "can_manage_teams": True,
+        "can_manage_championships": True,
+        "can_manage_events": True,
+        "can_manage_members": True,
+    },
+    "jogador": {
+        "can_view_all": False,
+        "can_edit_all": False,
+        "can_manage_permissions": False,
+        "can_view_family_data": False,
+        "can_edit_family_data": False,
+        "can_manage_teams": False,
+        "can_manage_championships": False,
+        "can_manage_events": False,
+        "can_manage_members": False,
+        "can_edit_own_profile": True,
+    },
+    "responsavel": {
+        "can_view_all": False,
+        "can_edit_all": False,
+        "can_manage_permissions": False,
+        "can_view_family_data": True,
+        "can_edit_family_data": True,
+        "can_manage_teams": False,
+        "can_manage_championships": False,
+        "can_manage_events": False,
+        "can_manage_members": False,
+    }
+}
+
+class Permissions(BaseModel):
+    can_view_all: bool = False
+    can_edit_all: bool = False
+    can_manage_permissions: bool = False
+    can_view_family_data: bool = False
+    can_edit_family_data: bool = False
+    can_manage_teams: bool = False
+    can_manage_championships: bool = False
+    can_manage_events: bool = False
+    can_manage_members: bool = False
+    can_edit_own_profile: bool = True
 
 class UserCreate(BaseModel):
     email: EmailStr
     password: str
     name: str
+    surname: Optional[str] = None
     role: UserRole = "jogador"
     phone: Optional[str] = None
-    additional_roles: List[UserRole] = []  # Can have multiple roles
+    additional_roles: List[UserRole] = []
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
+
+# Family member model
+class FamilyMember(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    first_name: str
+    surname: str
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = None
+    relationship: str = "pai"  # pai, mae, outro
+
+# Extended User Profile
+class UserProfile(BaseModel):
+    # Identity
+    photo_url: Optional[str] = None
+    first_name: Optional[str] = None
+    surname: Optional[str] = None
+    nickname: Optional[str] = None
+    birth_date: Optional[str] = None  # ISO date string
+    fpp_license: Optional[str] = None  # Federação Portuguesa de Patinagem
+    
+    # Family members
+    family_members: List[FamilyMember] = []
+    
+    # Biometric data
+    weight: Optional[float] = None  # kg
+    height: Optional[float] = None  # cm
+    shoe_size: Optional[str] = None  # Free text
+    
+    # Sports info
+    year_joined_club: Optional[int] = None
+    fpp_number: Optional[str] = None
+    function: Optional[UserRole] = None  # jogador, treinador, etc
+    position: Optional[PlayerPosition] = None  # GR/JC
+    jersey_number: Optional[int] = None
+    
+    # Equipment sizes (free text)
+    training_kit_size: Optional[str] = None
+    tracksuit_size: Optional[str] = None
+    polo_size: Optional[str] = None
+    training_sock_size: Optional[str] = None
 
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     email: EmailStr
     name: str
+    surname: Optional[str] = None
     role: UserRole  # Primary role
-    additional_roles: List[UserRole] = []  # Additional roles (e.g., treinador AND responsavel)
+    additional_roles: List[UserRole] = []
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
     team_ids: List[str] = []
-    associated_accounts: List[str] = []  # IDs of associated users (e.g., children for a parent)
-    parent_account_id: Optional[str] = None  # If this is a child account, reference to parent
+    associated_accounts: List[str] = []
+    parent_account_id: Optional[str] = None
+    
+    # Extended profile data
+    profile: Optional[UserProfile] = None
+    
+    # Custom permissions (if admin has modified defaults)
+    custom_permissions: Optional[Dict[str, bool]] = None
+    
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserResponse(BaseModel):
     id: str
     email: str
     name: str
+    surname: Optional[str] = None
     role: UserRole
     additional_roles: List[UserRole] = []
     phone: Optional[str] = None
@@ -85,6 +223,8 @@ class UserResponse(BaseModel):
     team_ids: List[str] = []
     associated_accounts: List[str] = []
     parent_account_id: Optional[str] = None
+    profile: Optional[UserProfile] = None
+    permissions: Optional[Dict[str, bool]] = None
 
 class AssociateAccountRequest(BaseModel):
     child_user_id: str
@@ -113,16 +253,48 @@ class Team(BaseModel):
     category: str
     season: str
     coach_ids: List[str] = []
+    assistant_coach_ids: List[str] = []  # Treinador adjunto
     delegate_ids: List[str] = []
     player_ids: List[str] = []
+    club_id: Optional[str] = None  # Reference to club
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Club Model
+class ClubCreate(BaseModel):
+    name: str
+    logo_url: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: str = "Portugal"
+    founded_year: Optional[int] = None
+    website: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
+class Club(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    logo_url: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    country: str = "Portugal"
+    founded_year: Optional[int] = None
+    website: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    admin_ids: List[str] = []  # Users with admin access to this club
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Championship Models
 class ChampionshipCreate(BaseModel):
     name: str
     season: str
-    team_id: str  # Team that owns this championship view
+    team_id: str
     description: Optional[str] = None
+    format: ChampionshipFormat = "5x5"
+    location: Optional[str] = None
+    convocation_type: ConvocationType = "manual"
 
 class Championship(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -131,7 +303,10 @@ class Championship(BaseModel):
     season: str
     team_id: str
     description: Optional[str] = None
-    participating_teams: List[str] = []  # Names of teams in the championship
+    format: ChampionshipFormat = "5x5"
+    location: Optional[str] = None
+    convocation_type: ConvocationType = "manual"
+    participating_teams: List[str] = []
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -609,13 +784,134 @@ async def update_user(user_id: str, updates: dict, current_user: dict = Depends(
     if current_user['id'] != user_id and current_user['role'] != 'admin':
         raise HTTPException(status_code=403, detail="Sem permissão")
     
-    allowed_fields = ['name', 'phone', 'avatar_url']
+    # Check if user has permission to edit this data
+    user_permissions = get_user_permissions(current_user)
+    
+    allowed_fields = ['name', 'surname', 'phone', 'avatar_url']
+    
+    # Handle profile updates
+    if 'profile' in updates:
+        profile_data = updates.pop('profile')
+        
+        # Filter family data based on permissions
+        if 'family_members' in profile_data:
+            if not user_permissions.get('can_edit_family_data', False) and current_user['id'] != user_id:
+                del profile_data['family_members']
+        
+        # Update profile in database
+        if profile_data:
+            await db.users.update_one(
+                {"id": user_id},
+                {"$set": {f"profile.{k}": v for k, v in profile_data.items()}}
+            )
+    
+    # Filter basic fields
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
     
     if filtered_updates:
         await db.users.update_one({"id": user_id}, {"$set": filtered_updates})
     
     return {"message": "Utilizador atualizado"}
+
+def get_user_permissions(user: dict) -> dict:
+    """Get effective permissions for a user"""
+    role = user.get('role', 'jogador')
+    base_permissions = DEFAULT_PERMISSIONS.get(role, DEFAULT_PERMISSIONS['jogador']).copy()
+    
+    # Apply custom permissions if set
+    custom = user.get('custom_permissions', {})
+    if custom:
+        base_permissions.update(custom)
+    
+    return base_permissions
+
+# ==================== CLUB ROUTES ====================
+
+@api_router.post("/clubs")
+async def create_club(club_data: ClubCreate, current_user: dict = Depends(get_current_user)):
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar clubes")
+    
+    club = Club(**club_data.model_dump())
+    club.admin_ids.append(current_user['id'])
+    
+    club_dict = club.model_dump()
+    club_dict['created_at'] = club_dict['created_at'].isoformat()
+    await db.clubs.insert_one(club_dict)
+    club_dict.pop('_id', None)
+    
+    return club_dict
+
+@api_router.get("/clubs")
+async def get_clubs(current_user: dict = Depends(get_current_user)):
+    clubs = await db.clubs.find({}, {"_id": 0}).to_list(100)
+    return clubs
+
+@api_router.get("/clubs/{club_id}")
+async def get_club(club_id: str, current_user: dict = Depends(get_current_user)):
+    club = await db.clubs.find_one({"id": club_id}, {"_id": 0})
+    if not club:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+    return club
+
+@api_router.put("/clubs/{club_id}")
+async def update_club(club_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    club = await db.clubs.find_one({"id": club_id})
+    if not club:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+    
+    if current_user['role'] != 'admin' and current_user['id'] not in club.get('admin_ids', []):
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone']
+    filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
+    
+    if filtered_updates:
+        await db.clubs.update_one({"id": club_id}, {"$set": filtered_updates})
+    
+    return {"message": "Clube atualizado"}
+
+# ==================== PERMISSIONS ROUTES ====================
+
+@api_router.get("/permissions/defaults")
+async def get_default_permissions(current_user: dict = Depends(get_current_user)):
+    """Get default permissions for all roles"""
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas administradores podem ver permissões")
+    return DEFAULT_PERMISSIONS
+
+@api_router.get("/permissions/{user_id}")
+async def get_user_permissions_endpoint(user_id: str, current_user: dict = Depends(get_current_user)):
+    """Get effective permissions for a specific user"""
+    if current_user['role'] != 'admin' and current_user['id'] != user_id:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    
+    return get_user_permissions(user)
+
+@api_router.put("/permissions/{user_id}")
+async def update_user_permissions(user_id: str, permissions: dict, current_user: dict = Depends(get_current_user)):
+    """Update custom permissions for a user (admin only)"""
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas administradores podem modificar permissões")
+    
+    user = await db.users.find_one({"id": user_id})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    
+    # Validate permission keys
+    valid_keys = set(DEFAULT_PERMISSIONS['admin'].keys())
+    filtered_permissions = {k: v for k, v in permissions.items() if k in valid_keys}
+    
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {"custom_permissions": filtered_permissions}}
+    )
+    
+    return {"message": "Permissões atualizadas"}
 
 # ==================== TEAM ROUTES ====================
 

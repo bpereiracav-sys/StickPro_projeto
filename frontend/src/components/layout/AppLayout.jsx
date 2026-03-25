@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
+import { TopNavBar } from './TopNavBar';
 import { Toaster } from '../ui/sonner';
 import { useAuth } from '../../context/AuthContext';
 import { teamsApi } from '../../services/api';
@@ -19,7 +20,17 @@ export function AppLayout({ children }) {
     try {
       const response = await teamsApi.getAll();
       setTeams(response.data);
-      if (response.data.length > 0 && !selectedTeam) {
+      
+      // Restore selected team from localStorage or use first team
+      const savedTeamId = localStorage.getItem('selectedTeamId');
+      if (savedTeamId) {
+        const savedTeam = response.data.find(t => t.id === savedTeamId);
+        if (savedTeam) {
+          setSelectedTeam(savedTeam);
+        } else if (response.data.length > 0) {
+          setSelectedTeam(response.data[0]);
+        }
+      } else if (response.data.length > 0 && !selectedTeam) {
         setSelectedTeam(response.data[0]);
       }
     } catch (error) {
@@ -29,7 +40,6 @@ export function AppLayout({ children }) {
 
   const handleSelectTeam = (team) => {
     setSelectedTeam(team);
-    // Store in localStorage for persistence
     localStorage.setItem('selectedTeamId', team.id);
   };
 
@@ -44,16 +54,23 @@ export function AppLayout({ children }) {
 
   return (
     <div className="min-h-screen bg-surface">
+      {/* Top Navigation Bar */}
+      <TopNavBar />
+      
+      {/* Sidebar */}
       <Sidebar 
         teams={teams} 
         selectedTeam={selectedTeam} 
         onSelectTeam={handleSelectTeam}
       />
-      <main className="lg:ml-64 pt-14 lg:pt-0 min-h-screen">
+      
+      {/* Main Content */}
+      <main className="lg:ml-64 pt-14 lg:pt-16 min-h-screen">
         <div className="p-4 lg:p-6">
           {children}
         </div>
       </main>
+      
       <Toaster position="top-right" richColors />
     </div>
   );
