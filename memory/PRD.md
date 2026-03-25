@@ -285,15 +285,40 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Stats: Estatísticas filtradas por equipa
   - Attendance: Presenças filtradas por equipa
 
+### Novas Funcionalidades (25 Mar 2026) ✅
+- **Biblioteca de Recursos (Library):** Nova página /library
+  - CRUD completo para documentos, vídeos e links
+  - Tipos: PDF, Vídeo (YouTube/Vimeo), Link
+  - Categorias: Regras, Táticas, Treino, Técnica Individual, etc.
+  - Filtros por categoria e tipo
+  - Upload de PDFs até 10MB
+  - Geração automática de thumbnails para vídeos YouTube/Vimeo
+  - Endpoints: GET/POST/PUT/DELETE /api/library
+- **Assistente de IA (AI Assistant):** 
+  - Botão flutuante no canto inferior direito
+  - Chat em tempo real com GPT-4o-mini via emergentintegrations
+  - Especializado em hóquei em patins e ajuda com a app
+  - Histórico de conversas persistente por sessão
+  - Limpar histórico disponível
+  - Endpoints: POST /api/ai/chat, GET/DELETE /api/ai/chat/history
+- **Temas Personalizados (Theme Colors):**
+  - 8 paletas de cores predefinidas no ClubPage
+  - Verde Clássico, Azul Real, Vermelho Paixão, Verde Lima
+  - Roxo Elegante, Azul Celeste, Laranja Vibrante, Rosa Moderno
+  - Cores aplicadas globalmente via ThemeContext
+  - Conversão automática HEX→HSL para CSS variables
+  - Persistência em localStorage para carregamento rápido
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
 
 ### P1 - Pendente
+- Esconder equipa selecionada na sidebar quando "Meu Clube" está ativo
+- Expandir traduções i18n para restantes páginas (Calendar, Members, Championships, Stats)
 - Configurar API Key Resend para emails reais (atualmente MOCKED)
 - Exportar calendário em PDF
 
 ### P2 - Futuro
 - Notificações push para convocatórias
-- Traduzir restantes páginas (Calendar, Members, Championships, etc.)
-
+- Dashboard com métricas e gráficos
