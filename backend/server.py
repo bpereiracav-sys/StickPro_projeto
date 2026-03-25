@@ -1363,88 +1363,127 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
     result_data = {}
     
     try:
-        # Find the score - look for pattern like "11 - 2"
-        score_pattern = re.search(r'(\d+)\s*-\s*(\d+)', html)
-        if score_pattern:
-            result_data['home_score'] = int(score_pattern.group(1))
-            result_data['away_score'] = int(score_pattern.group(2))
+        # Find the final score from the styled span (e.g., "7 - 2")
+        score_span = soup.find('span', style=lambda x: x and 'background-color:#000000' in x if x else False)
+        if score_span:
+            score_text = score_span.get_text(strip=True)
+            score_match = re.search(r'(\d+)\s*-\s*(\d+)', score_text)
+            if score_match:
+                result_data['home_score'] = int(score_match.group(1))
+                result_data['away_score'] = int(score_match.group(2))
         
-        # Extract teams
-        tables = soup.find_all('table')
+        # Fallback: search for score pattern in HTML
+        if 'home_score' not in result_data:
+            score_pattern = re.search(r'<b>(\d+)\s*-\s*(\d+)</b>', html)
+            if score_pattern:
+                result_data['home_score'] = int(score_pattern.group(1))
+                result_data['away_score'] = int(score_pattern.group(2))
         
-        # Find player stats tables
+        # Find stats tables - look for tables with class="estadisticas" or containing player stats
         player_stats = []
         current_team = None
         
-        for table in tables:
-            rows = table.find_all('tr')
-            for row in rows:
-                cells = row.find_all(['td', 'th'])
-                cell_texts = [c.get_text(strip=True) for c in cells]
+        # Find all statistics divs
+        stats_divs = soup.find_all('div', class_='estadisticas')
+        
+        for stats_div in stats_divs:
+            tables = stats_div.find_all('table')
+            for table in tables:
+                rows = table.find_all('tr')
                 
-                # Check if this is a team header
-                for cell in cells:
-                    img = cell.find('img')
-                    if img and 'logos' in str(img.get('src', '')):
-                        team_name = cell.get_text(strip=True)
-                        if team_name:
-                            current_team = team_name
-                
-                # Check if this is a player row (has jersey number)
-                if len(cell_texts) >= 4:
-                    try:
-                        jersey = cell_texts[0]
-                        if jersey.isdigit():
-                            name = cell_texts[3] if len(cell_texts) > 3 else cell_texts[2]
-                            # Clean up name (remove links, captain markers)
+                for row in rows:
+                    cells = row.find_all('td')
+                    if not cells:
+                        continue
+                    
+                    # Check for team header (contains logo and team name)
+                    first_cell = cells[0]
+                    if first_cell.get('class') and 'fondo1' in first_cell.get('class', []):
+                        # This is a team header row
+                        team_name_span = first_cell.find('span')
+                        if team_name_span:
+                            current_team = team_name_span.get_text(strip=True)
+                        continue
+                    
+                    # Check for header row (contains column names like G, AG, etc.)
+                    if first_cell.get('class') and 'fondo3' in first_cell.get('class', []):
+                        continue
+                    
+                    # Skip "Técnicos" section
+                    row_text = row.get_text()
+                    if 'Técnicos' in row_text or 'Total da equipa' in row_text:
+                        continue
+                    
+                    # Parse player row - structure:
+                    # [0]=nº, [1]=5I, [2]=flag, [3]=Nome, [4]=G, [5]=AG, [6]=D, [7]=Pe, [8]=LD, [9]=Amarelo, [10]=Azul, [11]=Vermelho
+                    if len(cells) >= 12:
+                        try:
+                            jersey_text = cells[0].get_text(strip=True)
+                            
+                            # Skip if first column is a staff role (D, T, T2, MAS, MEC) or empty
+                            if jersey_text in ['D', 'T', 'T2', 'MAS', 'MEC', '']:
+                                continue
+                            
+                            # Get jersey number - can be "1", "01", etc.
+                            jersey = jersey_text.lstrip('0') or '0'
+                            
+                            # Get player name from column 3
+                            name_cell = cells[3]
+                            name = name_cell.get_text(strip=True)
+                            # Clean up name (remove captain marker ©)
                             name = re.sub(r'\s*©\s*', '', name).strip()
+                            name = re.sub(r'\s+', ' ', name)  # Normalize spaces
                             
-                            # Extract stats
-                            goals = 0
-                            assists = 0
-                            yellow_cards = 0
-                            blue_cards = 0
-                            red_cards = 0
+                            if not name:
+                                continue
                             
-                            if len(cell_texts) > 4:
-                                try:
-                                    goals = int(cell_texts[4]) if cell_texts[4].isdigit() else 0
-                                except Exception:
-                                    pass
-                            if len(cell_texts) > 5:
-                                try:
-                                    assists = int(cell_texts[5]) if cell_texts[5].isdigit() else 0
-                                except Exception:
-                                    pass
-                            if len(cell_texts) > 9:
-                                try:
-                                    yellow_cards = int(cell_texts[9]) if cell_texts[9].isdigit() else 0
-                                except Exception:
-                                    pass
-                            if len(cell_texts) > 10:
-                                try:
-                                    blue_cards = int(cell_texts[10]) if cell_texts[10].isdigit() else 0
-                                except Exception:
-                                    pass
-                            if len(cell_texts) > 11:
-                                try:
-                                    red_cards = int(cell_texts[11]) if cell_texts[11].isdigit() else 0
-                                except Exception:
-                                    pass
+                            # Extract stats - handle both numbers and "--" for staff
+                            def parse_stat(cell_index):
+                                """Parse a stat cell, returning 0 for non-numeric values"""
+                                if cell_index >= len(cells):
+                                    return 0
+                                text = cells[cell_index].get_text(strip=True)
+                                if text.isdigit():
+                                    return int(text)
+                                return 0
                             
-                            if name and current_team:
+                            def parse_fraction_stat(cell_index):
+                                """Parse a fraction stat like '1/2' returning the first number (scored)"""
+                                if cell_index >= len(cells):
+                                    return 0
+                                text = cells[cell_index].get_text(strip=True)
+                                if '/' in text:
+                                    parts = text.split('/')
+                                    if parts[0].isdigit():
+                                        return int(parts[0])
+                                return 0
+                            
+                            goals = parse_stat(4)       # G (Golos)
+                            assists = parse_stat(5)     # AG (Assistências)
+                            defenses = parse_stat(6)    # D (Defesas)
+                            penalties = parse_fraction_stat(7)   # Pe (Penáltis - X/Y format)
+                            free_kicks = parse_fraction_stat(8)  # LD (Livres Diretos - X/Y format)
+                            yellow_cards = parse_stat(9)   # Amarelo
+                            blue_cards = parse_stat(10)    # Azul
+                            red_cards = parse_stat(11)     # Vermelho
+                            
+                            if current_team:
                                 player_stats.append({
                                     'team': current_team,
                                     'jersey_number': jersey,
                                     'name': name,
                                     'goals': goals,
                                     'assists': assists,
+                                    'defenses': defenses,
+                                    'penalties_scored': penalties,
+                                    'free_kicks_scored': free_kicks,
                                     'yellow_cards': yellow_cards,
                                     'blue_cards': blue_cards,
                                     'red_cards': red_cards
                                 })
-                    except Exception:
-                        continue
+                        except Exception as e:
+                            logging.warning(f"Error parsing player row: {e}")
+                            continue
         
         result_data['player_stats'] = player_stats
         
@@ -1456,8 +1495,8 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
         if date_pattern:
             result_data['match_date'] = f"{date_pattern.group(3)}-{date_pattern.group(2).zfill(2)}-{date_pattern.group(1).zfill(2)}"
         
-        # Find venue
-        venue_pattern = re.search(r'Recinto:\s*([^\n|]+)', text_content)
+        # Find venue - stop at line break or special characters
+        venue_pattern = re.search(r'Recinto:\s*([A-Z0-9\s\.\-]+)', text_content)
         if venue_pattern:
             result_data['venue'] = venue_pattern.group(1).strip()
         
@@ -1521,6 +1560,9 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
                     "team_id": team_id,
                     "goals": ps['goals'],
                     "assists": ps['assists'],
+                    "defenses": ps.get('defenses', 0),
+                    "penalties_scored": ps.get('penalties_scored', 0),
+                    "free_kicks_scored": ps.get('free_kicks_scored', 0),
                     "yellow_cards": ps['yellow_cards'],
                     "blue_cards": ps['blue_cards'],
                     "red_cards": ps['red_cards'],

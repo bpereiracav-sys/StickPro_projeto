@@ -120,22 +120,23 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
   return (
     <>
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-border z-50 flex items-center justify-between px-4">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-sm flex items-center justify-center">
-            <span className="text-white font-heading text-sm">SP</span>
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-border z-40 flex items-center justify-between px-4">
+        <div className="flex items-center gap-2 ml-2">
+          <div className="w-8 h-8 bg-primary rounded-sm flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-heading text-sm font-bold">SP</span>
           </div>
-          <span className="font-heading text-lg text-foreground tracking-wide">
-            ROLLER HOCKEY
+          <span className="font-heading text-base text-foreground tracking-wide truncate">
+            STICK PRO
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" className="relative">
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="relative h-9 w-9">
             <Bell className="w-5 h-5" />
           </Button>
           <Button 
             variant="ghost" 
             size="icon"
+            className="h-9 w-9"
             onClick={() => setCollapsed(!collapsed)}
           >
             {collapsed ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
