@@ -121,6 +121,46 @@ export function TopNavBar() {
   // Check if user has children accounts
   const hasChildren = availableProfiles?.some(p => p.type === 'associated');
 
+  // Mobile navigation items
+  const navItems = [
+    { 
+      href: '/dashboard', 
+      label: t('nav.home'), 
+      icon: Building2,
+      show: true 
+    },
+    { 
+      href: '#', 
+      label: t('nav.myClub'), 
+      icon: Building2,
+      show: true,
+      onClick: handleSelectAllTeams
+    },
+    { 
+      href: '#', 
+      label: t('nav.myTeams'), 
+      icon: Users,
+      show: teams.length > 0,
+      items: teams.map(team => ({
+        href: '#',
+        label: team.name,
+        onClick: () => handleSelectTeam(team)
+      }))
+    },
+    { 
+      href: '/children', 
+      label: t('nav.myChildren'), 
+      icon: Baby,
+      show: hasChildren 
+    },
+    { 
+      href: '/profile', 
+      label: t('nav.myProfile'), 
+      icon: UserCircle,
+      show: true 
+    },
+  ];
+
   if (!isAuthenticated) {
     return (
       <header className="bg-white border-b border-border sticky top-0 z-50">
@@ -147,7 +187,7 @@ export function TopNavBar() {
   }
 
   return (
-    <header className="bg-white border-b border-border sticky top-0 z-50 lg:ml-64" data-testid="top-nav-bar">
+    <header className="hidden lg:block bg-white border-b border-border sticky top-0 z-50 lg:ml-64" data-testid="top-nav-bar">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo/Club Image */}
@@ -323,29 +363,55 @@ export function TopNavBar() {
         {/* Mobile Navigation */}
         {mobileMenuOpen && (
           <nav className="lg:hidden py-4 border-t border-border">
-            {navItems.filter(item => item.show !== false).map((item) => {
+            {navItems.filter(item => item.show !== false).map((item, index) => {
               const Icon = item.icon;
               return (
-                <div key={item.href} className="py-2">
-                  <Link
-                    to={item.href}
-                    className="flex items-center gap-3 px-4 py-2 text-foreground hover:bg-muted rounded-sm"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {item.label}
-                  </Link>
+                <div key={item.href + index} className="py-2">
+                  {item.onClick ? (
+                    <button
+                      className="flex items-center gap-3 px-4 py-2 text-foreground hover:bg-muted rounded-sm w-full text-left"
+                      onClick={() => {
+                        item.onClick();
+                        setMobileMenuOpen(false);
+                      }}
+                    >
+                      <Icon className="w-5 h-5" />
+                      {item.label}
+                    </button>
+                  ) : (
+                    <Link
+                      to={item.href}
+                      className="flex items-center gap-3 px-4 py-2 text-foreground hover:bg-muted rounded-sm"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Icon className="w-5 h-5" />
+                      {item.label}
+                    </Link>
+                  )}
                   {item.items && item.items.length > 0 && (
                     <div className="ml-12 mt-1 space-y-1">
                       {item.items.map((subItem, idx) => (
-                        <Link
-                          key={idx}
-                          to={subItem.href}
-                          className="block px-4 py-1 text-sm text-muted-foreground hover:text-foreground"
-                          onClick={() => setMobileMenuOpen(false)}
-                        >
-                          {subItem.label}
-                        </Link>
+                        subItem.onClick ? (
+                          <button
+                            key={idx}
+                            className="block px-4 py-1 text-sm text-muted-foreground hover:text-foreground w-full text-left"
+                            onClick={() => {
+                              subItem.onClick();
+                              setMobileMenuOpen(false);
+                            }}
+                          >
+                            {subItem.label}
+                          </button>
+                        ) : (
+                          <Link
+                            key={idx}
+                            to={subItem.href}
+                            className="block px-4 py-1 text-sm text-muted-foreground hover:text-foreground"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            {subItem.label}
+                          </Link>
+                        )
                       ))}
                     </div>
                   )}

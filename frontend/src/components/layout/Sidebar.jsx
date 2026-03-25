@@ -70,7 +70,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
   const { selectedTeam: contextSelectedTeam, isAllTeamsSelected } = useTeam();
   const location = useLocation();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const [switchingProfile, setSwitchingProfile] = useState(false);
 
   // Use context selected team if available
@@ -148,18 +148,18 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
             variant="ghost" 
             size="icon"
             className="h-9 w-9"
-            onClick={() => setCollapsed(!collapsed)}
+            onClick={() => setMenuOpen(!menuOpen)}
           >
-            {collapsed ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
         </div>
       </header>
 
       {/* Mobile Menu Overlay */}
-      {collapsed && (
+      {menuOpen && (
         <div 
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
-          onClick={() => setCollapsed(false)}
+          onClick={() => setMenuOpen(false)}
         />
       )}
 
@@ -168,7 +168,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
         fixed top-0 left-0 h-full bg-slate-900 text-white z-50
         transition-transform duration-300 ease-in-out
         w-64 lg:translate-x-0
-        ${collapsed ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        ${menuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         <div className="flex flex-col h-full">
           {/* Logo */}
@@ -246,7 +246,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                   <Link
                     key={link.href}
                     to={link.href}
-                    onClick={() => setCollapsed(false)}
+                    onClick={() => setMenuOpen(false)}
                     className={`
                       flex items-center gap-3 px-3 py-2.5 rounded-sm transition-colors
                       ${isActive 
