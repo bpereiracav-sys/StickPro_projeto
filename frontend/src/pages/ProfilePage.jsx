@@ -43,6 +43,7 @@ import {
   Ruler
 } from 'lucide-react';
 import { getInitials, getRoleName } from '../lib/utils';
+import { ImageUpload } from '../components/ImageUpload';
 
 export default function ProfilePage() {
   const { user, updateUser } = useAuth();
@@ -226,25 +227,17 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-center gap-6">
-                <Avatar className="w-24 h-24 border-4 border-primary">
-                  <AvatarImage src={formData.photo_url} />
-                  <AvatarFallback className="bg-primary text-white text-3xl font-heading">
-                    {getInitials(formData.first_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 space-y-2">
-                  <Label>URL da Fotografia</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={formData.photo_url}
-                      onChange={(e) => handleChange('photo_url', e.target.value)}
-                      placeholder="https://exemplo.com/foto.jpg"
-                      data-testid="profile-photo-input"
-                    />
-                    <Button variant="outline" size="icon">
-                      <Camera className="w-4 h-4" />
-                    </Button>
-                  </div>
+                <ImageUpload
+                  currentUrl={formData.photo_url}
+                  onUpload={(url) => handleChange('photo_url', url)}
+                  fallback={getInitials(formData.first_name)}
+                  size="lg"
+                  label="Carregar foto"
+                />
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">
+                    Carregue uma foto de perfil. Formatos aceites: JPEG, PNG, GIF, WebP. Tamanho máximo: 5MB.
+                  </p>
                 </div>
               </div>
 

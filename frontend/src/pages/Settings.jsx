@@ -38,6 +38,7 @@ import {
   Mail
 } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
+import { ImageUpload } from '../components/ImageUpload';
 
 export default function Settings() {
   const { user, updateUser, logout, refreshProfiles } = useAuth();
@@ -163,14 +164,15 @@ export default function Settings() {
           <CardDescription>Informações da sua conta</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-6 mb-8">
-            <Avatar className="w-20 h-20 border-4 border-primary">
-              <AvatarImage src={user?.avatar_url} />
-              <AvatarFallback className="bg-primary text-primary-foreground text-2xl font-heading">
-                {getInitials(user?.name)}
-              </AvatarFallback>
-            </Avatar>
-            <div>
+          <div className="flex items-start gap-6 mb-8">
+            <ImageUpload
+              currentUrl={formData.avatar_url || user?.avatar_url}
+              onUpload={(url) => setFormData({ ...formData, avatar_url: url })}
+              fallback={getInitials(user?.name)}
+              size="lg"
+              label="Alterar foto"
+            />
+            <div className="pt-4">
               <h3 className="text-xl font-semibold">{user?.name}</h3>
               <p className="text-muted-foreground">{user?.email}</p>
               <Badge className={`${getRoleColor(user?.role)} mt-2`}>

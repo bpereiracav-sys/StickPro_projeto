@@ -1,5 +1,6 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Form
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -13,8 +14,11 @@ from datetime import datetime, timezone, timedelta
 import jwt
 import bcrypt
 import base64
+import shutil
 
 ROOT_DIR = Path(__file__).parent
+UPLOADS_DIR = ROOT_DIR / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
 load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
@@ -29,6 +33,9 @@ JWT_EXPIRATION_HOURS = 24
 
 # Create the main app
 app = FastAPI(title="Roller Hockey Hub API")
+
+# Mount uploads folder for static files
+app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -1930,6 +1937,44 @@ async def root():
     return {"message": "Roller Hockey Hub API", "version": "2.0.0"}
 
 # Include router
+# ==================== FILE UPLOAD ====================
+
+@api_router.post("/upload/image")
+async def upload_image(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """Upload an image file and return the URL"""
+    # Validate file type
+    allowed_types = ["image/jpeg", "image/png", "image/gif", "image/webp"]
+    if file.content_type not in allowed_types:
+        raise HTTPException(status_code=400, detail="Tipo de ficheiro não permitido. Use JPEG, PNG, GIF ou WebP.")
+    
+    # Validate file size (max 5MB)
+    content = await file.read()
+    if len(content) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Ficheiro muito grande. Máximo 5MB.")
+    
+    # Generate unique filename
+    ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
+    filename = f"{uuid.uuid4()}.{ext}"
+    filepath = UPLOADS_DIR / filename
+    
+    # Save file
+    with open(filepath, "wb") as f:
+        f.write(content)
+    
+    # Return URL
+    return {"url": f"/uploads/{filename}", "filename": filename}
+
+@api_router.delete("/upload/{filename}")
+async def delete_image(filename: str, current_user: dict = Depends(get_current_user)):
+    """Delete an uploaded image"""
+    filepath = UPLOADS_DIR / filename
+    if filepath.exists():
+        filepath.unlink()
+        return {"message": "Ficheiro eliminado"}
+    raise HTTPException(status_code=404, detail="Ficheiro não encontrado")
+
+# ==================== MAIN ====================
+
 app.include_router(api_router)
 
 app.add_middleware(

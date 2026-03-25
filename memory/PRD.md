@@ -262,3 +262,7 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - **Calendário:** Filtro por tipo de evento, texto preto nos eventos
 - **Membros:** Importar via Excel/CSV, criar membro individual, remover da equipa preservando stats
 - **Logo:** Corrigido "RH" → "SP" em todas as páginas
+- **Upload de Imagens:** Fotos carregadas do PC/smartphone em vez de URL
+  - Perfil, Clube, Definições usam agora upload de ficheiro
+  - Endpoint `/api/upload/image` para guardar imagens
+  - Formatos: JPEG, PNG, GIF, WebP (máx 5MB)

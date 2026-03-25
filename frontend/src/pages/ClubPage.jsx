@@ -19,6 +19,7 @@ import {
   X,
   Loader2
 } from 'lucide-react';
+import { LogoUpload } from '../components/ImageUpload';
 
 export default function ClubPage() {
   const { user } = useAuth();
@@ -142,12 +143,10 @@ export default function ClubPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>URL do Logo</Label>
-                <Input
-                  value={formData.logo_url}
-                  onChange={(e) => handleChange('logo_url', e.target.value)}
-                  placeholder="https://exemplo.com/logo.png"
-                  data-testid="club-logo-input"
+                <Label>Logo do Clube</Label>
+                <LogoUpload
+                  currentUrl={formData.logo_url}
+                  onUpload={(url) => handleChange('logo_url', url)}
                 />
               </div>
             </div>
@@ -303,10 +302,10 @@ export default function ClubPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>URL do Logo</Label>
-                <Input
-                  value={formData.logo_url}
-                  onChange={(e) => handleChange('logo_url', e.target.value)}
+                <Label>Logo do Clube</Label>
+                <LogoUpload
+                  currentUrl={formData.logo_url}
+                  onUpload={(url) => handleChange('logo_url', url)}
                 />
               </div>
             </div>
