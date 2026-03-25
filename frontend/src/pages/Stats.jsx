@@ -427,8 +427,8 @@ export default function Stats() {
                     <Medal className="w-6 h-6 text-amber-500" />
                     CLASSIFICAÇÃO
                   </CardTitle>
-                  {selectedChampionship && (
-                    <CardDescription>{selectedChampionship.name}</CardDescription>
+                  {currentChampionship && (
+                    <CardDescription>{currentChampionship.name}</CardDescription>
                   )}
                 </CardHeader>
                 <CardContent>

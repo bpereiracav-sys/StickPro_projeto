@@ -74,6 +74,20 @@
       "description": "Registar presenças",
       "url": "/attendance",
       "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Biblioteca",
+      "short_name": "Biblioteca",
+      "description": "Documentos e recursos",
+      "url": "/library",
+      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Definições Clube",
+      "short_name": "Clube",
+      "description": "Configurar cores e dados do clube",
+      "url": "/club",
+      "icons": [{ "src": "icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ]
 }
