@@ -1,0 +1,66 @@
+{
+  "summary": "Phase 11 Testing: Stats Page Features (Golos Sofridos, Últimos 5 Jogos, Pe/LD format) and Club Venue Fields. All features tested and working correctly. Backend: 6/6 tests pass (100%). Frontend: All features verified via Playwright. Fixed bug: venue_name and venue_location were missing from allowed_fields in club update endpoint.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "golos_sofridos_card": {
+      "status": "PASS",
+      "description": "Card 'Golos Sofridos' (red styling) displays on Stats page. Shows goals conceded from standings data (e.g., 41 goals). Uses Shield icon with destructive color scheme.",
+      "location": "Stats.jsx lines 275-281"
+    },
+    "ultimos_5_jogos": {
+      "status": "PASS",
+      "description": "Section 'ÚLTIMOS 5 JOGOS' displays colored circles: green (V=Vitória), red (D=Derrota), yellow (E=Empate). Circles are clickable buttons that navigate to match stats page. Shows legend 'V = Vitória | E = Empate | D = Derrota'.",
+      "location": "Stats.jsx lines 306-336",
+      "navigation": "Clicking circle navigates to /championships/{id}/matches/{matchId}/stats"
+    },
+    "pe_ld_format": {
+      "status": "PASS",
+      "description": "Stats table shows Pe (Penáltis) and LD (Livres Diretos) in 'marcados/tentativas' format. Shows '-' when no data. Columns visible in individual stats table with proper headers and tooltips.",
+      "location": "Stats.jsx lines 376-377, 426-430"
+    },
+    "club_venue_fields": {
+      "status": "PASS",
+      "description": "Club page shows 'PAVILHÃO' section with venue_name and venue_location. Edit form includes 'Pavilhão do Clube' section with inputs for 'Nome do Pavilhão' and 'Localização do Pavilhão'. Fields save and display correctly.",
+      "data_testid": "edit-venue-name-input, edit-venue-location-input",
+      "bug_fixed": "Added venue_name and venue_location to allowed_fields in PUT /api/clubs/{club_id}"
+    },
+    "click_result_navigation": {
+      "status": "PASS",
+      "description": "Clicking on a result circle in 'Últimos 5 Jogos' navigates to the match stats page at /championships/{championshipId}/matches/{matchId}/stats",
+      "verified_url": "https://roller-hockey-hub-1.preview.emergentagent.com/championships/909d5f9b-1087-4265-94ff-c7c44a3e84ed/matches/dbba8a82-6a4d-4b97-9108-b864e70d212e/stats"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_phase11_features.py",
+    "/app/test_reports/pytest/phase11_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/server.py (line 1057: added venue_name, venue_location to allowed_fields)",
+    "/app/backend/tests/test_phase11_features.py"
+  ],
+  "success_rate": {
+    "backend": "100% (6/6 tests passed)",
+    "frontend": "100% (all 5 features working)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@example.com",
+    "admin_password": "test123456"
+  },
+  "seed_data_creation": "TEST_ prefixed venue data created and cleaned up during backend testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 11 features fully functional: 1) Golos Sofridos card (red) shows goals_against from standings, 2) Últimos 5 Jogos shows colored circles (V/E/D) that are clickable and navigate to match stats, 3) Pe/LD columns show 'marcados/tentativas' format or '-', 4) Club venue_name and venue_location fields save and display correctly. Bug fixed: venue fields were missing from allowed_fields in club update endpoint. Championship ID for testing: 909d5f9b-1087-4265-94ff-c7c44a3e84ed.",
+  "mocked_apis": {
+    "email_notifications": "MOCKED - Resend API not configured"
+  }
+}

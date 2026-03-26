@@ -54,6 +54,8 @@ export default function ClubPage() {
     website: '',
     email: '',
     phone: '',
+    venue_name: '',
+    venue_location: '',
     primary_color: '#006D5B',
     secondary_color: '#FFD700',
     accent_color: '#1a1a2e'
@@ -81,6 +83,8 @@ export default function ClubPage() {
           website: clubData.website || '',
           email: clubData.email || '',
           phone: clubData.phone || '',
+          venue_name: clubData.venue_name || '',
+          venue_location: clubData.venue_location || '',
           primary_color: clubData.primary_color || '#006D5B',
           secondary_color: clubData.secondary_color || '#FFD700',
           accent_color: clubData.accent_color || '#1a1a2e'
@@ -245,6 +249,34 @@ export default function ClubPage() {
               </div>
             </div>
 
+            {/* Pavilhão */}
+            <div className="border-t pt-4 mt-4">
+              <h3 className="font-heading text-lg mb-3 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-primary" />
+                Pavilhão do Clube
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nome do Pavilhão</Label>
+                  <Input
+                    value={formData.venue_name}
+                    onChange={(e) => handleChange('venue_name', e.target.value)}
+                    placeholder="Pavilhão Municipal"
+                    data-testid="venue-name-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Localização do Pavilhão</Label>
+                  <Input
+                    value={formData.venue_location}
+                    onChange={(e) => handleChange('venue_location', e.target.value)}
+                    placeholder="Rua do Desporto, 123, Lisboa"
+                    data-testid="venue-location-input"
+                  />
+                </div>
+              </div>
+            </div>
+
             <Button 
               onClick={handleCreateClub} 
               disabled={saving || !formData.name}
@@ -398,6 +430,34 @@ export default function ClubPage() {
               </div>
             </div>
 
+            {/* Pavilhão do Clube */}
+            <div className="space-y-4 pt-4 border-t border-border">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-primary" />
+                <Label className="text-base font-medium">Pavilhão do Clube</Label>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nome do Pavilhão</Label>
+                  <Input
+                    value={formData.venue_name}
+                    onChange={(e) => handleChange('venue_name', e.target.value)}
+                    placeholder="Pavilhão Municipal"
+                    data-testid="edit-venue-name-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Localização do Pavilhão</Label>
+                  <Input
+                    value={formData.venue_location}
+                    onChange={(e) => handleChange('venue_location', e.target.value)}
+                    placeholder="Rua do Desporto, 123, Lisboa"
+                    data-testid="edit-venue-location-input"
+                  />
+                </div>
+              </div>
+            </div>
+
             {/* Theme Color Selection */}
             <div className="space-y-4 pt-4 border-t border-border">
               <div className="flex items-center gap-2">
@@ -515,6 +575,30 @@ export default function ClubPage() {
               <p className="text-muted-foreground">
                 {club.city && `${club.city}, `}{club.country}
               </p>
+            </CardContent>
+          </Card>
+
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-primary" />
+                PAVILHÃO
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              {club.venue_name ? (
+                <>
+                  <p className="text-lg font-semibold">{club.venue_name}</p>
+                  {club.venue_location && (
+                    <p className="text-sm text-muted-foreground flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {club.venue_location}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-muted-foreground">Não definido</p>
+              )}
             </CardContent>
           </Card>
 

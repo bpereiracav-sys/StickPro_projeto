@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { teamsApi, championshipsApi } from '../services/api';
@@ -31,7 +31,8 @@ import {
   Users,
   TrendingUp,
   Filter,
-  Medal
+  Medal,
+  Shield
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
 
@@ -45,6 +46,7 @@ const seasons = [
 export default function Stats() {
   const { user } = useAuth();
   const { selectedTeam, teams: contextTeams } = useTeam();
+  const navigate = useNavigate();
   const [teams, setTeams] = useState([]);
   const [championships, setChampionships] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -52,6 +54,7 @@ export default function Stats() {
   const [selectedChampionshipId, setSelectedChampionshipId] = useState('all');
   const [stats, setStats] = useState([]);
   const [standings, setStandings] = useState([]);
+  const [matches, setMatches] = useState([]); // For recent results sequence
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('players');
 
@@ -78,8 +81,10 @@ export default function Stats() {
   useEffect(() => {
     if (selectedChampionshipId && selectedChampionshipId !== 'all') {
       fetchStandings();
+      fetchMatches();
     } else {
       setStandings([]);
+      setMatches([]);
     }
   }, [selectedChampionshipId]);
 
@@ -118,8 +123,45 @@ export default function Stats() {
     }
   };
 
+  const fetchMatches = async () => {
+    try {
+      const response = await championshipsApi.getMatches(selectedChampionshipId);
+      setMatches(response.data);
+    } catch (error) {
+      console.error('Error fetching matches:', error);
+    }
+  };
+
   const currentTeam = teams.find(t => t.id === selectedTeamId);
   const currentChampionship = championships.find(c => c.id === selectedChampionshipId);
+
+  // Get last 5 completed matches for the selected team (club matches only)
+  const getRecentResults = () => {
+    const teamName = currentTeam?.name;
+    if (!teamName) return [];
+    
+    return matches
+      .filter(m => m.is_completed && m.is_club_match !== false)
+      .sort((a, b) => new Date(b.match_date) - new Date(a.match_date))
+      .slice(0, 5)
+      .map(m => {
+        const isHome = m.location === 'casa';
+        const ourGoals = isHome ? m.home_score : m.away_score;
+        const theirGoals = isHome ? m.away_score : m.home_score;
+        let result = 'E';
+        if (ourGoals > theirGoals) result = 'V';
+        else if (ourGoals < theirGoals) result = 'D';
+        return { result, match: m };
+      });
+  };
+
+  // Calculate goals conceded from standings
+  const getGoalsConceded = () => {
+    const teamName = currentTeam?.name;
+    if (!teamName || standings.length === 0) return 0;
+    const teamStanding = standings.find(s => s.team === teamName);
+    return teamStanding?.goals_against || 0;
+  };
 
   // Calculate team totals
   const teamTotals = stats.reduce((acc, s) => ({
@@ -222,12 +264,19 @@ export default function Stats() {
           </Card>
 
           {/* Team Summary Stats */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
             <Card className="border border-border bg-secondary/5">
               <CardContent className="p-4 text-center">
                 <Trophy className="w-8 h-8 text-secondary mx-auto mb-2" />
                 <p className="text-3xl font-heading font-mono text-secondary">{teamTotals.goals}</p>
                 <p className="text-xs text-muted-foreground uppercase tracking-wide">Golos Marcados</p>
+              </CardContent>
+            </Card>
+            <Card className="border border-border bg-destructive/5">
+              <CardContent className="p-4 text-center">
+                <Shield className="w-8 h-8 text-destructive mx-auto mb-2" />
+                <p className="text-3xl font-heading font-mono text-destructive">{getGoalsConceded()}</p>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Golos Sofridos</p>
               </CardContent>
             </Card>
             <Card className="border border-border">
@@ -252,6 +301,39 @@ export default function Stats() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Recent Results Sequence */}
+          {selectedChampionshipId !== 'all' && getRecentResults().length > 0 && (
+            <Card className="border border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="font-heading text-lg tracking-wide">ÚLTIMOS 5 JOGOS</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {getRecentResults().map((r, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => navigate(`/championships/${selectedChampionshipId}/matches/${r.match.id}/stats`)}
+                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white transition-transform hover:scale-110 cursor-pointer ${
+                        r.result === 'V' ? 'bg-green-500 hover:bg-green-600' :
+                        r.result === 'D' ? 'bg-red-500 hover:bg-red-600' :
+                        'bg-amber-500 hover:bg-amber-600'
+                      }`}
+                      title={`${r.match.opponent_team} (${r.match.home_score}-${r.match.away_score})`}
+                    >
+                      {r.result}
+                    </button>
+                  ))}
+                  <span className="text-sm text-muted-foreground ml-2">
+                    (clique para ver o jogo)
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  V = Vitória | E = Empate | D = Derrota
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Tabs: Players / Standings */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
@@ -291,8 +373,8 @@ export default function Stats() {
                               <TableHead className="text-center w-10" title="Golos">G</TableHead>
                               <TableHead className="text-center w-10" title="Auto-Golos">AG</TableHead>
                               <TableHead className="text-center w-10" title="Defesas">D</TableHead>
-                              <TableHead className="text-center w-10" title="Penáltis">Pe</TableHead>
-                              <TableHead className="text-center w-10" title="Livres Diretos">LD</TableHead>
+                              <TableHead className="text-center w-16" title="Penáltis (Marcados/Tentativas)">Pe</TableHead>
+                              <TableHead className="text-center w-16" title="Livres Diretos (Marcados/Tentativas)">LD</TableHead>
                               <TableHead className="text-center w-10" title="Cartão Amarelo">
                                 <div className="w-4 h-5 bg-yellow-400 border border-yellow-600 rounded-sm mx-auto" />
                               </TableHead>
@@ -310,6 +392,14 @@ export default function Stats() {
                               const playerName = stat.player?.name || 'Jogador';
                               const isGoalkeeper = stat.player?.profile?.sports_info?.position?.toLowerCase()?.includes('guarda') || 
                                                    stat.player?.profile?.sports_info?.position?.toLowerCase()?.includes('redes');
+                              // Calculate penalties and free kicks totals
+                              const penaltiesScored = stat.penalties_scored || 0;
+                              const penaltiesMissed = stat.penalties_missed || 0;
+                              const penaltiesTotal = penaltiesScored + penaltiesMissed;
+                              const freeKicksScored = stat.free_kicks_scored || stat.direct_free_kicks || 0;
+                              const freeKicksMissed = stat.free_kicks_missed || 0;
+                              const freeKicksTotal = freeKicksScored + freeKicksMissed;
+                              
                               return (
                                 <TableRow key={stat.player_id || index} className={isGoalkeeper ? 'bg-blue-50' : ''}>
                                   <TableCell className="text-center font-mono font-semibold">{jerseyNumber}</TableCell>
@@ -333,11 +423,11 @@ export default function Stats() {
                                   <TableCell className="text-center font-mono">
                                     {isGoalkeeper ? (stat.saves || 0) : '-'}
                                   </TableCell>
-                                  <TableCell className="text-center font-mono">
-                                    {stat.penalties_scored || 0}
+                                  <TableCell className="text-center font-mono text-sm">
+                                    {penaltiesTotal > 0 ? `${penaltiesScored}/${penaltiesTotal}` : '-'}
                                   </TableCell>
-                                  <TableCell className="text-center font-mono">
-                                    {stat.direct_free_kicks || 0}
+                                  <TableCell className="text-center font-mono text-sm">
+                                    {freeKicksTotal > 0 ? `${freeKicksScored}/${freeKicksTotal}` : '-'}
                                   </TableCell>
                                   <TableCell className="text-center">
                                     {(stat.yellow_cards || 0) > 0 && (
@@ -373,7 +463,7 @@ export default function Stats() {
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground mt-4">
-                      N.º = Número | 5I = 5 Iniciais | G = Golos | AG = Auto-Golos | D = Defesas | Pe = Penáltis | LD = Livres Diretos
+                      N.º = Número | 5I = 5 Iniciais | G = Golos | AG = Auto-Golos | D = Defesas | Pe = Penáltis (marcados/tentativas) | LD = Livres Diretos (marcados/tentativas)
                     </p>
                   </CardContent>
                 </Card>

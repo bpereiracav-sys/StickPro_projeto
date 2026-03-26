@@ -302,6 +302,9 @@ class Club(BaseModel):
     website: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    # Pavilhão/Arena do clube
+    venue_name: Optional[str] = None  # Nome do pavilhão
+    venue_location: Optional[str] = None  # Localização/morada do pavilhão
     admin_ids: List[str] = []  # Users with admin access to this club
     # Theme colors
     primary_color: Optional[str] = "#006D5B"  # Default teal
@@ -319,6 +322,8 @@ class ClubUpdate(BaseModel):
     website: Optional[str] = None
     email: Optional[str] = None
     phone: Optional[str] = None
+    venue_name: Optional[str] = None
+    venue_location: Optional[str] = None
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
     accent_color: Optional[str] = None
@@ -1049,7 +1054,7 @@ async def update_club(club_id: str, updates: dict, current_user: dict = Depends(
     if current_user['role'] != 'admin' and current_user['id'] not in club.get('admin_ids', []):
         raise HTTPException(status_code=403, detail="Sem permissão")
     
-    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'primary_color', 'secondary_color', 'accent_color']
+    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color']
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
     
     if filtered_updates:
