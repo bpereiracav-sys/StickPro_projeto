@@ -135,13 +135,13 @@ export default function Stats() {
   const currentTeam = teams.find(t => t.id === selectedTeamId);
   const currentChampionship = championships.find(c => c.id === selectedChampionshipId);
 
-  // Get last 5 completed matches for the selected team (club matches only)
+  // Get last 5 completed matches for the selected team (club matches only - exclude external matches)
   const getRecentResults = () => {
     const teamName = currentTeam?.name;
     if (!teamName) return [];
     
     return matches
-      .filter(m => m.is_completed && m.is_club_match !== false)
+      .filter(m => m.is_completed && m.is_club_match !== false) // Only club matches
       .sort((a, b) => new Date(b.match_date) - new Date(a.match_date))
       .slice(0, 5)
       .map(m => {

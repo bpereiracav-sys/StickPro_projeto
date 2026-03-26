@@ -161,6 +161,44 @@ export default function MatchStats() {
     );
   }
 
+  // Show message for external matches (matches without club teams)
+  if (match.is_club_match === false) {
+    return (
+      <div className="space-y-6" data-testid="match-stats-page">
+        {/* Back Button */}
+        <Link 
+          to={`/championships/${championshipId}`}
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Voltar à Competição
+        </Link>
+
+        <Card className="border border-border">
+          <CardContent className="py-12 text-center">
+            <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h2 className="font-heading text-xl mb-2">JOGO EXTERNO</h2>
+            <p className="text-muted-foreground mb-2">
+              {match.home_team} vs {match.opponent_team}
+            </p>
+            <div className="flex items-center justify-center gap-3 mt-4">
+              <Badge variant="outline">{formatDate(match.match_date)}</Badge>
+              {match.venue && <Badge variant="outline">{match.venue}</Badge>}
+              {match.is_completed && (
+                <Badge className="bg-secondary text-primary-foreground">
+                  {match.home_score} - {match.away_score}
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground mt-6">
+              As estatísticas de jogadores não estão disponíveis para jogos entre outras equipas.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6" data-testid="match-stats-page">
       {/* Back Button */}

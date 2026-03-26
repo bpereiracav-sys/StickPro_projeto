@@ -451,37 +451,42 @@ export default function ChampionshipDetail() {
                             >
                               {match.is_completed ? 'Resultado' : 'Inserir'}
                             </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 px-2 sm:px-3"
-                              onClick={() => openImportDialog(match)}
-                              data-testid={`import-gamesheet-${match.id}`}
-                            >
-                              <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 px-2 sm:px-3"
-                              asChild
-                            >
-                              <Link to={`/championships/${championshipId}/matches/${match.id}/stats`}>
-                                <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              </Link>
-                            </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 px-2 sm:px-3"
-                              onClick={() => {
-                                setLineupMatch(match);
-                                setLineupDialogOpen(true);
-                              }}
-                              data-testid={`lineup-${match.id}`}
-                            >
-                              <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            </Button>
+                            {/* Only show stats/lineup buttons for club matches */}
+                            {match.is_club_match !== false && (
+                              <>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="h-8 px-2 sm:px-3"
+                                  onClick={() => openImportDialog(match)}
+                                  data-testid={`import-gamesheet-${match.id}`}
+                                >
+                                  <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="h-8 px-2 sm:px-3"
+                                  asChild
+                                >
+                                  <Link to={`/championships/${championshipId}/matches/${match.id}/stats`}>
+                                    <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  </Link>
+                                </Button>
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  className="h-8 px-2 sm:px-3"
+                                  onClick={() => {
+                                    setLineupMatch(match);
+                                    setLineupDialogOpen(true);
+                                  }}
+                                  data-testid={`lineup-${match.id}`}
+                                >
+                                  <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                </Button>
+                              </>
+                            )}
                             <Button 
                               variant="outline" 
                               size="sm"
