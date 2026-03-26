@@ -1246,16 +1246,24 @@ class MemberCreate(BaseModel):
     name: str
     email: EmailStr
     role: UserRole = "jogador"
-    team_id: Optional[str] = None
+    team_id: Optional[str] = None  # Optional - can add to team later
+    club_id: Optional[str] = None  # Club the member belongs to
     jersey_number: Optional[str] = None
     position: Optional[str] = None
     phone: Optional[str] = None
 
 @api_router.post("/members")
 async def create_member(data: MemberCreate, current_user: dict = Depends(get_current_user)):
-    """Create a new member (user) and optionally add to a team"""
+    """Create a new member (user) associated with the club"""
     if current_user['role'] not in ['admin', 'treinador']:
         raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    # Get club_id - either from data or from first club in system
+    club_id = data.club_id
+    if not club_id:
+        club = await db.clubs.find_one({}, {"_id": 0, "id": 1})
+        if club:
+            club_id = club['id']
     
     # Emails duplicados são permitidos (ex: pai com vários filhos)
     
@@ -1271,6 +1279,7 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
         "email": data.email,
         "password": hashed_password,
         "role": data.role,
+        "club_id": club_id,  # Associate with club
         "team_ids": [data.team_id] if data.team_id else [],
         "profile": {
             "sports_info": {
@@ -1296,11 +1305,26 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     user.pop("_id", None)
     return {"user": user, "temp_password": temp_password}
 
+@api_router.get("/clubs/{club_id}/members")
+async def get_club_members(club_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all members that belong to the club"""
+    members = await db.users.find(
+        {"club_id": club_id, "role": {"$ne": "admin"}}, 
+        {"_id": 0, "password": 0}
+    ).to_list(500)
+    return members
+
 @api_router.post("/members/import")
-async def import_members(file: UploadFile = File(...), team_id: str = None, current_user: dict = Depends(get_current_user)):
-    """Import members from Excel/CSV file"""
+async def import_members(file: UploadFile = File(...), team_id: str = None, club_id: str = None, current_user: dict = Depends(get_current_user)):
+    """Import members from Excel/CSV file - members are associated with the club"""
     if current_user['role'] not in ['admin', 'treinador']:
         raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    # Get club_id if not provided
+    if not club_id:
+        club = await db.clubs.find_one({}, {"_id": 0, "id": 1})
+        if club:
+            club_id = club['id']
     
     import io
     content = await file.read()
@@ -1379,6 +1403,7 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, curr
                     "email": email.strip().lower(),
                     "password": hashed,
                     "role": role,
+                    "club_id": club_id,  # Associate with club
                     "team_ids": [team_id] if team_id else [],
                     "profile": {
                         "sports_info": {
@@ -1401,7 +1426,7 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, curr
                     await db.teams.update_one({"id": team_id}, {"$addToSet": {field: user_id}})
                 
                 results["success"] += 1
-                results["created"].append({"name": name, "email": email, "temp_password": temp_password})
+                results["created"].append({"name": full_name, "email": email, "temp_password": temp_password})
                 
             except Exception as e:
                 results["errors"].append(f"Erro na linha: {str(e)}")
@@ -1410,6 +1435,50 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, curr
         raise HTTPException(status_code=400, detail=f"Erro ao processar ficheiro: {str(e)}")
     
     return results
+
+@api_router.post("/members/{member_id}/teams/{team_id}")
+async def add_member_to_team(member_id: str, team_id: str, current_user: dict = Depends(get_current_user)):
+    """Add a club member to a team"""
+    if current_user['role'] not in ['admin', 'treinador']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    # Get the member
+    member = await db.users.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+    
+    # Get the team
+    team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+    if not team:
+        raise HTTPException(status_code=404, detail="Equipa não encontrada")
+    
+    # Add team to member's team_ids
+    await db.users.update_one({"id": member_id}, {"$addToSet": {"team_ids": team_id}})
+    
+    # Add member to team's appropriate list
+    role = member.get('role', 'jogador')
+    field_map = {'treinador': 'coach_ids', 'treinador_adjunto': 'coach_ids', 'delegado': 'delegate_ids'}
+    field = field_map.get(role, 'player_ids')
+    await db.teams.update_one({"id": team_id}, {"$addToSet": {field: member_id}})
+    
+    return {"message": "Membro adicionado à equipa"}
+
+@api_router.delete("/members/{member_id}/teams/{team_id}")
+async def remove_member_from_team(member_id: str, team_id: str, current_user: dict = Depends(get_current_user)):
+    """Remove a member from a team"""
+    if current_user['role'] not in ['admin', 'treinador']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    # Remove team from member's team_ids
+    await db.users.update_one({"id": member_id}, {"$pull": {"team_ids": team_id}})
+    
+    # Remove member from all team lists
+    await db.teams.update_one(
+        {"id": team_id}, 
+        {"$pull": {"player_ids": member_id, "coach_ids": member_id, "delegate_ids": member_id}}
+    )
+    
+    return {"message": "Membro removido da equipa"}
 
 # ==================== CHAMPIONSHIP ROUTES ====================
 
@@ -3003,7 +3072,7 @@ async def send_notification(notification_data: dict, current_user: dict = Depend
             failed_count += 1
     
     return {
-        "message": f"Notificações enviadas",
+        "message": "Notificações enviadas",
         "success": success_count,
         "failed": failed_count
     }

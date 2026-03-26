@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
-import { teamsApi, usersApi } from '../services/api';
+import { teamsApi, usersApi, clubApi, membersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -11,6 +11,7 @@ import { Label } from '../components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Checkbox } from '../components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -56,7 +57,8 @@ import {
   MoreVertical,
   Download,
   Mail,
-  Phone
+  Phone,
+  Building2
 } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 
@@ -66,20 +68,24 @@ export default function Members() {
   const { canManageTeam, token } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const [teams, setTeams] = useState([]);
+  const [club, setClub] = useState(null);
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [members, setMembers] = useState([]);
+  const [clubMembers, setClubMembers] = useState([]); // All members in club
   const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [addToTeamDialogOpen, setAddToTeamDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [adding, setAdding] = useState(false);
   const [importing, setImporting] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState('jogador');
   const [importResults, setImportResults] = useState(null);
+  const [selectedMembersToAdd, setSelectedMembersToAdd] = useState([]);
   const fileInputRef = useRef(null);
 
   const [newMember, setNewMember] = useState({
@@ -91,6 +97,22 @@ export default function Members() {
     phone: ''
   });
 
+  // Fetch club on mount
+  useEffect(() => {
+    fetchClub();
+  }, []);
+
+  const fetchClub = async () => {
+    try {
+      const response = await clubApi.getAll();
+      if (response.data.length > 0) {
+        setClub(response.data[0]);
+      }
+    } catch (error) {
+      console.error('Error fetching club:', error);
+    }
+  };
+
   // Set selected team from context
   useEffect(() => {
     if (selectedTeam) {
@@ -101,12 +123,14 @@ export default function Members() {
     setTeams(contextTeams);
   }, [selectedTeam, contextTeams]);
 
-  // Fetch members when team changes
+  // Fetch members when team changes or when viewing club
   useEffect(() => {
-    if (selectedTeamId) {
-      fetchMembers();
+    if (isAllTeamsSelected && club) {
+      fetchClubMembers();
+    } else if (selectedTeamId) {
+      fetchTeamMembers();
     }
-  }, [selectedTeamId]);
+  }, [selectedTeamId, isAllTeamsSelected, club]);
 
   // Initial load
   useEffect(() => {
@@ -115,7 +139,21 @@ export default function Members() {
     }
   }, [contextTeams]);
 
-  const fetchMembers = async () => {
+  const fetchClubMembers = async () => {
+    if (!club) return;
+    try {
+      const response = await clubApi.getMembers(club.id);
+      setClubMembers(response.data);
+      setMembers(response.data);
+    } catch (error) {
+      console.error('Error fetching club members:', error);
+      // Fallback: get all users
+      const usersRes = await usersApi.getAll();
+      setMembers(usersRes.data.filter(u => u.role !== 'admin'));
+    }
+  };
+
+  const fetchTeamMembers = async () => {
     try {
       const response = await teamsApi.getMembers(selectedTeamId);
       setMembers(response.data);
@@ -138,7 +176,7 @@ export default function Members() {
       toast.success('Membro adicionado à equipa!');
       setAddDialogOpen(false);
       setSelectedUserId('');
-      fetchMembers();
+      fetchTeamMembers();
     } catch (error) {
       toast.error('Erro ao adicionar membro');
     } finally {
@@ -154,30 +192,63 @@ export default function Members() {
     setAdding(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/members`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          ...newMember,
-          team_id: selectedTeamId
-        })
+      // Create member at club level
+      const response = await membersApi.create({
+        ...newMember,
+        club_id: club?.id,
+        team_id: isAllTeamsSelected ? null : selectedTeamId // Only add to team if a specific team is selected
       });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao criar membro');
-      }
-
-      const data = await response.json();
-      toast.success(`Membro criado! Password temporária: ${data.temp_password}`);
+      toast.success(`Membro criado! Password temporária: ${response.data.temp_password}`);
       setCreateDialogOpen(false);
       setNewMember({ name: '', email: '', role: 'jogador', jersey_number: '', position: '', phone: '' });
-      fetchMembers();
+      
+      if (isAllTeamsSelected) {
+        fetchClubMembers();
+      } else {
+        fetchTeamMembers();
+      }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.detail || 'Erro ao criar membro');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleAddMembersToTeam = async () => {
+    if (selectedMembersToAdd.length === 0 || !selectedTeamId) {
+      toast.error('Selecione membros e uma equipa');
+      return;
+    }
+    setAdding(true);
+
+    try {
+      for (const memberId of selectedMembersToAdd) {
+        await membersApi.addToTeam(memberId, selectedTeamId);
+      }
+      toast.success(`${selectedMembersToAdd.length} membro(s) adicionado(s) à equipa!`);
+      setAddToTeamDialogOpen(false);
+      setSelectedMembersToAdd([]);
+      fetchTeamMembers();
+    } catch (error) {
+      toast.error('Erro ao adicionar membros à equipa');
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  const handleRemoveMemberFromTeam = async () => {
+    if (!selectedMember || !selectedTeamId) return;
+    setAdding(true);
+
+    try {
+      await membersApi.removeFromTeam(selectedMember.id, selectedTeamId);
+      toast.success('Membro removido da equipa');
+      setRemoveDialogOpen(false);
+      setSelectedMember(null);
+      fetchTeamMembers();
+    } catch (error) {
+      toast.error('Erro ao remover membro');
     } finally {
       setAdding(false);
     }
@@ -191,31 +262,26 @@ export default function Members() {
     setImportResults(null);
 
     try {
-      const formData = new FormData();
-      formData.append('file', file);
+      // Import to club level, optionally add to team
+      const response = await membersApi.import(
+        file, 
+        club?.id, 
+        isAllTeamsSelected ? null : selectedTeamId
+      );
 
-      const response = await fetch(`${API_URL}/api/members/import?team_id=${selectedTeamId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        body: formData
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.detail || 'Erro ao importar');
-      }
-
-      const results = await response.json();
+      const results = response.data;
       setImportResults(results);
       
       if (results.success > 0) {
         toast.success(`${results.success} membros importados!`);
-        fetchMembers();
+        if (isAllTeamsSelected) {
+          fetchClubMembers();
+        } else {
+          fetchTeamMembers();
+        }
       }
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.response?.data?.detail || 'Erro ao importar');
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -230,7 +296,7 @@ export default function Members() {
       toast.success('Membro removido da equipa (estatísticas preservadas)');
       setRemoveDialogOpen(false);
       setSelectedMember(null);
-      fetchMembers();
+      fetchTeamMembers();
     } catch (error) {
       toast.error('Erro ao remover membro');
     }
@@ -271,16 +337,18 @@ export default function Members() {
           <p className="text-muted-foreground mt-1">Gestão de jogadores e staff</p>
         </div>
 
-        {canManageTeam && selectedTeamId && (
+        {canManageTeam && (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setImportDialogOpen(true)} data-testid="import-members-btn">
               <Upload className="w-4 h-4 mr-2" />
               Importar Excel
             </Button>
-            <Button variant="outline" onClick={() => setAddDialogOpen(true)} data-testid="add-existing-btn">
-              <UserPlus className="w-4 h-4 mr-2" />
-              Adicionar Existente
-            </Button>
+            {!isAllTeamsSelected && (
+              <Button variant="outline" onClick={() => setAddDialogOpen(true)} data-testid="add-existing-btn">
+                <UserPlus className="w-4 h-4 mr-2" />
+                Adicionar do Clube
+              </Button>
+            )}
             <Button onClick={() => setCreateDialogOpen(true)} data-testid="create-member-btn">
               <Plus className="w-4 h-4 mr-2" />
               Novo Membro
@@ -289,7 +357,20 @@ export default function Members() {
         )}
       </div>
 
-      {teams.length === 0 ? (
+      {/* Info Banner when viewing Club */}
+      {isAllTeamsSelected && (
+        <Card className="border border-primary/30 bg-primary/5">
+          <CardContent className="py-3 px-4 flex items-center gap-3">
+            <Building2 className="w-5 h-5 text-primary" />
+            <div>
+              <p className="font-medium text-sm">A visualizar todos os membros do Clube</p>
+              <p className="text-xs text-muted-foreground">Crie membros aqui e depois adicione-os às equipas</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {teams.length === 0 && !isAllTeamsSelected ? (
         <Card className="border border-border">
           <CardContent className="py-16 text-center">
             <Users className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
@@ -302,38 +383,55 @@ export default function Members() {
         </Card>
       ) : (
         <>
-          {/* Team Selector */}
-          <Card className="border border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <Label className="whitespace-nowrap">Equipa:</Label>
-                <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
-                  <SelectTrigger className="max-w-xs" data-testid="team-selector">
-                    <SelectValue placeholder="Selecione uma equipa" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {teams.map(team => (
-                      <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Badge variant="secondary">{members.length} membros</Badge>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Team Selector - only show when viewing specific team */}
+          {!isAllTeamsSelected && (
+            <Card className="border border-border">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-4">
+                  <Label className="whitespace-nowrap">Equipa:</Label>
+                  <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                    <SelectTrigger className="max-w-xs" data-testid="team-selector">
+                      <SelectValue placeholder="Selecione uma equipa" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {teams.map(team => (
+                        <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Badge variant="secondary">{members.length} membros</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Members List */}
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-wide">
-                {currentTeam?.name || 'Membros'}
+              <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+                {isAllTeamsSelected ? (
+                  <>
+                    <Building2 className="w-5 h-5 text-primary" />
+                    Membros do Clube
+                  </>
+                ) : (
+                  currentTeam?.name || 'Membros'
+                )}
               </CardTitle>
+              <CardDescription>
+                {isAllTeamsSelected 
+                  ? 'Todos os membros registados no clube' 
+                  : `Membros associados a esta equipa`
+                }
+              </CardDescription>
             </CardHeader>
             <CardContent>
               {members.length === 0 ? (
                 <div className="text-center py-12">
                   <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">Sem membros nesta equipa</p>
+                  <p className="text-muted-foreground">
+                    {isAllTeamsSelected ? 'Sem membros no clube' : 'Sem membros nesta equipa'}
+                  </p>
                   {canManageTeam && (
                     <p className="text-sm text-muted-foreground mt-2">
                       Use os botões acima para adicionar membros
@@ -350,7 +448,7 @@ export default function Members() {
                       <div className="flex items-center gap-3">
                         <Avatar>
                           <AvatarImage src={member.avatar_url} />
-                          <AvatarFallback className={`${getRoleColor(member.team_role)} text-white`}>
+                          <AvatarFallback className={`${getRoleColor(member.team_role || member.role)} text-white`}>
                             {getInitials(member.name)}
                           </AvatarFallback>
                         </Avatar>
@@ -361,15 +459,24 @@ export default function Members() {
                           >
                             {member.name}
                           </Link>
-                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                             <Badge variant="outline" className="text-xs">
-                              {getRoleName(member.team_role)}
+                              {getRoleName(member.team_role || member.role)}
                             </Badge>
                             {member.profile?.sports_info?.jersey_number && (
                               <span>#{member.profile.sports_info.jersey_number}</span>
                             )}
                             {member.profile?.sports_info?.position && (
                               <span>{member.profile.sports_info.position}</span>
+                            )}
+                            {/* Show teams when viewing club level */}
+                            {isAllTeamsSelected && member.team_ids?.length > 0 && (
+                              <span className="text-xs bg-muted px-2 py-0.5 rounded">
+                                {member.team_ids.length} equipa(s)
+                              </span>
+                            )}
+                            {isAllTeamsSelected && (!member.team_ids || member.team_ids.length === 0) && (
+                              <span className="text-xs text-amber-600">Sem equipa</span>
                             )}
                           </div>
                         </div>
@@ -401,14 +508,33 @@ export default function Members() {
                                   Ver Perfil
                                 </Link>
                               </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem 
-                                className="text-destructive"
-                                onClick={() => { setSelectedMember(member); setRemoveDialogOpen(true); }}
-                              >
-                                <UserMinus className="w-4 h-4 mr-2" />
-                                Remover da Equipa
-                              </DropdownMenuItem>
+                              {isAllTeamsSelected && teams.length > 0 && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    onClick={() => { 
+                                      setSelectedMember(member); 
+                                      setSelectedMembersToAdd([member.id]);
+                                      setAddToTeamDialogOpen(true); 
+                                    }}
+                                  >
+                                    <UserPlus className="w-4 h-4 mr-2" />
+                                    Adicionar a Equipa
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              {!isAllTeamsSelected && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    className="text-destructive"
+                                    onClick={() => { setSelectedMember(member); setRemoveDialogOpen(true); }}
+                                  >
+                                    <UserMinus className="w-4 h-4 mr-2" />
+                                    Remover da Equipa
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
@@ -631,12 +757,49 @@ export default function Members() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRemoveMember} className="bg-destructive text-white hover:bg-destructive/90">
+            <AlertDialogAction onClick={handleRemoveMemberFromTeam} className="bg-destructive text-white hover:bg-destructive/90">
               Remover
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Add to Team Dialog */}
+      <Dialog open={addToTeamDialogOpen} onOpenChange={setAddToTeamDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR A EQUIPA</DialogTitle>
+            <DialogDescription>Selecione a equipa para adicionar o membro</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Equipa</Label>
+              <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione uma equipa" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  {teams.map(team => (
+                    <SelectItem key={team.id} value={team.id}>{team.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedMember && (
+              <div className="p-3 bg-muted rounded-lg">
+                <p className="font-medium">{selectedMember.name}</p>
+                <p className="text-sm text-muted-foreground">{selectedMember.email}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddToTeamDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleAddMembersToTeam} disabled={adding || !selectedTeamId}>
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

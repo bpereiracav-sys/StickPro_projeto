@@ -416,6 +416,21 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Inputs separados para Penáltis/Livres Marcados e Falhados
   - Compatível com importação do boletim eletrónico APL
 
+### Fluxo de Membros: Clube → Equipas (26 Mar 2026) ✅
+- **Membros agora pertencem ao Clube** (campo `club_id`)
+- **Modo "Meu Clube":** Mostra todos os membros registados no clube
+- **Modo "Equipa Específica":** Mostra apenas os membros dessa equipa
+- **Criar membro:** Cria ao nível do clube, opcionalmente adiciona a uma equipa
+- **Importar Excel:** Importa para o clube, opcionalmente adiciona a uma equipa
+- **"Adicionar a Equipa":** Permite associar membros do clube a equipas
+- **Indicadores visuais:**
+  - "Sem equipa" (laranja) - membro não associado a nenhuma equipa
+  - "X equipa(s)" - número de equipas do membro
+- **Novos endpoints:**
+  - `GET /api/clubs/{club_id}/members` - Listar membros do clube
+  - `POST /api/members/{member_id}/teams/{team_id}` - Adicionar a equipa
+  - `DELETE /api/members/{member_id}/teams/{team_id}` - Remover de equipa
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)

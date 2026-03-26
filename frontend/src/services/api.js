@@ -116,7 +116,25 @@ export const clubApi = {
   getAll: () => api.get('/clubs'),
   getOne: (id) => api.get(`/clubs/${id}`),
   create: (data) => api.post('/clubs', data),
-  update: (id, data) => api.put(`/clubs/${id}`, data)
+  update: (id, data) => api.put(`/clubs/${id}`, data),
+  getMembers: (clubId) => api.get(`/clubs/${clubId}/members`)
+};
+
+// Members API
+export const membersApi = {
+  create: (data) => api.post('/members', data),
+  import: (file, clubId, teamId) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const params = new URLSearchParams();
+    if (clubId) params.append('club_id', clubId);
+    if (teamId) params.append('team_id', teamId);
+    return api.post(`/members/import?${params.toString()}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  addToTeam: (memberId, teamId) => api.post(`/members/${memberId}/teams/${teamId}`),
+  removeFromTeam: (memberId, teamId) => api.delete(`/members/${memberId}/teams/${teamId}`)
 };
 
 // Permissions API
