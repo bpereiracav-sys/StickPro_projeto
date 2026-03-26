@@ -178,7 +178,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
               <span className="font-heading text-lg tracking-wide block leading-tight">
                 STICK PRO
               </span>
-              <span className="text-xs text-slate-400">Gestão de Hóquei</span>
+              <span className="text-xs text-slate-400">Gestão Desportiva</span>
             </div>
           </div>
 

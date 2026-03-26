@@ -64,10 +64,14 @@ export default function ChampionshipDetail() {
   const [lineupMatch, setLineupMatch] = useState(null);
   
   const [matchForm, setMatchForm] = useState({
+    home_team: '',
     opponent_team: '',
     match_date: '',
     location: 'casa',
-    venue: ''
+    venue: '',
+    is_club_match: true,
+    bonus_points: 0,
+    penalty_points: 0
   });
   
   const [resultForm, setResultForm] = useState({
@@ -109,14 +113,17 @@ export default function ChampionshipDetail() {
     setCreating(true);
 
     try {
-      await championshipsApi.createMatch(championshipId, {
+      const matchData = {
         ...matchForm,
         championship_id: championshipId,
-        match_date: new Date(matchForm.match_date).toISOString()
-      });
+        match_date: new Date(matchForm.match_date).toISOString(),
+        home_team: matchForm.is_club_match ? team?.name : matchForm.home_team,
+      };
+      
+      await championshipsApi.createMatch(championshipId, matchData);
       toast.success('Jogo adicionado!');
       setMatchDialogOpen(false);
-      setMatchForm({ opponent_team: '', match_date: '', location: 'casa', venue: '' });
+      setMatchForm({ home_team: '', opponent_team: '', match_date: '', location: 'casa', venue: '', is_club_match: true, bonus_points: 0, penalty_points: 0 });
       fetchData();
     } catch (error) {
       toast.error('Erro ao adicionar jogo');
@@ -548,17 +555,53 @@ export default function ChampionshipDetail() {
 
       {/* Add Match Dialog */}
       <Dialog open={matchDialogOpen} onOpenChange={setMatchDialogOpen}>
-        <DialogContent className="bg-white">
+        <DialogContent className="bg-white max-w-lg">
           <DialogHeader>
             <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR JOGO</DialogTitle>
             <DialogDescription>
-              Agendar um novo jogo no campeonato
+              Agendar um novo jogo na competição
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateMatch}>
             <div className="space-y-4 py-4">
+              {/* Tipo de Jogo */}
               <div className="space-y-2">
-                <Label>Equipa Adversária</Label>
+                <Label>Tipo de Jogo</Label>
+                <Select
+                  value={matchForm.is_club_match ? 'clube' : 'outros'}
+                  onValueChange={(v) => setMatchForm({ ...matchForm, is_club_match: v === 'clube' })}
+                >
+                  <SelectTrigger data-testid="match-type-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="clube">Jogo da nossa equipa</SelectItem>
+                    <SelectItem value="outros">Jogo entre outras equipas (classificação)</SelectItem>
+                  </SelectContent>
+                </Select>
+                {!matchForm.is_club_match && (
+                  <p className="text-xs text-muted-foreground">
+                    Útil para registar jogos de outras equipas para manter a classificação correta.
+                  </p>
+                )}
+              </div>
+
+              {/* Equipa da Casa (só se for jogo entre outras equipas) */}
+              {!matchForm.is_club_match && (
+                <div className="space-y-2">
+                  <Label>Equipa da Casa</Label>
+                  <Input
+                    placeholder="Nome da equipa"
+                    value={matchForm.home_team}
+                    onChange={(e) => setMatchForm({ ...matchForm, home_team: e.target.value })}
+                    required
+                    data-testid="match-home-team-input"
+                  />
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>{matchForm.is_club_match ? 'Equipa Adversária' : 'Equipa Visitante'}</Label>
                 <Input
                   placeholder="Nome da equipa"
                   value={matchForm.opponent_team}
@@ -567,32 +610,36 @@ export default function ChampionshipDetail() {
                   data-testid="match-opponent-input"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Data e Hora</Label>
-                <Input
-                  type="datetime-local"
-                  value={matchForm.match_date}
-                  onChange={(e) => setMatchForm({ ...matchForm, match_date: e.target.value })}
-                  required
-                  data-testid="match-date-input"
-                />
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Data e Hora</Label>
+                  <Input
+                    type="datetime-local"
+                    value={matchForm.match_date}
+                    onChange={(e) => setMatchForm({ ...matchForm, match_date: e.target.value })}
+                    required
+                    data-testid="match-date-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Local</Label>
+                  <Select
+                    value={matchForm.location}
+                    onValueChange={(v) => setMatchForm({ ...matchForm, location: v })}
+                  >
+                    <SelectTrigger data-testid="match-location-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      <SelectItem value="casa">Casa</SelectItem>
+                      <SelectItem value="fora">Fora</SelectItem>
+                      <SelectItem value="neutro">Campo Neutro</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Local</Label>
-                <Select
-                  value={matchForm.location}
-                  onValueChange={(v) => setMatchForm({ ...matchForm, location: v })}
-                >
-                  <SelectTrigger data-testid="match-location-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="casa">Casa</SelectItem>
-                    <SelectItem value="fora">Fora</SelectItem>
-                    <SelectItem value="neutro">Campo Neutro</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              
               <div className="space-y-2">
                 <Label>Pavilhão/Recinto (opcional)</Label>
                 <Input
@@ -601,6 +648,30 @@ export default function ChampionshipDetail() {
                   onChange={(e) => setMatchForm({ ...matchForm, venue: e.target.value })}
                   data-testid="match-venue-input"
                 />
+              </div>
+
+              {/* Penalizações/Bonificações */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Bonificação (pontos)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={matchForm.bonus_points}
+                    onChange={(e) => setMatchForm({ ...matchForm, bonus_points: parseInt(e.target.value) || 0 })}
+                    data-testid="match-bonus-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Penalização (pontos)</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    value={matchForm.penalty_points}
+                    onChange={(e) => setMatchForm({ ...matchForm, penalty_points: parseInt(e.target.value) || 0 })}
+                    data-testid="match-penalty-input"
+                  />
+                </div>
               </div>
             </div>
             <DialogFooter>

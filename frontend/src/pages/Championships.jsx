@@ -38,6 +38,20 @@ const convocationTypes = [
   { value: 'automatica', label: 'Automática' }
 ];
 
+// Get current season based on current date
+const getCurrentSeason = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth(); // 0-11
+  // Season starts in September (month 8)
+  if (month >= 8) {
+    return `${year}/${year + 1}`;
+  }
+  return `${year - 1}/${year}`;
+};
+
+const CURRENT_SEASON = getCurrentSeason();
+
 // Escalões disponíveis
 const AGE_GROUPS = [
   { value: 'sub-7', label: 'Sub-7 (Bambis)' },
@@ -67,13 +81,13 @@ export default function Championships() {
   const [teams, setTeams] = useState([]);
   const [championships, setChampionships] = useState([]);
   const [selectedTeamId, setSelectedTeamId] = useState('');
-  const [selectedSeason, setSelectedSeason] = useState('2024/2025');
+  const [selectedSeason, setSelectedSeason] = useState(CURRENT_SEASON);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    season: '2024/2025',
+    season: CURRENT_SEASON,
     format: '5x5',
     convocation_type: 'manual',
     age_group: '',
@@ -121,7 +135,7 @@ export default function Championships() {
       });
       toast.success('Competição criada com sucesso!');
       setCreateDialogOpen(false);
-      setFormData({ name: '', season: '2024/2025', format: '5x5', convocation_type: 'manual', age_group: '', competition_type: 'campeonato_distrital', description: '' });
+      setFormData({ name: '', season: CURRENT_SEASON, format: '5x5', convocation_type: 'manual', age_group: '', competition_type: 'campeonato_distrital', description: '' });
       fetchChampionships();
     } catch (error) {
       toast.error('Erro ao criar competição');
