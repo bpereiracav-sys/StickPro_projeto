@@ -66,6 +66,7 @@ export default function ProfilePage() {
     surname: user?.profile?.surname || user?.name?.split(' ').slice(1).join(' ') || '',
     nickname: user?.profile?.nickname || '',
     birth_date: user?.profile?.birth_date || '',
+    gender: user?.profile?.gender || '',
     fpp_license: user?.profile?.fpp_license || '',
     
     // Family
@@ -294,6 +295,24 @@ export default function ProfilePage() {
                     data-testid="profile-birthdate-input"
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label>Sexo</Label>
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value) => handleChange('gender', value)}
+                  >
+                    <SelectTrigger data-testid="profile-gender-select">
+                      <SelectValue placeholder="Selecionar" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="masculino">Masculino</SelectItem>
+                      <SelectItem value="feminino">Feminino</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Licença FPP</Label>
                   <Input

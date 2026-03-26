@@ -111,7 +111,7 @@ export function ThemeProvider({ children }) {
     // Convert and apply primary color
     const primaryHSL = hexToHSL(themeColors.primary);
     root.style.setProperty('--primary', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
-    root.style.setProperty('--primary-foreground', isDark ? '0 0% 7%' : '0 0% 100%');
+    root.style.setProperty('--primary-foreground', '0 0% 0%'); // Always black text on primary (for logo SP and buttons)
     root.style.setProperty('--ring', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
     root.style.setProperty('--chart-1', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
     

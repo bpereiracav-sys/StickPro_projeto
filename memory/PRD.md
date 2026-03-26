@@ -405,6 +405,16 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Apenas títulos (h1-h6, font-heading) em verde neon
   - Texto normal em branco para melhor legibilidade
   - Badge "Made with Emergent" oculto em mobile, movido para topo em desktop
+  - Barra superior com fundo claro e texto preto
+  - Logo "SP" com letras pretas no fundo verde
+- **Campo Sexo no Perfil:** ✅
+  - Dropdown com opções: Masculino, Feminino
+  - Campo `gender` adicionado ao modelo UserProfile
+- **Estatísticas Jogo - Formato APL:** ✅
+  - Página MatchStats reformulada para formato Boletim de Jogo APLisboa
+  - Colunas: N.º | 5I | Nome | G | AG | D | PM | PF | LDM | LDF | Cartões
+  - Inputs separados para Penáltis/Livres Marcados e Falhados
+  - Compatível com importação do boletim eletrónico APL
 
 ---
 

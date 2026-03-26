@@ -197,6 +197,24 @@ body.dark-theme .text-primary {
     color: hsl(var(--primary)) !important;
 }
 
+/* Dark theme: Top navbar should stay light with dark text */
+body.dark-theme [data-testid="top-nav-bar"] {
+    background-color: #f8f9fa !important;
+    border-color: #e0e0e0 !important;
+}
+
+body.dark-theme [data-testid="top-nav-bar"] * {
+    color: #1a1a1a !important;
+}
+
+body.dark-theme [data-testid="top-nav-bar"] [data-testid="club-logo"] {
+    color: inherit;
+}
+
+body.dark-theme [data-testid="top-nav-bar"] .text-primary {
+    color: hsl(var(--primary)) !important;
+}
+
 body.dark-theme .bg-amber-50 {
     background-color: rgba(251, 191, 36, 0.1);
 }

@@ -177,6 +177,7 @@ class UserProfile(BaseModel):
     surname: Optional[str] = None
     nickname: Optional[str] = None
     birth_date: Optional[str] = None  # ISO date string
+    gender: Optional[str] = None  # masculino, feminino
     fpp_license: Optional[str] = None  # Federação Portuguesa de Patinagem
     
     # Family members

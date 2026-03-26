@@ -40,7 +40,7 @@ const StickProLogo = ({ size = 'md' }) => {
   
   return (
     <div className={`${s.box} bg-primary rounded-sm flex items-center justify-center`}>
-      <span className={`text-white font-heading ${s.text} font-bold`}>SP</span>
+      <span className={`text-primary-foreground font-heading ${s.text} font-bold`}>SP</span>
     </div>
   );
 };

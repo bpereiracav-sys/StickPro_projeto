@@ -9,13 +9,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select';
+import { Checkbox } from '../components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -27,26 +21,6 @@ import {
 import { toast } from 'sonner';
 import { ArrowLeft, Save, Loader2, User } from 'lucide-react';
 import { getInitials, formatDate, formatTime } from '../lib/utils';
-
-const statFields = [
-  { key: 'position', label: 'Pos', type: 'select', options: ['GR', 'JC'] },
-  { key: 'minutes_played', label: 'Min', type: 'number' },
-  { key: 'goals', label: 'G', type: 'number' },
-  { key: 'assists', label: 'A', type: 'number' },
-  { key: 'penalties_scored', label: 'PM', type: 'number' },
-  { key: 'penalties_missed', label: 'PF', type: 'number' },
-  { key: 'penalties_saved', label: 'PD', type: 'number' },
-  { key: 'penalties_conceded', label: 'PS', type: 'number' },
-  { key: 'free_kicks_scored', label: 'LDM', type: 'number' },
-  { key: 'free_kicks_missed', label: 'LDF', type: 'number' },
-  { key: 'free_kicks_saved', label: 'LDD', type: 'number' },
-  { key: 'free_kicks_conceded', label: 'LDS', type: 'number' },
-  { key: 'saves', label: 'Def', type: 'number' },
-  { key: 'blue_cards', label: 'AZ', type: 'number' },
-  { key: 'yellow_cards', label: 'AM', type: 'number' },
-  { key: 'white_cards', label: 'BR', type: 'number' },
-  { key: 'red_cards', label: 'VM', type: 'number' },
-];
 
 export default function MatchStats() {
   const { championshipId, matchId } = useParams();
@@ -78,17 +52,35 @@ export default function MatchStats() {
         setTeam(teamRes.data);
         
         const membersRes = await teamsApi.getMembers(currentMatch.team_id);
-        setMembers(membersRes.data.filter(m => m.team_role === 'jogador'));
+        // Filter only players
+        const players = membersRes.data.filter(m => 
+          m.role === 'jogador' || 
+          m.profile?.function === 'jogador' ||
+          m.profile?.sports_info?.function === 'jogador'
+        );
+        setMembers(players);
+        
+        // Initialize player stats
+        const initialStats = {};
+        players.forEach(player => {
+          const existing = existingRes.data.find(s => s.player_id === player.id);
+          initialStats[player.id] = {
+            started_match: existing?.started_match || false,
+            goals: existing?.goals || 0,
+            own_goals: existing?.own_goals || 0,
+            saves: existing?.saves || 0,
+            penalties_scored: existing?.penalties_scored || 0,
+            penalties_missed: existing?.penalties_missed || 0,
+            free_kicks_scored: existing?.free_kicks_scored || existing?.direct_free_kicks || 0,
+            free_kicks_missed: existing?.free_kicks_missed || 0,
+            yellow_cards: existing?.yellow_cards || 0,
+            blue_cards: existing?.blue_cards || 0,
+            red_cards: existing?.red_cards || 0
+          };
+        });
+        setPlayerStats(initialStats);
+        setExistingStats(existingRes.data);
       }
-      
-      // Initialize stats from existing data
-      const statsMap = {};
-      existingRes.data.forEach(stat => {
-        statsMap[stat.player_id] = stat;
-      });
-      setPlayerStats(statsMap);
-      setExistingStats(existingRes.data);
-      
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Erro ao carregar dados');
@@ -102,36 +94,41 @@ export default function MatchStats() {
       ...prev,
       [playerId]: {
         ...prev[playerId],
-        [field]: field === 'position' ? value : parseInt(value) || 0
+        [field]: field === 'started_match' ? value : (parseInt(value) || 0)
       }
     }));
   };
 
   const handleSaveStats = async () => {
     setSaving(true);
-    
     try {
       for (const [playerId, stats] of Object.entries(playerStats)) {
-        if (Object.keys(stats).length > 0) {
-          await championshipsApi.createMatchPlayerStats(matchId, {
-            match_id: matchId,
-            player_id: playerId,
-            position: stats.position || 'JC',
-            minutes_played: stats.minutes_played || 0,
+        // Check if stats have any non-zero values
+        const hasStats = stats.started_match || 
+          stats.goals > 0 || 
+          stats.own_goals > 0 || 
+          stats.saves > 0 || 
+          stats.penalties_scored > 0 ||
+          stats.penalties_missed > 0 ||
+          stats.free_kicks_scored > 0 ||
+          stats.free_kicks_missed > 0 ||
+          stats.yellow_cards > 0 ||
+          stats.blue_cards > 0 ||
+          stats.red_cards > 0;
+        
+        if (hasStats) {
+          await championshipsApi.savePlayerMatchStats(matchId, playerId, {
+            started_match: stats.started_match,
             goals: stats.goals || 0,
-            assists: stats.assists || 0,
+            own_goals: stats.own_goals || 0,
+            saves: stats.saves || 0,
             penalties_scored: stats.penalties_scored || 0,
             penalties_missed: stats.penalties_missed || 0,
-            penalties_saved: stats.penalties_saved || 0,
-            penalties_conceded: stats.penalties_conceded || 0,
             free_kicks_scored: stats.free_kicks_scored || 0,
             free_kicks_missed: stats.free_kicks_missed || 0,
-            free_kicks_saved: stats.free_kicks_saved || 0,
-            free_kicks_conceded: stats.free_kicks_conceded || 0,
-            saves: stats.saves || 0,
-            blue_cards: stats.blue_cards || 0,
+            direct_free_kicks: stats.free_kicks_scored || 0, // Also save as direct_free_kicks for compatibility
             yellow_cards: stats.yellow_cards || 0,
-            white_cards: stats.white_cards || 0,
+            blue_cards: stats.blue_cards || 0,
             red_cards: stats.red_cards || 0
           });
         }
@@ -172,7 +169,7 @@ export default function MatchStats() {
         className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
-        Voltar ao Campeonato
+        Voltar à Competição
       </Link>
 
       {/* Header */}
@@ -182,13 +179,16 @@ export default function MatchStats() {
             ESTATÍSTICAS DO JOGO
           </h1>
           <p className="text-muted-foreground mt-1">
-            {team?.name} vs {match.opponent_team}
+            {match.is_club_match === false 
+              ? `${match.home_team} vs ${match.opponent_team}` 
+              : `${team?.name} vs ${match.opponent_team}`
+            }
           </p>
           <div className="flex items-center gap-3 mt-2">
             <Badge variant="outline">{formatDate(match.match_date)}</Badge>
             <Badge variant="outline">{formatTime(match.match_date)}</Badge>
             {match.is_completed && (
-              <Badge className="bg-secondary text-white">
+              <Badge className="bg-secondary text-primary-foreground">
                 {match.home_score} - {match.away_score}
               </Badge>
             )}
@@ -203,71 +203,169 @@ export default function MatchStats() {
         )}
       </div>
 
-      {/* Stats Table */}
+      {/* Stats Table - Formato Boletim APL */}
       <Card className="border border-border">
         <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-wide">ESTATÍSTICAS INDIVIDUAIS</CardTitle>
+          <CardTitle className="font-heading text-xl tracking-wide">BOLETIM DE JOGO - ESTATÍSTICAS INDIVIDUAIS</CardTitle>
           <p className="text-xs text-muted-foreground mt-2">
-            Pos=Posição | Min=Minutos | G=Golos | A=Assistências | PM/PF/PD/PS=Penaltis (Marcados/Falhados/Defendidos/Sofridos) | 
-            LDM/LDF/LDD/LDS=Livres Diretos | Def=Defesas | AZ=Azul | AM=Amarelo | BR=Branco | VM=Vermelho
+            Formato oficial APLisboa • N.º = Número | 5I = 5 Iniciais | G = Golos | AG = Auto-Golos | D = Defesas | Pe = Penáltis (marcados/tentativas) | LD = Livres Diretos (marcados/tentativas)
           </p>
         </CardHeader>
         <CardContent>
           {members.length > 0 ? (
             <div className="overflow-x-auto">
-              <Table className="min-w-[1200px]">
+              <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="sticky left-0 bg-white z-10 min-w-[150px]">Jogador</TableHead>
-                    {statFields.map(field => (
-                      <TableHead key={field.key} className="text-center min-w-[60px]">
-                        {field.label}
-                      </TableHead>
-                    ))}
+                    <TableHead className="text-center w-12">N.º</TableHead>
+                    <TableHead className="text-center w-12" title="5 Iniciais">5I</TableHead>
+                    <TableHead className="min-w-[150px]">Nome</TableHead>
+                    <TableHead className="text-center w-12" title="Golos">G</TableHead>
+                    <TableHead className="text-center w-12" title="Auto-Golos">AG</TableHead>
+                    <TableHead className="text-center w-12" title="Defesas (Guarda-Redes)">D</TableHead>
+                    <TableHead className="text-center w-20" title="Penáltis Marcados">PM</TableHead>
+                    <TableHead className="text-center w-20" title="Penáltis Falhados">PF</TableHead>
+                    <TableHead className="text-center w-20" title="Livres Diretos Marcados">LDM</TableHead>
+                    <TableHead className="text-center w-20" title="Livres Diretos Falhados">LDF</TableHead>
+                    <TableHead className="text-center w-10" title="Cartão Amarelo">
+                      <div className="w-4 h-5 bg-yellow-400 border border-yellow-600 rounded-sm mx-auto" />
+                    </TableHead>
+                    <TableHead className="text-center w-10" title="Cartão Azul">
+                      <div className="w-4 h-5 bg-blue-500 border border-blue-700 rounded-sm mx-auto" />
+                    </TableHead>
+                    <TableHead className="text-center w-10" title="Cartão Vermelho">
+                      <div className="w-4 h-5 bg-red-600 border border-red-800 rounded-sm mx-auto" />
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {members.map(player => (
-                    <TableRow key={player.id} data-testid={`player-row-${player.id}`}>
-                      <TableCell className="sticky left-0 bg-white z-10 font-medium">
-                        <div className="flex items-center gap-2">
-                          <Avatar className="w-8 h-8">
-                            <AvatarFallback className="text-xs bg-primary text-white">
-                              {getInitials(player.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="truncate max-w-[100px]">{player.name}</span>
-                        </div>
-                      </TableCell>
-                      {statFields.map(field => (
-                        <TableCell key={field.key} className="text-center p-1">
-                          {field.type === 'select' ? (
-                            <Select
-                              value={playerStats[player.id]?.[field.key] || 'JC'}
-                              onValueChange={(v) => handleStatChange(player.id, field.key, v)}
-                            >
-                              <SelectTrigger className="h-8 w-16">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="bg-white">
-                                {field.options.map(opt => (
-                                  <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          ) : (
+                  {members.map((player) => {
+                    const jerseyNumber = player.profile?.sports_info?.jersey_number || 
+                                        player.profile?.jersey_number || '-';
+                    const playerName = player.name || 'Jogador';
+                    const isGoalkeeper = player.profile?.sports_info?.position?.toLowerCase()?.includes('guarda') || 
+                                        player.profile?.sports_info?.position?.toLowerCase()?.includes('redes') ||
+                                        player.profile?.position?.toLowerCase()?.includes('gr');
+                    const stats = playerStats[player.id] || {};
+                    
+                    return (
+                      <TableRow key={player.id} className={isGoalkeeper ? 'bg-blue-50 dark:bg-blue-950/30' : ''} data-testid={`player-row-${player.id}`}>
+                        <TableCell className="text-center font-mono font-semibold">{jerseyNumber}</TableCell>
+                        <TableCell className="text-center">
+                          <Checkbox
+                            checked={stats.started_match || false}
+                            onCheckedChange={(checked) => handleStatChange(player.id, 'started_match', checked)}
+                            aria-label="5 Iniciais"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Avatar className="w-7 h-7">
+                              <AvatarFallback className="text-xs bg-primary text-primary-foreground">
+                                {getInitials(playerName)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <span className="font-medium">{playerName}</span>
+                            {isGoalkeeper && <Badge variant="outline" className="text-xs">GR</Badge>}
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-8 w-12 text-center p-1 font-mono"
+                            value={stats.goals || ''}
+                            onChange={(e) => handleStatChange(player.id, 'goals', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-8 w-12 text-center p-1 font-mono"
+                            value={stats.own_goals || ''}
+                            onChange={(e) => handleStatChange(player.id, 'own_goals', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {isGoalkeeper ? (
                             <Input
                               type="number"
                               min="0"
-                              className="h-8 w-14 text-center p-1"
-                              value={playerStats[player.id]?.[field.key] || ''}
-                              onChange={(e) => handleStatChange(player.id, field.key, e.target.value)}
+                              className="h-8 w-12 text-center p-1 font-mono"
+                              value={stats.saves || ''}
+                              onChange={(e) => handleStatChange(player.id, 'saves', e.target.value)}
                             />
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
                           )}
                         </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-8 w-12 text-center p-1 font-mono"
+                            value={stats.penalties_scored || ''}
+                            onChange={(e) => handleStatChange(player.id, 'penalties_scored', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-8 w-12 text-center p-1 font-mono"
+                            value={stats.penalties_missed || ''}
+                            onChange={(e) => handleStatChange(player.id, 'penalties_missed', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-8 w-12 text-center p-1 font-mono"
+                            value={stats.free_kicks_scored || ''}
+                            onChange={(e) => handleStatChange(player.id, 'free_kicks_scored', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-8 w-12 text-center p-1 font-mono"
+                            value={stats.free_kicks_missed || ''}
+                            onChange={(e) => handleStatChange(player.id, 'free_kicks_missed', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-8 w-10 text-center p-1 font-mono bg-yellow-50"
+                            value={stats.yellow_cards || ''}
+                            onChange={(e) => handleStatChange(player.id, 'yellow_cards', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-8 w-10 text-center p-1 font-mono bg-blue-50"
+                            value={stats.blue_cards || ''}
+                            onChange={(e) => handleStatChange(player.id, 'blue_cards', e.target.value)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Input
+                            type="number"
+                            min="0"
+                            className="h-8 w-10 text-center p-1 font-mono bg-red-50"
+                            value={stats.red_cards || ''}
+                            onChange={(e) => handleStatChange(player.id, 'red_cards', e.target.value)}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -277,6 +375,16 @@ export default function MatchStats() {
               <p className="text-muted-foreground">Nenhum jogador na equipa</p>
             </div>
           )}
+          
+          {/* Legend */}
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground">
+              <strong>Legenda:</strong> N.º = Número da camisola | 5I = 5 Iniciais (titular) | G = Golos | AG = Auto-Golos | D = Defesas (GR) | PM = Penáltis Marcados | PF = Penáltis Falhados | LDM = Livres Diretos Marcados | LDF = Livres Diretos Falhados
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              <strong>Nota:</strong> Na página de Estatísticas Gerais, Pe e LD aparecem no formato "marcados/tentativas" (ex: 2/3 significa 2 marcados em 3 tentativas)
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>
