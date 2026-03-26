@@ -47,6 +47,8 @@ export const translations = {
       invalidCredentials: 'Credenciais inválidas',
       alreadyHaveAccount: 'Já tenho conta',
       noAccount: 'Não tem conta?',
+      backToHome: 'Voltar ao início',
+      loginSubtitle: 'Aceda à sua conta para gerir a equipa',
     },
     // Navigation
     nav: {
@@ -1015,6 +1017,8 @@ export const translations = {
       invalidCredentials: 'Invalid credentials',
       alreadyHaveAccount: 'Already have an account',
       noAccount: "Don't have an account?",
+      backToHome: 'Back to home',
+      loginSubtitle: 'Sign in to your account to manage the team',
     },
     // Navigation
     nav: {

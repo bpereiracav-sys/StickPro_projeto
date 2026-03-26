@@ -433,6 +433,7 @@ class ChampionshipMatchCreate(BaseModel):
     is_club_match: bool = True  # Se é jogo da equipa do clube ou jogo entre outras equipas
     bonus_points: int = 0
     penalty_points: int = 0
+    matchday: Optional[int] = None  # Número da jornada
 
 class ChampionshipMatch(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -450,6 +451,7 @@ class ChampionshipMatch(BaseModel):
     is_club_match: bool = True
     bonus_points: int = 0
     penalty_points: int = 0
+    matchday: Optional[int] = None  # Número da jornada
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class MatchResultUpdate(BaseModel):
@@ -1556,7 +1558,8 @@ async def create_championship_match(championship_id: str, data: ChampionshipMatc
         venue=data.venue,
         is_club_match=data.is_club_match,
         bonus_points=data.bonus_points,
-        penalty_points=data.penalty_points
+        penalty_points=data.penalty_points,
+        matchday=data.matchday
     )
     
     match_dict = match.model_dump()

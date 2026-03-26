@@ -72,7 +72,9 @@ export const eventsApi = {
   create: (data) => api.post('/events', data),
   update: (id, data) => api.put(`/events/${id}`, data),
   delete: (id) => api.delete(`/events/${id}`),
-  getAttendance: (id) => api.get(`/events/${id}/attendance`)
+  getAttendance: (id) => api.get(`/events/${id}/attendance`),
+  getEventAttendance: (id) => api.get(`/events/${id}/attendance`),
+  createConvocation: (eventId, data) => api.post('/convocations', { event_id: eventId, ...data })
 };
 
 // Convocations API

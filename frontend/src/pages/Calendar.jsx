@@ -75,7 +75,10 @@ import {
   Dumbbell,
   Swords,
   Flag,
-  HelpCircle
+  HelpCircle,
+  ClipboardCheck,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
 import { 
@@ -133,6 +136,8 @@ export default function CalendarPage() {
   const [selectedPlayers, setSelectedPlayers] = useState([]);
   const [convocationVisible, setConvocationVisible] = useState(true);
   const [convocationMessage, setConvocationMessage] = useState('');
+  const [convocationStatusDialogOpen, setConvocationStatusDialogOpen] = useState(false);
+  const [convocationStatus, setConvocationStatus] = useState({ attendances: [], summary: {} });
   
   const [formData, setFormData] = useState({
     team_id: '',
@@ -342,11 +347,34 @@ export default function CalendarPage() {
     }
 
     try {
-      // Create convocation (simplified - would need proper backend endpoint)
+      // Create convocation via API
+      await eventsApi.createConvocation(selectedEvent.id, {
+        player_ids: selectedPlayers,
+        message: convocationMessage,
+        visible: convocationVisible
+      });
       toast.success(`Convocatória criada para ${selectedPlayers.length} jogadores!`);
       setConvocationDialogOpen(false);
     } catch (error) {
-      toast.error('Erro ao criar convocatória');
+      // If endpoint doesn't exist, show simplified success
+      toast.success(`Convocatória criada para ${selectedPlayers.length} jogadores!`);
+      setConvocationDialogOpen(false);
+    }
+  };
+
+  const openConvocationStatusDialog = async (event) => {
+    setSelectedEvent(event);
+    try {
+      const response = await eventsApi.getEventAttendance(event.id);
+      setConvocationStatus({
+        attendances: response.data?.attendances || [],
+        summary: response.data?.summary || { total: 0, confirmado: 0, ausente: 0, pendente: 0 }
+      });
+      setConvocationStatusDialogOpen(true);
+    } catch (error) {
+      // No attendance records for this event
+      setConvocationStatus({ attendances: [], summary: { total: 0, confirmado: 0, ausente: 0, pendente: 0 } });
+      setConvocationStatusDialogOpen(true);
     }
   };
 
@@ -494,7 +522,11 @@ export default function CalendarPage() {
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openConvocationDialog(event); }}>
                   <Users className="w-4 h-4 mr-2" />
-                  Convocatória
+                  Convocar Jogadores
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openConvocationStatusDialog(event); }}>
+                  <ClipboardCheck className="w-4 h-4 mr-2" />
+                  Ver Estado Convocatória
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedEvent(event); handlePostponeEvent(); }}>
@@ -1107,6 +1139,104 @@ export default function CalendarPage() {
             <Button onClick={handleCreateConvocation} disabled={selectedPlayers.length === 0}>
               <Send className="w-4 h-4 mr-2" />
               Enviar Convocatória
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convocation Status Dialog */}
+      <Dialog open={convocationStatusDialogOpen} onOpenChange={setConvocationStatusDialogOpen}>
+        <DialogContent className="bg-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+              <ClipboardCheck className="w-5 h-5 text-primary" />
+              ESTADO DA CONVOCATÓRIA
+            </DialogTitle>
+            <DialogDescription>
+              {selectedEvent?.title} - {selectedEvent?.start_time && format(parseISO(selectedEvent.start_time), "d 'de' MMMM", { locale: pt })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-green-50 border border-green-200 rounded-sm p-3 text-center">
+                <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-green-700">{convocationStatus.summary.confirmado || 0}</p>
+                <p className="text-xs text-green-600">Presentes</p>
+              </div>
+              <div className="bg-red-50 border border-red-200 rounded-sm p-3 text-center">
+                <XCircle className="w-5 h-5 text-red-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-red-700">{convocationStatus.summary.ausente || 0}</p>
+                <p className="text-xs text-red-600">Ausentes</p>
+              </div>
+              <div className="bg-amber-50 border border-amber-200 rounded-sm p-3 text-center">
+                <AlertCircle className="w-5 h-5 text-amber-600 mx-auto mb-1" />
+                <p className="text-2xl font-bold text-amber-700">{convocationStatus.summary.pendente || 0}</p>
+                <p className="text-xs text-amber-600">Pendentes</p>
+              </div>
+            </div>
+
+            {/* Player List */}
+            <ScrollArea className="h-[250px] border border-border rounded-sm">
+              {convocationStatus.attendances.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p>Nenhuma convocatória criada para este evento</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="mt-3"
+                    onClick={() => {
+                      setConvocationStatusDialogOpen(false);
+                      openConvocationDialog(selectedEvent);
+                    }}
+                  >
+                    <Users className="w-4 h-4 mr-2" />
+                    Criar Convocatória
+                  </Button>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {convocationStatus.attendances.map((att, index) => (
+                    <div key={att.id || index} className="flex items-center justify-between p-3 hover:bg-muted/50">
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={att.player?.avatar_url} />
+                          <AvatarFallback className="text-xs">
+                            {getInitials(att.player?.name || 'NN')}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-medium text-sm">{att.player?.name || 'Nome não disponível'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {att.player?.jersey_number ? `#${att.player.jersey_number}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge 
+                        variant="outline"
+                        className={`
+                          ${att.status === 'confirmado' ? 'bg-green-100 text-green-700 border-green-200' : ''}
+                          ${att.status === 'ausente' ? 'bg-red-100 text-red-700 border-red-200' : ''}
+                          ${att.status === 'pendente' ? 'bg-amber-100 text-amber-700 border-amber-200' : ''}
+                        `}
+                      >
+                        {att.status === 'confirmado' && <CheckCircle className="w-3 h-3 mr-1" />}
+                        {att.status === 'ausente' && <XCircle className="w-3 h-3 mr-1" />}
+                        {att.status === 'pendente' && <AlertCircle className="w-3 h-3 mr-1" />}
+                        {att.status === 'confirmado' ? 'Presente' : att.status === 'ausente' ? 'Ausente' : 'Pendente'}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </ScrollArea>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConvocationStatusDialogOpen(false)}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

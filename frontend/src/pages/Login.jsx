@@ -1,15 +1,22 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Globe } from 'lucide-react';
 import ProfileSelectionModal from '../components/profile/ProfileSelectionModal';
 
-// Custom Logo Component
-const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/tuf2zwjm_Logo.png";
+// Custom Logo Component - Green transparent logo that adapts to themes
+const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/6xtd360b_logoVerdTransp.png";
 
 const StickProLogo = ({ size = 'md' }) => {
   const sizes = {
@@ -36,7 +43,13 @@ export default function Login() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [loginResult, setLoginResult] = useState(null);
   const { login, switchProfile, isAuthenticated, loading: authLoading } = useAuth();
+  const { language, changeLanguage, t } = useLanguage();
   const navigate = useNavigate();
+
+  const languages = [
+    { code: 'pt', label: 'Português', flag: '🇵🇹' },
+    { code: 'en', label: 'English', flag: '🇬🇧' }
+  ];
 
   // Redirect to dashboard if already authenticated (but not during profile selection)
   useEffect(() => {
@@ -89,6 +102,32 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex">
+      {/* Language Selector - Fixed Top Right */}
+      <div className="fixed top-4 right-4 z-50">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2 bg-white" data-testid="language-selector">
+              <Globe className="w-4 h-4" />
+              {languages.find(l => l.code === language)?.flag || '🇵🇹'}
+              {languages.find(l => l.code === language)?.label || 'Português'}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-white">
+            {languages.map(lang => (
+              <DropdownMenuItem
+                key={lang.code}
+                onClick={() => changeLanguage(lang.code)}
+                className={`gap-2 cursor-pointer ${language === lang.code ? 'bg-primary/10' : ''}`}
+                data-testid={`lang-${lang.code}`}
+              >
+                <span>{lang.flag}</span>
+                <span>{lang.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
       {/* Left Panel - Form */}
       <div className="flex-1 flex flex-col justify-center px-4 sm:px-6 lg:px-8 py-12 bg-white">
         <div className="mx-auto w-full max-w-sm">
@@ -98,7 +137,7 @@ export default function Login() {
             data-testid="back-to-home"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar ao início
+            {t('auth.backToHome') || 'Voltar ao início'}
           </Link>
 
           <div className="flex items-center gap-2 mb-8">
@@ -109,10 +148,10 @@ export default function Login() {
           </div>
 
           <h1 className="font-heading text-4xl text-foreground tracking-wide mb-2">
-            ENTRAR
+            {t('auth.login') || 'ENTRAR'}
           </h1>
           <p className="text-muted-foreground mb-8">
-            Aceda à sua conta para gerir a equipa
+            {t('auth.loginSubtitle') || 'Aceda à sua conta para gerir a equipa'}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-6">

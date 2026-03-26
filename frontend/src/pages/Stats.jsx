@@ -368,7 +368,6 @@ export default function Stats() {
                           <TableHeader>
                             <TableRow className="bg-muted/50">
                               <TableHead className="text-center w-12">N.º</TableHead>
-                              <TableHead className="text-center w-12" title="5 Iniciais">5I</TableHead>
                               <TableHead>Nome</TableHead>
                               <TableHead className="text-center w-10" title="Golos">G</TableHead>
                               <TableHead className="text-center w-10" title="Auto-Golos">AG</TableHead>
@@ -403,9 +402,6 @@ export default function Stats() {
                               return (
                                 <TableRow key={stat.player_id || index} className={isGoalkeeper ? 'bg-blue-50' : ''}>
                                   <TableCell className="text-center font-mono font-semibold">{jerseyNumber}</TableCell>
-                                  <TableCell className="text-center">
-                                    {stat.started_match ? '✓' : ''}
-                                  </TableCell>
                                   <TableCell>
                                     <Link 
                                       to={`/players/${stat.player_id}`}
@@ -463,7 +459,7 @@ export default function Stats() {
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground mt-4">
-                      N.º = Número | 5I = 5 Iniciais | G = Golos | AG = Auto-Golos | D = Defesas | Pe = Penáltis (marcados/tentativas) | LD = Livres Diretos (marcados/tentativas)
+                      N.º = Número | G = Golos | AG = Auto-Golos | D = Defesas | Pe = Penáltis (marcados/tentativas) | LD = Livres Diretos (marcados/tentativas)
                     </p>
                   </CardContent>
                 </Card>

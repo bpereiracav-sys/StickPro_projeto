@@ -71,7 +71,8 @@ export default function ChampionshipDetail() {
     venue: '',
     is_club_match: true,
     bonus_points: 0,
-    penalty_points: 0
+    penalty_points: 0,
+    matchday: 1
   });
   
   const [resultForm, setResultForm] = useState({
@@ -123,7 +124,7 @@ export default function ChampionshipDetail() {
       await championshipsApi.createMatch(championshipId, matchData);
       toast.success('Jogo adicionado!');
       setMatchDialogOpen(false);
-      setMatchForm({ home_team: '', opponent_team: '', match_date: '', location: 'casa', venue: '', is_club_match: true, bonus_points: 0, penalty_points: 0 });
+      setMatchForm({ home_team: '', opponent_team: '', match_date: '', location: 'casa', venue: '', is_club_match: true, bonus_points: 0, penalty_points: 0, matchday: 1 });
       fetchData();
     } catch (error) {
       toast.error('Erro ao adicionar jogo');
@@ -340,14 +341,28 @@ export default function ChampionshipDetail() {
         <TabsContent value="matches" className="space-y-4">
           {matches.length > 0 ? (
             <div className="space-y-3">
-              {matches.map((match) => (
+              {/* Sort matches by matchday, then by date */}
+              {[...matches]
+                .sort((a, b) => {
+                  const matchdayA = a.matchday || 999;
+                  const matchdayB = b.matchday || 999;
+                  if (matchdayA !== matchdayB) return matchdayA - matchdayB;
+                  return new Date(a.match_date) - new Date(b.match_date);
+                })
+                .map((match) => (
                 <Card key={match.id} className="border border-border" data-testid={`match-${match.id}`}>
                   <CardContent className="p-3 sm:p-4">
                     {/* Mobile: Stack layout, Desktop: Row layout */}
                     <div className="flex flex-col gap-3">
-                      {/* Date, Location and Teams */}
+                      {/* Matchday Badge + Date, Location and Teams */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                         <div className="flex items-center gap-3 sm:gap-4">
+                          {/* Matchday Badge */}
+                          {match.matchday && (
+                            <Badge variant="secondary" className="text-xs font-mono">
+                              J{match.matchday}
+                            </Badge>
+                          )}
                           <div className="text-center min-w-[70px] sm:min-w-[80px]">
                             <p className="text-xs text-muted-foreground uppercase">
                               {formatDate(match.match_date)}
@@ -599,6 +614,20 @@ export default function ChampionshipDetail() {
                     Útil para registar jogos de outras equipas para manter a classificação correta.
                   </p>
                 )}
+              </div>
+
+              {/* Jornada */}
+              <div className="space-y-2">
+                <Label>Jornada</Label>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="Número da jornada"
+                  value={matchForm.matchday}
+                  onChange={(e) => setMatchForm({ ...matchForm, matchday: parseInt(e.target.value) || 1 })}
+                  required
+                  data-testid="match-matchday-input"
+                />
               </div>
 
               {/* Equipa da Casa (só se for jogo entre outras equipas) */}

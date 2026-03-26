@@ -35,14 +35,15 @@ import {
   BookOpen,
   Building2
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
 import { toast } from 'sonner';
+import { dashboardApi } from '../../services/api';
 
-// Custom Logo URL
-const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/tuf2zwjm_Logo.png";
+// Custom Logo URL - Green transparent logo that adapts to themes
+const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/6xtd360b_logoVerdTransp.png";
 
-// Theme-aware Logo Component
+// Theme-aware Logo Component - uses CSS filters to adapt colors
 const StickProLogo = ({ size = 'md', isDark = false }) => {
   const sizes = {
     sm: { box: 'w-8 h-8' },
@@ -51,14 +52,18 @@ const StickProLogo = ({ size = 'md', isDark = false }) => {
   };
   const s = sizes[size] || sizes.md;
   
+  // In dark mode: invert and adjust hue to make it brighter/lighter
+  // In light mode: keep original green
+  const filterStyle = isDark 
+    ? 'brightness(1.5) saturate(1.2)' // Brighten for dark backgrounds
+    : 'none';
+  
   return (
     <img 
       src={CUSTOM_LOGO_URL} 
       alt="Logo" 
       className={`${s.box} object-contain transition-all duration-300`}
-      style={{
-        filter: isDark ? 'brightness(1.4) contrast(1.1) saturate(1.3)' : 'none'
-      }}
+      style={{ filter: filterStyle }}
       data-testid="stick-pro-logo"
     />
   );
@@ -84,13 +89,34 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [switchingProfile, setSwitchingProfile] = useState(false);
+  const [pendingNotifications, setPendingNotifications] = useState(0);
 
   // Use context selected team if available
   const activeTeam = contextSelectedTeam || selectedTeam;
 
+  // Fetch pending notifications count
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const response = await dashboardApi.get();
+        const pendingCount = response.data?.pending_convocations?.length || 0;
+        setPendingNotifications(pendingCount);
+      } catch (error) {
+        console.error('Error fetching notifications:', error);
+      }
+    };
+    
+    if (isAuthenticated) {
+      fetchNotifications();
+      // Refresh notifications every 60 seconds
+      const interval = setInterval(fetchNotifications, 60000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated]);
+
   // Menu items based on selected team context - with translations
   const navLinks = [
-    { href: '/dashboard', label: t('nav.home'), icon: Home },
+    { href: '/dashboard', label: t('nav.home'), icon: Home, notificationCount: pendingNotifications },
     { href: '/calendar', label: t('nav.calendar'), icon: Calendar },
     { href: '/members', label: t('nav.members'), icon: Users },
     { href: '/championships', label: t('nav.championships'), icon: Trophy },
@@ -149,6 +175,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
             src={CUSTOM_LOGO_URL} 
             alt="Logo" 
             className="w-8 h-8 object-contain flex-shrink-0"
+            style={{ filter: isDarkTheme ? 'brightness(1.5) saturate(1.2)' : 'none' }}
             data-testid="mobile-header-logo"
           />
           <span className="font-heading text-base text-foreground tracking-wide truncate">
@@ -188,7 +215,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
         <div className="flex flex-col h-full">
           {/* Logo */}
           <div className="h-16 flex items-center gap-3 px-4 border-b border-slate-700">
-            <StickProLogo size="md" />
+            <StickProLogo size="md" isDark={isDarkTheme} />
             <div>
               <span className="font-heading text-lg tracking-wide block leading-tight">
                 STICK PRO
@@ -263,7 +290,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                     to={link.href}
                     onClick={() => setMenuOpen(false)}
                     className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-sm transition-colors
+                      flex items-center gap-3 px-3 py-2.5 rounded-sm transition-colors relative
                       ${isActive 
                         ? 'bg-primary text-white' 
                         : 'text-slate-300 hover:bg-slate-800 hover:text-white'}
@@ -272,6 +299,15 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                   >
                     <Icon className="w-5 h-5" />
                     <span className="font-medium">{link.label}</span>
+                    {/* Notification Badge */}
+                    {link.notificationCount > 0 && (
+                      <span 
+                        className="absolute right-3 top-1/2 -translate-y-1/2 min-w-[20px] h-5 px-1.5 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full"
+                        data-testid="notification-badge"
+                      >
+                        {link.notificationCount > 99 ? '99+' : link.notificationCount}
+                      </span>
+                    )}
                   </Link>
                 );
               })}

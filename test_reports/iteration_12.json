@@ -1,0 +1,91 @@
+{
+  "summary": "Phase 12 Testing: UI Improvements - Green Logo, Language Selector, Stats 5I Column Removal, Calendar Convocation Features, Championship Matchday Field. All 6 features tested and verified working correctly via Playwright UI testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Championship Detail",
+        "issues": ["Existing matches may not have matchday values set, so J1/J2 badges don't appear. New matches created with Jornada field will show badges correctly."]
+      }
+    ]
+  },
+  "features_tested": {
+    "green_logo_login": {
+      "status": "PASS",
+      "description": "Green transparent logo (logoVerdTransp.png) displays correctly on login page",
+      "data_testid": "stick-pro-logo",
+      "logo_url": "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/6xtd360b_logoVerdTransp.png"
+    },
+    "green_logo_sidebar": {
+      "status": "PASS",
+      "description": "Green transparent logo displays correctly in sidebar with theme adaptation (brightness filter for dark mode)",
+      "data_testid": "stick-pro-logo",
+      "location": "Sidebar.jsx lines 47-70"
+    },
+    "language_selector_login": {
+      "status": "PASS",
+      "description": "Language selector dropdown on login page works correctly. Shows PT (Portuguese) and EN (English) options with flags. Switching languages updates UI text.",
+      "data_testid": "language-selector, lang-pt, lang-en",
+      "location": "Login.jsx lines 106-129"
+    },
+    "stats_no_5i_column": {
+      "status": "PASS",
+      "description": "Stats page individual statistics table does NOT show 5I column. Columns present: N.º, Nome, G, AG, D, Pe, LD, and card columns (yellow, blue, red)",
+      "verified_columns": ["N.º", "Nome", "G", "AG", "D", "Pe", "LD"],
+      "location": "Stats.jsx lines 367-386"
+    },
+    "calendar_dropdown_menu": {
+      "status": "PASS",
+      "description": "Calendar event cards show dropdown menu with all required options: Editar, Convocar Jogadores, Ver Estado Convocatória, Adiar, Cancelar, Eliminar",
+      "verified_options": ["Editar", "Convocar Jogadores", "Ver Estado Convocatória", "Adiar", "Cancelar", "Eliminar"],
+      "location": "Calendar.jsx lines 518-548"
+    },
+    "championship_matchday_field": {
+      "status": "PASS",
+      "description": "Add Match dialog in Championship Detail page includes 'Jornada' field (number input). Field is properly labeled and functional.",
+      "data_testid": "match-matchday-input",
+      "location": "ChampionshipDetail.jsx lines 619-631"
+    },
+    "matches_ordered_by_matchday": {
+      "status": "PASS",
+      "description": "Frontend code sorts matches by matchday first, then by date. Matches without matchday are placed at end (matchday=999 fallback).",
+      "location": "ChampionshipDetail.jsx lines 345-351",
+      "note": "Existing matches may not have matchday values set in database"
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_12.json"
+  ],
+  "screenshots": [
+    ".screenshots/login_page_features.png",
+    ".screenshots/dashboard_sidebar_logo.png",
+    ".screenshots/stats_page_no_5i.png",
+    ".screenshots/calendar_page.png",
+    ".screenshots/calendar_dropdown_menu.png",
+    ".screenshots/championship_detail_page.png",
+    ".screenshots/add_match_dialog_jornada.png"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only testing)",
+    "frontend": "100% (all 6 features working)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@example.com",
+    "admin_password": "test123456"
+  },
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 12 UI improvements fully functional: 1) Green logo (logoVerdTransp.png) displays on login and sidebar with theme adaptation, 2) Language selector on login page switches between PT/EN, 3) Stats page removed 5I column - now shows N.º, Nome, G, AG, D, Pe, LD and cards, 4) Calendar dropdown menu has all convocation options (Editar, Convocar Jogadores, Ver Estado Convocatória), 5) Championship Add Match dialog has Jornada field, 6) Frontend sorts matches by matchday. Note: Existing matches may not have matchday values set.",
+  "mocked_apis": {
+    "email_notifications": "MOCKED - Resend API not configured"
+  }
+}
