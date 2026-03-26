@@ -2,6 +2,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTeam } from '../../context/TeamContext';
+import { useTheme } from '../../context/ThemeContext';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { ScrollArea } from '../ui/scroll-area';
@@ -38,10 +39,11 @@ import { useState } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
 import { toast } from 'sonner';
 
-// Custom Logo Component
+// Custom Logo URL
 const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/tuf2zwjm_Logo.png";
 
-const StickProLogo = ({ size = 'md' }) => {
+// Theme-aware Logo Component
+const StickProLogo = ({ size = 'md', isDark = false }) => {
   const sizes = {
     sm: { box: 'w-8 h-8' },
     md: { box: 'w-10 h-10' },
@@ -53,7 +55,10 @@ const StickProLogo = ({ size = 'md' }) => {
     <img 
       src={CUSTOM_LOGO_URL} 
       alt="Logo" 
-      className={`${s.box} object-contain`}
+      className={`${s.box} object-contain transition-all duration-300`}
+      style={{
+        filter: isDark ? 'brightness(1.4) contrast(1.1) saturate(1.3)' : 'none'
+      }}
       data-testid="stick-pro-logo"
     />
   );
@@ -73,6 +78,8 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
   } = useAuth();
   const { t } = useLanguage();
   const { selectedTeam: contextSelectedTeam, isAllTeamsSelected } = useTeam();
+  const { theme } = useTheme();
+  const isDarkTheme = theme?.mode === 'dark';
   const location = useLocation();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
