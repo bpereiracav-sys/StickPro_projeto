@@ -6,8 +6,9 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 ## Branding
 - **Nome**: StickPro
 - **Tagline**: Gestão de Hóquei
-- **Logo**: Stick de hóquei azul estilizado
-- **URL Logo**: https://static.prod-images.emergentagent.com/jobs/d39c85da-551e-47cd-abe4-e0c16122ddb6/images/0327f0512a725879e3e9730c371dab74d12bc7910dd11250c0a4a7862d160c05.png
+- **Logo**: "SP" branco sobre fundo azul vibrante (quadrado com cantos arredondados)
+- **URL Logo**: https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/tuf2zwjm_Logo.png
+- **Atualizado**: 26 Mar 2026 - Logo personalizado substituído em Sidebar, TopNavBar, Login e Landing pages
 
 ---
 

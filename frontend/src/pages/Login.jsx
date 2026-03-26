@@ -8,19 +8,24 @@ import { toast } from 'sonner';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import ProfileSelectionModal from '../components/profile/ProfileSelectionModal';
 
-// StickPro Logo Component
+// Custom Logo Component
+const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/tuf2zwjm_Logo.png";
+
 const StickProLogo = ({ size = 'md' }) => {
   const sizes = {
-    sm: { box: 'w-8 h-8', text: 'text-sm' },
-    md: { box: 'w-10 h-10', text: 'text-xl' },
-    lg: { box: 'w-12 h-12', text: 'text-2xl' }
+    sm: { box: 'w-8 h-8' },
+    md: { box: 'w-10 h-10' },
+    lg: { box: 'w-12 h-12' }
   };
   const s = sizes[size] || sizes.md;
   
   return (
-    <div className={`${s.box} bg-primary rounded-sm flex items-center justify-center`}>
-      <span className={`text-white font-heading ${s.text} font-bold`}>SP</span>
-    </div>
+    <img 
+      src={CUSTOM_LOGO_URL} 
+      alt="Logo" 
+      className={`${s.box} object-contain`}
+      data-testid="stick-pro-logo"
+    />
   );
 };
 
