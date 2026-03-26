@@ -374,6 +374,18 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Nomes de equipas com truncate
   - Flex-wrap nos badges do header
 
+### Melhorias Estatísticas e Pavilhão (26 Mar 2026) ✅
+- **Menu Estatísticas - Novos Campos:** ✅ TESTADO
+  - Card "Golos Sofridos" (vermelho com ícone Shield)
+  - Secção "Últimos 5 Jogos" com círculos coloridos V/E/D
+  - Círculos clicáveis que navegam para página de stats do jogo
+  - Formato Pe (Penáltis) como "marcados/tentativas"
+  - Formato LD (Livres Diretos) como "marcados/tentativas"
+- **Definições do Clube - Pavilhão:** ✅ TESTADO
+  - Campo "Nome do Pavilhão"
+  - Campo "Localização do Pavilhão"
+  - Exibição na secção "PAVILHÃO" da página do clube
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
@@ -382,8 +394,8 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - Configurar API Key Resend para emails reais (atualmente MOCKED)
 - Atualizar Import Excel com campos: Nome, Apelido, Data Nascimento, Email, Função
 - Web Scraping Opção A (divisões específicas APL)
-- Expandir traduções i18n para restantes páginas
 
 ### P2 - Futuro
 - Dashboard com métricas e gráficos
 - Exportar calendário em PDF
+- Expandir traduções i18n para restantes páginas
