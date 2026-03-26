@@ -6,9 +6,9 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 ## Branding
 - **Nome**: StickPro
 - **Tagline**: Gestão de Hóquei
-- **Logo**: "SP" branco sobre fundo azul vibrante (quadrado com cantos arredondados)
-- **URL Logo**: https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/tuf2zwjm_Logo.png
-- **Atualizado**: 26 Mar 2026 - Logo personalizado substituído em Sidebar, TopNavBar, Login e Landing pages
+- **Logo**: Logo verde transparente com adaptação ao tema (brightness filter no modo escuro)
+- **URL Logo**: https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/6xtd360b_logoVerdTransp.png
+- **Atualizado**: 26 Mar 2026 - Logo verde personalizado em toda a aplicação (Sidebar, TopNavBar, Login, Landing)
 
 ---
 
@@ -91,6 +91,43 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - `GET /api/teams/{team_id}/attendance` - Presenças por equipa (com filtros)
 - `GET /api/teams/{team_id}/attendance/summary` - Resumo de presenças
 - `GET /api/events/{event_id}/attendance` - Presenças por evento
+
+---
+
+### FASE 12 - Melhorias UI/UX ✅ (26 Mar 2026)
+
+**Logo e Branding:**
+- Logo verde transparente (`logoVerdTransp.png`) em toda a aplicação
+- Adaptação automática ao tema (brightness filter no modo escuro)
+- Localizações: Sidebar, TopNavBar, Login, Landing
+
+**Internacionalização:**
+- Seletor de idioma na página de Login (dropdown)
+- Idiomas disponíveis: Português (🇵🇹) e English (🇬🇧)
+- Mudança dinâmica de idioma
+
+**Calendário - Funcionalidades Avançadas:**
+- Menu dropdown em cada evento com opções:
+  - Editar
+  - Convocar Jogadores
+  - Ver Estado Convocatória (mostra presentes/ausentes/pendentes)
+  - Adiar/Cancelar/Eliminar
+- Diálogo de estado da convocatória com:
+  - Cards de resumo (presentes, ausentes, pendentes)
+  - Lista de jogadores com estado
+
+**Competições - Melhorias:**
+- Campo "Jornada" ao criar/editar jogo
+- Ordenação automática dos jogos por jornada
+- Badge visual "J1", "J2", etc. na lista de jogos
+
+**Estatísticas:**
+- Coluna 5I (5 Iniciais) removida da tabela de estatísticas individuais
+- Legenda atualizada
+
+**Dashboard:**
+- Badge de notificações no menu Home (Sidebar)
+- Mostra contagem de convocatórias pendentes
 
 ---
 
