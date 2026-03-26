@@ -175,6 +175,28 @@ body.dark-theme {
     color-scheme: dark;
 }
 
+/* Dark theme: Titles and headings in primary (neon green), body text in white */
+body.dark-theme h1,
+body.dark-theme h2,
+body.dark-theme h3,
+body.dark-theme h4,
+body.dark-theme h5,
+body.dark-theme h6,
+body.dark-theme .font-heading {
+    color: hsl(var(--primary)) !important;
+}
+
+/* Dark theme: Card titles in primary color */
+body.dark-theme [class*="CardTitle"],
+body.dark-theme [class*="CardStripeTitle"] {
+    color: hsl(var(--primary)) !important;
+}
+
+/* Dark theme: Sidebar active item and icons */
+body.dark-theme .text-primary {
+    color: hsl(var(--primary)) !important;
+}
+
 body.dark-theme .bg-amber-50 {
     background-color: rgba(251, 191, 36, 0.1);
 }
@@ -198,5 +220,24 @@ body.dark-theme .bg-blue-50 {
 @layer base {
     [data-debug-wrapper="true"] {
         display: contents !important;
+    }
+}
+
+/* Hide Emergent badge on mobile to not overlap with AI Assistant button and bottom nav */
+@media (max-width: 1024px) {
+    #emergent-badge {
+        display: none !important;
+        visibility: hidden !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+    }
+}
+
+/* On desktop, move badge to top-right to avoid overlap */
+@media (min-width: 1025px) {
+    #emergent-badge {
+        bottom: auto !important;
+        top: 16px !important;
+        right: 280px !important;
     }
 }

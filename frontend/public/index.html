@@ -27,6 +27,23 @@
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
         
         <title>Stick Pro</title>
+        <style>
+            /* Hide Emergent badge on mobile */
+            @media (max-width: 1024px) {
+                #emergent-badge {
+                    display: none !important;
+                    visibility: hidden !important;
+                }
+            }
+            /* Move badge to top on desktop */
+            @media (min-width: 1025px) {
+                #emergent-badge {
+                    bottom: auto !important;
+                    top: 16px !important;
+                    right: 280px !important;
+                }
+            }
+        </style>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
         <script src="https://assets.emergent.sh/scripts/emergent-main.js"></script>
     </head>

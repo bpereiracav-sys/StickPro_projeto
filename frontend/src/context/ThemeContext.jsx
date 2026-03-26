@@ -76,17 +76,17 @@ export function ThemeProvider({ children }) {
       document.body.classList.add('dark-theme');
       document.body.classList.remove('light-theme');
       
-      // Dark mode base colors
+      // Dark mode base colors - white text for body, green only for titles
       root.style.setProperty('--background', '0 0% 7%'); // #111111
-      root.style.setProperty('--foreground', '120 100% 54%'); // Neon green text
+      root.style.setProperty('--foreground', '0 0% 95%'); // White text for body
       root.style.setProperty('--card', '0 0% 13%'); // Dark gray cards
-      root.style.setProperty('--card-foreground', '120 100% 54%');
+      root.style.setProperty('--card-foreground', '0 0% 95%'); // White text in cards
       root.style.setProperty('--popover', '0 0% 10%');
-      root.style.setProperty('--popover-foreground', '120 100% 54%');
+      root.style.setProperty('--popover-foreground', '0 0% 95%');
       root.style.setProperty('--muted', '0 0% 20%');
-      root.style.setProperty('--muted-foreground', '120 40% 60%');
+      root.style.setProperty('--muted-foreground', '0 0% 65%'); // Gray muted text
       root.style.setProperty('--accent', '0 0% 18%');
-      root.style.setProperty('--accent-foreground', '120 100% 54%');
+      root.style.setProperty('--accent-foreground', '0 0% 95%');
       root.style.setProperty('--border', '0 0% 25%');
       root.style.setProperty('--input', '0 0% 20%');
     } else {

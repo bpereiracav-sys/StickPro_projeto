@@ -401,6 +401,10 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Ícones: Calendário, Mensagens, Membros, Estatísticas, Perfil
   - Fixa no fundo do ecrã em smartphones
   - Safe area para dispositivos com notch
+- **Ajustes de Cores no Tema Escuro:** ✅
+  - Apenas títulos (h1-h6, font-heading) em verde neon
+  - Texto normal em branco para melhor legibilidade
+  - Badge "Made with Emergent" oculto em mobile, movido para topo em desktop
 
 ---
 
