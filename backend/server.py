@@ -1358,12 +1358,16 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
         import secrets
         for row in rows:
             try:
-                # Campos obrigatórios: Nome, Apelido, Data Nascimento, Email, Função
-                nome = row.get('nome') or row.get('name') or row.get('Nome') or ""
-                apelido = row.get('apelido') or row.get('Apelido') or row.get('surname') or ""
-                data_nascimento = row.get('data_nascimento') or row.get('Data de Nascimento') or row.get('nascimento') or ""
-                email = row.get('email') or row.get('Email') or row.get('email_contacto') or ""
-                funcao = row.get('funcao') or row.get('Função') or row.get('role') or 'jogador'
+                # Campos: Nome, Apelido, Data de Nascimento, Email, Função
+                # Suporta várias variações de nomes de colunas
+                nome = row.get('Nome') or row.get('nome') or row.get('name') or row.get('first_name') or ""
+                apelido = row.get('Apelido') or row.get('apelido') or row.get('surname') or row.get('last_name') or ""
+                data_nascimento = row.get('Data de Nascimento') or row.get('data_nascimento') or row.get('nascimento') or row.get('birth_date') or ""
+                email = row.get('Email') or row.get('email') or row.get('email_contacto') or ""
+                funcao = row.get('Função') or row.get('funcao') or row.get('role') or row.get('função') or 'jogador'
+                numero = row.get('Número') or row.get('numero') or row.get('n') or row.get('jersey') or ""
+                posicao = row.get('Posição') or row.get('posicao') or row.get('position') or ""
+                telefone = row.get('Telefone') or row.get('telefone') or row.get('phone') or row.get('contacto') or ""
                 
                 # Combinar nome e apelido
                 full_name = f"{nome} {apelido}".strip() if apelido else nome.strip()
@@ -1409,12 +1413,12 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
                     "team_ids": [team_id] if team_id else [],
                     "profile": {
                         "sports_info": {
-                            "jersey_number": str(row.get('numero') or row.get('Número') or row.get('n') or ""),
-                            "position": row.get('posicao') or row.get('Posição') or ""
+                            "jersey_number": str(numero).strip() if numero else "",
+                            "position": str(posicao).strip() if posicao else ""
                         },
                         "identity": {
-                            "phone": row.get('telefone') or row.get('Telefone') or row.get('contacto') or "",
-                            "birth_date": str(data_nascimento) if data_nascimento else ""
+                            "phone": str(telefone).strip() if telefone else "",
+                            "birth_date": str(data_nascimento).strip() if data_nascimento else ""
                         }
                     },
                     "created_at": datetime.now(timezone.utc).isoformat()
@@ -2015,6 +2019,190 @@ async def get_match_gamesheet_stats(match_id: str, current_user: dict = Depends(
         "player_stats": match.get('gamesheet_player_stats', []),
         "raw_data": match.get('gamesheet_raw_data', {})
     }
+
+
+class APLCalendarImport(BaseModel):
+    """Import championship calendar from APL website"""
+    url: str  # URL of the APL division calendar page
+    championship_id: str
+
+@api_router.post("/championships/import-apl-calendar")
+async def import_apl_calendar(data: APLCalendarImport, current_user: dict = Depends(get_current_user)):
+    """Import matches calendar from APL division page"""
+    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    # Verify championship exists
+    championship = await db.championships.find_one({"id": data.championship_id}, {"_id": 0})
+    if not championship:
+        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+    
+    team_id = championship.get('team_id')
+    
+    # Fetch the APL calendar page
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.get(data.url)
+            response.raise_for_status()
+            html = response.text
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao aceder ao calendário APL: {str(e)}")
+    
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    matches_imported = 0
+    matches_data = []
+    
+    try:
+        # Find all match rows in the calendar tables
+        # APL calendars typically have tables with match info
+        tables = soup.find_all('table')
+        
+        for table in tables:
+            rows = table.find_all('tr')
+            current_matchday = None
+            
+            for row in rows:
+                cells = row.find_all(['td', 'th'])
+                row_text = row.get_text(strip=True)
+                
+                # Check for matchday header (e.g., "Jornada 1", "J1", "1ª Jornada")
+                matchday_match = re.search(r'[Jj]ornada\s*(\d+)|[Jj](\d+)|(\d+)[ªº]?\s*[Jj]ornada', row_text)
+                if matchday_match:
+                    current_matchday = int(matchday_match.group(1) or matchday_match.group(2) or matchday_match.group(3))
+                    continue
+                
+                # Skip header rows
+                if len(cells) < 3:
+                    continue
+                
+                # Try to extract match info from cells
+                # Common patterns: [Date] [Time] [Home Team] [Score/vs] [Away Team] [Venue]
+                cell_texts = [cell.get_text(strip=True) for cell in cells]
+                
+                # Look for date pattern (DD/MM/YYYY or DD-MM-YYYY)
+                date_str = None
+                time_str = None
+                home_team = None
+                away_team = None
+                venue = None
+                score_home = None
+                score_away = None
+                
+                for i, text in enumerate(cell_texts):
+                    # Date pattern
+                    date_match = re.search(r'(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})', text)
+                    if date_match:
+                        day, month, year = date_match.groups()
+                        if len(year) == 2:
+                            year = "20" + year
+                        date_str = f"{year}-{month.zfill(2)}-{day.zfill(2)}"
+                        continue
+                    
+                    # Time pattern
+                    time_match = re.search(r'(\d{1,2})[h:.](\d{2})', text)
+                    if time_match and not date_str:
+                        time_str = f"{time_match.group(1).zfill(2)}:{time_match.group(2)}"
+                        continue
+                    
+                    # Score pattern (e.g., "3-2", "3 - 2")
+                    score_match = re.search(r'^(\d+)\s*[-x]\s*(\d+)$', text)
+                    if score_match:
+                        score_home = int(score_match.group(1))
+                        score_away = int(score_match.group(2))
+                        continue
+                    
+                    # Team names (non-empty text that's not date/time/score)
+                    if text and len(text) >= 2 and not date_match and not time_match and not score_match:
+                        if text.lower() not in ['vs', 'x', '-', 'local', 'hora', 'data', 'resultado']:
+                            if not home_team:
+                                home_team = text
+                            elif not away_team:
+                                away_team = text
+                            elif not venue and len(text) > 3:
+                                venue = text
+                
+                # Create match if we have minimum required data
+                if home_team and away_team and date_str:
+                    match_data = {
+                        "home_team": home_team,
+                        "away_team": away_team,
+                        "date": date_str,
+                        "time": time_str or "15:00",
+                        "matchday": current_matchday,
+                        "venue": venue,
+                        "score_home": score_home,
+                        "score_away": score_away
+                    }
+                    matches_data.append(match_data)
+        
+        # Import matches to database
+        club = await db.clubs.find_one({}, {"_id": 0, "id": 1, "name": 1})
+        club_name = club.get('name', '') if club else ''
+        team = await db.teams.find_one({"id": team_id}, {"_id": 0, "name": 1})
+        team_name = team.get('name', '') if team else ''
+        
+        for match_data in matches_data:
+            # Determine if this is a club match
+            is_club_match = (
+                club_name.lower() in match_data['home_team'].lower() or
+                club_name.lower() in match_data['away_team'].lower() or
+                team_name.lower() in match_data['home_team'].lower() or
+                team_name.lower() in match_data['away_team'].lower()
+            )
+            
+            # Determine location (home/away/neutral)
+            location = 'casa'
+            if is_club_match:
+                if club_name.lower() in match_data['home_team'].lower() or team_name.lower() in match_data['home_team'].lower():
+                    location = 'casa'
+                else:
+                    location = 'fora'
+            
+            # Create match record
+            match_id = str(uuid.uuid4())
+            match_datetime = f"{match_data['date']}T{match_data['time']}:00"
+            
+            match_doc = {
+                "id": match_id,
+                "championship_id": data.championship_id,
+                "team_id": team_id,
+                "home_team": match_data['home_team'] if not is_club_match else None,
+                "opponent_team": match_data['away_team'] if is_club_match and location == 'casa' else match_data['home_team'],
+                "match_date": match_datetime,
+                "location": location,
+                "venue": match_data['venue'],
+                "is_club_match": is_club_match,
+                "matchday": match_data['matchday'],
+                "home_score": match_data['score_home'],
+                "away_score": match_data['score_away'],
+                "is_completed": match_data['score_home'] is not None,
+                "imported_from_apl": True,
+                "apl_import_url": data.url,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            # Check if match already exists (same teams and date)
+            existing = await db.championship_matches.find_one({
+                "championship_id": data.championship_id,
+                "match_date": match_datetime
+            })
+            
+            if not existing:
+                await db.championship_matches.insert_one(match_doc)
+                matches_imported += 1
+        
+    except Exception as e:
+        logging.error(f"Error parsing APL calendar: {e}")
+        raise HTTPException(status_code=400, detail=f"Erro ao processar calendário APL: {str(e)}")
+    
+    return {
+        "message": f"Calendário APL importado com sucesso",
+        "matches_found": len(matches_data),
+        "matches_imported": matches_imported,
+        "matches_skipped": len(matches_data) - matches_imported
+    }
+
 
 # =====================
 # Match Lineup Endpoints (for coaches)

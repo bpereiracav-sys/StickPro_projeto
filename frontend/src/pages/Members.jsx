@@ -303,8 +303,8 @@ export default function Members() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "nome,email,funcao,numero,posicao,telefone\nJoão Silva,joao@exemplo.com,jogador,10,JC,912345678\nMaria Santos,maria@exemplo.com,jogador,1,GR,923456789";
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csvContent = "Nome,Apelido,Data de Nascimento,Email,Função,Número,Posição,Telefone\nJoão,Silva,2010-05-15,joao@exemplo.com,jogador,10,JC,912345678\nMaria,Santos,2009-03-22,maria@exemplo.com,jogador,1,GR,923456789\nPedro,Costa,2011-08-10,pedro@exemplo.com,jogador,7,AD,934567890";
+    const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'template_membros.csv';
@@ -733,7 +733,13 @@ export default function Members() {
 
             <div className="text-sm text-muted-foreground">
               <p className="font-medium mb-1">Colunas esperadas:</p>
-              <code className="text-xs bg-muted px-2 py-1 rounded">nome, email, funcao, numero, posicao, telefone</code>
+              <code className="text-xs bg-muted px-2 py-1 rounded block">Nome, Apelido, Data de Nascimento, Email, Função</code>
+              <p className="text-xs mt-2 text-muted-foreground">
+                Colunas opcionais: Número, Posição, Telefone
+              </p>
+              <p className="text-xs mt-1">
+                <strong>Funções válidas:</strong> jogador, treinador, treinador adjunto, delegado, responsável
+              </p>
             </div>
           </div>
           <DialogFooter>

@@ -62,6 +62,9 @@ export default function ChampionshipDetail() {
   const [gamesheetUrl, setGamesheetUrl] = useState('');
   const [lineupDialogOpen, setLineupDialogOpen] = useState(false);
   const [lineupMatch, setLineupMatch] = useState(null);
+  const [aplImportDialogOpen, setAplImportDialogOpen] = useState(false);
+  const [aplCalendarUrl, setAplCalendarUrl] = useState('');
+  const [importingApl, setImportingApl] = useState(false);
   
   const [matchForm, setMatchForm] = useState({
     home_team: '',
@@ -252,6 +255,43 @@ export default function ChampionshipDetail() {
       toast.error(error.message);
     } finally {
       setImporting(false);
+    }
+  };
+
+  const handleImportAplCalendar = async () => {
+    if (!aplCalendarUrl) {
+      toast.error('Insira o URL do calendário APL');
+      return;
+    }
+    setImportingApl(true);
+
+    try {
+      const response = await fetch(`${API_URL}/api/championships/import-apl-calendar`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          url: aplCalendarUrl,
+          championship_id: championshipId
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.detail || 'Erro ao importar calendário');
+      }
+
+      const data = await response.json();
+      toast.success(`${data.message}: ${data.matches_imported} jogos importados`);
+      setAplImportDialogOpen(false);
+      setAplCalendarUrl('');
+      fetchData();
+    } catch (error) {
+      toast.error(error.message);
+    } finally {
+      setImportingApl(false);
     }
   };
 
