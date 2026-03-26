@@ -1,0 +1,68 @@
+{
+  "summary": "Phase 10 Testing: External Matches (is_club_match=false), Mobile UI, and APL Stats Format. All features tested and working correctly. Backend: 8/8 tests pass (100%). Frontend: All features verified via Playwright.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "external_matches": {
+      "status": "PASS",
+      "description": "External matches (is_club_match=false) can be created via 'Tipo de Jogo' dropdown. Options: 'Jogo da nossa equipa' (club match) and 'Jogo entre outras equipas (classificação)' (external match). When external match selected, 'Equipa da Casa' input appears. External matches show both team names (e.g., 'CD Paço Arcos A vs CACO A') with 'Externo' badge.",
+      "data_testid": "match-type-select, match-home-team-input"
+    },
+    "external_match_badge": {
+      "status": "PASS",
+      "description": "External matches display 'Externo' badge (blue bg-blue-50 styling) in match list. Badge visible on both desktop and mobile views.",
+      "data_testid": "match-{matchId}"
+    },
+    "standings_with_external_teams": {
+      "status": "PASS",
+      "description": "Standings calculation correctly includes external teams. All teams from external matches appear in standings table with correct stats (J, V, E, D, GM, GS, DG, Pts). Tested with CD Paço Arcos A, CACO A, AE Física D A, Escolares, FSE/AJ Salesiana.",
+      "data_testid": "standings tab"
+    },
+    "mobile_responsive_ui": {
+      "status": "PASS",
+      "description": "ChampionshipDetail page is mobile responsive (tested at 375x667). Features: compact buttons (icons only), truncated team names, flex-wrap for badges, proper spacing. Match cards stack vertically with action buttons in row.",
+      "viewport": "375x667"
+    },
+    "stats_apl_format": {
+      "status": "PASS",
+      "description": "Stats table uses APL format with columns: N.º (jersey), 5I (starting 5), Nome, G (goals), AG (auto-goals), D (saves), Pe (penalties), LD (direct free kicks), and colored card indicators (yellow, blue, red). Card columns show colored boxes with count.",
+      "data_testid": "stats-page"
+    },
+    "login_flow": {
+      "status": "PASS",
+      "description": "Login with admin@example.com / test123456 works correctly. Redirects to dashboard after successful login.",
+      "data_testid": "login form"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_external_matches.py",
+    "/app/test_reports/pytest/external_matches_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [],
+  "updated_files": [
+    "/app/backend/tests/test_external_matches.py"
+  ],
+  "success_rate": {
+    "backend": "100% (8/8 tests passed)",
+    "frontend": "100% (all 6 features working)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@example.com",
+    "admin_password": "test123456"
+  },
+  "seed_data_creation": "TEST_ prefixed external matches created and cleaned up during backend testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Phase 10 features fully functional: 1) External matches (is_club_match=false) - Create via 'Tipo de Jogo' dropdown, shows 'Externo' badge, 2) Standings include all external teams with correct calculations, 3) Mobile UI responsive with compact buttons and proper layout, 4) Stats page uses APL format (N.º, 5I, Nome, G, AG, D, Pe, LD, colored cards). Championship ID for testing: 909d5f9b-1087-4265-94ff-c7c44a3e84ed. Existing external match: CD Paço Arcos A vs CACO A (4-2).",
+  "mocked_apis": {
+    "email_notifications": "MOCKED - Resend API not configured"
+  }
+}

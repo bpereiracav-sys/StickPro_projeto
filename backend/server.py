@@ -423,6 +423,8 @@ class ChampionshipMatchCreate(BaseModel):
     location: MatchLocation
     venue: Optional[str] = None
     is_club_match: bool = True  # Se é jogo da equipa do clube ou jogo entre outras equipas
+    bonus_points: int = 0
+    penalty_points: int = 0
 
 class ChampionshipMatch(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -1470,10 +1472,14 @@ async def create_championship_match(championship_id: str, data: ChampionshipMatc
     match = ChampionshipMatch(
         championship_id=championship_id,
         team_id=championship['team_id'],
+        home_team=data.home_team,
         opponent_team=data.opponent_team,
         match_date=data.match_date,
         location=data.location,
-        venue=data.venue
+        venue=data.venue,
+        is_club_match=data.is_club_match,
+        bonus_points=data.bonus_points,
+        penalty_points=data.penalty_points
     )
     
     match_dict = match.model_dump()
@@ -2007,57 +2013,101 @@ async def get_championship_standings(championship_id: str, current_user: dict = 
     
     # Build standings
     standings = {}
-    team_name = (await db.teams.find_one({"id": championship['team_id']}, {"_id": 0, "name": 1}))['name']
+    team_data = await db.teams.find_one({"id": championship['team_id']}, {"_id": 0, "name": 1})
+    our_team_name = team_data['name'] if team_data else "Nossa Equipa"
     
     # Initialize our team
-    standings[team_name] = {"team": team_name, "played": 0, "won": 0, "drawn": 0, "lost": 0, "goals_for": 0, "goals_against": 0, "bonus": 0, "penalty": 0, "points": 0}
+    standings[our_team_name] = {"team": our_team_name, "played": 0, "won": 0, "drawn": 0, "lost": 0, "goals_for": 0, "goals_against": 0, "bonus": 0, "penalty": 0, "points": 0}
     
-    # Initialize opponents
+    # Initialize all teams from matches (including external teams)
     for match in matches:
-        opp = match['opponent_team']
-        if opp not in standings:
-            standings[opp] = {"team": opp, "played": 0, "won": 0, "drawn": 0, "lost": 0, "goals_for": 0, "goals_against": 0, "bonus": 0, "penalty": 0, "points": 0}
+        is_club_match = match.get('is_club_match', True)
+        
+        if is_club_match:
+            # For club matches, add opponent
+            opp = match['opponent_team']
+            if opp not in standings:
+                standings[opp] = {"team": opp, "played": 0, "won": 0, "drawn": 0, "lost": 0, "goals_for": 0, "goals_against": 0, "bonus": 0, "penalty": 0, "points": 0}
+        else:
+            # For external matches, add both teams
+            home_team = match.get('home_team', 'Equipa A')
+            away_team = match['opponent_team']
+            if home_team not in standings:
+                standings[home_team] = {"team": home_team, "played": 0, "won": 0, "drawn": 0, "lost": 0, "goals_for": 0, "goals_against": 0, "bonus": 0, "penalty": 0, "points": 0}
+            if away_team not in standings:
+                standings[away_team] = {"team": away_team, "played": 0, "won": 0, "drawn": 0, "lost": 0, "goals_for": 0, "goals_against": 0, "bonus": 0, "penalty": 0, "points": 0}
     
     # Calculate stats
     for match in matches:
         home_score = match.get('home_score', 0)
         away_score = match.get('away_score', 0)
-        opp = match['opponent_team']
-        loc = match.get('location', 'casa')
         bonus = match.get('bonus_points', 0)
         penalty = match.get('penalty_points', 0)
+        is_club_match = match.get('is_club_match', True)
         
-        # Our team stats
-        if loc == 'casa':
-            our_goals = home_score
-            their_goals = away_score
+        if is_club_match:
+            # Club match: our team vs opponent
+            opp = match['opponent_team']
+            loc = match.get('location', 'casa')
+            
+            if loc == 'casa':
+                our_goals = home_score
+                their_goals = away_score
+            else:
+                our_goals = away_score
+                their_goals = home_score
+            
+            standings[our_team_name]['played'] += 1
+            standings[our_team_name]['goals_for'] += our_goals
+            standings[our_team_name]['goals_against'] += their_goals
+            standings[our_team_name]['bonus'] += bonus
+            standings[our_team_name]['penalty'] += penalty
+            
+            standings[opp]['played'] += 1
+            standings[opp]['goals_for'] += their_goals
+            standings[opp]['goals_against'] += our_goals
+            
+            if our_goals > their_goals:
+                standings[our_team_name]['won'] += 1
+                standings[our_team_name]['points'] += 3
+                standings[opp]['lost'] += 1
+            elif our_goals < their_goals:
+                standings[our_team_name]['lost'] += 1
+                standings[opp]['won'] += 1
+                standings[opp]['points'] += 3
+            else:
+                standings[our_team_name]['drawn'] += 1
+                standings[our_team_name]['points'] += 1
+                standings[opp]['drawn'] += 1
+                standings[opp]['points'] += 1
         else:
-            our_goals = away_score
-            their_goals = home_score
-        
-        standings[team_name]['played'] += 1
-        standings[team_name]['goals_for'] += our_goals
-        standings[team_name]['goals_against'] += their_goals
-        standings[team_name]['bonus'] += bonus
-        standings[team_name]['penalty'] += penalty
-        
-        standings[opp]['played'] += 1
-        standings[opp]['goals_for'] += their_goals
-        standings[opp]['goals_against'] += our_goals
-        
-        if our_goals > their_goals:
-            standings[team_name]['won'] += 1
-            standings[team_name]['points'] += 3
-            standings[opp]['lost'] += 1
-        elif our_goals < their_goals:
-            standings[team_name]['lost'] += 1
-            standings[opp]['won'] += 1
-            standings[opp]['points'] += 3
-        else:
-            standings[team_name]['drawn'] += 1
-            standings[team_name]['points'] += 1
-            standings[opp]['drawn'] += 1
-            standings[opp]['points'] += 1
+            # External match: two external teams
+            home_team = match.get('home_team', 'Equipa A')
+            away_team = match['opponent_team']
+            
+            standings[home_team]['played'] += 1
+            standings[home_team]['goals_for'] += home_score
+            standings[home_team]['goals_against'] += away_score
+            standings[home_team]['bonus'] += bonus
+            standings[home_team]['penalty'] += penalty
+            
+            standings[away_team]['played'] += 1
+            standings[away_team]['goals_for'] += away_score
+            standings[away_team]['goals_against'] += home_score
+            
+            if home_score > away_score:
+                standings[home_team]['won'] += 1
+                standings[home_team]['points'] += 3
+                standings[away_team]['lost'] += 1
+            elif home_score < away_score:
+                standings[home_team]['lost'] += 1
+                standings[away_team]['won'] += 1
+                standings[away_team]['points'] += 3
+            else:
+                standings[home_team]['drawn'] += 1
+                standings[home_team]['points'] += 1
+                standings[away_team]['drawn'] += 1
+                standings[away_team]['points'] += 1
     
     # Apply bonus/penalty
     for team in standings.values():
