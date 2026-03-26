@@ -46,9 +46,9 @@ const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-ho
 // Theme-aware Logo Component - uses CSS filters to adapt colors
 const StickProLogo = ({ size = 'md', isDark = false }) => {
   const sizes = {
-    sm: { box: 'w-8 h-8' },
-    md: { box: 'w-10 h-10' },
-    lg: { box: 'w-12 h-12' }
+    sm: { box: 'w-16 h-16' },
+    md: { box: 'w-20 h-20' },
+    lg: { box: 'w-24 h-24' }
   };
   const s = sizes[size] || sizes.md;
   
@@ -174,7 +174,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
           <img 
             src={CUSTOM_LOGO_URL} 
             alt="Logo" 
-            className="w-8 h-8 object-contain flex-shrink-0"
+            className="w-16 h-16 object-contain flex-shrink-0"
             style={{ filter: isDarkTheme ? 'brightness(1.5) saturate(1.2)' : 'none' }}
             data-testid="mobile-header-logo"
           />

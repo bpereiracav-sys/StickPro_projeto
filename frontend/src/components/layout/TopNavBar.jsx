@@ -34,9 +34,9 @@ const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-ho
 
 const StickProLogo = ({ size = 'md' }) => {
   const sizes = {
-    sm: { box: 'w-8 h-8' },
-    md: { box: 'w-10 h-10' },
-    lg: { box: 'w-12 h-12' }
+    sm: { box: 'w-16 h-16' },
+    md: { box: 'w-20 h-20' },
+    lg: { box: 'w-24 h-24' }
   };
   const s = sizes[size] || sizes.md;
   
