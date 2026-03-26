@@ -442,15 +442,16 @@ export default function CalendarPage() {
       // Create convocation via API
       await eventsApi.createConvocation(selectedEvent.id, {
         player_ids: selectedPlayers,
-        message: convocationMessage,
-        visible: convocationVisible
+        message: convocationMessage || null
       });
       toast.success(`Convocatória criada para ${selectedPlayers.length} jogadores!`);
       setConvocationDialogOpen(false);
+      setSelectedPlayers([]);
+      setConvocationMessage('');
     } catch (error) {
-      // If endpoint doesn't exist, show simplified success
-      toast.success(`Convocatória criada para ${selectedPlayers.length} jogadores!`);
-      setConvocationDialogOpen(false);
+      console.error('Convocation error:', error);
+      const message = error.response?.data?.detail || 'Erro ao criar convocatória';
+      toast.error(typeof message === 'string' ? message : 'Erro ao criar convocatória');
     }
   };
 
