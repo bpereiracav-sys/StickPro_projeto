@@ -78,7 +78,8 @@ import {
   HelpCircle,
   ClipboardCheck,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Repeat
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
 import { 
@@ -151,6 +152,21 @@ export default function CalendarPage() {
     opponent: '',
     status: 'scheduled' // scheduled, postponed, cancelled
   });
+
+  // Recurring event state
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringDays, setRecurringDays] = useState([]); // 0=Dom, 1=Seg, 2=Ter, etc.
+  const [recurringEndDate, setRecurringEndDate] = useState('');
+
+  const WEEKDAYS = [
+    { value: 1, label: 'Seg', fullLabel: 'Segunda' },
+    { value: 2, label: 'Ter', fullLabel: 'Terça' },
+    { value: 3, label: 'Qua', fullLabel: 'Quarta' },
+    { value: 4, label: 'Qui', fullLabel: 'Quinta' },
+    { value: 5, label: 'Sex', fullLabel: 'Sexta' },
+    { value: 6, label: 'Sáb', fullLabel: 'Sábado' },
+    { value: 0, label: 'Dom', fullLabel: 'Domingo' }
+  ];
 
   // Fetch events when selected team changes
   useEffect(() => {
@@ -227,6 +243,26 @@ export default function CalendarPage() {
     setSelectedPlayers([]);
     setConvocationVisible(true);
     setConvocationMessage('');
+    setIsRecurring(false);
+    setRecurringDays([]);
+    setRecurringEndDate('');
+  };
+
+  // Generate dates for recurring events
+  const generateRecurringDates = (startDate, endDate, selectedDays) => {
+    const dates = [];
+    let currentDate = parseISO(startDate);
+    const lastDate = parseISO(endDate);
+    
+    while (currentDate <= lastDate) {
+      const dayOfWeek = currentDate.getDay(); // 0=Sunday, 1=Monday, etc.
+      if (selectedDays.includes(dayOfWeek)) {
+        dates.push(format(currentDate, 'yyyy-MM-dd'));
+      }
+      currentDate = addDays(currentDate, 1);
+    }
+    
+    return dates;
   };
 
   const handleCreateEvent = async () => {
@@ -235,19 +271,67 @@ export default function CalendarPage() {
       return;
     }
 
+    // Validate recurring events
+    if (isRecurring) {
+      if (recurringDays.length === 0) {
+        toast.error('Selecione pelo menos um dia da semana');
+        return;
+      }
+      if (!recurringEndDate) {
+        toast.error('Selecione a data de fim do período');
+        return;
+      }
+    }
+
     setCreating(true);
     try {
-      const eventData = {
-        ...formData,
-        start_time: `${formData.date}T${formData.start_time}:00`,
-        end_time: `${formData.date}T${formData.end_time}:00`
-      };
+      if (isRecurring && recurringDays.length > 0 && recurringEndDate) {
+        // Generate all dates for recurring events
+        const dates = generateRecurringDates(formData.date, recurringEndDate, recurringDays);
+        
+        if (dates.length === 0) {
+          toast.error('Nenhuma data encontrada para os dias selecionados');
+          setCreating(false);
+          return;
+        }
+
+        if (dates.length > 100) {
+          toast.error(`Demasiados eventos (${dates.length}). Limite máximo: 100`);
+          setCreating(false);
+          return;
+        }
+
+        // Create events for all dates
+        const createdEvents = [];
+        for (const date of dates) {
+          const eventData = {
+            ...formData,
+            date: date,
+            start_time: `${date}T${formData.start_time}:00`,
+            end_time: `${date}T${formData.end_time}:00`
+          };
+          
+          const response = await eventsApi.create(eventData);
+          createdEvents.push(response.data);
+        }
+        
+        setEvents(prev => [...prev, ...createdEvents]);
+        toast.success(`${createdEvents.length} eventos criados com sucesso!`);
+      } else {
+        // Single event
+        const eventData = {
+          ...formData,
+          start_time: `${formData.date}T${formData.start_time}:00`,
+          end_time: `${formData.date}T${formData.end_time}:00`
+        };
+        
+        const response = await eventsApi.create(eventData);
+        setEvents(prev => [...prev, response.data]);
+        toast.success('Evento criado com sucesso!');
+      }
       
-      const response = await eventsApi.create(eventData);
-      setEvents(prev => [...prev, response.data]);
       setCreateDialogOpen(false);
       resetForm();
-      toast.success('Evento criado com sucesso!');
     } catch (error) {
       const message = typeof error.response?.data?.detail === 'string' 
         ? error.response.data.detail 
@@ -922,6 +1006,90 @@ export default function CalendarPage() {
                 rows={3}
               />
             </div>
+
+            {/* Recurring Event Section - Only for Treino */}
+            {formData.event_type === 'treino' && (
+              <div className="space-y-4 p-4 border border-border rounded-sm bg-muted/30">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Repeat className="w-4 h-4 text-primary" />
+                    <Label className="font-medium">Evento Periódico</Label>
+                  </div>
+                  <Switch
+                    checked={isRecurring}
+                    onCheckedChange={setIsRecurring}
+                    data-testid="recurring-switch"
+                  />
+                </div>
+
+                {isRecurring && (
+                  <div className="space-y-4 pt-2">
+                    <div className="space-y-2">
+                      <Label className="text-sm">Repetir nos dias:</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {WEEKDAYS.map(day => (
+                          <Button
+                            key={day.value}
+                            type="button"
+                            variant={recurringDays.includes(day.value) ? "default" : "outline"}
+                            size="sm"
+                            className="w-10 h-10 p-0"
+                            onClick={() => {
+                              setRecurringDays(prev => 
+                                prev.includes(day.value) 
+                                  ? prev.filter(d => d !== day.value)
+                                  : [...prev, day.value]
+                              );
+                            }}
+                            data-testid={`day-${day.label}`}
+                          >
+                            {day.label}
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-sm">Data Início</Label>
+                        <Input
+                          type="date"
+                          value={formData.date}
+                          onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                          data-testid="recurring-start-date"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-sm">Data Fim</Label>
+                        <Input
+                          type="date"
+                          value={recurringEndDate}
+                          onChange={(e) => setRecurringEndDate(e.target.value)}
+                          min={formData.date}
+                          data-testid="recurring-end-date"
+                        />
+                      </div>
+                    </div>
+
+                    {recurringDays.length > 0 && recurringEndDate && (
+                      <div className="text-sm text-muted-foreground bg-blue-50 p-2 rounded-sm">
+                        <p>
+                          Serão criados treinos todas as{' '}
+                          <strong>
+                            {recurringDays
+                              .sort((a, b) => a - b)
+                              .map(d => WEEKDAYS.find(w => w.value === d)?.fullLabel)
+                              .join(', ')}
+                          </strong>
+                          {' '}de {format(parseISO(formData.date), "d 'de' MMMM", { locale: pt })} a{' '}
+                          {format(parseISO(recurringEndDate), "d 'de' MMMM 'de' yyyy", { locale: pt })}.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <DialogFooter>
