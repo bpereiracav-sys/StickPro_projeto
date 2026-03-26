@@ -370,7 +370,7 @@ export default function Stats() {
                               <TableHead className="text-center w-12">N.º</TableHead>
                               <TableHead>Nome</TableHead>
                               <TableHead className="text-center w-10" title="Golos">G</TableHead>
-                              <TableHead className="text-center w-10" title="Auto-Golos">AG</TableHead>
+                              <TableHead className="text-center w-10" title="Assistências para Golo">AG</TableHead>
                               <TableHead className="text-center w-10" title="Defesas">D</TableHead>
                               <TableHead className="text-center w-16" title="Penáltis (Marcados/Tentativas)">Pe</TableHead>
                               <TableHead className="text-center w-16" title="Livres Diretos (Marcados/Tentativas)">LD</TableHead>
@@ -414,7 +414,7 @@ export default function Stats() {
                                     {stat.goals || 0}
                                   </TableCell>
                                   <TableCell className="text-center font-mono text-muted-foreground">
-                                    {stat.own_goals || 0}
+                                    {stat.assists || 0}
                                   </TableCell>
                                   <TableCell className="text-center font-mono">
                                     {isGoalkeeper ? (stat.saves || 0) : '-'}
@@ -459,7 +459,7 @@ export default function Stats() {
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground mt-4">
-                      N.º = Número | G = Golos | AG = Auto-Golos | D = Defesas | Pe = Penáltis (marcados/tentativas) | LD = Livres Diretos (marcados/tentativas)
+                      N.º = Número | G = Golos | AG = Assistências para Golo | D = Defesas | Pe = Penáltis (marcados/tentativas) | LD = Livres Diretos (marcados/tentativas)
                     </p>
                   </CardContent>
                 </Card>

@@ -191,9 +191,17 @@ export default function CalendarPage() {
   const fetchTeamMembers = async (teamId) => {
     try {
       const response = await teamsApi.getMembers(teamId);
-      setTeamMembers(response.data.players || []);
+      // Filter only players from the response
+      const allMembers = response.data || [];
+      const players = allMembers.filter(m => 
+        m.role === 'jogador' || 
+        m.profile?.function === 'jogador' ||
+        m.profile?.sports_info?.function === 'jogador'
+      );
+      setTeamMembers(players);
     } catch (error) {
       console.error('Error fetching team members:', error);
+      setTeamMembers([]);
     }
   };
 
