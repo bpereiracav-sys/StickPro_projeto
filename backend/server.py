@@ -396,6 +396,8 @@ class ChampionshipCreate(BaseModel):
     format: ChampionshipFormat = "5x5"
     location: Optional[str] = None
     convocation_type: ConvocationType = "manual"
+    age_group: Optional[str] = None
+    competition_type: Optional[str] = "campeonato_distrital"
 
 class Championship(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -407,22 +409,27 @@ class Championship(BaseModel):
     format: ChampionshipFormat = "5x5"
     location: Optional[str] = None
     convocation_type: ConvocationType = "manual"
+    age_group: Optional[str] = None
+    competition_type: Optional[str] = "campeonato_distrital"
     participating_teams: List[str] = []
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ChampionshipMatchCreate(BaseModel):
     championship_id: str
-    opponent_team: str
+    home_team: Optional[str] = None  # Nome da equipa da casa (pode ser qualquer equipa)
+    opponent_team: str  # Nome da equipa visitante
     match_date: datetime
     location: MatchLocation
     venue: Optional[str] = None
+    is_club_match: bool = True  # Se é jogo da equipa do clube ou jogo entre outras equipas
 
 class ChampionshipMatch(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     championship_id: str
     team_id: str
+    home_team: Optional[str] = None
     opponent_team: str
     match_date: datetime
     location: MatchLocation
@@ -430,6 +437,7 @@ class ChampionshipMatch(BaseModel):
     home_score: Optional[int] = None
     away_score: Optional[int] = None
     is_completed: bool = False
+    is_club_match: bool = True
     bonus_points: int = 0
     penalty_points: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -717,9 +725,8 @@ def getRoleNamePt(role: str) -> str:
 
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate):
-    existing = await db.users.find_one({"email": user_data.email})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email já registado")
+    # Emails duplicados são permitidos (ex: pai com vários filhos)
+    # Cada conta é única pelo ID, não pelo email
     
     user = User(
         email=user_data.email, 
@@ -1240,10 +1247,7 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     if current_user['role'] not in ['admin', 'treinador']:
         raise HTTPException(status_code=403, detail="Sem permissão")
     
-    # Check if email exists
-    existing = await db.users.find_one({"email": data.email})
-    if existing:
-        raise HTTPException(status_code=400, detail="Email já registado")
+    # Emails duplicados são permitidos (ex: pai com vários filhos)
     
     # Create user with random password
     import secrets
@@ -1318,41 +1322,62 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, curr
         import secrets
         for row in rows:
             try:
-                name = row.get('nome') or row.get('name') or row.get('Nome') or ""
-                email = row.get('email') or row.get('Email') or ""
+                # Campos obrigatórios: Nome, Apelido, Data Nascimento, Email, Função
+                nome = row.get('nome') or row.get('name') or row.get('Nome') or ""
+                apelido = row.get('apelido') or row.get('Apelido') or row.get('surname') or ""
+                data_nascimento = row.get('data_nascimento') or row.get('Data de Nascimento') or row.get('nascimento') or ""
+                email = row.get('email') or row.get('Email') or row.get('email_contacto') or ""
+                funcao = row.get('funcao') or row.get('Função') or row.get('role') or 'jogador'
                 
-                if not name or not email:
+                # Combinar nome e apelido
+                full_name = f"{nome} {apelido}".strip() if apelido else nome.strip()
+                
+                if not full_name or not email:
                     results["errors"].append(f"Linha sem nome ou email: {row}")
                     continue
                 
-                # Check if exists
-                existing = await db.users.find_one({"email": email})
-                if existing:
-                    results["errors"].append(f"Email já existe: {email}")
-                    continue
+                # Emails duplicados são permitidos (ex: pai com vários filhos menores)
                 
                 temp_password = secrets.token_urlsafe(8)
                 hashed = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 
                 user_id = str(uuid.uuid4())
-                role = row.get('role') or row.get('funcao') or row.get('Função') or 'jogador'
-                if role not in ['admin', 'treinador', 'treinador_adjunto', 'delegado', 'jogador', 'responsavel']:
-                    role = 'jogador'
+                
+                # Normalizar função
+                funcao_map = {
+                    'administrador': 'admin',
+                    'admin': 'admin',
+                    'treinador': 'treinador',
+                    'coach': 'treinador',
+                    'treinador adjunto': 'treinador_adjunto',
+                    'adjunto': 'treinador_adjunto',
+                    'delegado': 'delegado',
+                    'jogador': 'jogador',
+                    'atleta': 'jogador',
+                    'player': 'jogador',
+                    'responsavel': 'responsavel',
+                    'responsável': 'responsavel',
+                    'pai': 'responsavel',
+                    'mãe': 'responsavel',
+                    'encarregado': 'responsavel',
+                }
+                role = funcao_map.get(funcao.lower().strip(), 'jogador') if funcao else 'jogador'
                 
                 user = {
                     "id": user_id,
-                    "name": name.strip(),
+                    "name": full_name,
                     "email": email.strip().lower(),
                     "password": hashed,
                     "role": role,
                     "team_ids": [team_id] if team_id else [],
                     "profile": {
                         "sports_info": {
-                            "jersey_number": str(row.get('numero') or row.get('Número') or ""),
+                            "jersey_number": str(row.get('numero') or row.get('Número') or row.get('n') or ""),
                             "position": row.get('posicao') or row.get('Posição') or ""
                         },
                         "identity": {
-                            "phone": row.get('telefone') or row.get('Telefone') or ""
+                            "phone": row.get('telefone') or row.get('Telefone') or row.get('contacto') or "",
+                            "birth_date": str(data_nascimento) if data_nascimento else ""
                         }
                     },
                     "created_at": datetime.now(timezone.utc).isoformat()

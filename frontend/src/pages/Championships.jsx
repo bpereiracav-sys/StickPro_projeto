@@ -28,7 +28,7 @@ import {
 import { toast } from 'sonner';
 import { Plus, Trophy, ChevronRight, Loader2, Calendar, Users, Zap } from 'lucide-react';
 
-const seasons = ['2023/2024', '2024/2025', '2025/2026'];
+const seasons = ['2023/2024', '2024/2025', '2025/2026', '2026/2027'];
 const formats = [
   { value: '5x5', label: '5x5 (Campo Inteiro)' },
   { value: '3x3', label: '3x3 (Meio Campo)' }
@@ -36,6 +36,29 @@ const formats = [
 const convocationTypes = [
   { value: 'manual', label: 'Manual' },
   { value: 'automatica', label: 'Automática' }
+];
+
+// Escalões disponíveis
+const AGE_GROUPS = [
+  { value: 'sub-7', label: 'Sub-7 (Bambis)' },
+  { value: 'sub-9', label: 'Sub-9 (Mini)' },
+  { value: 'sub-11', label: 'Sub-11 (Benjamins)' },
+  { value: 'sub-13', label: 'Sub-13 (Infantis)' },
+  { value: 'sub-15', label: 'Sub-15 (Iniciados)' },
+  { value: 'sub-17', label: 'Sub-17 (Juvenis)' },
+  { value: 'sub-20', label: 'Sub-20 (Juniores)' },
+  { value: 'seniores', label: 'Seniores' },
+  { value: 'veteranos', label: 'Veteranos' },
+];
+
+// Tipos de competição
+const COMPETITION_TYPES = [
+  { value: 'campeonato_distrital', label: 'Campeonato Distrital' },
+  { value: 'campeonato_nacional', label: 'Campeonato Nacional' },
+  { value: 'taca', label: 'Taça' },
+  { value: 'supertaca', label: 'Supertaça' },
+  { value: 'torneio', label: 'Torneio' },
+  { value: 'outro', label: 'Outro' },
 ];
 
 export default function Championships() {
@@ -53,6 +76,8 @@ export default function Championships() {
     season: '2024/2025',
     format: '5x5',
     convocation_type: 'manual',
+    age_group: '',
+    competition_type: 'campeonato_distrital',
     description: ''
   });
 
@@ -94,26 +119,26 @@ export default function Championships() {
         ...formData,
         team_id: selectedTeamId
       });
-      toast.success('Campeonato criado com sucesso!');
+      toast.success('Competição criada com sucesso!');
       setCreateDialogOpen(false);
-      setFormData({ name: '', season: '2024/2025', format: '5x5', convocation_type: 'manual', description: '' });
+      setFormData({ name: '', season: '2024/2025', format: '5x5', convocation_type: 'manual', age_group: '', competition_type: 'campeonato_distrital', description: '' });
       fetchChampionships();
     } catch (error) {
-      toast.error('Erro ao criar campeonato');
+      toast.error('Erro ao criar competição');
     } finally {
       setCreating(false);
     }
   };
 
   const handleDelete = async (id) => {
-    if (!confirm('Tem a certeza que quer eliminar este campeonato?')) return;
+    if (!confirm('Tem a certeza que quer eliminar esta competição?')) return;
     
     try {
       await championshipsApi.delete(id);
-      toast.success('Campeonato eliminado');
+      toast.success('Competição eliminada');
       fetchChampionships();
     } catch (error) {
-      toast.error('Erro ao eliminar campeonato');
+      toast.error('Erro ao eliminar competição');
     }
   };
 
@@ -135,7 +160,7 @@ export default function Championships() {
         <div>
           <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide flex items-center gap-3">
             <Trophy className="w-8 h-8 text-primary" />
-            CAMPEONATOS
+            COMPETIÇÕES
           </h1>
           <p className="text-muted-foreground mt-1">Gerir competições e resultados</p>
         </div>
@@ -166,7 +191,7 @@ export default function Championships() {
           {canManageEvents && (
             <Button onClick={() => setCreateDialogOpen(true)} data-testid="create-championship-btn">
               <Plus className="w-4 h-4 mr-2" />
-              Novo Campeonato
+              Nova Competição
             </Button>
           )}
         </div>
@@ -234,14 +259,14 @@ export default function Championships() {
         <Card className="border border-border">
           <CardContent className="py-16 text-center">
             <Trophy className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-heading text-xl mb-2">SEM CAMPEONATOS</h3>
+            <h3 className="font-heading text-xl mb-2">SEM COMPETIÇÕES</h3>
             <p className="text-muted-foreground mb-4">
-              Nenhum campeonato registado para esta época
+              Nenhuma competição registada para esta época
             </p>
             {canManageEvents && (
               <Button onClick={() => setCreateDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
-                Criar Campeonato
+                Criar Competição
               </Button>
             )}
           </CardContent>
@@ -250,42 +275,78 @@ export default function Championships() {
 
       {/* Create Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="bg-white">
+        <DialogContent className="bg-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">NOVO CAMPEONATO</DialogTitle>
+            <DialogTitle className="font-heading text-2xl tracking-wide">NOVA COMPETIÇÃO</DialogTitle>
             <DialogDescription>
-              Criar um novo campeonato para a equipa
+              Criar uma nova competição para a equipa
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate}>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
-                <Label>Nome do Campeonato</Label>
+                <Label>Nome da Competição</Label>
                 <Input
-                  placeholder="Ex: Campeonato Nacional Sub-15"
+                  placeholder="Ex: Campeonato Distrital Sub-15"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   required
                   data-testid="championship-name-input"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Época</Label>
-                <Select
-                  value={formData.season}
-                  onValueChange={(v) => setFormData({ ...formData, season: v })}
-                >
-                  <SelectTrigger data-testid="championship-season-select">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    {seasons.map(s => (
-                      <SelectItem key={s} value={s}>{s}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              
               <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Época</Label>
+                  <Select
+                    value={formData.season}
+                    onValueChange={(v) => setFormData({ ...formData, season: v })}
+                  >
+                    <SelectTrigger data-testid="championship-season-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {seasons.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Escalão</Label>
+                  <Select
+                    value={formData.age_group}
+                    onValueChange={(v) => setFormData({ ...formData, age_group: v })}
+                  >
+                    <SelectTrigger data-testid="championship-age-group-select">
+                      <SelectValue placeholder="Selecionar..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {AGE_GROUPS.map(ag => (
+                        <SelectItem key={ag.value} value={ag.value}>{ag.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Tipo de Competição</Label>
+                  <Select
+                    value={formData.competition_type}
+                    onValueChange={(v) => setFormData({ ...formData, competition_type: v })}
+                  >
+                    <SelectTrigger data-testid="championship-competition-type-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-white">
+                      {COMPETITION_TYPES.map(ct => (
+                        <SelectItem key={ct.value} value={ct.value}>{ct.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="space-y-2">
                   <Label>Formato</Label>
                   <Select
@@ -302,27 +363,29 @@ export default function Championships() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <Label>Convocatória</Label>
-                  <Select
-                    value={formData.convocation_type}
-                    onValueChange={(v) => setFormData({ ...formData, convocation_type: v })}
-                  >
-                    <SelectTrigger data-testid="championship-convocation-select">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-white">
-                      {convocationTypes.map(c => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
               </div>
+              
+              <div className="space-y-2">
+                <Label>Convocatória</Label>
+                <Select
+                  value={formData.convocation_type}
+                  onValueChange={(v) => setFormData({ ...formData, convocation_type: v })}
+                >
+                  <SelectTrigger data-testid="championship-convocation-select">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    {convocationTypes.map(c => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
               <div className="space-y-2">
                 <Label>Descrição (opcional)</Label>
                 <Textarea
-                  placeholder="Detalhes do campeonato..."
+                  placeholder="Detalhes da competição..."
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   rows={3}

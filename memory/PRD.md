@@ -342,6 +342,31 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Página de Login: imagem de roller hockey (hóquei em patins)
   - Editor de Line-up: campo de hóquei em patins (retangular com áreas semicirculares)
 
+### Melhorias de Competições e Membros (26 Mar 2026) ✅
+- **Nomenclatura Atualizada:**
+  - "Campeonatos" renomeado para "Competições" em toda a app
+- **Criação de Competição - Novos Campos:**
+  - Época (dropdown com anos)
+  - Escalão (Sub-7 a Seniores/Veteranos)
+  - Tipo de Competição (Campeonato Distrital, Nacional, Taça, Torneio, etc.)
+- **Jogos entre Outras Equipas:**
+  - Permitir criar jogos entre quaisquer equipas (não só a do clube)
+  - Campo `is_club_match` para distinguir jogos da equipa vs jogos de outras equipas
+  - Útil para manter classificação correta quando a equipa folga
+- **Penalizações e Bonificações:**
+  - Campos `bonus_points` e `penalty_points` por jogo
+- **Import de Membros via Excel:**
+  - Campos obrigatórios: Nome, Apelido, Data de Nascimento, Email, Função
+  - Suporta múltiplos formatos de cabeçalhos
+  - Normalização automática de funções (jogador, treinador, etc.)
+- **Emails Duplicados Permitidos:**
+  - Mesmo email pode ser usado para múltiplas contas
+  - Útil para pais/responsáveis com vários filhos menores
+- **Estatísticas - Formato Boletim de Jogo:**
+  - Colunas: N.º | 5I | Nome | G | AG | D | Pe | LD | 🟨 | 🔵 | 🟥
+  - Cartões representados como retângulos coloridos
+  - Legenda explicativa incluída
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)

@@ -54,7 +54,7 @@ export const translations = {
       dashboard: 'Painel',
       calendar: 'Calendário',
       members: 'Membros',
-      championships: 'Campeonatos',
+      championships: 'Competições',
       attendance: 'Presenças',
       stats: 'Estatísticas',
       messages: 'Mensagens',
@@ -115,11 +115,11 @@ export const translations = {
       jerseyNumber: 'Número',
       position: 'Posição',
     },
-    // Championships
+    // Championships (Competições)
     championships: {
-      title: 'Campeonatos',
+      title: 'Competições',
       subtitle: 'Gerir competições e resultados',
-      newChampionship: 'Novo Campeonato',
+      newChampionship: 'Nova Competição',
       addGame: 'Adicionar Jogo',
       games: 'Jogos',
       standings: 'Classificação',

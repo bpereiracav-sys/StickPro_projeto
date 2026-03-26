@@ -284,43 +284,85 @@ export default function Stats() {
                       <div className="overflow-x-auto">
                         <Table className="stats-table">
                           <TableHeader>
-                            <TableRow>
-                              <TableHead>Jogador</TableHead>
-                              <TableHead className="text-center">J</TableHead>
-                              <TableHead className="text-center">G</TableHead>
-                              <TableHead className="text-center">A</TableHead>
-                              <TableHead className="text-center">AM</TableHead>
-                              <TableHead className="text-center">AZ</TableHead>
-                              <TableHead className="text-center">V</TableHead>
-                              <TableHead className="text-center">D</TableHead>
+                            <TableRow className="bg-muted/50">
+                              <TableHead className="text-center w-12">N.º</TableHead>
+                              <TableHead className="text-center w-12" title="5 Iniciais">5I</TableHead>
+                              <TableHead>Nome</TableHead>
+                              <TableHead className="text-center w-10" title="Golos">G</TableHead>
+                              <TableHead className="text-center w-10" title="Auto-Golos">AG</TableHead>
+                              <TableHead className="text-center w-10" title="Defesas">D</TableHead>
+                              <TableHead className="text-center w-10" title="Penáltis">Pe</TableHead>
+                              <TableHead className="text-center w-10" title="Livres Diretos">LD</TableHead>
+                              <TableHead className="text-center w-10" title="Cartão Amarelo">
+                                <div className="w-4 h-5 bg-yellow-400 border border-yellow-600 rounded-sm mx-auto" />
+                              </TableHead>
+                              <TableHead className="text-center w-10" title="Cartão Azul">
+                                <div className="w-4 h-5 bg-blue-500 border border-blue-700 rounded-sm mx-auto" />
+                              </TableHead>
+                              <TableHead className="text-center w-10" title="Cartão Vermelho">
+                                <div className="w-4 h-5 bg-red-600 border border-red-800 rounded-sm mx-auto" />
+                              </TableHead>
                             </TableRow>
                           </TableHeader>
                           <TableBody>
-                            {stats.map((stat, index) => (
-                              <TableRow key={stat.player_id || index}>
-                                <TableCell>
-                                  <Link 
-                                    to={`/players/${stat.player_id}`}
-                                    className="flex items-center gap-2 hover:text-primary transition-colors"
-                                  >
-                                    <Avatar className="w-8 h-8">
-                                      <AvatarImage src={stat.player?.avatar_url} />
-                                      <AvatarFallback className="text-xs bg-primary text-white">
-                                        {getInitials(stat.player?.name)}
-                                      </AvatarFallback>
-                                    </Avatar>
-                                    <span className="font-medium">{stat.player?.name || 'Jogador'}</span>
-                                  </Link>
-                                </TableCell>
-                                <TableCell className="text-center font-mono">{stat.games_played || 0}</TableCell>
-                                <TableCell className="text-center font-mono text-secondary font-semibold">{stat.goals || 0}</TableCell>
-                                <TableCell className="text-center font-mono">{stat.assists || 0}</TableCell>
-                                <TableCell className="text-center font-mono text-amber-600">{stat.yellow_cards || 0}</TableCell>
-                                <TableCell className="text-center font-mono text-blue-600">{stat.blue_cards || 0}</TableCell>
-                                <TableCell className="text-center font-mono text-destructive">{stat.red_cards || 0}</TableCell>
-                                <TableCell className="text-center font-mono">{stat.saves || 0}</TableCell>
-                              </TableRow>
-                            ))}
+                            {stats.map((stat, index) => {
+                              const jerseyNumber = stat.player?.profile?.sports_info?.jersey_number || '-';
+                              const playerName = stat.player?.name || 'Jogador';
+                              const isGoalkeeper = stat.player?.profile?.sports_info?.position?.toLowerCase()?.includes('guarda') || 
+                                                   stat.player?.profile?.sports_info?.position?.toLowerCase()?.includes('redes');
+                              return (
+                                <TableRow key={stat.player_id || index} className={isGoalkeeper ? 'bg-blue-50' : ''}>
+                                  <TableCell className="text-center font-mono font-semibold">{jerseyNumber}</TableCell>
+                                  <TableCell className="text-center">
+                                    {stat.started_match ? '✓' : ''}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Link 
+                                      to={`/players/${stat.player_id}`}
+                                      className="hover:text-primary transition-colors font-medium"
+                                    >
+                                      {playerName}
+                                    </Link>
+                                  </TableCell>
+                                  <TableCell className="text-center font-mono font-bold text-secondary">
+                                    {stat.goals || 0}
+                                  </TableCell>
+                                  <TableCell className="text-center font-mono text-muted-foreground">
+                                    {stat.own_goals || 0}
+                                  </TableCell>
+                                  <TableCell className="text-center font-mono">
+                                    {isGoalkeeper ? (stat.saves || 0) : '-'}
+                                  </TableCell>
+                                  <TableCell className="text-center font-mono">
+                                    {stat.penalties_scored || 0}
+                                  </TableCell>
+                                  <TableCell className="text-center font-mono">
+                                    {stat.direct_free_kicks || 0}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {(stat.yellow_cards || 0) > 0 && (
+                                      <div className="w-4 h-5 bg-yellow-400 border border-yellow-600 rounded-sm mx-auto flex items-center justify-center text-[10px] font-bold text-yellow-900">
+                                        {stat.yellow_cards}
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {(stat.blue_cards || 0) > 0 && (
+                                      <div className="w-4 h-5 bg-blue-500 border border-blue-700 rounded-sm mx-auto flex items-center justify-center text-[10px] font-bold text-white">
+                                        {stat.blue_cards}
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    {(stat.red_cards || 0) > 0 && (
+                                      <div className="w-4 h-5 bg-red-600 border border-red-800 rounded-sm mx-auto flex items-center justify-center text-[10px] font-bold text-white">
+                                        {stat.red_cards}
+                                      </div>
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
                           </TableBody>
                         </Table>
                       </div>
@@ -331,7 +373,7 @@ export default function Stats() {
                       </div>
                     )}
                     <p className="text-xs text-muted-foreground mt-4">
-                      J = Jogos | G = Golos | A = Assistências | AM = Amarelos | AZ = Azuis | V = Vermelhos | D = Defesas
+                      N.º = Número | 5I = 5 Iniciais | G = Golos | AG = Auto-Golos | D = Defesas | Pe = Penáltis | LD = Livres Diretos
                     </p>
                   </CardContent>
                 </Card>
