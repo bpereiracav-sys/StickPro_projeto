@@ -18,6 +18,17 @@ import ProfileSelectionModal from '../components/profile/ProfileSelectionModal';
 // Custom Logo Component - Green transparent logo that adapts to themes
 const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/6xtd360b_logoVerdTransp.png";
 
+// Roller Hockey Images for the carousel
+const ROLLER_HOCKEY_IMAGES = [
+  "https://cdn.record.pt/images/2023-07/img_920x518uu2023-07-19-18-35-12-2152416.jpg",
+  "https://livesport-ott-images.ssl.cdn.cra.cz/r900xfq60/aaf3ecca-22c0-44d2-b20e-b36b9703ff0d.avif",
+  "https://livesport-ott-images.ssl.cdn.cra.cz/r900xfq60/8aa89ff4-8251-472a-a81d-38ed67667d1e.avif",
+  "https://cdn.cmjornal.pt/images/2025-09/img_1500x1000uu2025-09-01-23-30-36-2232752.jpg",
+  "https://www.zerozero.pt/img/galerias/041/1339041_med_wse_euro_women_2025_portugal_x_inglaterra_quartos_de_final_.jpg.jpg",
+  "https://www.zerozero.pt/img/noticias/366/imgS300I916366T20250912205951.jpg",
+  "https://thumbs.web.sapo.io/?H=960&W=1920&crop=center&delay_optim=1&epic=V2%3AT9zqVHlKlfbUbr0T7kTlZehT4ibqTN8fsWJx8vO0%2Fk98XxpDjcjt7nxTUTVY0UZElnfn5Uh%2FHMmgv5gnromvL%2FKuTXYVEST9zl2fQWdUQ57iWpNk%2BJNeMxTrY%2Bpf%2FaRUuB6SKkz29vRlo%2BBL99rhXg%3D%3D&webp=1&Q=50&tv=1"
+];
+
 const StickProLogo = ({ size = 'md' }) => {
   const sizes = {
     sm: { box: 'w-16 h-16' },
@@ -42,9 +53,21 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [loginResult, setLoginResult] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { login, switchProfile, isAuthenticated, loading: authLoading } = useAuth();
   const { language, changeLanguage, t } = useLanguage();
   const navigate = useNavigate();
+
+  // Image carousel effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => 
+        (prevIndex + 1) % ROLLER_HOCKEY_IMAGES.length
+      );
+    }, 5000); // Change image every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
 
   const languages = [
     { code: 'pt', label: 'Português', flag: '🇵🇹' },
@@ -213,15 +236,37 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right Panel - Image */}
-      <div className="hidden lg:block lg:flex-1 relative">
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ 
-            backgroundImage: 'url(https://images.pexels.com/photos/36074810/pexels-photo-36074810.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940)'
-          }}
-        />
-        <div className="absolute inset-0 bg-primary/20" />
+      {/* Right Panel - Image Carousel */}
+      <div className="hidden lg:block lg:flex-1 relative overflow-hidden">
+        {/* Image layers for smooth transition */}
+        {ROLLER_HOCKEY_IMAGES.map((img, index) => (
+          <div
+            key={index}
+            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+            style={{
+              backgroundImage: `url(${img})`,
+              opacity: index === currentImageIndex ? 1 : 0
+            }}
+          />
+        ))}
+        {/* Overlay */}
+        <div className="absolute inset-0 bg-gradient-to-l from-transparent to-black/30" />
+        
+        {/* Image indicators */}
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2">
+          {ROLLER_HOCKEY_IMAGES.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentImageIndex(index)}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                index === currentImageIndex 
+                  ? 'bg-white w-6' 
+                  : 'bg-white/50 hover:bg-white/75'
+              }`}
+              aria-label={`Ver imagem ${index + 1}`}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Profile Selection Modal */}
