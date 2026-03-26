@@ -379,24 +379,26 @@ export default function CalendarPage() {
     }
   };
 
-  const handlePostponeEvent = async () => {
-    if (!selectedEvent) return;
+  const handlePostponeEvent = async (event = null) => {
+    const targetEvent = event || selectedEvent;
+    if (!targetEvent) return;
     
     try {
-      await eventsApi.update(selectedEvent.id, { status: 'postponed' });
-      setEvents(prev => prev.map(e => e.id === selectedEvent.id ? { ...e, status: 'postponed' } : e));
+      await eventsApi.update(targetEvent.id, { status: 'postponed' });
+      setEvents(prev => prev.map(e => e.id === targetEvent.id ? { ...e, status: 'postponed' } : e));
       toast.success('Evento adiado!');
     } catch (error) {
       toast.error('Erro ao adiar evento');
     }
   };
 
-  const handleCancelEvent = async () => {
-    if (!selectedEvent) return;
+  const handleCancelEvent = async (event = null) => {
+    const targetEvent = event || selectedEvent;
+    if (!targetEvent) return;
     
     try {
-      await eventsApi.update(selectedEvent.id, { status: 'cancelled' });
-      setEvents(prev => prev.map(e => e.id === selectedEvent.id ? { ...e, status: 'cancelled' } : e));
+      await eventsApi.update(targetEvent.id, { status: 'cancelled' });
+      setEvents(prev => prev.map(e => e.id === targetEvent.id ? { ...e, status: 'cancelled' } : e));
       toast.success('Evento cancelado!');
     } catch (error) {
       toast.error('Erro ao cancelar evento');
@@ -759,13 +761,47 @@ export default function CalendarPage() {
                   {dayEvents.slice(0, 2).map(event => {
                     const eventType = EVENT_TYPES[event.event_type] || EVENT_TYPES.outro;
                     return (
-                      <div
-                        key={event.id}
-                        className={`text-xs truncate px-1 py-0.5 rounded-sm ${eventType.color} text-white`}
-                        onClick={(e) => { e.stopPropagation(); openEditDialog(event); }}
-                      >
-                        {event.title}
-                      </div>
+                      <DropdownMenu key={event.id}>
+                        <DropdownMenuTrigger asChild>
+                          <div
+                            className={`text-xs truncate px-1 py-0.5 rounded-sm ${eventType.color} text-white cursor-pointer hover:opacity-90`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {event.title}
+                          </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="bg-white" align="start">
+                          <DropdownMenuItem onClick={() => openEditDialog(event)}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
+                            <Users className="w-4 h-4 mr-2" />
+                            Convocar Jogadores
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
+                            <ClipboardCheck className="w-4 h-4 mr-2" />
+                            Ver Estado Convocatória
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => handlePostponeEvent(event)}>
+                            <PauseCircle className="w-4 h-4 mr-2" />
+                            Adiar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleCancelEvent(event)}>
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Cancelar
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            className="text-destructive focus:text-destructive"
+                            onClick={() => { setSelectedEvent(event); setDeleteDialogOpen(true); }}
+                          >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     );
                   })}
                   {dayEvents.length > 2 && (
