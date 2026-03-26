@@ -310,6 +310,7 @@ class Club(BaseModel):
     primary_color: Optional[str] = "#006D5B"  # Default teal
     secondary_color: Optional[str] = "#FFD700"  # Default gold
     accent_color: Optional[str] = "#1a1a2e"  # Default dark
+    theme_mode: Optional[str] = "light"  # light or dark
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ClubUpdate(BaseModel):
@@ -327,6 +328,7 @@ class ClubUpdate(BaseModel):
     primary_color: Optional[str] = None
     secondary_color: Optional[str] = None
     accent_color: Optional[str] = None
+    theme_mode: Optional[str] = None
 
 # Library Models
 class LibraryItemType(str, Enum):
@@ -1054,7 +1056,7 @@ async def update_club(club_id: str, updates: dict, current_user: dict = Depends(
     if current_user['role'] != 'admin' and current_user['id'] not in club.get('admin_ids', []):
         raise HTTPException(status_code=403, detail="Sem permissão")
     
-    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color']
+    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color', 'theme_mode']
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
     
     if filtered_updates:

@@ -26,14 +26,15 @@ import { LogoUpload } from '../components/ImageUpload';
 
 // Predefined color palettes
 const COLOR_PALETTES = [
-  { name: 'Verde Clássico', primary: '#006D5B', secondary: '#FFD700', accent: '#1a1a2e' },
-  { name: 'Azul Real', primary: '#1e40af', secondary: '#fbbf24', accent: '#0f172a' },
-  { name: 'Vermelho Paixão', primary: '#dc2626', secondary: '#facc15', accent: '#1c1917' },
-  { name: 'Verde Lima', primary: '#16a34a', secondary: '#f97316', accent: '#052e16' },
-  { name: 'Roxo Elegante', primary: '#7c3aed', secondary: '#fde047', accent: '#1e1b4b' },
-  { name: 'Azul Celeste', primary: '#0ea5e9', secondary: '#fcd34d', accent: '#0c4a6e' },
-  { name: 'Laranja Vibrante', primary: '#ea580c', secondary: '#14b8a6', accent: '#431407' },
-  { name: 'Rosa Moderno', primary: '#db2777', secondary: '#a3e635', accent: '#4a044e' },
+  { name: 'Verde Clássico', primary: '#006D5B', secondary: '#FFD700', accent: '#1a1a2e', mode: 'light' },
+  { name: 'Azul Real', primary: '#1e40af', secondary: '#fbbf24', accent: '#0f172a', mode: 'light' },
+  { name: 'Vermelho Paixão', primary: '#dc2626', secondary: '#facc15', accent: '#1c1917', mode: 'light' },
+  { name: 'Verde Lima', primary: '#16a34a', secondary: '#f97316', accent: '#052e16', mode: 'light' },
+  { name: 'Roxo Elegante', primary: '#7c3aed', secondary: '#fde047', accent: '#1e1b4b', mode: 'light' },
+  { name: 'Azul Celeste', primary: '#0ea5e9', secondary: '#fcd34d', accent: '#0c4a6e', mode: 'light' },
+  { name: 'Laranja Vibrante', primary: '#ea580c', secondary: '#14b8a6', accent: '#431407', mode: 'light' },
+  { name: 'Rosa Moderno', primary: '#db2777', secondary: '#a3e635', accent: '#4a044e', mode: 'light' },
+  { name: 'Neon Dark', primary: '#39ff14', secondary: '#00ff88', accent: '#111111', mode: 'dark' },
 ];
 
 export default function ClubPage() {
@@ -58,7 +59,8 @@ export default function ClubPage() {
     venue_location: '',
     primary_color: '#006D5B',
     secondary_color: '#FFD700',
-    accent_color: '#1a1a2e'
+    accent_color: '#1a1a2e',
+    theme_mode: 'light'
   });
 
   const isAdmin = user?.role === 'admin';
@@ -87,7 +89,8 @@ export default function ClubPage() {
           venue_location: clubData.venue_location || '',
           primary_color: clubData.primary_color || '#006D5B',
           secondary_color: clubData.secondary_color || '#FFD700',
-          accent_color: clubData.accent_color || '#1a1a2e'
+          accent_color: clubData.accent_color || '#1a1a2e',
+          theme_mode: clubData.theme_mode || 'light'
         });
       }
     } catch (error) {
@@ -138,7 +141,8 @@ export default function ClubPage() {
       ...prev,
       primary_color: palette.primary,
       secondary_color: palette.secondary,
-      accent_color: palette.accent
+      accent_color: palette.accent,
+      theme_mode: palette.mode || 'light'
     }));
   };
 

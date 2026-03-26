@@ -386,6 +386,22 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Campo "Localização do Pavilhão"
   - Exibição na secção "PAVILHÃO" da página do clube
 
+### Tema Escuro "Neon Dark" e Navegação Mobile (26 Mar 2026) ✅
+- **Tema Escuro "Neon Dark":** ✅ TESTADO
+  - Fundo preto (#111111)
+  - Menus e cards em cinza escuro
+  - Texto e ícones em verde fluorescente (#39ff14)
+  - Suporta modo claro/escuro via `theme_mode` no modelo Club
+- **Cards com Faixa Colorida:** ✅ TESTADO
+  - Componente `CardWithStripe` criado
+  - Faixa de cor no topo de cada card para evidenciar título
+  - Cores diferentes por tipo: primary, secondary, amber, purple, etc.
+- **Barra de Navegação Mobile Fixa:** ✅ TESTADO
+  - Componente `BottomNav` criado
+  - Ícones: Calendário, Mensagens, Membros, Estatísticas, Perfil
+  - Fixa no fundo do ecrã em smartphones
+  - Safe area para dispositivos com notch
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)

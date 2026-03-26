@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { dashboardApi, eventsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { CardWithStripe, CardStripeHeader, CardStripeTitle, CardStripeContent } from '../components/ui/card-stripe';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
@@ -158,17 +159,17 @@ export default function Dashboard() {
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Upcoming Events */}
-        <Card className="lg:col-span-2 border border-border" data-testid="upcoming-events-section">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+        <CardWithStripe stripeColor="primary" className="lg:col-span-2" data-testid="upcoming-events-section">
+          <CardStripeHeader className="flex flex-row items-center justify-between pb-2">
+            <CardStripeTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5 text-primary" />
               {t('dashboard.upcomingEvents').toUpperCase()}
-            </CardTitle>
+            </CardStripeTitle>
             <Button asChild variant="ghost" size="sm">
               <Link to="/calendar">{t('dashboard.seeCalendar')}</Link>
             </Button>
-          </CardHeader>
-          <CardContent>
+          </CardStripeHeader>
+          <CardStripeContent>
             {data?.upcoming_events?.length > 0 ? (
               <div className="space-y-3">
                 {data.upcoming_events.slice(0, 5).map((event, index) => (
@@ -205,21 +206,21 @@ export default function Dashboard() {
                 </Button>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </CardStripeContent>
+        </CardWithStripe>
 
         {/* Pending Convocations */}
-        <Card className="border border-border" data-testid="convocations-section">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+        <CardWithStripe stripeColor="amber" data-testid="convocations-section">
+          <CardStripeHeader className="flex flex-row items-center justify-between pb-2">
+            <CardStripeTitle className="flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5 text-amber-500" />
               {t('dashboard.convocations').toUpperCase()}
-            </CardTitle>
+            </CardStripeTitle>
             <Button asChild variant="ghost" size="sm">
               <Link to="/convocations">{t('dashboard.seeAll')}</Link>
             </Button>
-          </CardHeader>
-          <CardContent>
+          </CardStripeHeader>
+          <CardStripeContent>
             {data?.pending_convocations?.length > 0 ? (
               <div className="space-y-3">
                 {data.pending_convocations.slice(0, 4).map((item) => (
@@ -260,14 +261,14 @@ export default function Dashboard() {
                 <p className="text-muted-foreground text-sm">{t('dashboard.allConvocationsAnswered')}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </CardStripeContent>
+        </CardWithStripe>
       </div>
 
       {/* Quick Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="border border-border">
-          <CardContent className="p-4 flex items-center gap-4">
+        <CardWithStripe stripeColor="primary">
+          <CardStripeContent className="p-4 flex items-center gap-4">
             <div className="w-12 h-12 bg-primary/10 rounded-sm flex items-center justify-center">
               <Users className="w-6 h-6 text-primary" />
             </div>
@@ -275,10 +276,10 @@ export default function Dashboard() {
               <p className="text-2xl font-heading">{data?.teams_count || 0}</p>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Equipas</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="border border-border">
-          <CardContent className="p-4 flex items-center gap-4">
+          </CardStripeContent>
+        </CardWithStripe>
+        <CardWithStripe stripeColor="secondary">
+          <CardStripeContent className="p-4 flex items-center gap-4">
             <div className="w-12 h-12 bg-secondary/10 rounded-sm flex items-center justify-center">
               <Calendar className="w-6 h-6 text-secondary" />
             </div>
@@ -286,10 +287,10 @@ export default function Dashboard() {
               <p className="text-2xl font-heading">{data?.upcoming_events?.length || 0}</p>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Eventos</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="border border-border">
-          <CardContent className="p-4 flex items-center gap-4">
+          </CardStripeContent>
+        </CardWithStripe>
+        <CardWithStripe stripeColor="amber">
+          <CardStripeContent className="p-4 flex items-center gap-4">
             <div className="w-12 h-12 bg-amber-100 rounded-sm flex items-center justify-center">
               <ClipboardCheck className="w-6 h-6 text-amber-600" />
             </div>
@@ -297,10 +298,10 @@ export default function Dashboard() {
               <p className="text-2xl font-heading">{pendingCount}</p>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Pendentes</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card className="border border-border">
-          <CardContent className="p-4 flex items-center gap-4">
+          </CardStripeContent>
+        </CardWithStripe>
+        <CardWithStripe stripeColor="purple">
+          <CardStripeContent className="p-4 flex items-center gap-4">
             <div className="w-12 h-12 bg-purple-100 rounded-sm flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-purple-600" />
             </div>
@@ -308,8 +309,8 @@ export default function Dashboard() {
               <p className="text-2xl font-heading">{data?.recent_messages?.length || 0}</p>
               <p className="text-xs text-muted-foreground uppercase tracking-wide">Mensagens</p>
             </div>
-          </CardContent>
-        </Card>
+          </CardStripeContent>
+        </CardWithStripe>
       </div>
     </div>
   );

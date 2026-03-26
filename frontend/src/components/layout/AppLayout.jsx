@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopNavBar } from './TopNavBar';
+import { BottomNav } from './BottomNav';
 import { Toaster } from '../ui/sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -68,12 +69,15 @@ export function AppLayout({ children }) {
         onSelectTeam={handleSelectTeam}
       />
       
-      {/* Main Content */}
-      <main className="lg:ml-64 pt-14 lg:pt-16 min-h-screen">
+      {/* Main Content - with bottom padding for mobile nav */}
+      <main className="lg:ml-64 pt-14 lg:pt-16 pb-20 lg:pb-0 min-h-screen">
         <div className="p-4 lg:p-6">
           {children}
         </div>
       </main>
+      
+      {/* Bottom Navigation for Mobile */}
+      <BottomNav />
       
       <Toaster position="top-right" richColors />
     </div>

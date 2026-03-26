@@ -41,7 +41,8 @@ function hexToHSL(hex) {
 const DEFAULT_THEME = {
   primary: '#006D5B',
   secondary: '#FFD700',
-  accent: '#1a1a2e'
+  accent: '#1a1a2e',
+  mode: 'light'
 };
 
 // Get initial theme from localStorage or default
@@ -68,16 +69,56 @@ export function ThemeProvider({ children }) {
 
   const applyTheme = (themeColors) => {
     const root = document.documentElement;
+    const isDark = themeColors.mode === 'dark';
+    
+    // Apply dark/light mode classes
+    if (isDark) {
+      document.body.classList.add('dark-theme');
+      document.body.classList.remove('light-theme');
+      
+      // Dark mode base colors
+      root.style.setProperty('--background', '0 0% 7%'); // #111111
+      root.style.setProperty('--foreground', '120 100% 54%'); // Neon green text
+      root.style.setProperty('--card', '0 0% 13%'); // Dark gray cards
+      root.style.setProperty('--card-foreground', '120 100% 54%');
+      root.style.setProperty('--popover', '0 0% 10%');
+      root.style.setProperty('--popover-foreground', '120 100% 54%');
+      root.style.setProperty('--muted', '0 0% 20%');
+      root.style.setProperty('--muted-foreground', '120 40% 60%');
+      root.style.setProperty('--accent', '0 0% 18%');
+      root.style.setProperty('--accent-foreground', '120 100% 54%');
+      root.style.setProperty('--border', '0 0% 25%');
+      root.style.setProperty('--input', '0 0% 20%');
+    } else {
+      document.body.classList.add('light-theme');
+      document.body.classList.remove('dark-theme');
+      
+      // Light mode base colors
+      root.style.setProperty('--background', '0 0% 100%');
+      root.style.setProperty('--foreground', '222 47% 11%');
+      root.style.setProperty('--card', '0 0% 100%');
+      root.style.setProperty('--card-foreground', '222 47% 11%');
+      root.style.setProperty('--popover', '0 0% 100%');
+      root.style.setProperty('--popover-foreground', '222 47% 11%');
+      root.style.setProperty('--muted', '210 40% 96%');
+      root.style.setProperty('--muted-foreground', '215 16% 47%');
+      root.style.setProperty('--accent', '210 40% 96%');
+      root.style.setProperty('--accent-foreground', '222 47% 11%');
+      root.style.setProperty('--border', '214 32% 91%');
+      root.style.setProperty('--input', '214 32% 91%');
+    }
     
     // Convert and apply primary color
     const primaryHSL = hexToHSL(themeColors.primary);
     root.style.setProperty('--primary', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
+    root.style.setProperty('--primary-foreground', isDark ? '0 0% 7%' : '0 0% 100%');
     root.style.setProperty('--ring', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
     root.style.setProperty('--chart-1', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
     
     // Convert and apply secondary color
     const secondaryHSL = hexToHSL(themeColors.secondary);
     root.style.setProperty('--secondary', `${secondaryHSL.h} ${secondaryHSL.s}% ${secondaryHSL.l}%`);
+    root.style.setProperty('--secondary-foreground', isDark ? '0 0% 7%' : '0 0% 100%');
     root.style.setProperty('--chart-2', `${secondaryHSL.h} ${secondaryHSL.s}% ${secondaryHSL.l}%`);
     
     // Store theme in localStorage for faster initial load
@@ -94,7 +135,8 @@ export function ThemeProvider({ children }) {
           setTheme({
             primary: club.primary_color || DEFAULT_THEME.primary,
             secondary: club.secondary_color || DEFAULT_THEME.secondary,
-            accent: club.accent_color || DEFAULT_THEME.accent
+            accent: club.accent_color || DEFAULT_THEME.accent,
+            mode: club.theme_mode || 'light'
           });
         }
       }
