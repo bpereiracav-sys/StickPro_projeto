@@ -249,8 +249,8 @@ export default function Login() {
             }}
           />
         ))}
-        {/* Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-l from-transparent to-black/30" />
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 bg-black/40" />
         
         {/* Image indicators */}
         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2">
