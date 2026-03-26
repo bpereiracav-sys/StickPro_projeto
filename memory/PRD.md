@@ -349,9 +349,11 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Época (dropdown com anos)
   - Escalão (Sub-7 a Seniores/Veteranos)
   - Tipo de Competição (Campeonato Distrital, Nacional, Taça, Torneio, etc.)
-- **Jogos entre Outras Equipas:**
+- **Jogos entre Outras Equipas (Externos):** ✅ TESTADO
   - Permitir criar jogos entre quaisquer equipas (não só a do clube)
   - Campo `is_club_match` para distinguir jogos da equipa vs jogos de outras equipas
+  - Badge "Externo" visível na lista de jogos
+  - Classificação atualizada automaticamente com todas as equipas
   - Útil para manter classificação correta quando a equipa folga
 - **Penalizações e Bonificações:**
   - Campos `bonus_points` e `penalty_points` por jogo
@@ -362,19 +364,26 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - **Emails Duplicados Permitidos:**
   - Mesmo email pode ser usado para múltiplas contas
   - Útil para pais/responsáveis com vários filhos menores
-- **Estatísticas - Formato Boletim de Jogo:**
+- **Estatísticas - Formato Boletim de Jogo:** ✅ TESTADO
   - Colunas: N.º | 5I | Nome | G | AG | D | Pe | LD | 🟨 | 🔵 | 🟥
   - Cartões representados como retângulos coloridos
   - Legenda explicativa incluída
+- **UI Mobile Responsiva para Competições:** ✅ TESTADO
+  - Layout adaptável para smartphones (375px)
+  - Botões compactos com ícones
+  - Nomes de equipas com truncate
+  - Flex-wrap nos badges do header
 
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
 
 ### P1 - Pendente
-- Expandir traduções i18n para restantes páginas (Calendar, Members, Championships, Stats)
 - Configurar API Key Resend para emails reais (atualmente MOCKED)
-- Exportar calendário em PDF
+- Atualizar Import Excel com campos: Nome, Apelido, Data Nascimento, Email, Função
+- Web Scraping Opção A (divisões específicas APL)
+- Expandir traduções i18n para restantes páginas
 
 ### P2 - Futuro
 - Dashboard com métricas e gráficos
+- Exportar calendário em PDF
