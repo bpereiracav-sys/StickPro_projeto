@@ -38,8 +38,8 @@ JWT_EXPIRATION_HOURS = 24
 # Create the main app
 app = FastAPI(title="Roller Hockey Hub API")
 
-# Mount uploads folder for static files
-app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
+# Mount uploads folder for static files - use /api/uploads so it's accessible via proxy
+app.mount("/api/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -2692,8 +2692,8 @@ async def upload_image(file: UploadFile = File(...), current_user: dict = Depend
     with open(filepath, "wb") as f:
         f.write(content)
     
-    # Return URL
-    return {"url": f"/uploads/{filename}", "filename": filename}
+    # Return URL with /api prefix so it's accessible via proxy
+    return {"url": f"/api/uploads/{filename}", "filename": filename}
 
 @api_router.delete("/upload/{filename}")
 async def delete_image(filename: str, current_user: dict = Depends(get_current_user)):

@@ -65,6 +65,7 @@ export function ImageUpload({
       }
 
       const data = await response.json();
+      // URL already includes /api/uploads from backend
       const fullUrl = `${API_URL}${data.url}`;
       
       setPreviewUrl(fullUrl);
