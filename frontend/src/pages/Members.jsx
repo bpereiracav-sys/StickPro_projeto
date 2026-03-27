@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { teamsApi, usersApi, clubApi, membersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -65,8 +66,9 @@ import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function Members() {
-  const { canManageTeam, token } = useAuth();
+  const { token } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
+  const { canManageTeam, canImportData, canAccessTeam, isAdmin } = usePermissions();
   const [teams, setTeams] = useState([]);
   const [club, setClub] = useState(null);
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -339,10 +341,12 @@ export default function Members() {
 
         {canManageTeam && (
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setImportDialogOpen(true)} data-testid="import-members-btn">
-              <Upload className="w-4 h-4 mr-2" />
-              Importar Excel
-            </Button>
+            {canImportData && (
+              <Button variant="outline" onClick={() => setImportDialogOpen(true)} data-testid="import-members-btn">
+                <Upload className="w-4 h-4 mr-2" />
+                Importar Excel
+              </Button>
+            )}
             {!isAllTeamsSelected && (
               <Button variant="outline" onClick={() => setAddDialogOpen(true)} data-testid="add-existing-btn">
                 <UserPlus className="w-4 h-4 mr-2" />

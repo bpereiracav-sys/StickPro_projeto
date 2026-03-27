@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { eventsApi, teamsApi, usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -118,8 +119,9 @@ const VIEW_MODES = {
 };
 
 export default function CalendarPage() {
-  const { canManageEvents, user } = useAuth();
+  const { user } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
+  const { canManageEvents, canCreateConvocations, canAccessTeam, isAdmin } = usePermissions();
   const [events, setEvents] = useState([]);
   const [teams, setTeams] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -603,7 +605,8 @@ export default function CalendarPage() {
             </div>
           </div>
           
-          {canManageEvents && (
+          {/* Show action menu only if user can manage events AND has access to this event's team */}
+          {canManageEvents && (isAdmin || canAccessTeam(event.team_id)) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                 <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
@@ -615,10 +618,12 @@ export default function CalendarPage() {
                   <Edit className="w-4 h-4 mr-2" />
                   Editar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openConvocationDialog(event); }}>
-                  <Users className="w-4 h-4 mr-2" />
-                  Convocar Jogadores
-                </DropdownMenuItem>
+                {canCreateConvocations && (
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openConvocationDialog(event); }}>
+                    <Users className="w-4 h-4 mr-2" />
+                    Convocar Jogadores
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openConvocationStatusDialog(event); }}>
                   <ClipboardCheck className="w-4 h-4 mr-2" />
                   Ver Estado Convocatória
@@ -760,7 +765,9 @@ export default function CalendarPage() {
                 <div className="space-y-0.5">
                   {dayEvents.slice(0, 2).map(event => {
                     const eventType = EVENT_TYPES[event.event_type] || EVENT_TYPES.outro;
-                    return (
+                    const canManageThisEvent = canManageEvents && (isAdmin || canAccessTeam(event.team_id));
+                    
+                    return canManageThisEvent ? (
                       <DropdownMenu key={event.id}>
                         <DropdownMenuTrigger asChild>
                           <div
@@ -775,10 +782,12 @@ export default function CalendarPage() {
                             <Edit className="w-4 h-4 mr-2" />
                             Editar
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
-                            <Users className="w-4 h-4 mr-2" />
-                            Convocar Jogadores
-                          </DropdownMenuItem>
+                          {canCreateConvocations && (
+                            <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
+                              <Users className="w-4 h-4 mr-2" />
+                              Convocar Jogadores
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
                             <ClipboardCheck className="w-4 h-4 mr-2" />
                             Ver Estado Convocatória
@@ -802,6 +811,14 @@ export default function CalendarPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
+                    ) : (
+                      <div
+                        key={event.id}
+                        className={`text-xs truncate px-1 py-0.5 rounded-sm ${eventType.color} text-white`}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {event.title}
+                      </div>
                     );
                   })}
                   {dayEvents.length > 2 && (

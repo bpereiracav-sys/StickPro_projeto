@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { usePermissions } from '../context/PermissionsContext';
 import { championshipsApi, teamsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -45,7 +46,8 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export default function ChampionshipDetail() {
   const { championshipId } = useParams();
-  const { canManageEvents, token } = useAuth();
+  const { token } = useAuth();
+  const { canManageEvents, canManageStats, canManageLineups, canImportData, canAccessTeam, isAdmin } = usePermissions();
   const [championship, setChampionship] = useState(null);
   const [matches, setMatches] = useState([]);
   const [standings, setStandings] = useState([]);
@@ -362,7 +364,7 @@ export default function ChampionshipDetail() {
           </div>
         </div>
 
-        {canManageEvents && (
+        {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
           <Button onClick={() => setMatchDialogOpen(true)} data-testid="add-match-btn" className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />
             Adicionar Jogo
@@ -471,7 +473,8 @@ export default function ChampionshipDetail() {
                           </Badge>
                         )}
 
-                        {canManageEvents && (
+                        {/* Show action buttons based on permissions */}
+                        {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
                           <div className="flex flex-wrap gap-1.5 sm:gap-2">
                             <Button 
                               variant="outline" 
@@ -482,27 +485,31 @@ export default function ChampionshipDetail() {
                             >
                               <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </Button>
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                              onClick={() => openResultDialog(match)}
-                              data-testid={`edit-result-${match.id}`}
-                            >
-                              {match.is_completed ? 'Resultado' : 'Inserir'}
-                            </Button>
+                            {canManageStats && (
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
+                                onClick={() => openResultDialog(match)}
+                                data-testid={`edit-result-${match.id}`}
+                              >
+                                {match.is_completed ? 'Resultado' : 'Inserir'}
+                              </Button>
+                            )}
                             {/* Only show stats/lineup buttons for club matches */}
                             {match.is_club_match !== false && (
                               <>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="h-8 px-2 sm:px-3"
-                                  onClick={() => openImportDialog(match)}
-                                  data-testid={`import-gamesheet-${match.id}`}
-                                >
-                                  <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                </Button>
+                                {canImportData && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="h-8 px-2 sm:px-3"
+                                    onClick={() => openImportDialog(match)}
+                                    data-testid={`import-gamesheet-${match.id}`}
+                                  >
+                                    <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  </Button>
+                                )}
                                 <Button 
                                   variant="outline" 
                                   size="sm"
@@ -513,18 +520,20 @@ export default function ChampionshipDetail() {
                                     <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                   </Link>
                                 </Button>
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="h-8 px-2 sm:px-3"
-                                  onClick={() => {
-                                    setLineupMatch(match);
-                                    setLineupDialogOpen(true);
-                                  }}
-                                  data-testid={`lineup-${match.id}`}
-                                >
-                                  <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                </Button>
+                                {canManageLineups && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="h-8 px-2 sm:px-3"
+                                    onClick={() => {
+                                      setLineupMatch(match);
+                                      setLineupDialogOpen(true);
+                                    }}
+                                    data-testid={`lineup-${match.id}`}
+                                  >
+                                    <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  </Button>
+                                )}
                               </>
                             )}
                             <Button 
@@ -550,7 +559,7 @@ export default function ChampionshipDetail() {
               <CardContent className="py-12 text-center">
                 <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">Nenhum jogo agendado</p>
-                {canManageEvents && (
+                {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
                   <Button className="mt-4" onClick={() => setMatchDialogOpen(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Adicionar Jogo

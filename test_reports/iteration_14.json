@@ -1,0 +1,121 @@
+{
+  "summary": "Frontend RBAC Testing Complete - All permission checks passed. Verified that Admin sees all action buttons while Player (jogador) sees none of the management buttons across Calendar, Members, and Championship pages.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "admin_calendar_page": {
+      "status": "PASS",
+      "tests": [
+        "Admin CAN see 'Novo Evento' button",
+        "Admin CAN see event action menus (edit, delete, convocar)"
+      ]
+    },
+    "admin_members_page": {
+      "status": "PASS",
+      "tests": [
+        "Admin CAN see 'Importar Excel' button",
+        "Admin CAN see 'Novo Membro' button",
+        "Admin CAN see member action menus"
+      ]
+    },
+    "admin_championship_page": {
+      "status": "PASS",
+      "tests": [
+        "Admin CAN see 'Adicionar Jogo' button",
+        "Admin CAN see match edit button",
+        "Admin CAN see match result button",
+        "Admin CAN see match stats button",
+        "Admin CAN see match lineup button",
+        "Admin CAN see match delete button"
+      ]
+    },
+    "admin_sidebar": {
+      "status": "PASS",
+      "tests": [
+        "Admin CAN see 'Definições Clube' menu item"
+      ]
+    },
+    "player_calendar_page": {
+      "status": "PASS",
+      "tests": [
+        "Player CANNOT see 'Novo Evento' button",
+        "Player CAN view Calendar page (read-only access)"
+      ]
+    },
+    "player_members_page": {
+      "status": "PASS",
+      "tests": [
+        "Player CANNOT see 'Importar Excel' button",
+        "Player CANNOT see 'Novo Membro' button",
+        "Player CAN view Members page (read-only access)"
+      ]
+    },
+    "player_championship_page": {
+      "status": "PASS",
+      "tests": [
+        "Player CANNOT see 'Adicionar Jogo' button",
+        "Player CANNOT see match edit button",
+        "Player CANNOT see match delete button",
+        "Player CAN view Championship Detail page (read-only access)",
+        "Player CAN view match cards (read-only)"
+      ]
+    },
+    "player_sidebar": {
+      "status": "PASS",
+      "tests": [
+        "Player CANNOT see 'Definições Clube' menu item"
+      ]
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_14.json"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "usePermissions() hook correctly provides role-based permission checks",
+    "Calendar.jsx properly uses canManageEvents and canCreateConvocations for button visibility",
+    "Members.jsx properly uses canManageTeam and canImportData for button visibility",
+    "ChampionshipDetail.jsx properly uses canManageEvents, canManageStats, canManageLineups, canImportData for button visibility",
+    "Sidebar.jsx properly uses effectiveRole to hide 'Definições Clube' for non-admin users"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "N/A (frontend only testing)",
+    "frontend": "100% (16/16 permission checks passed)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@example.com",
+    "admin_password": "test123456",
+    "player_email": "testplayer@example.com",
+    "player_password": "FeBwJa8VytI"
+  },
+  "seed_data_creation": "None - used existing test accounts",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Frontend RBAC implementation fully tested and working. The usePermissions() hook from PermissionsContext.jsx correctly provides role-based access control. Admin users see all action buttons while Player (jogador) users see read-only views without management buttons. Key components tested: Calendar.jsx, Members.jsx, ChampionshipDetail.jsx, Sidebar.jsx. All data-testid attributes are properly implemented for testing.",
+  "mocked_apis": {
+    "email_notifications": "MOCKED - Resend API not configured"
+  },
+  "rbac_frontend_test_summary": {
+    "total_checks": 16,
+    "passed": 16,
+    "failed": 0,
+    "test_categories": [
+      "Admin Calendar Page (2 checks) - Novo Evento button, action menus",
+      "Admin Members Page (3 checks) - Import, Create, action menus",
+      "Admin Championship Page (6 checks) - Add match, edit, result, stats, lineup, delete",
+      "Admin Sidebar (1 check) - Definições Clube visibility",
+      "Player Calendar Page (2 checks) - No Novo Evento, read-only access",
+      "Player Members Page (3 checks) - No Import, No Create, read-only access",
+      "Player Championship Page (5 checks) - No Add match, No edit, No delete, read-only access",
+      "Player Sidebar (1 check) - No Definições Clube"
+    ]
+  }
+}
