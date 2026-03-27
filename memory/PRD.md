@@ -788,3 +788,33 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - PUT /api/payments/{type}/{id}/upload-proof
   - DELETE /api/payments/{type}/{id}
 - **Testes:** 100% (26/26 backend + frontend) - `/app/test_reports/iteration_22.json`
+
+---
+
+### Integração Resend para Emails Reais (27 Mar 2026) ✅
+- **Configuração:**
+  - Usa variáveis de ambiente: `RESEND_API_KEY`, `SENDER_EMAIL`
+  - Default sender: `onboarding@resend.dev` (para testes)
+  - Sistema funciona sem chave (faz log warning, não quebra)
+- **Função send_email_notification:**
+  - Usa Resend API v2.26.0
+  - Non-blocking com asyncio.to_thread
+  - Error handling graceful (log erro, continua fluxo)
+  - Suporta anexos (base64)
+- **Função build_email_template:**
+  - Template HTML profissional e responsivo
+  - Branding StickPro (header gradiente cyan)
+  - Layout table-based para compatibilidade email clients
+  - Título, conteúdo e footer customizáveis
+- **Emails Implementados:**
+  - Ativação de conta (POST /api/members/{id}/send-activation-reminder)
+  - Novo pagamento criado (POST /api/payments/custom)
+  - Confirmação de pagamento (PUT /api/payments/{type}/{id}/mark-paid)
+  - Indisponibilidade (POST /api/unavailabilities - notifica treinadores)
+  - Lembrete evento sem convocatória (background task 4h antes)
+- **Resiliência:**
+  - Sem RESEND_API_KEY: log WARNING, app continua
+  - Erros capturados e logados sem quebrar fluxo
+  - Endpoints funcionais independente de email
+- **Testes:** 100% (16/16 backend) - `/app/test_reports/iteration_23.json`
+- **NOTA:** Emails MOCKED até user adicionar RESEND_API_KEY aos secrets
