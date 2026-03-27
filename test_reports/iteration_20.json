@@ -1,0 +1,138 @@
+{
+  "summary": "Tested Competition Module upgrade: matches grouped by Jornada (Accordion), Teams tab with kit colors, Line-up editor with visibility control. All features verified working correctly via backend API tests (13/13 passed) and UI testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "matches_by_jornada": {
+      "status": "PASS",
+      "tests": [
+        "Accordion component displays matches grouped by Jornada",
+        "J1 JORNADA 1 badge visible with match count",
+        "S/J SEM JORNADA section for matches without matchday",
+        "Matches sorted by date within each Jornada",
+        "Accordion expands/collapses correctly"
+      ]
+    },
+    "teams_tab": {
+      "status": "PASS",
+      "tests": [
+        "Equipas tab visible with team count (Equipas (1))",
+        "Add Team button (data-testid='add-team-btn') working",
+        "Team creation dialog with all fields",
+        "Team name input (data-testid='team-name-input')",
+        "Pavilion name and address fields",
+        "12 color inputs for kit colors (6 field player + 6 goalkeeper)",
+        "Import Excel button visible",
+        "Edit and Delete buttons on team cards"
+      ]
+    },
+    "team_kit_colors": {
+      "status": "PASS",
+      "tests": [
+        "Equipamento Jogador de Campo section with 6 color pickers",
+        "Camisola 1ª/2ª, Calções 1ª/2ª, Meias 1ª/2ª for field players",
+        "Equipamento Guarda-Redes section with 6 color pickers",
+        "Same kit structure for goalkeepers"
+      ]
+    },
+    "lineup_editor": {
+      "status": "PASS",
+      "tests": [
+        "Lineup button (data-testid='lineup-{match_id}') on match rows",
+        "LINE-UP DO JOGO dialog opens correctly",
+        "Hockey rink (Hóquei em Patins) field visualization",
+        "5 position buttons: GR, DE, DD, AE, AD",
+        "Jogadores Disponíveis list with team players",
+        "Period navigation with + Período button",
+        "Guardar Line-up save button"
+      ]
+    },
+    "lineup_visibility": {
+      "status": "PASS",
+      "tests": [
+        "Visibility dropdown (data-testid='lineup-visibility-select')",
+        "4 visibility options available:",
+        "  - Só Treinador (coach_only)",
+        "  - Treinador Adjunto (assistant)",
+        "  - Delegado (delegate)",
+        "  - Adjunto e Delegado (assistant_and_delegate)",
+        "Visibility persists when saving lineup"
+      ]
+    },
+    "rbac_maintained": {
+      "status": "PASS",
+      "tests": [
+        "Admin can access all competition teams",
+        "Admin can manage lineups",
+        "Permission checks on create/update/delete operations",
+        "Team access validation for non-admin users"
+      ]
+    },
+    "backend_api": {
+      "status": "PASS",
+      "tests": [
+        "GET /api/championships/{id}/teams - 200 OK",
+        "POST /api/championships/{id}/teams - 200 OK (with championship_id in body)",
+        "PUT /api/championships/teams/{id} - 200 OK",
+        "DELETE /api/championships/teams/{id} - 200 OK",
+        "Duplicate team name rejected - 400",
+        "GET /api/championships/matches/{id}/lineup - 200 OK",
+        "POST /api/championships/matches/{id}/lineup - 200 OK",
+        "All 4 visibility options work correctly",
+        "Matchday field in matches - working"
+      ]
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_competition_teams_lineup.py",
+    "/app/test_reports/pytest/competition_teams_lineup_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ChampionshipDetail.jsx correctly implements Accordion for Jornadas grouping",
+    "MatchLineupEditor.jsx has proper hockey rink SVG for roller hockey",
+    "Visibility control dropdown has all 4 required options",
+    "Backend endpoints properly validate championship_id in request body",
+    "RBAC permissions correctly enforced on all operations"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_competition_teams_lineup.py"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@example.com",
+    "admin_password": "test123456"
+  },
+  "seed_data_creation": "None - used existing championship and team data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Competition module fully tested: Jornadas accordion (J1, S/J badges), Teams tab with kit colors (12 color inputs), Line-up editor with hockey rink and visibility control (4 options: coach_only, assistant, delegate, assistant_and_delegate). All data-testid attributes working: championship-detail-page, add-match-btn, add-team-btn, team-name-input, lineup-visibility-select, lineup-{match_id}.",
+  "verified_features": {
+    "jornadas_accordion": {
+      "component": "Accordion from shadcn/ui",
+      "badges": ["J1", "J2", "S/J"],
+      "grouping": "matchesByRound useMemo in ChampionshipDetail.jsx"
+    },
+    "teams_tab": {
+      "data_testid": "add-team-btn",
+      "form_fields": ["name", "pavilion_name", "pavilion_address", "field_player_kit", "goalkeeper_kit"],
+      "kit_colors": ["primary_shirt", "secondary_shirt", "primary_shorts", "secondary_shorts", "primary_socks", "secondary_socks"]
+    },
+    "lineup_editor": {
+      "component": "MatchLineupEditor.jsx",
+      "positions": ["guarda_redes", "defesa_esquerda", "defesa_direita", "avancado_esquerda", "avancado_direita"],
+      "visibility_options": ["coach_only", "assistant", "delegate", "assistant_and_delegate"],
+      "data_testid": "lineup-visibility-select"
+    }
+  }
+}

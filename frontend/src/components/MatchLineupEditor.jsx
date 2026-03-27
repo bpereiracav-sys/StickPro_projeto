@@ -5,6 +5,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
+import { Switch } from './ui/switch';
 import {
   Select,
   SelectContent,
@@ -28,7 +29,9 @@ import {
   Loader2,
   Users,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 // Hockey rink positions
@@ -126,7 +129,7 @@ function HockeyRink({ positions, players, onPositionClick, selectedPosition }) {
 }
 
 export function MatchLineupEditor({ matchId, teamId, onClose }) {
-  const [lineup, setLineup] = useState({ periods: [] });
+  const [lineup, setLineup] = useState({ periods: [], visibility: 'coach_only' });
   const [players, setPlayers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -144,11 +147,15 @@ export function MatchLineupEditor({ matchId, teamId, onClose }) {
       // Fetch lineup
       const lineupRes = await championshipsApi.getMatchLineup(matchId);
       if (lineupRes.data.periods && lineupRes.data.periods.length > 0) {
-        setLineup(lineupRes.data);
+        setLineup({
+          ...lineupRes.data,
+          visibility: lineupRes.data.visibility || 'coach_only'
+        });
       } else {
         // Create default periods
         setLineup({
           match_id: matchId,
+          visibility: lineupRes.data.visibility || 'coach_only',
           periods: [
             { id: crypto.randomUUID(), name: '1ª Parte', order: 1, positions: [], notes: '' },
             { id: crypto.randomUUID(), name: '2ª Parte', order: 2, positions: [], notes: '' }
@@ -268,7 +275,10 @@ export function MatchLineupEditor({ matchId, teamId, onClose }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await championshipsApi.saveMatchLineup(matchId, { periods: lineup.periods });
+      await championshipsApi.saveMatchLineup(matchId, { 
+        periods: lineup.periods,
+        visibility: lineup.visibility
+      });
       toast.success('Line-up guardado!');
       onClose?.();
     } catch (error) {
@@ -446,23 +456,70 @@ export function MatchLineupEditor({ matchId, teamId, onClose }) {
       </div>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
-        <Button variant="outline" onClick={onClose}>
-          Cancelar
-        </Button>
-        <Button onClick={handleSave} disabled={saving}>
-          {saving ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              A guardar...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4 mr-2" />
-              Guardar Line-up
-            </>
-          )}
-        </Button>
+      <div className="space-y-4 pt-4 border-t">
+        {/* Visibility Control */}
+        <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+          <div className="flex items-center gap-2">
+            <Eye className="w-4 h-4 text-muted-foreground" />
+            <div>
+              <Label className="text-sm font-medium">Visibilidade do Line-up</Label>
+              <p className="text-xs text-muted-foreground">Quem pode ver este line-up</p>
+            </div>
+          </div>
+          <Select
+            value={lineup.visibility}
+            onValueChange={(v) => setLineup(prev => ({ ...prev, visibility: v }))}
+          >
+            <SelectTrigger className="w-[200px]" data-testid="lineup-visibility-select">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="coach_only">
+                <div className="flex items-center gap-2">
+                  <EyeOff className="w-3 h-3" />
+                  Só Treinador
+                </div>
+              </SelectItem>
+              <SelectItem value="assistant">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-3 h-3" />
+                  Treinador Adjunto
+                </div>
+              </SelectItem>
+              <SelectItem value="delegate">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-3 h-3" />
+                  Delegado
+                </div>
+              </SelectItem>
+              <SelectItem value="assistant_and_delegate">
+                <div className="flex items-center gap-2">
+                  <Eye className="w-3 h-3" />
+                  Adjunto e Delegado
+                </div>
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                A guardar...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Guardar Line-up
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       {/* Add Period Dialog */}

@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { championshipsApi, teamsApi } from '../services/api';
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
@@ -33,11 +33,17 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '../components/ui/accordion';
 import { toast } from 'sonner';
 import { 
   ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin, Home, Plane, 
   Target, Edit, Check, X, Trash2, Users, Zap, FileSpreadsheet, Download, ExternalLink,
-  LayoutGrid, BarChart3
+  LayoutGrid, BarChart3, Building, Upload, Palette, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { formatDate, formatTime } from '../lib/utils';
 import { MatchLineupEditor } from '../components/MatchLineupEditor';
@@ -67,6 +73,59 @@ export default function ChampionshipDetail() {
   const [aplImportDialogOpen, setAplImportDialogOpen] = useState(false);
   const [aplCalendarUrl, setAplCalendarUrl] = useState('');
   const [importingApl, setImportingApl] = useState(false);
+  
+  // Competition Teams state
+  const [competitionTeams, setCompetitionTeams] = useState([]);
+  const [teamDialogOpen, setTeamDialogOpen] = useState(false);
+  const [editTeamDialogOpen, setEditTeamDialogOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [teamImportDialogOpen, setTeamImportDialogOpen] = useState(false);
+  const [importingTeams, setImportingTeams] = useState(false);
+  const [teamForm, setTeamForm] = useState({
+    name: '',
+    pavilion_name: '',
+    pavilion_address: '',
+    field_player_kit: {
+      primary_shirt: '',
+      secondary_shirt: '',
+      primary_shorts: '',
+      secondary_shorts: '',
+      primary_socks: '',
+      secondary_socks: ''
+    },
+    goalkeeper_kit: {
+      primary_shirt: '',
+      secondary_shirt: '',
+      primary_shorts: '',
+      secondary_shorts: '',
+      primary_socks: '',
+      secondary_socks: ''
+    }
+  });
+  
+  // Matches grouped by round
+  const matchesByRound = useMemo(() => {
+    const grouped = {};
+    matches.forEach(match => {
+      const round = match.matchday || 'Sem Jornada';
+      if (!grouped[round]) grouped[round] = [];
+      grouped[round].push(match);
+    });
+    // Sort matches within each round by date
+    Object.keys(grouped).forEach(round => {
+      grouped[round].sort((a, b) => new Date(a.match_date) - new Date(b.match_date));
+    });
+    return grouped;
+  }, [matches]);
+  
+  // Get sorted round keys
+  const sortedRounds = useMemo(() => {
+    return Object.keys(matchesByRound).sort((a, b) => {
+      if (a === 'Sem Jornada') return 1;
+      if (b === 'Sem Jornada') return -1;
+      return parseInt(a) - parseInt(b);
+    });
+  }, [matchesByRound]);
   
   const [matchForm, setMatchForm] = useState({
     home_team: '',
@@ -106,6 +165,14 @@ export default function ChampionshipDetail() {
       // Get team info
       const teamRes = await teamsApi.getOne(champRes.data.team_id);
       setTeam(teamRes.data);
+      
+      // Fetch competition teams
+      try {
+        const teamsRes = await championshipsApi.getCompetitionTeams(championshipId);
+        setCompetitionTeams(teamsRes.data || []);
+      } catch (e) {
+        console.log('No competition teams yet');
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
       toast.error('Erro ao carregar dados');
@@ -297,6 +364,129 @@ export default function ChampionshipDetail() {
     }
   };
 
+  // Competition Team functions
+  const handleCreateTeam = async (e) => {
+    e.preventDefault();
+    setCreating(true);
+    
+    try {
+      await championshipsApi.createCompetitionTeam(championshipId, teamForm);
+      toast.success('Equipa adicionada!');
+      setTeamDialogOpen(false);
+      resetTeamForm();
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao criar equipa');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleUpdateTeam = async (e) => {
+    e.preventDefault();
+    if (!selectedTeam) return;
+    setCreating(true);
+    
+    try {
+      await championshipsApi.updateCompetitionTeam(selectedTeam.id, teamForm);
+      toast.success('Equipa atualizada!');
+      setEditTeamDialogOpen(false);
+      setSelectedTeam(null);
+      resetTeamForm();
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao atualizar equipa');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleDeleteTeam = async (teamId) => {
+    if (!confirm('Tem a certeza que quer eliminar esta equipa?')) return;
+    setDeleting(teamId);
+    
+    try {
+      await championshipsApi.deleteCompetitionTeam(teamId);
+      toast.success('Equipa eliminada!');
+      fetchData();
+    } catch (error) {
+      toast.error('Erro ao eliminar equipa');
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleImportTeams = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setImportingTeams(true);
+    try {
+      const result = await championshipsApi.importCompetitionTeams(championshipId, file);
+      toast.success(result.data.message);
+      if (result.data.errors?.length > 0) {
+        result.data.errors.forEach(err => toast.warning(err));
+      }
+      setTeamImportDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao importar equipas');
+    } finally {
+      setImportingTeams(false);
+      e.target.value = '';
+    }
+  };
+
+  const openEditTeamDialog = (teamData) => {
+    setSelectedTeam(teamData);
+    setTeamForm({
+      name: teamData.name || '',
+      pavilion_name: teamData.pavilion_name || '',
+      pavilion_address: teamData.pavilion_address || '',
+      field_player_kit: teamData.field_player_kit || {
+        primary_shirt: '',
+        secondary_shirt: '',
+        primary_shorts: '',
+        secondary_shorts: '',
+        primary_socks: '',
+        secondary_socks: ''
+      },
+      goalkeeper_kit: teamData.goalkeeper_kit || {
+        primary_shirt: '',
+        secondary_shirt: '',
+        primary_shorts: '',
+        secondary_shorts: '',
+        primary_socks: '',
+        secondary_socks: ''
+      }
+    });
+    setEditTeamDialogOpen(true);
+  };
+
+  const resetTeamForm = () => {
+    setTeamForm({
+      name: '',
+      pavilion_name: '',
+      pavilion_address: '',
+      field_player_kit: {
+        primary_shirt: '',
+        secondary_shirt: '',
+        primary_shorts: '',
+        secondary_shorts: '',
+        primary_socks: '',
+        secondary_socks: ''
+      },
+      goalkeeper_kit: {
+        primary_shirt: '',
+        secondary_shirt: '',
+        primary_shorts: '',
+        secondary_shorts: '',
+        primary_socks: '',
+        secondary_socks: ''
+      }
+    });
+  };
+
   const getLocationIcon = (loc) => {
     if (loc === 'casa') return <Home className="w-4 h-4 text-secondary" />;
     if (loc === 'fora') return <Plane className="w-4 h-4 text-primary" />;
@@ -376,35 +566,38 @@ export default function ChampionshipDetail() {
       <Tabs defaultValue="matches" className="space-y-6">
         <TabsList className="bg-muted">
           <TabsTrigger value="matches">Jogos ({matches.length})</TabsTrigger>
+          <TabsTrigger value="teams">Equipas ({competitionTeams.length})</TabsTrigger>
           <TabsTrigger value="standings">Classificação</TabsTrigger>
         </TabsList>
 
-        {/* Matches Tab */}
+        {/* Matches Tab - Grouped by Round */}
         <TabsContent value="matches" className="space-y-4">
           {matches.length > 0 ? (
-            <div className="space-y-3">
-              {/* Sort matches by matchday, then by date */}
-              {[...matches]
-                .sort((a, b) => {
-                  const matchdayA = a.matchday || 999;
-                  const matchdayB = b.matchday || 999;
-                  if (matchdayA !== matchdayB) return matchdayA - matchdayB;
-                  return new Date(a.match_date) - new Date(b.match_date);
-                })
-                .map((match) => (
-                <Card key={match.id} className="border border-border" data-testid={`match-${match.id}`}>
-                  <CardContent className="p-3 sm:p-4">
+            <Accordion type="multiple" defaultValue={sortedRounds.map(String)} className="space-y-3">
+              {sortedRounds.map((round) => (
+                <AccordionItem key={round} value={String(round)} className="border rounded-lg overflow-hidden">
+                  <AccordionTrigger className="px-4 py-3 bg-muted/50 hover:bg-muted">
+                    <div className="flex items-center gap-3">
+                      <Badge variant="secondary" className="font-mono">
+                        {round === 'Sem Jornada' ? 'S/J' : `J${round}`}
+                      </Badge>
+                      <span className="font-heading">
+                        {round === 'Sem Jornada' ? 'Sem Jornada' : `Jornada ${round}`}
+                      </span>
+                      <Badge variant="outline" className="text-xs">
+                        {matchesByRound[round].length} {matchesByRound[round].length === 1 ? 'jogo' : 'jogos'}
+                      </Badge>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-0 pb-0">
+                    <div className="divide-y divide-border">
+                      {matchesByRound[round].map((match) => (
+                  <div key={match.id} className="p-3 sm:p-4 hover:bg-muted/30 transition-colors" data-testid={`match-${match.id}`}>
                     {/* Mobile: Stack layout, Desktop: Row layout */}
                     <div className="flex flex-col gap-3">
-                      {/* Matchday Badge + Date, Location and Teams */}
+                      {/* Date, Location and Teams */}
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                         <div className="flex items-center gap-3 sm:gap-4">
-                          {/* Matchday Badge */}
-                          {match.matchday && (
-                            <Badge variant="secondary" className="text-xs font-mono">
-                              J{match.matchday}
-                            </Badge>
-                          )}
                           <div className="text-center min-w-[70px] sm:min-w-[80px]">
                             <p className="text-xs text-muted-foreground uppercase">
                               {formatDate(match.match_date)}
@@ -550,10 +743,13 @@ export default function ChampionshipDetail() {
                         )}
                       </div>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                      ))}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
+            </Accordion>
           ) : (
             <Card className="border border-border">
               <CardContent className="py-12 text-center">
@@ -563,6 +759,135 @@ export default function ChampionshipDetail() {
                   <Button className="mt-4" onClick={() => setMatchDialogOpen(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Adicionar Jogo
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* Competition Teams Tab */}
+        <TabsContent value="teams" className="space-y-4">
+          {/* Team Actions */}
+          {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => { resetTeamForm(); setTeamDialogOpen(true); }} data-testid="add-team-btn">
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Equipa
+              </Button>
+              {canImportData && (
+                <Button variant="outline" onClick={() => setTeamImportDialogOpen(true)}>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Importar Excel
+                </Button>
+              )}
+            </div>
+          )}
+
+          {competitionTeams.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {competitionTeams.map((compTeam) => (
+                <Card key={compTeam.id} className="border border-border" data-testid={`team-${compTeam.id}`}>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="text-lg">{compTeam.name}</CardTitle>
+                        {compTeam.pavilion_name && (
+                          <CardDescription className="flex items-center gap-1 mt-1">
+                            <Building className="w-3 h-3" />
+                            {compTeam.pavilion_name}
+                          </CardDescription>
+                        )}
+                      </div>
+                      {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
+                        <div className="flex gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => openEditTeamDialog(compTeam)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="text-destructive"
+                            onClick={() => handleDeleteTeam(compTeam.id)}
+                            disabled={deleting === compTeam.id}
+                          >
+                            {deleting === compTeam.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {compTeam.pavilion_address && (
+                      <p className="text-xs text-muted-foreground flex items-start gap-1 mb-3">
+                        <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                        {compTeam.pavilion_address}
+                      </p>
+                    )}
+                    
+                    {/* Kit Colors Preview */}
+                    {(compTeam.field_player_kit?.primary_shirt || compTeam.goalkeeper_kit?.primary_shirt) && (
+                      <div className="flex gap-4 mt-2">
+                        {compTeam.field_player_kit?.primary_shirt && (
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-6 h-6 rounded border"
+                              style={{ backgroundColor: compTeam.field_player_kit.primary_shirt }}
+                              title="Cor principal jogador"
+                            />
+                            {compTeam.field_player_kit.secondary_shirt && (
+                              <div 
+                                className="w-6 h-6 rounded border"
+                                style={{ backgroundColor: compTeam.field_player_kit.secondary_shirt }}
+                                title="Cor secundária jogador"
+                              />
+                            )}
+                            <span className="text-xs text-muted-foreground">Jogador</span>
+                          </div>
+                        )}
+                        {compTeam.goalkeeper_kit?.primary_shirt && (
+                          <div className="flex items-center gap-2">
+                            <div 
+                              className="w-6 h-6 rounded border"
+                              style={{ backgroundColor: compTeam.goalkeeper_kit.primary_shirt }}
+                              title="Cor principal GR"
+                            />
+                            {compTeam.goalkeeper_kit.secondary_shirt && (
+                              <div 
+                                className="w-6 h-6 rounded border"
+                                style={{ backgroundColor: compTeam.goalkeeper_kit.secondary_shirt }}
+                                title="Cor secundária GR"
+                              />
+                            )}
+                            <span className="text-xs text-muted-foreground">GR</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card className="border border-border">
+              <CardContent className="py-12 text-center">
+                <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground">Nenhuma equipa registada</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Adicione as equipas participantes para poder criar jogos
+                </p>
+                {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
+                  <Button className="mt-4" onClick={() => { resetTeamForm(); setTeamDialogOpen(true); }}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Adicionar Equipa
                   </Button>
                 )}
               </CardContent>
@@ -1034,6 +1359,497 @@ export default function ChampionshipDetail() {
               }}
             />
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Competition Team Dialog */}
+      <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
+        <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR EQUIPA</DialogTitle>
+            <DialogDescription>
+              Registar uma equipa participante na competição
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreateTeam}>
+            <div className="space-y-6 py-4">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Nome da Equipa *</Label>
+                  <Input
+                    placeholder="Ex: SL Benfica"
+                    value={teamForm.name}
+                    onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+                    required
+                    data-testid="team-name-input"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nome do Pavilhão</Label>
+                    <Input
+                      placeholder="Ex: Pavilhão da Luz"
+                      value={teamForm.pavilion_name}
+                      onChange={(e) => setTeamForm({ ...teamForm, pavilion_name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Morada do Pavilhão</Label>
+                    <Input
+                      placeholder="Ex: Av. Eusébio da Silva Ferreira"
+                      value={teamForm.pavilion_address}
+                      onChange={(e) => setTeamForm({ ...teamForm, pavilion_address: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Field Player Kit Colors */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-muted-foreground" />
+                  <Label className="font-semibold">Equipamento Jogador de Campo</Label>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Camisola 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit.primary_shirt || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, primary_shirt: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Camisola 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit.secondary_shirt || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, secondary_shirt: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Calções 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit.primary_shorts || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, primary_shorts: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Calções 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit.secondary_shorts || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, secondary_shorts: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Meias 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit.primary_socks || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, primary_socks: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Meias 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit.secondary_socks || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, secondary_socks: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Goalkeeper Kit Colors */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-blue-500" />
+                  <Label className="font-semibold">Equipamento Guarda-Redes</Label>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Camisola 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit.primary_shirt || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, primary_shirt: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Camisola 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit.secondary_shirt || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, secondary_shirt: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Calções 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit.primary_shorts || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, primary_shorts: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Calções 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit.secondary_shorts || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, secondary_shorts: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Meias 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit.primary_socks || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, primary_socks: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Meias 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit.secondary_socks || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, secondary_socks: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setTeamDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating} data-testid="submit-team-btn">
+                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Competition Team Dialog */}
+      <Dialog open={editTeamDialogOpen} onOpenChange={setEditTeamDialogOpen}>
+        <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide">EDITAR EQUIPA</DialogTitle>
+            <DialogDescription>
+              Alterar dados da equipa
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateTeam}>
+            <div className="space-y-6 py-4">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label>Nome da Equipa *</Label>
+                  <Input
+                    placeholder="Ex: SL Benfica"
+                    value={teamForm.name}
+                    onChange={(e) => setTeamForm({ ...teamForm, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Nome do Pavilhão</Label>
+                    <Input
+                      placeholder="Ex: Pavilhão da Luz"
+                      value={teamForm.pavilion_name}
+                      onChange={(e) => setTeamForm({ ...teamForm, pavilion_name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Morada do Pavilhão</Label>
+                    <Input
+                      placeholder="Ex: Av. Eusébio da Silva Ferreira"
+                      value={teamForm.pavilion_address}
+                      onChange={(e) => setTeamForm({ ...teamForm, pavilion_address: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Field Player Kit Colors */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-muted-foreground" />
+                  <Label className="font-semibold">Equipamento Jogador de Campo</Label>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Camisola 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit?.primary_shirt || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, primary_shirt: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Camisola 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit?.secondary_shirt || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, secondary_shirt: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Calções 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit?.primary_shorts || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, primary_shorts: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Calções 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit?.secondary_shorts || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, secondary_shorts: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Meias 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit?.primary_socks || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, primary_socks: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Meias 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.field_player_kit?.secondary_socks || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        field_player_kit: { ...teamForm.field_player_kit, secondary_socks: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Goalkeeper Kit Colors */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4 text-blue-500" />
+                  <Label className="font-semibold">Equipamento Guarda-Redes</Label>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Camisola 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit?.primary_shirt || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, primary_shirt: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Camisola 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit?.secondary_shirt || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, secondary_shirt: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Calções 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit?.primary_shorts || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, primary_shorts: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Calções 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit?.secondary_shorts || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, secondary_shorts: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Meias 1ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit?.primary_socks || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, primary_socks: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Meias 2ª</Label>
+                    <Input
+                      type="color"
+                      value={teamForm.goalkeeper_kit?.secondary_socks || '#ffffff'}
+                      onChange={(e) => setTeamForm({
+                        ...teamForm,
+                        goalkeeper_kit: { ...teamForm.goalkeeper_kit, secondary_socks: e.target.value }
+                      })}
+                      className="h-10 p-1"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setEditTeamDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={creating}>
+                {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Guardar'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Teams Dialog */}
+      <Dialog open={teamImportDialogOpen} onOpenChange={setTeamImportDialogOpen}>
+        <DialogContent className="bg-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+              <Upload className="w-6 h-6 text-primary" />
+              IMPORTAR EQUIPAS
+            </DialogTitle>
+            <DialogDescription>
+              Importe equipas a partir de um ficheiro Excel ou CSV
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="p-4 bg-muted/30 rounded-lg">
+              <p className="text-sm font-medium mb-2">Formato esperado:</p>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>• <strong>Nome</strong> ou <strong>Equipa</strong> - Nome da equipa (obrigatório)</li>
+                <li>• <strong>Pavilhão</strong> ou <strong>Recinto</strong> - Nome do pavilhão</li>
+                <li>• <strong>Morada</strong> ou <strong>Endereço</strong> - Morada do pavilhão</li>
+              </ul>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="teams-file">Selecionar Ficheiro</Label>
+              <Input
+                id="teams-file"
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleImportTeams}
+                disabled={importingTeams}
+                className="cursor-pointer"
+              />
+              <p className="text-xs text-muted-foreground">
+                Ficheiros suportados: .xlsx, .xls, .csv
+              </p>
+            </div>
+
+            {importingTeams && (
+              <div className="flex items-center gap-2 text-primary">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>A importar equipas...</span>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setTeamImportDialogOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

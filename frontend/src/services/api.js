@@ -64,7 +64,19 @@ export const championshipsApi = {
   // Match Lineups
   getMatchLineup: (matchId) => api.get(`/championships/matches/${matchId}/lineup`),
   saveMatchLineup: (matchId, data) => api.post(`/championships/matches/${matchId}/lineup`, data),
-  deleteMatchLineup: (matchId) => api.delete(`/championships/matches/${matchId}/lineup`)
+  deleteMatchLineup: (matchId) => api.delete(`/championships/matches/${matchId}/lineup`),
+  // Competition Teams (equipas participantes)
+  getCompetitionTeams: (championshipId) => api.get(`/championships/${championshipId}/teams`),
+  createCompetitionTeam: (championshipId, data) => api.post(`/championships/${championshipId}/teams`, data),
+  updateCompetitionTeam: (teamId, data) => api.put(`/championships/teams/${teamId}`, data),
+  deleteCompetitionTeam: (teamId) => api.delete(`/championships/teams/${teamId}`),
+  importCompetitionTeams: (championshipId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/championships/${championshipId}/teams/import`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
 };
 
 // Events API

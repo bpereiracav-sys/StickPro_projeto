@@ -6,6 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from enum import Enum
 import os
+import io
 import logging
 import asyncio
 from pathlib import Path
@@ -20,6 +21,7 @@ import shutil
 import httpx
 from bs4 import BeautifulSoup
 import re
+import pandas as pd
 
 # Import RBAC permissions module
 from permissions import PermissionChecker, get_permission_checker, Role, ROLE_PERMISSIONS
@@ -379,9 +381,13 @@ class MatchPeriod(BaseModel):
     positions: List[LineupPosition] = []
     notes: Optional[str] = None
 
+# Lineup visibility options
+LineupVisibility = Literal["coach_only", "assistant", "delegate", "assistant_and_delegate"]
+
 class MatchLineupCreate(BaseModel):
     match_id: str
     periods: List[MatchPeriod] = []
+    visibility: LineupVisibility = "coach_only"
 
 class MatchLineup(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -389,9 +395,39 @@ class MatchLineup(BaseModel):
     match_id: str
     team_id: str
     periods: List[dict] = []
+    visibility: LineupVisibility = "coach_only"
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Competition Team Models (equipas participantes nas competições)
+class TeamKitColors(BaseModel):
+    primary_shirt: Optional[str] = None
+    secondary_shirt: Optional[str] = None
+    primary_shorts: Optional[str] = None
+    secondary_shorts: Optional[str] = None
+    primary_socks: Optional[str] = None
+    secondary_socks: Optional[str] = None
+
+class CompetitionTeamCreate(BaseModel):
+    championship_id: str
+    name: str
+    pavilion_name: Optional[str] = None
+    pavilion_address: Optional[str] = None
+    field_player_kit: Optional[TeamKitColors] = None
+    goalkeeper_kit: Optional[TeamKitColors] = None
+
+class CompetitionTeam(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    championship_id: str
+    name: str
+    pavilion_name: Optional[str] = None
+    pavilion_address: Optional[str] = None
+    field_player_kit: Optional[dict] = None
+    goalkeeper_kit: Optional[dict] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # AI Chat Models
 class AIChatMessage(BaseModel):
@@ -1547,7 +1583,6 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
         if club:
             club_id = club['id']
     
-    import io
     content = await file.read()
     
     results = {"success": 0, "errors": [], "created": []}
@@ -2842,7 +2877,7 @@ async def import_apl_calendar(data: APLCalendarImport, current_user: dict = Depe
         raise HTTPException(status_code=400, detail=f"Erro ao processar calendário APL: {str(e)}")
     
     return {
-        "message": f"Calendário APL importado com sucesso",
+        "message": "Calendário APL importado com sucesso",
         "matches_found": len(matches_data),
         "matches_imported": matches_imported,
         "matches_skipped": len(matches_data) - matches_imported
@@ -2855,15 +2890,46 @@ async def import_apl_calendar(data: APLCalendarImport, current_user: dict = Depe
 
 @api_router.get("/championships/matches/{match_id}/lineup")
 async def get_match_lineup(match_id: str, current_user: dict = Depends(get_current_user)):
-    """Get lineup for a match"""
+    """Get lineup for a match with visibility check"""
     lineup = await db.match_lineups.find_one({"match_id": match_id}, {"_id": 0})
     if not lineup:
         # Return empty lineup structure
         return {
             "match_id": match_id,
             "periods": [],
+            "visibility": "coach_only",
             "created_at": None
         }
+    
+    # Check visibility permissions
+    checker = get_permission_checker(current_user)
+    visibility = lineup.get('visibility', 'coach_only')
+    
+    # Coaches and admins always see the lineup
+    if checker.can_manage_lineups:
+        return lineup
+    
+    # Check visibility setting
+    user_role = current_user.get('role', '')
+    can_view = False
+    
+    if visibility == 'assistant':
+        can_view = user_role == 'treinador_adjunto'
+    elif visibility == 'delegate':
+        can_view = user_role == 'delegado'
+    elif visibility == 'assistant_and_delegate':
+        can_view = user_role in ['treinador_adjunto', 'delegado']
+    
+    if not can_view:
+        # Return empty if not allowed to see
+        return {
+            "match_id": match_id,
+            "periods": [],
+            "visibility": visibility,
+            "restricted": True,
+            "created_at": None
+        }
+    
     return lineup
 
 @api_router.post("/championships/matches/{match_id}/lineup")
@@ -2892,6 +2958,7 @@ async def save_match_lineup(match_id: str, lineup_data: dict, current_user: dict
             {"match_id": match_id},
             {"$set": {
                 "periods": lineup_data.get('periods', []),
+                "visibility": lineup_data.get('visibility', 'coach_only'),
                 "updated_at": datetime.now(timezone.utc),
                 "updated_by": current_user['id']
             }}
@@ -2904,6 +2971,7 @@ async def save_match_lineup(match_id: str, lineup_data: dict, current_user: dict
             match_id=match_id,
             team_id=match.get('team_id') or match.get('championship_id'),
             periods=lineup_data.get('periods', []),
+            visibility=lineup_data.get('visibility', 'coach_only'),
             created_by=current_user['id']
         )
         await db.match_lineups.insert_one(lineup.model_dump())
@@ -2927,6 +2995,209 @@ async def delete_match_lineup(match_id: str, current_user: dict = Depends(get_cu
         raise HTTPException(status_code=404, detail="Line-up não encontrado")
     
     return {"message": "Line-up eliminado"}
+
+
+# =====================
+# Competition Teams Endpoints (equipas participantes)
+# =====================
+
+@api_router.get("/championships/{championship_id}/teams")
+async def get_competition_teams(championship_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all teams participating in a championship"""
+    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+    if not championship:
+        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+    
+    teams = await db.competition_teams.find({"championship_id": championship_id}, {"_id": 0}).to_list(100)
+    return teams
+
+@api_router.post("/championships/{championship_id}/teams")
+async def create_competition_team(championship_id: str, data: CompetitionTeamCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new team in the championship"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_events:
+        raise HTTPException(status_code=403, detail="Sem permissão para gerir equipas")
+    
+    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+    if not championship:
+        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+    
+    # Check team access
+    if not checker.is_admin and not checker.can_access_team(championship.get('team_id')):
+        raise HTTPException(status_code=403, detail="Sem acesso a este campeonato")
+    
+    # Check for duplicate team name
+    existing = await db.competition_teams.find_one({
+        "championship_id": championship_id,
+        "name": {"$regex": f"^{data.name}$", "$options": "i"}
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail="Já existe uma equipa com este nome")
+    
+    team = CompetitionTeam(
+        championship_id=championship_id,
+        name=data.name,
+        pavilion_name=data.pavilion_name,
+        pavilion_address=data.pavilion_address,
+        field_player_kit=data.field_player_kit.model_dump() if data.field_player_kit else None,
+        goalkeeper_kit=data.goalkeeper_kit.model_dump() if data.goalkeeper_kit else None,
+        created_by=current_user['id']
+    )
+    
+    await db.competition_teams.insert_one(team.model_dump())
+    
+    # Add to championship's participating_teams list
+    await db.championships.update_one(
+        {"id": championship_id},
+        {"$addToSet": {"participating_teams": data.name}}
+    )
+    
+    return {**team.model_dump(), "_id": None}
+
+@api_router.put("/championships/teams/{team_id}")
+async def update_competition_team(team_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    """Update a competition team"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_events:
+        raise HTTPException(status_code=403, detail="Sem permissão para gerir equipas")
+    
+    team = await db.competition_teams.find_one({"id": team_id}, {"_id": 0})
+    if not team:
+        raise HTTPException(status_code=404, detail="Equipa não encontrada")
+    
+    allowed_fields = ['name', 'pavilion_name', 'pavilion_address', 'field_player_kit', 'goalkeeper_kit']
+    update_data = {k: v for k, v in data.items() if k in allowed_fields}
+    
+    if not update_data:
+        raise HTTPException(status_code=400, detail="Sem dados para atualizar")
+    
+    await db.competition_teams.update_one(
+        {"id": team_id},
+        {"$set": update_data}
+    )
+    
+    updated = await db.competition_teams.find_one({"id": team_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/championships/teams/{team_id}")
+async def delete_competition_team(team_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a competition team"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_events:
+        raise HTTPException(status_code=403, detail="Sem permissão para gerir equipas")
+    
+    team = await db.competition_teams.find_one({"id": team_id}, {"_id": 0})
+    if not team:
+        raise HTTPException(status_code=404, detail="Equipa não encontrada")
+    
+    # Remove from championship's participating_teams
+    await db.championships.update_one(
+        {"id": team.get('championship_id')},
+        {"$pull": {"participating_teams": team.get('name')}}
+    )
+    
+    await db.competition_teams.delete_one({"id": team_id})
+    return {"message": "Equipa eliminada"}
+
+@api_router.post("/championships/{championship_id}/teams/import")
+async def import_competition_teams(championship_id: str, file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """Import competition teams from Excel file"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_import_data:
+        raise HTTPException(status_code=403, detail="Sem permissão para importar dados")
+    
+    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+    if not championship:
+        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+    
+    if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+        raise HTTPException(status_code=400, detail="Formato de ficheiro não suportado. Use Excel (.xlsx, .xls) ou CSV")
+    
+    try:
+        content = await file.read()
+        
+        if file.filename.endswith('.csv'):
+            import io
+            df = pd.read_csv(io.BytesIO(content))
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+        
+        # Normalize column names
+        df.columns = [str(col).lower().strip().replace(' ', '_') for col in df.columns]
+        
+        teams_imported = 0
+        errors = []
+        
+        for idx, row in df.iterrows():
+            try:
+                # Get team name
+                team_name = None
+                for col in ['nome', 'name', 'equipa', 'team', 'nome_equipa', 'team_name']:
+                    if col in df.columns and pd.notna(row.get(col)):
+                        team_name = str(row[col]).strip()
+                        break
+                
+                if not team_name:
+                    errors.append(f"Linha {idx + 2}: Nome da equipa não encontrado")
+                    continue
+                
+                # Check for duplicate
+                existing = await db.competition_teams.find_one({
+                    "championship_id": championship_id,
+                    "name": {"$regex": f"^{team_name}$", "$options": "i"}
+                })
+                if existing:
+                    errors.append(f"Linha {idx + 2}: Equipa '{team_name}' já existe")
+                    continue
+                
+                # Extract other fields
+                pavilion_name = None
+                pavilion_address = None
+                
+                for col in ['pavilhao', 'pavilion', 'recinto', 'venue']:
+                    if col in df.columns and pd.notna(row.get(col)):
+                        pavilion_name = str(row[col]).strip()
+                        break
+                
+                for col in ['morada', 'address', 'endereco', 'pavilion_address']:
+                    if col in df.columns and pd.notna(row.get(col)):
+                        pavilion_address = str(row[col]).strip()
+                        break
+                
+                # Create team
+                team = CompetitionTeam(
+                    championship_id=championship_id,
+                    name=team_name,
+                    pavilion_name=pavilion_name,
+                    pavilion_address=pavilion_address,
+                    created_by=current_user['id']
+                )
+                
+                await db.competition_teams.insert_one(team.model_dump())
+                
+                # Add to participating_teams list
+                await db.championships.update_one(
+                    {"id": championship_id},
+                    {"$addToSet": {"participating_teams": team_name}}
+                )
+                
+                teams_imported += 1
+                
+            except Exception as e:
+                errors.append(f"Linha {idx + 2}: {str(e)}")
+        
+        return {
+            "message": f"Importação concluída: {teams_imported} equipas importadas",
+            "teams_imported": teams_imported,
+            "errors": errors[:10]  # Return first 10 errors
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao processar ficheiro: {str(e)}")
 
 
 @api_router.get("/championships/{championship_id}/standings")
