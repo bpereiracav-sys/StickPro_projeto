@@ -714,3 +714,33 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Persistência da visibilidade no MongoDB
 - **RBAC mantido** em todas as operações
 - **Testes:** 100% (13/13 backend + frontend) - `/app/test_reports/iteration_20.json`
+
+---
+
+### Módulo de Perfil - Indisponibilidades (27 Mar 2026) ✅
+- **Nova Tab "Ausências":**
+  - Disponível para jogadores, treinadores e delegados
+  - Gestão de períodos de indisponibilidade
+  - data-testid='unavailability-tab'
+- **Criação de Indisponibilidade:**
+  - Campos: data início, data fim, motivo, notas
+  - 4 motivos estruturados:
+    - Férias (ícone palmeira)
+    - Doença/Consulta Médica (estetoscópio)
+    - Atividades Escolares (boné formatura)
+    - Outro Motivo (alerta)
+  - Notas livres opcionais
+  - Notificação automática ao treinador
+- **Lista de Indisponibilidades:**
+  - Secção "ATIVAS / FUTURAS" (com badge "Agora" se atual)
+  - Secção "HISTÓRICO" (últimas 5)
+  - Editar e eliminar disponíveis
+  - Ícones coloridos por tipo de motivo
+- **Integração:**
+  - Indisponibilidades aparecem no calendário da equipa
+  - Bloqueio automático de convocação
+  - Treinador notificado via push
+- **Endpoints:**
+  - GET /api/unavailabilities/my
+  - POST/PUT/DELETE /api/unavailabilities/{id}
+- **Testes:** 100% (15/15 backend + frontend) - `/app/test_reports/iteration_21.json`
