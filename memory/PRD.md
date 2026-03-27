@@ -685,4 +685,32 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - Dashboard com métricas e gráficos
 - Exportar calendário/presenças em PDF
 - Expandir traduções i18n para restantes páginas
-- Refactoring: Dividir server.py (~4700 linhas) em routers modulares
+- Refactoring: Dividir server.py (~5000 linhas) em routers modulares
+
+---
+
+### Módulo de Competições Melhorado (27 Mar 2026) ✅
+- **Visualização por Jornada:**
+  - Jogos agrupados usando Accordion
+  - Badge com número da jornada (J1, J2, S/J)
+  - Contagem de jogos por jornada
+  - Ordenação por data dentro de cada jornada
+- **Tab de Equipas Participantes:**
+  - Criação manual de equipas com cores de equipamento
+  - Campos: nome, pavilhão, morada
+  - 12 seletores de cor (6 jogador campo + 6 guarda-redes)
+  - Cores: camisola, calções, meias (1ª/2ª)
+  - Edição e eliminação de equipas
+  - Importação via Excel/CSV
+  - Endpoints: GET/POST /championships/{id}/teams
+- **Line-up com Visibilidade:**
+  - Campo de hóquei em patins (roller hockey rink)
+  - 5 posições: GR, DE, DD, AE, AD
+  - Dropdown de visibilidade:
+    - Só Treinador
+    - Treinador Adjunto
+    - Delegado
+    - Adjunto e Delegado
+  - Persistência da visibilidade no MongoDB
+- **RBAC mantido** em todas as operações
+- **Testes:** 100% (13/13 backend + frontend) - `/app/test_reports/iteration_20.json`
