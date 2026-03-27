@@ -164,6 +164,10 @@ export const paymentsApi = {
   getAll: (params) => api.get('/payments/admin', { params }),
   getSummary: () => api.get('/payments/summary'),
   getUserPayments: (userId) => api.get(`/users/${userId}/payments`),
+  exportExcel: (params) => api.get('/payments/export', { 
+    params,
+    responseType: 'blob'
+  }),
   createMonthlyFee: (data) => api.post('/payments/monthly-fees', data),
   createBulkFees: (data) => api.post('/payments/monthly-fees/bulk', null, { params: data }),
   importFees: (file) => {

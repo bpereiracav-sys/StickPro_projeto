@@ -1,6 +1,7 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Form
+from fastapi import FastAPI, APIRouter, HTTPException, Depends, UploadFile, File, Form, Query
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -5291,7 +5292,259 @@ async def get_all_payments(user_id: Optional[str] = None, status: Optional[str] 
     
     return all_payments
 
-@api_router.get("/payments/summary")
+@api_router.get("/payments/export")
+async def export_payments_excel(
+    status: Optional[str] = Query(None, description="Filter by status: paid, pending, overdue"),
+    payment_type: Optional[str] = Query(None, description="Filter by type: monthly_fee, custom"),
+    user_id: Optional[str] = Query(None, description="Filter by user ID"),
+    team_id: Optional[str] = Query(None, description="Filter by team ID"),
+    season: Optional[str] = Query(None, description="Filter by season (e.g., 2025/2026)"),
+    due_date_from: Optional[str] = Query(None, description="Due date from (ISO format)"),
+    due_date_to: Optional[str] = Query(None, description="Due date to (ISO format)"),
+    paid_date_from: Optional[str] = Query(None, description="Payment date from (ISO format)"),
+    paid_date_to: Optional[str] = Query(None, description="Payment date to (ISO format)"),
+    search: Optional[str] = Query(None, description="Search by player name or email"),
+    current_user: dict = Depends(get_current_user)
+):
+    """Export payments to Excel file - admin only"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem exportar pagamentos")
+    
+    # Build queries for both collections
+    fee_query = {}
+    custom_query = {}
+    
+    if user_id:
+        fee_query["user_id"] = user_id
+        custom_query["user_id"] = user_id
+    
+    # Get monthly fees
+    fees = await db.monthly_fees.find(fee_query, {"_id": 0}).sort("due_date", -1).to_list(1000)
+    
+    # Get custom payments
+    custom = await db.custom_payments.find(custom_query, {"_id": 0}).sort("due_date", -1).to_list(1000)
+    
+    # Get all users for enrichment
+    users = await db.users.find({}, {"_id": 0, "id": 1, "name": 1, "email": 1, "profile": 1, "team_ids": 1}).to_list(1000)
+    user_map = {u["id"]: u for u in users}
+    
+    # Get all teams for team names
+    teams = await db.teams.find({}, {"_id": 0, "id": 1, "name": 1, "season": 1}).to_list(100)
+    team_map = {t["id"]: t for t in teams}
+    
+    # Process and enrich payments
+    all_payments = []
+    
+    for fee in fees:
+        fee['type'] = 'monthly_fee'
+        fee['type_display'] = 'Mensalidade'
+        fee['status'] = get_payment_status(fee.get('due_date'), fee.get('paid_at'))
+        fee['description'] = f"Mensalidade {fee.get('month', '')}/{fee.get('year', '')}"
+        
+        user = user_map.get(fee.get('user_id'))
+        if user:
+            fee['user_name'] = user.get('name', 'Unknown')
+            fee['user_email'] = user.get('email', '')
+            fee['date_of_birth'] = user.get('profile', {}).get('identity', {}).get('birth_date', '')
+            # Get team info
+            team_ids = user.get('team_ids', [])
+            team_names = [team_map.get(tid, {}).get('name', '') for tid in team_ids if team_map.get(tid)]
+            fee['team'] = ', '.join(team_names) if team_names else ''
+            team_seasons = [team_map.get(tid, {}).get('season', '') for tid in team_ids if team_map.get(tid)]
+            fee['season'] = team_seasons[0] if team_seasons else ''
+        
+        all_payments.append(fee)
+    
+    for payment in custom:
+        payment['type'] = 'custom'
+        payment['type_display'] = 'Pagamento Personalizado'
+        payment['status'] = get_payment_status(payment.get('due_date'), payment.get('paid_at'))
+        
+        user = user_map.get(payment.get('user_id'))
+        if user:
+            payment['user_name'] = user.get('name', 'Unknown')
+            payment['user_email'] = user.get('email', '')
+            payment['date_of_birth'] = user.get('profile', {}).get('identity', {}).get('birth_date', '')
+            team_ids = user.get('team_ids', [])
+            team_names = [team_map.get(tid, {}).get('name', '') for tid in team_ids if team_map.get(tid)]
+            payment['team'] = ', '.join(team_names) if team_names else ''
+            team_seasons = [team_map.get(tid, {}).get('season', '') for tid in team_ids if team_map.get(tid)]
+            payment['season'] = team_seasons[0] if team_seasons else ''
+        
+        all_payments.append(payment)
+    
+    # Apply filters
+    if status:
+        all_payments = [p for p in all_payments if p.get('status') == status]
+    
+    if payment_type:
+        all_payments = [p for p in all_payments if p.get('type') == payment_type]
+    
+    if team_id:
+        team_name = team_map.get(team_id, {}).get('name', '')
+        if team_name:
+            all_payments = [p for p in all_payments if team_name in p.get('team', '')]
+    
+    if season:
+        all_payments = [p for p in all_payments if p.get('season') == season or season in p.get('description', '')]
+    
+    if due_date_from:
+        all_payments = [p for p in all_payments if p.get('due_date', '') >= due_date_from]
+    
+    if due_date_to:
+        all_payments = [p for p in all_payments if p.get('due_date', '') <= due_date_to]
+    
+    if paid_date_from:
+        all_payments = [p for p in all_payments if p.get('paid_at') and p.get('paid_at', '') >= paid_date_from]
+    
+    if paid_date_to:
+        all_payments = [p for p in all_payments if p.get('paid_at') and p.get('paid_at', '') <= paid_date_to]
+    
+    if search:
+        search_lower = search.lower()
+        all_payments = [p for p in all_payments if 
+                       search_lower in p.get('user_name', '').lower() or 
+                       search_lower in p.get('user_email', '').lower()]
+    
+    # Sort by due date descending
+    all_payments.sort(key=lambda x: x.get('due_date', ''), reverse=True)
+    
+    # Create Excel workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Pagamentos"
+    
+    # Define headers
+    headers = [
+        "Nome do Jogador",
+        "Data de Nascimento",
+        "Equipa",
+        "Época",
+        "Tipo de Pagamento",
+        "Descrição",
+        "Valor (€)",
+        "Data de Criação",
+        "Data de Vencimento",
+        "Estado",
+        "Data de Pagamento",
+        "Comprovativo",
+        "Notas"
+    ]
+    
+    # Header styling
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="0D9488", end_color="0D9488", fill_type="solid")  # Teal color
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Write headers
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    # Status translations
+    status_map = {
+        'paid': 'Pago',
+        'pending': 'Pendente',
+        'overdue': 'Atrasado'
+    }
+    
+    # Write data
+    for row_idx, payment in enumerate(all_payments, 2):
+        # Format dates
+        due_date = payment.get('due_date', '')
+        if due_date:
+            try:
+                dt = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+                due_date = dt.strftime('%d/%m/%Y')
+            except:
+                pass
+        
+        created_at = payment.get('created_at', '')
+        if created_at:
+            try:
+                dt = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+                created_at = dt.strftime('%d/%m/%Y')
+            except:
+                pass
+        
+        paid_at = payment.get('paid_at', '')
+        if paid_at:
+            try:
+                dt = datetime.fromisoformat(paid_at.replace('Z', '+00:00'))
+                paid_at = dt.strftime('%d/%m/%Y')
+            except:
+                pass
+        
+        birth_date = payment.get('date_of_birth', '')
+        if birth_date:
+            try:
+                dt = datetime.fromisoformat(birth_date.replace('Z', '+00:00'))
+                birth_date = dt.strftime('%d/%m/%Y')
+            except:
+                pass
+        
+        row_data = [
+            payment.get('user_name', ''),
+            birth_date,
+            payment.get('team', ''),
+            payment.get('season', ''),
+            payment.get('type_display', ''),
+            payment.get('description', payment.get('title', '')),
+            payment.get('amount', 0),
+            created_at,
+            due_date,
+            status_map.get(payment.get('status'), payment.get('status', '')),
+            paid_at,
+            'Sim' if payment.get('proof_url') else 'Não',
+            payment.get('notes', '')
+        ]
+        
+        for col, value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col, value=value)
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical="center")
+            
+            # Format amount column
+            if col == 7 and isinstance(value, (int, float)):
+                cell.number_format = '€#,##0.00'
+    
+    # Adjust column widths
+    column_widths = [25, 15, 20, 12, 20, 35, 12, 14, 14, 12, 14, 12, 30]
+    for col, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+    
+    # Freeze header row
+    ws.freeze_panes = 'A2'
+    
+    # Save to BytesIO
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"pagamentos_export_{timestamp}.xlsx"
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
 async def get_payments_summary(current_user: dict = Depends(get_current_user)):
     """Get payments summary - admin only"""
     checker = get_permission_checker(current_user)

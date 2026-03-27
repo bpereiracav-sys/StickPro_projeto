@@ -70,7 +70,9 @@ export default function Payments() {
   
   // Filters
   const [statusFilter, setStatusFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [exporting, setExporting] = useState(false);
   
   // Dialogs
   const [showCreateFeeDialog, setShowCreateFeeDialog] = useState(false);
@@ -150,6 +152,10 @@ export default function Payments() {
       filtered = filtered.filter(p => p.status === statusFilter);
     }
     
+    if (typeFilter !== 'all') {
+      filtered = filtered.filter(p => p.type === typeFilter);
+    }
+    
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(p => 
@@ -160,7 +166,7 @@ export default function Payments() {
     }
     
     return filtered;
-  }, [payments, statusFilter, searchQuery]);
+  }, [payments, statusFilter, typeFilter, searchQuery]);
 
   // Stats for overview
   const stats = useMemo(() => {
