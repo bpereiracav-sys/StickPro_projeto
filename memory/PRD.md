@@ -557,12 +557,32 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Retorna eventos nas próximas 24h sem convocatória criada
 - **Testes:** 13/13 passaram (`/app/test_reports/iteration_15.json`)
 
+### Sistema Automático de Lembretes (27 Mar 2026) ✅
+- **Background Scheduler:**
+  - Tarefa assíncrona que corre a cada 30 minutos
+  - Verifica eventos entre 3.5h e 4.5h antes do início (janela de 1h para tolerância)
+  - Inicia automaticamente com a aplicação
+- **Lógica de Lembretes:**
+  - Apenas eventos sem convocatória são processados
+  - Prevenção de duplicados via collection `event_reminders`
+  - Notifica apenas treinadores (via `team.coach_ids` + users com role `treinador`/`treinador_adjunto`)
+- **Modelo EventReminder:**
+  - `event_id`, `team_id`, `reminder_type`, `sent_at`, `notified_user_ids`
+  - `reminder_type`: "no_convocation_4h"
+- **Endpoints:**
+  - `POST /api/reminders/process` - Disparo manual (admin only)
+  - `GET /api/reminders/status` - Histórico de lembretes enviados
+  - `GET /api/reminders/pending` - Eventos próximos sem convocatória
+- **Notificações:**
+  - Push notification aos treinadores
+  - Email com detalhes do evento (MOCKED - aguarda Resend API Key)
+- **Testes:** 14/14 passaram (`/app/test_reports/iteration_16.json`)
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
 
 ### P1 - Próximas
-- Notificação automática ao treinador 4h antes de evento sem convocatória (background job)
 - Web Scraping APL (importar calendário de divisões)
 - Configurar API Key Resend para emails reais (atualmente MOCKED)
 
@@ -570,4 +590,4 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - Dashboard com métricas e gráficos
 - Exportar calendário em PDF
 - Expandir traduções i18n para restantes páginas
-- Refactoring: Dividir server.py (~3700 linhas) em routers modulares
+- Refactoring: Dividir server.py (~4200 linhas) em routers modulares
