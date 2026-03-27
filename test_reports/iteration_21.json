@@ -1,0 +1,122 @@
+{
+  "summary": "Tested Unavailabilities Module in Profile Page - All features working correctly. Backend API tests (15/15 passed) and UI testing verified: Tab 'Ausências', CRUD operations, 4 reason types, info box, and coach notifications.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "ausencias_tab": {
+      "status": "PASS",
+      "tests": [
+        "Tab 'Ausências' visible in profile page with CalendarOff icon",
+        "Tab navigation works correctly",
+        "data-testid='unavailability-tab' present"
+      ]
+    },
+    "create_unavailability": {
+      "status": "PASS",
+      "tests": [
+        "Add button (data-testid='add-unavailability-btn') opens modal",
+        "Modal title: 'ADICIONAR INDISPONIBILIDADE'",
+        "Start date input (data-testid='unavailability-start-date')",
+        "End date input (data-testid='unavailability-end-date')",
+        "Reason dropdown (data-testid='unavailability-reason-select')",
+        "Notes textarea (data-testid='unavailability-notes')",
+        "Save button (data-testid='save-unavailability-btn')",
+        "Success toast: 'Indisponibilidade criada! O treinador foi notificado.'"
+      ]
+    },
+    "four_reason_types": {
+      "status": "PASS",
+      "tests": [
+        "Férias - with Palmtree icon (amber color)",
+        "Doença / Consulta Médica - with Stethoscope icon (red color)",
+        "Atividades Escolares - with GraduationCap icon (blue color)",
+        "Outro Motivo - with AlertCircle icon (gray color)"
+      ]
+    },
+    "unavailability_list": {
+      "status": "PASS",
+      "tests": [
+        "ATIVAS / FUTURAS section shows active/future unavailabilities",
+        "HISTÓRICO section shows past unavailabilities",
+        "Each item shows reason badge with icon",
+        "Date range displayed: 'DD/MM/YYYY → DD/MM/YYYY'",
+        "Notes displayed when present",
+        "Edit button (data-testid='edit-unavailability-{id}')",
+        "Delete button (data-testid='delete-unavailability-{id}')"
+      ]
+    },
+    "edit_unavailability": {
+      "status": "PASS",
+      "tests": [
+        "Edit button opens modal with 'EDITAR INDISPONIBILIDADE' title",
+        "Form pre-filled with existing data",
+        "Save updates the unavailability",
+        "Success toast shown after update"
+      ]
+    },
+    "delete_unavailability": {
+      "status": "PASS",
+      "tests": [
+        "Delete button shows confirmation dialog",
+        "Confirming deletes the unavailability",
+        "Success toast: 'Indisponibilidade eliminada!'",
+        "Item removed from list"
+      ]
+    },
+    "info_box": {
+      "status": "PASS",
+      "tests": [
+        "Info box with 'Como funciona?' title",
+        "Explains: 'As indisponibilidades aparecem no calendário da equipa'",
+        "Explains: 'O treinador é notificado quando criar uma nova ausência'",
+        "Explains: 'Não poderá ser convocado durante estes períodos'"
+      ]
+    },
+    "backend_api": {
+      "status": "PASS",
+      "tests": [
+        "GET /api/unavailabilities/my - 200 OK (returns user's unavailabilities)",
+        "POST /api/unavailabilities - 200 OK (creates with all 4 reasons)",
+        "PUT /api/unavailabilities/{id} - 200 OK (updates unavailability)",
+        "DELETE /api/unavailabilities/{id} - 200 OK (deletes unavailability)",
+        "Validation: start_date < end_date enforced (400 on invalid)",
+        "404 returned for nonexistent unavailability",
+        "Coach notification sent on create"
+      ]
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_unavailabilities.py",
+    "/app/test_reports/pytest/unavailabilities_module_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ProfilePage.jsx correctly implements Ausências tab with all required functionality",
+    "unavailabilitiesApi in api.js has all CRUD methods properly defined",
+    "Backend endpoints properly validate dates and ownership",
+    "Coach notification via push implemented on create",
+    "All data-testid attributes present for testing"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_unavailabilities.py"
+  ],
+  "success_rate": {
+    "backend": "100% (15/15 tests passed)",
+    "frontend": "100% (all features verified)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@example.com",
+    "admin_password": "test123456"
+  },
+  "seed_data_creation": "Test unavailabilities created and cleaned up during testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Unavailabilities module fully tested: Tab 'Ausências' in profile, CRUD operations working, 4 reason types (ferias, doenca, escola, outro) with icons, ATIVAS/FUTURAS and HISTÓRICO sections, info box explaining functionality. All data-testid attributes: unavailability-tab, add-unavailability-btn, unavailability-modal, unavailability-start-date, unavailability-end-date, unavailability-reason-select, unavailability-notes, save-unavailability-btn, edit-unavailability-{id}, delete-unavailability-{id}."
+}

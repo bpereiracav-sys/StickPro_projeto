@@ -624,11 +624,13 @@ class Convocation(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Unavailability Models
+UnavailabilityReason = Literal["ferias", "doenca", "escola", "outro"]
+
 class UnavailabilityCreate(BaseModel):
     start_date: datetime
     end_date: datetime
-    reason: str  # ferias, lesao, trabalho, pessoal, outro
-    notes: Optional[str] = None
+    reason: str  # ferias, doenca, escola, outro
+    notes: Optional[str] = None  # Free text for additional details
 
 class Unavailability(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -4636,10 +4638,9 @@ async def create_unavailability(data: UnavailabilityCreate, current_user: dict =
             if coach_user_ids:
                 reason_labels = {
                     'ferias': 'Férias',
-                    'lesao': 'Lesão',
-                    'trabalho': 'Trabalho',
-                    'pessoal': 'Pessoal',
-                    'outro': 'Outro'
+                    'doenca': 'Doença/Consulta Médica',
+                    'escola': 'Atividades Escolares',
+                    'outro': 'Outro Motivo'
                 }
                 reason_label = reason_labels.get(data.reason, data.reason)
                 
