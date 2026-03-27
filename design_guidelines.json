@@ -1,121 +1,98 @@
 {
-  "project_name": "SportEasy Roller Hockey Edition",
-  "theme": "light",
+  "theme": "dark",
+  "archetype": "Electric & Neon (SaaS Hybrid)",
+  "brand": {
+    "name": "StickPro",
+    "accent_color": "#22d3ee",
+    "logo_concept": "Text-based 'StickPro' with 'Pro' in Cyan #22d3ee, Outfit font, Bold. Subtle watermark achieved using large Lucide React icons (e.g., Activity, Shield or Hexagon) at 2-5% opacity, fixed bottom right."
+  },
   "typography": {
-    "headings": "Bebas Neue",
-    "body": "Manrope",
-    "mono": "JetBrains Mono",
-    "rules": [
-      "Use Bebas Neue (uppercase) with tracking-wide for all major headings and scoreboard numbers.",
-      "Never use Inter or generic sans. Manrope provides clean legibility for dense sports data and chat messages.",
-      "Headings > 32px must use tight letter spacing.",
-      "Data metrics (goals, assists, stats, player numbers) must use JetBrains Mono for tabular alignment."
-    ]
+    "headings": {
+      "font_family": "'Outfit', sans-serif",
+      "weights": ["600", "700"],
+      "usage_rules": "Use tracking-tight for all headings. Never center unless it's an empty state."
+    },
+    "body": {
+      "font_family": "'Manrope', sans-serif",
+      "weights": ["400", "500"],
+      "usage_rules": "Left aligned, text-slate-300 for general readability."
+    },
+    "data_display": {
+      "font_family": "'JetBrains Mono', monospace",
+      "usage_rules": "Use for statistics, scores, times, calendar dates, and tabular data."
+    }
   },
   "colors": {
-    "archetype": "The Performance Pro (Light Mode Edition)",
-    "primary": "#0047FF",
-    "secondary": "#10B981",
-    "background": "#FFFFFF",
-    "surface": "#F1F5F9",
-    "text": "#0F172A",
-    "muted": "#64748B",
-    "border": "#E2E8F0",
-    "danger": "#EF4444",
-    "warning": "#F59E0B",
-    "rules": [
-      "No generic gradients. Use solid high-contrast colors.",
-      "Never use pure black or gray, always tint heavily towards blue/cool tones (Slate).",
-      "Use Turf Green (#10B981) purely as a functional color (attendance confirmed, match won).",
-      "CRITICAL: DO NOT use complete transparent background in header, overlays, any surface that has content under it. Example: Dropdown with transparent background."
-    ]
+    "background": "#09090b",
+    "surface": "#111118",
+    "border": "rgba(34, 211, 238, 0.15)",
+    "border_muted": "rgba(255, 255, 255, 0.1)",
+    "primary": "#22d3ee",
+    "primary_hover": "#06b6d4",
+    "text_main": "#f8fafc",
+    "text_muted": "#94a3b8",
+    "success": "#10b981",
+    "warning": "#f59e0b",
+    "destructive": "#ef4444"
   },
-  "visual_enhancers": {
-    "surfaces": "Tactical Minimalism. Replace soft shadows with 1px solid strokes (border-border) and 0-4px border radius. Hard, athletic edges that signify precision.",
-    "effects": "Grid Borders (Technical Look) for all dashboard widgets and stats tables. Use border-collapse style layouts.",
-    "textures": "Subtle dot-matrix or diagonal mesh patterns in the background of hero headers to mimic sports jerseys."
+  "layout_and_spacing": {
+    "dashboard_grid": "Control Room Grid (grid-cols-1 md:grid-cols-3 lg:grid-cols-4), gap-6.",
+    "card_padding": "p-6 for standard cards, p-8 for large focus areas.",
+    "container_max_width": "max-w-7xl mx-auto"
   },
-  "grids_and_layouts": {
-    "dashboard": "High Density Bento Grid. Base: grid-cols-1 md:grid-cols-4. Gap: gap-4 or gap-6. Every pixel utilized. Main chart span-3, sidebar feed span-1.",
-    "spacing": "Generous Spacing Philosophy. Use p-6 or p-8 inside cards to avoid text collision.",
-    "alignment": "Left-align dense content. Top-right for actions/filters. Mobile-first responsive, crucially for players confirming attendance on mobile."
+  "ui_components": {
+    "cards": {
+      "style": "Flat background (#111118), 1px solid border (border-cyan-900/30 or border-white/10). No soft shadows. Sharp or slightly rounded corners (rounded-lg maximum).",
+      "hover_state": "Slight lift (-translate-y-1), border turns to solid primary (border-cyan-400), subtle cyan glow (shadow-[0_0_15px_rgba(34,211,238,0.1)])."
+    },
+    "buttons": {
+      "primary": "Solid primary background (bg-cyan-400), text-black font-semibold. Hover: bg-cyan-300.",
+      "secondary": "Transparent background, 1px border border-cyan-900/50, text-cyan-400. Hover: bg-cyan-950/30 text-cyan-300.",
+      "ghost": "Hover text-cyan-400 bg-cyan-950/20"
+    },
+    "sidebar": {
+      "style": "Fixed left, w-64, bg-background, border-r border-border_muted.",
+      "active_link": "bg-cyan-950/20 text-cyan-400 border-l-2 border-cyan-400."
+    },
+    "empty_states": {
+      "style": "Flex column, centered. Large Lucide React icon (w-16 h-16 text-cyan-900/50), muted text, primary CTA.",
+      "watermark": "Absolute positioning, large scale, 2% opacity in the background."
+    },
+    "data_tables": {
+      "style": "Shadcn based. Dark headers (bg-zinc-900/50), 1px border-b on rows. Hover rows (hover:bg-cyan-950/10)."
+    }
   },
-  "components": {
-    "buttons": "Sharp rectangular (rounded-sm or rounded-none), high-contrast. Hover state translates Y by -2px with an inner shadow. Primary button uses Dynamic Blue.",
-    "cards": "Flat solid background (surface color), 1px subtle border, NO shadow. On hover: border color darkens to primary.",
-    "tables": "Shadcn UI tables customized. Grid lines visible on all cells (border-b and border-r) for a technical stats look.",
-    "navigation": "Solid background with a hard bottom border. If scrolling, use Crystal Glass (backdrop-blur-xl bg-white/70 + 1px bottom border).",
-    "forms": "Shadcn form components. Input backgrounds slightly tinted (surface color) with sharp focus states (ring-2 ring-primary).",
-    "chat": "Distinct bubble styles for team chat. Clear visual differentiation between sent/received messages using primary and surface colors."
+  "motion_and_interactions": {
+    "hover": "All interactive elements must have transition-all duration-200 ease-in-out.",
+    "focus": "focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:ring-offset-2 focus:ring-offset-[#09090b]",
+    "page_load": "Staggered fade-in-up for dashboard cards."
   },
-  "motion": {
-    "hover": "Translate Y -2px, fast transition (150ms ease).",
-    "entrance": "Staggered fade-in-up for lists and feed items.",
-    "rules": "Respect prefers-reduced-motion. Animations must feel snappy and athletic, not floaty."
-  },
-  "accessibility": {
-    "contrast": "Ensure 4.5:1 ratio for normal text. Use Text Shadow on hero images.",
-    "focus": "High contrast ring for all interactive elements.",
-    "testing": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case to facilitate robust automated testing."
+  "icons": {
+    "library": "lucide-react",
+    "rules": "No emojis. Stroke width 1.5 or 2 depending on scale."
   },
   "media": {
     "images": [
       {
         "url": "https://images.pexels.com/photos/9708237/pexels-photo-9708237.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Two players compete in a fast-paced roller hockey game",
-        "category": "Hero / Landing Page Background"
+        "category": "auth_background",
+        "description": "Two players compete in a fast-paced roller hockey game inside a sports rink. Use this heavily darkened (bg-black/80 overlay) for Auth page backgrounds or high-impact hero banners."
       },
       {
-        "url": "https://images.pexels.com/photos/30756235/pexels-photo-30756235.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Roller hockey action shot",
-        "category": "Auth Page Split Background"
-      },
-      {
-        "url": "https://images.unsplash.com/photo-1766136809028-1603fac2101a?crop=entropy&cs=srgb&fm=jpg&q=85",
-        "description": "Team huddle",
-        "category": "Team Profile Banner / Dashboard Widget"
-      },
-      {
-        "url": "https://images.pexels.com/photos/6847283/pexels-photo-6847283.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
-        "description": "Hockey goalie action",
-        "category": "Next Game / Calendar Section"
+        "url": "https://images.pexels.com/photos/30756244/pexels-photo-30756244.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "profile_header",
+        "description": "Action shot of a roller hockey player during a night game. Good for empty states or profile header backgrounds with an overlay."
       }
-    ],
-    "icons": "Use lucide-react (default). For specialized sports icons, install and use @phosphor-icons/react (Duotone/Bold weights)."
-  },
-  "3d_libraries": {
-    "recommendation": "Use Recharts for game statistics and player performance trends. Do not use complex 3D libraries unless rendering a rink diagram (then use simple Canvas).",
-    "charts": "Recharts wrapped in Shadcn chart components. Use Primary Blue and Turf Green for data lines."
+    ]
   },
   "instructions_to_main_agent": [
-    "Build the dashboard using pure HTML/Tailwind for structural layout (Bento grids).",
-    "Use Shadcn components for complex interactions (Tables, Dropdowns, DatePicker).",
-    "Do NOT use 'Inter' for headings. Inject Bebas Neue font for an athletic look.",
-    "Do NOT use generic gradients or soft shadows. Use hard 1px borders for a tactical feel.",
-    "Ensure the Convocations/Attendance feature is mobile-first, using large tap targets.",
-    "Ensure 'data-testid' is present on all actionable items.",
-    "Follow the High Density Grid protocol for the main dashboard analytics."
-  ],
-  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
-    "You tend to converge toward generic, 'on distribution' outputs. Avoid this. Make creative, distinctive frontends.",
-    "Dark colors look good when used independently without gradients. DO NOT use dark colors as gradients.",
-    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
-    "Create depth through layered design elements with z-index hierarchy.",
-    "Use glass-morphism effects with backdrop filters (12-24px blur).",
-    "You MUST NOT apply universal transition (e.g., transition: all). Add transitions for specific interactive elements.",
-    "You MUST NOT center align the app container (.App { text-align: center; }). This disrupts reading flow.",
-    "Always use modern button styles like pill-shaped, or sharp button with interaction animations.",
-    "NEVER use AI assistant Emoji characters like 🤖🧠💭💡🔮🎯 for icons.",
-    "Every interaction needs micro-animations - hover states, transitions.",
-    "Use 2-3x more spacing than feels comfortable.",
-    "Missing categories (especially sponsor logos) = main agent will use placeholder text which is FORBIDDEN.",
-    "Components MUST use named exports, Pages MUST use default exports.",
-    "Use sonner for toasts from /app/frontend/src/components/ui/sonner.js"
-  ],
-  "GENERAL UI UX DESIGN GUIDELINES": [
-    "Consistency: Maintain consistent styling, padding, and font usage across all pages to build trust.",
-    "Hierarchy: Always employ clear visual hierarchy (size, weight, color) to guide the user's eye to the most important metric (e.g., next game time, score).",
-    "Feedback: Provide immediate visual feedback for user actions (toast notifications, button loading states, active styles).",
-    "Frictionless Input: Optimize forms (login, convocation response) for rapid input. Auto-focus fields, use clear labels, and avoid unnecessary questions."
+    "Ensure all fonts (Outfit, Manrope, JetBrains Mono) are correctly imported via Google Fonts in index.css.",
+    "Update tailwind.config.js to include the exact primary cyan (#22d3ee) and background colors (#09090b) mapped to CSS variables.",
+    "Implement the 'Control Room' grid layout for the dashboard using tight gaps (gap-6) and exact standard spans.",
+    "Refactor the existing sidebar to use the active state styling defined (cyan left border, text cyan) and remove all emojis.",
+    "Apply the subtle watermark effect using Lucide React icons (like Activity, Shield, or Hexagon) at w-96 h-96, absolute positioned, fixed bottom-right, text-cyan-500 with opacity-5, pointer-events-none.",
+    "Remove any usage of emojis across the app and replace them exclusively with lucide-react icons.",
+    "Ensure every interactive element includes a 'data-testid' attribute for testing.",
+    "Standardize card padding to p-6 and border to border-white/10 or border-cyan-900/30 across all modules."
   ]
 }
