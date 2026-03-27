@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
-import { teamsApi, championshipsApi, eventsApi, convocationsApi } from '../services/api';
+import { usePermissions } from '../context/PermissionsContext';
+import { teamsApi, championshipsApi, eventsApi, convocationsApi, unavailabilitiesApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -10,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { Progress } from '../components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Input } from '../components/ui/input';
 import {
   Select,
   SelectContent,
@@ -36,11 +38,16 @@ import {
   CalendarDays,
   CalendarRange,
   Filter,
-  Download
+  Download,
+  Search,
+  AlertTriangle,
+  CalendarOff,
+  UserX
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isSameWeek, isSameMonth } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { toast } from 'sonner';
 
 const months = [
   { value: 'all', label: 'Todos os meses' },
@@ -84,6 +91,7 @@ const viewModes = [
 export default function Attendance() {
   const { user } = useAuth();
   const { selectedTeam, teams: contextTeams } = useTeam();
+  const { canManageAttendance, canAccessTeam, isAdmin, isPlayer, isFamilyMember } = usePermissions();
   const [teams, setTeams] = useState([]);
   const [championships, setChampionships] = useState([]);
   const [events, setEvents] = useState([]);
@@ -97,6 +105,12 @@ export default function Attendance() {
   const [summary, setSummary] = useState(null);
   const [eventAttendance, setEventAttendance] = useState({});
   const [loading, setLoading] = useState(true);
+  
+  // New state for search and unavailabilities
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState(null);
+  const [unavailabilities, setUnavailabilities] = useState([]);
+  const [showUnavailabilities, setShowUnavailabilities] = useState(false);
 
   // Set selected team from context
   useEffect(() => {
@@ -117,6 +131,7 @@ export default function Attendance() {
       fetchSummary();
       fetchChampionships();
       fetchEvents();
+      fetchUnavailabilities();
     }
   }, [selectedTeamId, selectedSeason, selectedMonth, selectedEventType, selectedChampionship]);
 
@@ -126,6 +141,30 @@ export default function Attendance() {
       setChampionships(response.data);
     } catch (error) {
       console.error('Error fetching championships:', error);
+    }
+  };
+
+  const fetchUnavailabilities = async () => {
+    try {
+      const response = await teamsApi.getAttendanceUnavailabilities(selectedTeamId);
+      setUnavailabilities(response.data || []);
+    } catch (error) {
+      console.error('Error fetching unavailabilities:', error);
+    }
+  };
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) {
+      setSearchResults(null);
+      return;
+    }
+    
+    try {
+      const response = await teamsApi.searchAttendance(selectedTeamId, searchQuery);
+      setSearchResults(response.data);
+    } catch (error) {
+      console.error('Error searching attendance:', error);
+      toast.error('Erro na pesquisa');
     }
   };
 
@@ -286,6 +325,37 @@ export default function Attendance() {
     return typeObj?.label || type;
   };
 
+  // Get status badge with new status
+  const getStatusBadge = (status) => {
+    const statusConfig = {
+      confirmado: { label: 'Confirmado', variant: 'default', className: 'bg-green-500' },
+      ausente: { label: 'Ausente', variant: 'destructive', className: '' },
+      pendente: { label: 'Pendente', variant: 'secondary', className: '' },
+      faltou_sem_aviso: { label: 'Faltou s/ aviso', variant: 'destructive', className: 'bg-red-700' }
+    };
+    const config = statusConfig[status] || statusConfig.pendente;
+    return (
+      <Badge variant={config.variant} className={config.className}>
+        {config.label}
+      </Badge>
+    );
+  };
+
+  // Get reason label for unavailability
+  const getReasonLabel = (reason) => {
+    const reasons = {
+      ferias: 'Férias',
+      lesao: 'Lesão',
+      trabalho: 'Trabalho',
+      pessoal: 'Pessoal',
+      outro: 'Outro'
+    };
+    return reasons[reason] || reason;
+  };
+
+  // Filter attendance data to show
+  const displayAttendance = searchResults !== null ? searchResults : attendance;
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -310,7 +380,41 @@ export default function Attendance() {
           <p className="text-muted-foreground mt-1">Acompanhamento de assiduidade</p>
         </div>
 
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
+          {/* Search */}
+          <div className="flex gap-2">
+            <Input
+              placeholder="Pesquisar jogador..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              className="w-48"
+              data-testid="search-attendance-input"
+            />
+            <Button variant="outline" size="icon" onClick={handleSearch} data-testid="search-attendance-btn">
+              <Search className="w-4 h-4" />
+            </Button>
+            {searchResults !== null && (
+              <Button variant="ghost" size="sm" onClick={() => { setSearchResults(null); setSearchQuery(''); }}>
+                Limpar
+              </Button>
+            )}
+          </div>
+          
+          {/* Toggle unavailabilities */}
+          <Button 
+            variant={showUnavailabilities ? "default" : "outline"} 
+            size="sm"
+            onClick={() => setShowUnavailabilities(!showUnavailabilities)}
+            data-testid="toggle-unavailabilities-btn"
+          >
+            <CalendarOff className="w-4 h-4 mr-2" />
+            Indisponibilidades
+            {unavailabilities.length > 0 && (
+              <Badge variant="secondary" className="ml-2">{unavailabilities.length}</Badge>
+            )}
+          </Button>
+          
           <Button variant="outline" size="sm">
             <Download className="w-4 h-4 mr-2" />
             Exportar
@@ -477,17 +581,66 @@ export default function Attendance() {
 
             {/* By Player View */}
             <TabsContent value="player">
+              {/* Unavailabilities Section */}
+              {showUnavailabilities && unavailabilities.length > 0 && (
+                <Card className="border border-border mb-4 bg-orange-50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+                      <CalendarOff className="w-5 h-5 text-orange-600" />
+                      INDISPONIBILIDADES
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2">
+                      {unavailabilities.slice(0, 5).map(unav => (
+                        <div key={unav.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="w-8 h-8">
+                              <AvatarFallback className="text-xs bg-orange-500 text-white">
+                                {getInitials(unav.user_name)}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div>
+                              <p className="font-medium text-sm">{unav.user_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {format(new Date(unav.start_date), 'dd/MM/yyyy', { locale: pt })} - {format(new Date(unav.end_date), 'dd/MM/yyyy', { locale: pt })}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-200">
+                              {getReasonLabel(unav.reason)}
+                            </Badge>
+                            {unav.notes && (
+                              <p className="text-xs text-muted-foreground mt-1">{unav.notes}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {unavailabilities.length > 5 && (
+                        <p className="text-xs text-muted-foreground text-center">
+                          E mais {unavailabilities.length - 5} indisponibilidade(s)...
+                        </p>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+              
               <Card className="border border-border">
                 <CardHeader>
                   <CardTitle className="font-heading text-xl tracking-wide">
-                    ASSIDUIDADE POR JOGADOR
+                    {searchResults !== null ? 'RESULTADOS DA PESQUISA' : 'ASSIDUIDADE POR JOGADOR'}
                   </CardTitle>
                   <CardDescription>
-                    Época {selectedSeason}
+                    {searchResults !== null 
+                      ? `${searchResults.length} resultado(s) para "${searchQuery}"` 
+                      : `Época ${selectedSeason}`
+                    }
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {attendance.length > 0 ? (
+                  {displayAttendance.length > 0 ? (
                     <div className="overflow-x-auto">
                       <Table>
                         <TableHeader>
@@ -496,12 +649,13 @@ export default function Attendance() {
                             <TableHead className="text-center">Total</TableHead>
                             <TableHead className="text-center">Confirmado</TableHead>
                             <TableHead className="text-center">Ausente</TableHead>
+                            <TableHead className="text-center">S/ Aviso</TableHead>
                             <TableHead className="text-center">Pendente</TableHead>
                             <TableHead className="w-48">Taxa</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {attendance.map((record, index) => (
+                          {displayAttendance.map((record, index) => (
                             <TableRow key={record.player?.id || index}>
                               <TableCell>
                                 <Link 
@@ -523,6 +677,9 @@ export default function Attendance() {
                               </TableCell>
                               <TableCell className="text-center font-mono text-red-600">
                                 {record.ausente || 0}
+                              </TableCell>
+                              <TableCell className="text-center font-mono text-red-700">
+                                {record.faltou_sem_aviso || 0}
                               </TableCell>
                               <TableCell className="text-center font-mono text-amber-600">
                                 {record.pendente || 0}

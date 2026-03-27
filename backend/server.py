@@ -59,7 +59,7 @@ logger = logging.getLogger(__name__)
 
 UserRole = Literal["admin", "treinador", "treinador_adjunto", "delegado", "jogador", "responsavel"]
 EventType = Literal["treino", "jogo_campeonato", "jogo_amigavel", "torneio", "outro"]
-AttendanceStatus = Literal["confirmado", "ausente", "pendente"]
+AttendanceStatus = Literal["confirmado", "ausente", "pendente", "faltou_sem_aviso"]
 MatchLocation = Literal["casa", "fora", "neutro"]
 PlayerPosition = Literal["GR", "JC"]
 ChampionshipFormat = Literal["5x5", "3x3"]
@@ -3049,23 +3049,48 @@ async def update_attendance(attendance_id: str, update: AttendanceUpdate, curren
     if not attendance:
         raise HTTPException(status_code=404, detail="Registo de presença não encontrado")
     
-    # Allow: own attendance, staff for their teams, admin for all
+    # Get event to check if it has started
+    event = await db.events.find_one({"id": attendance['event_id']}, {"_id": 0})
+    event_started = False
+    if event:
+        event_time = event.get('start_time')
+        if isinstance(event_time, str):
+            event_time = datetime.fromisoformat(event_time.replace('Z', '+00:00'))
+        # Ensure event_time is timezone-aware
+        if event_time.tzinfo is None:
+            event_time = event_time.replace(tzinfo=timezone.utc)
+        event_started = datetime.now(timezone.utc) >= event_time
+    
+    # Determine who can update
     can_update = False
+    is_self_or_family = False
     
     if checker.is_admin:
         can_update = True
+    elif checker.is_coach and attendance.get('team_id'):
+        # Coaches can always update for their teams (even after event started)
+        can_update = checker.can_access_team(attendance.get('team_id'))
     elif attendance['player_id'] == current_user['id']:
-        # Users can update their own attendance
+        # Players can update their own attendance
+        is_self_or_family = True
         can_update = True
     elif checker.is_staff and attendance.get('team_id'):
-        # Staff can update attendance for their teams
+        # Other staff can update attendance for their teams
         can_update = checker.can_access_team(attendance.get('team_id'))
     elif checker.is_family_member and checker.linked_player_id:
         # Family members can update linked player's attendance
+        is_self_or_family = True
         can_update = attendance['player_id'] == checker.linked_player_id
     
     if not can_update:
         raise HTTPException(status_code=403, detail="Sem permissão para atualizar esta presença")
+    
+    # After event started, only admin/coach can edit
+    if event_started and is_self_or_family:
+        raise HTTPException(
+            status_code=403, 
+            detail="O evento já começou. Apenas treinadores podem atualizar a presença."
+        )
     
     await db.attendance.update_one(
         {"id": attendance_id},
@@ -3095,8 +3120,11 @@ async def get_team_attendance(team_id: str, season: Optional[str] = None, month:
     
     attendances = await db.attendance.find(query, {"_id": 0}).to_list(5000)
     
+    # For players, filter to only show their own attendance
+    if checker.is_player and not checker.is_staff and not checker.is_admin:
+        attendances = [a for a in attendances if a['player_id'] == current_user['id']]
     # For family members, filter to only show linked player's attendance
-    if checker.is_family_member and checker.linked_player_id:
+    elif checker.is_family_member and checker.linked_player_id:
         attendances = [a for a in attendances if a['player_id'] == checker.linked_player_id]
     
     # Filter by month if specified
@@ -3108,9 +3136,11 @@ async def get_team_attendance(team_id: str, season: Optional[str] = None, month:
     for att in attendances:
         pid = att['player_id']
         if pid not in player_stats:
-            player_stats[pid] = {"total": 0, "confirmado": 0, "ausente": 0, "pendente": 0}
+            player_stats[pid] = {"total": 0, "confirmado": 0, "ausente": 0, "pendente": 0, "faltou_sem_aviso": 0}
         player_stats[pid]["total"] += 1
-        player_stats[pid][att['status']] += 1
+        status = att.get('status', 'pendente')
+        if status in player_stats[pid]:
+            player_stats[pid][status] += 1
     
     # Enrich with player info
     result = []
@@ -3167,6 +3197,162 @@ async def get_team_attendance_summary(team_id: str, current_user: dict = Depends
                 by_event_type[et]["confirmado"] += 1
     
     return {"monthly": monthly, "by_event_type": by_event_type, "total_records": len(attendances)}
+
+@api_router.get("/teams/{team_id}/attendance/search")
+async def search_team_attendance(team_id: str, query: str, current_user: dict = Depends(get_current_user)):
+    """Search attendance by player name"""
+    checker = get_permission_checker(current_user)
+    
+    # Check team access
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+    
+    # For players and family members, they can only search their own data
+    if checker.is_player and not checker.is_staff:
+        # Get own attendance
+        attendances = await db.attendance.find({
+            "team_id": team_id,
+            "player_id": current_user['id']
+        }, {"_id": 0}).to_list(500)
+        
+        # Filter by search term in own name
+        user = await db.users.find_one({"id": current_user['id']}, {"_id": 0, "name": 1})
+        if user and query.lower() not in user.get('name', '').lower():
+            return []
+    elif checker.is_family_member and checker.linked_player_id:
+        attendances = await db.attendance.find({
+            "team_id": team_id,
+            "player_id": checker.linked_player_id
+        }, {"_id": 0}).to_list(500)
+        
+        player = await db.users.find_one({"id": checker.linked_player_id}, {"_id": 0, "name": 1})
+        if player and query.lower() not in player.get('name', '').lower():
+            return []
+    else:
+        # Staff and admin can search all players
+        # First find players matching the query
+        players = await db.users.find({
+            "team_ids": team_id,
+            "name": {"$regex": query, "$options": "i"}
+        }, {"_id": 0, "id": 1, "name": 1}).to_list(50)
+        
+        player_ids = [p['id'] for p in players]
+        
+        if not player_ids:
+            return []
+        
+        attendances = await db.attendance.find({
+            "team_id": team_id,
+            "player_id": {"$in": player_ids}
+        }, {"_id": 0}).to_list(2000)
+    
+    # Group by player
+    player_stats = {}
+    for att in attendances:
+        pid = att['player_id']
+        if pid not in player_stats:
+            player_stats[pid] = {"total": 0, "confirmado": 0, "ausente": 0, "pendente": 0, "faltou_sem_aviso": 0}
+        player_stats[pid]["total"] += 1
+        status = att.get('status', 'pendente')
+        if status in player_stats[pid]:
+            player_stats[pid][status] += 1
+    
+    # Enrich with player info
+    result = []
+    for pid, stats in player_stats.items():
+        player = await db.users.find_one({"id": pid}, {"_id": 0, "password": 0})
+        if player:
+            stats['player'] = player
+            stats['attendance_rate'] = round((stats['confirmado'] / stats['total']) * 100, 1) if stats['total'] > 0 else 0
+            result.append(stats)
+    
+    result.sort(key=lambda x: -x['attendance_rate'])
+    return result
+
+@api_router.get("/teams/{team_id}/attendance/unavailabilities")
+async def get_team_attendance_unavailabilities(team_id: str, current_user: dict = Depends(get_current_user)):
+    """Get unavailability periods relevant to attendance for this team"""
+    checker = get_permission_checker(current_user)
+    
+    # Check team access
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+    
+    # Get team members
+    team_members = await db.users.find({"team_ids": team_id}, {"_id": 0, "id": 1, "name": 1, "role": 1}).to_list(100)
+    member_ids = [m['id'] for m in team_members]
+    
+    # For players, only show own unavailabilities
+    if checker.is_player and not checker.is_staff:
+        unavailabilities = await db.unavailabilities.find({
+            "user_id": current_user['id']
+        }, {"_id": 0}).sort("start_date", -1).to_list(50)
+    # For family members, show linked player's unavailabilities
+    elif checker.is_family_member and checker.linked_player_id:
+        unavailabilities = await db.unavailabilities.find({
+            "user_id": checker.linked_player_id
+        }, {"_id": 0}).sort("start_date", -1).to_list(50)
+    else:
+        # Staff and admin can see all team members' unavailabilities
+        unavailabilities = await db.unavailabilities.find({
+            "user_id": {"$in": member_ids}
+        }, {"_id": 0}).sort("start_date", -1).to_list(200)
+    
+    # Enrich with user info
+    for unav in unavailabilities:
+        user = await db.users.find_one({"id": unav['user_id']}, {"_id": 0, "name": 1, "role": 1})
+        if user:
+            unav['user_name'] = user.get('name', 'Unknown')
+            unav['user_role'] = user.get('role', 'jogador')
+    
+    return unavailabilities
+
+@api_router.get("/attendance/my/detailed")
+async def get_my_detailed_attendance(current_user: dict = Depends(get_current_user)):
+    """Get current user's detailed attendance with event info and unavailabilities"""
+    checker = get_permission_checker(current_user)
+    
+    # Determine which player's data to show
+    player_id = current_user['id']
+    if checker.is_family_member and checker.linked_player_id:
+        player_id = checker.linked_player_id
+    
+    # Get attendance
+    attendances = await db.attendance.find({"player_id": player_id}, {"_id": 0}).sort("event_date", -1).to_list(200)
+    
+    result = []
+    now = datetime.now(timezone.utc)
+    
+    for att in attendances:
+        event = await db.events.find_one({"id": att['event_id']}, {"_id": 0})
+        if event:
+            # Check if event has started
+            event_time = event.get('start_time')
+            if isinstance(event_time, str):
+                event_time = datetime.fromisoformat(event_time.replace('Z', '+00:00'))
+            
+            # Ensure event_time is timezone-aware
+            if event_time.tzinfo is None:
+                event_time = event_time.replace(tzinfo=timezone.utc)
+            
+            event_started = now >= event_time
+            
+            result.append({
+                "attendance": att,
+                "event": event,
+                "event_started": event_started,
+                "can_edit": not event_started or checker.is_admin or checker.is_coach
+            })
+    
+    # Get unavailabilities
+    unavailabilities = await db.unavailabilities.find({
+        "user_id": player_id
+    }, {"_id": 0}).sort("start_date", -1).to_list(50)
+    
+    return {
+        "attendance": result,
+        "unavailabilities": unavailabilities
+    }
 
 @api_router.get("/events/{event_id}/attendance")
 async def get_event_attendance(event_id: str, current_user: dict = Depends(get_current_user)):

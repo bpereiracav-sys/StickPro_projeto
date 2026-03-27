@@ -41,7 +41,9 @@ export const teamsApi = {
   removeMember: (teamId, userId) => api.delete(`/teams/${teamId}/members/${userId}`),
   getStats: (id, championshipId) => api.get(`/teams/${id}/stats`, { params: { championship_id: championshipId } }),
   getAttendance: (id, params) => api.get(`/teams/${id}/attendance`, { params }),
-  getAttendanceSummary: (id) => api.get(`/teams/${id}/attendance/summary`)
+  getAttendanceSummary: (id) => api.get(`/teams/${id}/attendance/summary`),
+  searchAttendance: (id, query) => api.get(`/teams/${id}/attendance/search`, { params: { query } }),
+  getAttendanceUnavailabilities: (id) => api.get(`/teams/${id}/attendance/unavailabilities`)
 };
 
 // Championships API
@@ -82,7 +84,8 @@ export const convocationsApi = {
   getAll: (params) => api.get('/convocations', { params }),
   getMy: () => api.get('/convocations/my'),
   create: (data) => api.post('/convocations', data),
-  updateAttendance: (id, data) => api.put(`/attendance/${id}`, data)
+  updateAttendance: (id, data) => api.put(`/attendance/${id}`, data),
+  getMyDetailed: () => api.get('/attendance/my/detailed')
 };
 
 // Messages API
