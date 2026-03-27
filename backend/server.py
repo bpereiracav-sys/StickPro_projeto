@@ -7,6 +7,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from enum import Enum
 import os
 import logging
+import asyncio
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional, Literal, Dict, Any
@@ -603,6 +604,16 @@ class Unavailability(BaseModel):
     reason: str
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Event Reminder Models
+class EventReminder(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    event_id: str
+    team_id: str
+    reminder_type: str  # "no_convocation_4h"
+    sent_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    notified_user_ids: List[str] = []
 
 # Message Models with attachments
 class MessageCreate(BaseModel):
@@ -3934,6 +3945,235 @@ async def check_unavailability(player_ids: str, event_date: str, current_user: d
             })
     
     return {"unavailable_players": unavailable_players}
+
+# ==================== EVENT REMINDER SYSTEM ====================
+
+async def process_event_reminders():
+    """
+    Process events approaching without convocation and send reminders to coaches.
+    This function is idempotent - it can be called multiple times safely.
+    """
+    now = datetime.now(timezone.utc)
+    
+    # Window: events starting between 3.5h and 4.5h from now
+    # This gives a 1-hour window to catch events even if the job runs slightly off schedule
+    window_start = now + timedelta(hours=3, minutes=30)
+    window_end = now + timedelta(hours=4, minutes=30)
+    
+    logging.info(f"Processing event reminders for events between {window_start} and {window_end}")
+    
+    # Find upcoming events without convocation in the window
+    events = await db.events.find({
+        "start_time": {
+            "$gte": window_start.isoformat(),
+            "$lte": window_end.isoformat()
+        },
+        "status": "scheduled"
+    }, {"_id": 0}).to_list(100)
+    
+    reminders_sent = 0
+    reminders_skipped = 0
+    
+    for event in events:
+        event_id = event['id']
+        team_id = event.get('team_id')
+        
+        if not team_id:
+            continue
+        
+        # Check if this event already has a convocation
+        convocation = await db.convocations.find_one({"event_id": event_id}, {"_id": 0})
+        if convocation:
+            reminders_skipped += 1
+            continue
+        
+        # Check if reminder was already sent for this event
+        existing_reminder = await db.event_reminders.find_one({
+            "event_id": event_id,
+            "reminder_type": "no_convocation_4h"
+        }, {"_id": 0})
+        
+        if existing_reminder:
+            reminders_skipped += 1
+            continue
+        
+        # Get coaches for this team
+        team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+        if not team:
+            continue
+        
+        coach_ids = team.get('coach_ids', [])
+        
+        # Also get users with coach role assigned to this team
+        coaches = await db.users.find({
+            "$or": [
+                {"id": {"$in": coach_ids}},
+                {"team_ids": team_id, "role": {"$in": ["treinador", "treinador_adjunto"]}}
+            ]
+        }, {"_id": 0, "id": 1, "email": 1, "name": 1}).to_list(20)
+        
+        if not coaches:
+            logging.warning(f"No coaches found for team {team_id}, skipping reminder for event {event_id}")
+            continue
+        
+        coach_user_ids = list(set([c['id'] for c in coaches]))
+        
+        # Parse event time for display
+        event_time = event['start_time']
+        if isinstance(event_time, str):
+            event_time = datetime.fromisoformat(event_time.replace('Z', '+00:00'))
+        
+        # Send push notification to coaches
+        try:
+            await send_push_to_users(
+                user_ids=coach_user_ids,
+                title="⚠️ Evento sem Convocatória!",
+                body=f"{event.get('title', 'Evento')} começa às {event_time.strftime('%H:%M')} e ainda não tem convocatória",
+                url="/calendar"
+            )
+        except Exception as e:
+            logging.error(f"Failed to send push reminder for event {event_id}: {e}")
+        
+        # Send email notification to coaches
+        for coach in coaches:
+            try:
+                await send_email_notification(
+                    coach.get('email'),
+                    f"⚠️ Lembrete: {event.get('title', 'Evento')} sem convocatória",
+                    f"""
+                    <h2>Evento sem Convocatória</h2>
+                    <p>Olá {coach.get('name', 'Treinador')},</p>
+                    <p>O evento <strong>{event.get('title', 'Evento')}</strong> começa dentro de aproximadamente 4 horas 
+                    ({event_time.strftime('%d/%m às %H:%M')}) e ainda não tem convocatória criada.</p>
+                    <p><strong>Detalhes:</strong></p>
+                    <ul>
+                        <li>Tipo: {event.get('event_type', 'Outro')}</li>
+                        <li>Local: {event.get('location', 'N/A')}</li>
+                    </ul>
+                    <p>Por favor, crie a convocatória o mais rapidamente possível para que os jogadores possam confirmar a presença.</p>
+                    <p>Equipa: {team.get('name', 'N/A')}</p>
+                    """
+                )
+            except Exception as e:
+                logging.error(f"Failed to send email reminder to {coach.get('email')}: {e}")
+        
+        # Record that reminder was sent
+        reminder = EventReminder(
+            event_id=event_id,
+            team_id=team_id,
+            reminder_type="no_convocation_4h",
+            notified_user_ids=coach_user_ids
+        )
+        reminder_dict = reminder.model_dump()
+        reminder_dict['sent_at'] = reminder_dict['sent_at'].isoformat()
+        await db.event_reminders.insert_one(reminder_dict)
+        
+        reminders_sent += 1
+        logging.info(f"Sent reminder for event {event_id} to {len(coach_user_ids)} coach(es)")
+    
+    return {
+        "processed": len(events),
+        "reminders_sent": reminders_sent,
+        "reminders_skipped": reminders_skipped
+    }
+
+@api_router.post("/reminders/process")
+async def trigger_reminder_processing(current_user: dict = Depends(get_current_user)):
+    """
+    Manually trigger reminder processing.
+    Admin only - this endpoint can be called by a cron job or scheduler.
+    """
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem processar lembretes")
+    
+    result = await process_event_reminders()
+    return result
+
+@api_router.get("/reminders/status")
+async def get_reminder_status(event_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get reminder status for events"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_staff and not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    query = {}
+    if event_id:
+        query["event_id"] = event_id
+    
+    reminders = await db.event_reminders.find(query, {"_id": 0}).sort("sent_at", -1).to_list(50)
+    return reminders
+
+@api_router.get("/reminders/pending")
+async def get_pending_reminders(current_user: dict = Depends(get_current_user)):
+    """
+    Get events that will need reminders soon (next 6 hours) but don't have convocations yet.
+    Useful for coaches to see what events need attention.
+    """
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_create_convocations:
+        return []
+    
+    now = datetime.now(timezone.utc)
+    next_6h = now + timedelta(hours=6)
+    
+    # Build query based on user's teams
+    query = {
+        "start_time": {"$gte": now.isoformat(), "$lte": next_6h.isoformat()},
+        "status": "scheduled"
+    }
+    
+    if not checker.is_admin:
+        user_teams = list(checker.team_ids)
+        if not user_teams:
+            return []
+        query["team_id"] = {"$in": user_teams}
+    
+    events = await db.events.find(query, {"_id": 0}).to_list(50)
+    
+    # Filter events without convocations and check reminder status
+    result = []
+    for event in events:
+        convocation = await db.convocations.find_one({"event_id": event['id']}, {"_id": 0})
+        if not convocation:
+            # Check if reminder was already sent
+            reminder = await db.event_reminders.find_one({
+                "event_id": event['id'],
+                "reminder_type": "no_convocation_4h"
+            }, {"_id": 0})
+            
+            event['reminder_sent'] = reminder is not None
+            event['reminder_sent_at'] = reminder.get('sent_at') if reminder else None
+            result.append(event)
+    
+    return result
+
+# Background task runner for periodic reminder processing
+async def start_reminder_scheduler():
+    """
+    Start a background task that processes reminders every 30 minutes.
+    This is a simple scheduler - in production, consider using Celery or APScheduler.
+    """
+    while True:
+        try:
+            logging.info("Running scheduled reminder processing...")
+            result = await process_event_reminders()
+            logging.info(f"Reminder processing complete: {result}")
+        except Exception as e:
+            logging.error(f"Error in reminder scheduler: {e}")
+        
+        # Wait 30 minutes before next run
+        await asyncio.sleep(30 * 60)
+
+# Start the scheduler when the app starts
+@app.on_event("startup")
+async def startup_event():
+    # Start the reminder scheduler as a background task
+    asyncio.create_task(start_reminder_scheduler())
+    logging.info("Event reminder scheduler started")
 
 # ==================== MAIN ====================
 
