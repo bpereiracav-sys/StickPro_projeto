@@ -818,3 +818,72 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Endpoints funcionais independente de email
 - **Testes:** 100% (16/16 backend) - `/app/test_reports/iteration_23.json`
 - **NOTA:** Emails MOCKED até user adicionar RESEND_API_KEY aos secrets
+
+
+
+---
+
+### UI/UX Polish Completo (27 Mar 2026) ✅
+- **Tipografia:**
+  - Fonte headings: Outfit (substituiu Bebas Neue)
+  - Fonte body: Manrope (mantido)
+  - Fonte mono: JetBrains Mono (mantido)
+  - Letter-spacing: tracking-tight em todos os headings
+  - Títulos em Title Case (não mais ALL CAPS)
+- **Cores e Temas:**
+  - Primary: Cyan (hsl(187 94% 43%))
+  - Secondary: Green (hsl(160 84% 39%))
+  - Radius aumentado para 0.5rem
+  - Variáveis CSS atualizadas em :root
+- **Branding StickPro:**
+  - Logo: "Stick" + "Pro" em cyan
+  - Subtítulo: "Gestão Desportiva"
+  - Watermark sutil no desktop (Activity icon com opacity 3%)
+  - Badge "Made with Emergent" escondido via CSS
+- **Sidebar:**
+  - Item ativo: borda esquerda cyan + fundo cyan/10
+  - Hover suave em todos os items
+  - Team selector com ícone em rounded-lg
+  - User menu com avatar e dropdown
+- **Cards:**
+  - Border radius mais arredondado (rounded-lg)
+  - Card stripe com h-1 (mais fino)
+  - Classe card-hover com efeito elevação e glow
+  - Empty states com ícones em opacity 30%
+- **Responsividade Mobile:**
+  - Header mobile com branding StickPro
+  - Bottom navigation (5 items)
+  - Cards em grid 2-column no mobile
+  - Fonts ajustadas (text-2xl sm:text-3xl lg:text-4xl)
+- **Estados e Feedback:**
+  - Loading skeletons mantidos
+  - Toast notifications funcionais
+  - Empty states com ícones e CTAs
+- **Páginas Atualizadas:**
+  - Login, Dashboard, Members, Stats, Payments
+  - Calendar, Championships, Attendance
+  - Settings, ProfilePage, TeamDetail
+- **Testes:** 100% Frontend - `/app/test_reports/iteration_24.json`
+
+---
+
+## PRÓXIMAS TAREFAS (BACKLOG)
+
+### P1 - Em Espera
+1. **APL Web Scraping** - Endpoint `/api/championships/scrape/apl` (pausado)
+2. **Finalizar Excel Import** - Mapeamento de campos para Members/Teams
+
+### P2 - Futuro
+1. **Exportação PDF** - Calendário e convocatórias
+2. **Expansão i18n** - Traduções restantes
+3. **Notificações Push** - Web push notifications
+
+### P0 - Refactoring (Tech Debt CRÍTICO)
+1. **Dividir server.py** (~5800 linhas) em routers modulares:
+   - routes/auth.py
+   - routes/members.py
+   - routes/payments.py
+   - routes/events.py
+   - routes/championships.py
+   - routes/teams.py
+   - routes/notifications.py
