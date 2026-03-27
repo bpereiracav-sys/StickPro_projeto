@@ -578,6 +578,29 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Email com detalhes do evento (MOCKED - aguarda Resend API Key)
 - **Testes:** 14/14 passaram (`/app/test_reports/iteration_16.json`)
 
+### Módulo de Presenças Melhorado (27 Mar 2026) ✅
+- **Novo Estado de Presença:** `faltou_sem_aviso` (Faltou sem aviso)
+- **Estados disponíveis:** `confirmado`, `ausente`, `pendente`, `faltou_sem_aviso`
+- **Pesquisa por Nome:**
+  - Endpoint `GET /api/teams/{id}/attendance/search?query=nome`
+  - RBAC: Jogadores só pesquisam próprios dados
+  - Campo de pesquisa no frontend
+- **Restrições de Edição:**
+  - Após início do evento (`event_started=True`):
+    - Jogadores e familiares **não podem** editar
+    - Apenas admin e treinadores podem editar
+  - Flag `can_edit` retornada no endpoint `/api/attendance/my/detailed`
+- **Integração de Indisponibilidades:**
+  - Endpoint `GET /api/teams/{id}/attendance/unavailabilities`
+  - Secção de indisponibilidades na página de presenças
+  - RBAC: Jogadores veem apenas próprias, staff vê da equipa
+- **Visibilidade RBAC:**
+  - Admin: Todas as presenças
+  - Treinador/Delegado: Presenças das suas equipas
+  - Jogador: Apenas próprias presenças
+  - Familiar: Presenças do jogador vinculado
+- **Testes:** 18/18 passaram (`/app/test_reports/iteration_17.json`)
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
@@ -588,6 +611,6 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 ### P2 - Futuro
 - Dashboard com métricas e gráficos
-- Exportar calendário em PDF
+- Exportar calendário/presenças em PDF
 - Expandir traduções i18n para restantes páginas
-- Refactoring: Dividir server.py (~4200 linhas) em routers modulares
+- Refactoring: Dividir server.py (~4400 linhas) em routers modulares
