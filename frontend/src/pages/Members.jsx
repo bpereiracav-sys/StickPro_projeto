@@ -59,11 +59,29 @@ import {
   Download,
   Mail,
   Phone,
-  Building2
+  Building2,
+  Search,
+  ChevronLeft,
+  Archive,
+  ArchiveRestore,
+  Bell,
+  BarChart3,
+  Eye,
+  Edit,
+  CheckCircle,
+  Clock
 } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Country flags mapping (ISO 3166-1 alpha-2)
+const FLAGS = {
+  PT: '🇵🇹', ES: '🇪🇸', FR: '🇫🇷', BR: '🇧🇷', AR: '🇦🇷', 
+  IT: '🇮🇹', DE: '🇩🇪', GB: '🇬🇧', US: '🇺🇸', AO: '🇦🇴',
+  MZ: '🇲🇿', CV: '🇨🇻', GW: '🇬🇼', ST: '🇸🇹', NL: '🇳🇱',
+  BE: '🇧🇪', CH: '🇨🇭', LU: '🇱🇺', MA: '🇲🇦', RO: '🇷🇴'
+};
 
 export default function Members() {
   const { token } = useAuth();
@@ -89,6 +107,19 @@ export default function Members() {
   const [importResults, setImportResults] = useState(null);
   const [selectedMembersToAdd, setSelectedMembersToAdd] = useState([]);
   const fileInputRef = useRef(null);
+  
+  // New state for pagination, search and archive
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalMembers, setTotalMembers] = useState(0);
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivedMembers, setArchivedMembers] = useState([]);
+  const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [memberDetailDialogOpen, setMemberDetailDialogOpen] = useState(false);
+  const [memberDetail, setMemberDetail] = useState(null);
+  const perPage = 20;
 
   const [newMember, setNewMember] = useState({
     name: '',
@@ -96,7 +127,8 @@ export default function Members() {
     role: 'jogador',
     jersey_number: '',
     position: '',
-    phone: ''
+    phone: '',
+    nationalities: []
   });
 
   // Fetch club on mount
@@ -127,12 +159,13 @@ export default function Members() {
 
   // Fetch members when team changes or when viewing club
   useEffect(() => {
+    setCurrentPage(1); // Reset to first page on team change
     if (isAllTeamsSelected && club) {
       fetchClubMembers();
     } else if (selectedTeamId) {
       fetchTeamMembers();
     }
-  }, [selectedTeamId, isAllTeamsSelected, club]);
+  }, [selectedTeamId, isAllTeamsSelected, club, searchQuery]);
 
   // Initial load
   useEffect(() => {
@@ -141,12 +174,30 @@ export default function Members() {
     }
   }, [contextTeams]);
 
+  // Fetch with pagination
+  useEffect(() => {
+    if (currentPage > 1) {
+      if (isAllTeamsSelected && club) {
+        fetchClubMembers();
+      } else if (selectedTeamId) {
+        fetchTeamMembers();
+      }
+    }
+  }, [currentPage]);
+
   const fetchClubMembers = async () => {
     if (!club) return;
     try {
-      const response = await clubApi.getMembers(club.id);
-      setClubMembers(response.data);
-      setMembers(response.data);
+      const response = await membersApi.getAll({
+        club_id: club.id,
+        page: currentPage,
+        per_page: perPage,
+        search: searchQuery || undefined
+      });
+      setMembers(response.data.members || []);
+      setTotalPages(response.data.total_pages || 1);
+      setTotalMembers(response.data.total || 0);
+      setClubMembers(response.data.members || []);
     } catch (error) {
       console.error('Error fetching club members:', error);
       // Fallback: get all users
@@ -157,8 +208,15 @@ export default function Members() {
 
   const fetchTeamMembers = async () => {
     try {
-      const response = await teamsApi.getMembers(selectedTeamId);
-      setMembers(response.data);
+      const response = await membersApi.getAll({
+        team_id: selectedTeamId,
+        page: currentPage,
+        per_page: perPage,
+        search: searchQuery || undefined
+      });
+      setMembers(response.data.members || []);
+      setTotalPages(response.data.total_pages || 1);
+      setTotalMembers(response.data.total || 0);
 
       if (canManageTeam) {
         const usersRes = await usersApi.getAll();
@@ -166,6 +224,83 @@ export default function Members() {
       }
     } catch (error) {
       console.error('Error fetching members:', error);
+    }
+  };
+
+  // New admin functions
+  const fetchArchivedMembers = async () => {
+    try {
+      const response = await membersApi.getArchived({
+        page: 1,
+        per_page: 50,
+        search: searchQuery || undefined
+      });
+      setArchivedMembers(response.data.members || []);
+    } catch (error) {
+      console.error('Error fetching archived members:', error);
+    }
+  };
+
+  const handleViewMemberDetail = async (member) => {
+    try {
+      const response = await membersApi.getOne(member.id);
+      setMemberDetail(response.data);
+      setMemberDetailDialogOpen(true);
+    } catch (error) {
+      toast.error('Erro ao carregar detalhes do membro');
+    }
+  };
+
+  const handleArchiveMember = async () => {
+    if (!selectedMember) return;
+    try {
+      await membersApi.archive(selectedMember.id);
+      toast.success('Membro arquivado. Estatísticas mantidas.');
+      setArchiveDialogOpen(false);
+      setSelectedMember(null);
+      if (isAllTeamsSelected) {
+        fetchClubMembers();
+      } else {
+        fetchTeamMembers();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao arquivar membro');
+    }
+  };
+
+  const handleRestoreMember = async () => {
+    if (!selectedMember) return;
+    try {
+      await membersApi.restore(selectedMember.id, selectedTeamId || null);
+      toast.success('Membro restaurado com sucesso!');
+      setRestoreDialogOpen(false);
+      setSelectedMember(null);
+      fetchArchivedMembers();
+      if (isAllTeamsSelected) {
+        fetchClubMembers();
+      } else {
+        fetchTeamMembers();
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao restaurar membro');
+    }
+  };
+
+  const handleSendActivationReminder = async (member) => {
+    try {
+      await membersApi.sendActivationReminder(member.id);
+      toast.success('Lembrete enviado!');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao enviar lembrete');
+    }
+  };
+
+  const handleSearch = () => {
+    setCurrentPage(1);
+    if (isAllTeamsSelected && club) {
+      fetchClubMembers();
+    } else if (selectedTeamId) {
+      fetchTeamMembers();
     }
   };
 
@@ -203,7 +338,7 @@ export default function Members() {
 
       toast.success(`Membro criado! Password temporária: ${response.data.temp_password}`);
       setCreateDialogOpen(false);
-      setNewMember({ name: '', email: '', role: 'jogador', jersey_number: '', position: '', phone: '' });
+      setNewMember({ name: '', email: '', role: 'jogador', jersey_number: '', position: '', phone: '', nationalities: [] });
       
       if (isAllTeamsSelected) {
         fetchClubMembers();
@@ -336,11 +471,19 @@ export default function Members() {
             <Users className="w-8 h-8 text-primary" />
             MEMBROS
           </h1>
-          <p className="text-muted-foreground mt-1">Gestão de jogadores e staff</p>
+          <p className="text-muted-foreground mt-1">
+            Gestão de jogadores e staff • {totalMembers} membro(s)
+          </p>
         </div>
 
         {canManageTeam && (
           <div className="flex flex-wrap gap-2">
+            {isAdmin && (
+              <Button variant="outline" onClick={() => { setShowArchived(true); fetchArchivedMembers(); }} data-testid="view-archived-btn">
+                <Archive className="w-4 h-4 mr-2" />
+                Arquivados
+              </Button>
+            )}
             {canImportData && (
               <Button variant="outline" onClick={() => setImportDialogOpen(true)} data-testid="import-members-btn">
                 <Upload className="w-4 h-4 mr-2" />
@@ -358,6 +501,29 @@ export default function Members() {
               Novo Membro
             </Button>
           </div>
+        )}
+      </div>
+
+      {/* Search Bar */}
+      <div className="flex gap-2 items-center">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="Pesquisar por nome..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+            className="pl-9"
+            data-testid="search-members-input"
+          />
+        </div>
+        <Button variant="outline" onClick={handleSearch} data-testid="search-members-btn">
+          <Search className="w-4 h-4" />
+        </Button>
+        {searchQuery && (
+          <Button variant="ghost" size="sm" onClick={() => { setSearchQuery(''); setCurrentPage(1); }}>
+            Limpar
+          </Button>
         )}
       </div>
 
@@ -450,19 +616,44 @@ export default function Members() {
                       className="flex items-center justify-between p-3 border border-border rounded-sm hover:bg-muted/30 transition-colors"
                     >
                       <div className="flex items-center gap-3">
-                        <Avatar>
-                          <AvatarImage src={member.avatar_url} />
-                          <AvatarFallback className={`${getRoleColor(member.team_role || member.role)} text-white`}>
-                            {getInitials(member.name)}
-                          </AvatarFallback>
-                        </Avatar>
+                        <div className="relative">
+                          <Avatar>
+                            <AvatarImage src={member.avatar_url} />
+                            <AvatarFallback className={`${getRoleColor(member.team_role || member.role)} text-white`}>
+                              {getInitials(member.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          {/* Activation status indicator for admin */}
+                          {isAdmin && (
+                            <span 
+                              className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${
+                                member.is_activated ? 'bg-green-500' : 'bg-yellow-500'
+                              }`}
+                              title={member.is_activated ? 'Conta ativada' : 'Aguarda ativação'}
+                            >
+                              {member.is_activated ? (
+                                <CheckCircle className="w-3 h-3 text-white" />
+                              ) : (
+                                <Clock className="w-3 h-3 text-white" />
+                              )}
+                            </span>
+                          )}
+                        </div>
                         <div>
-                          <Link 
-                            to={`/players/${member.id}`}
-                            className="font-medium hover:text-primary transition-colors"
-                          >
-                            {member.name}
-                          </Link>
+                          <div className="flex items-center gap-2">
+                            <Link 
+                              to={`/players/${member.id}`}
+                              className="font-medium hover:text-primary transition-colors"
+                            >
+                              {member.name}
+                            </Link>
+                            {/* Nationality flags (max 2) */}
+                            {member.nationalities?.slice(0, 2).map((nat, i) => (
+                              <span key={i} className="text-lg" title={nat}>
+                                {FLAGS[nat] || nat}
+                              </span>
+                            ))}
+                          </div>
                           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                             <Badge variant="outline" className="text-xs">
                               {getRoleName(member.team_role || member.role)}
@@ -508,10 +699,25 @@ export default function Members() {
                             <DropdownMenuContent align="end" className="bg-white">
                               <DropdownMenuItem asChild>
                                 <Link to={`/players/${member.id}`}>
-                                  <ChevronRight className="w-4 h-4 mr-2" />
+                                  <Eye className="w-4 h-4 mr-2" />
                                   Ver Perfil
                                 </Link>
                               </DropdownMenuItem>
+                              {/* Admin actions */}
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuItem onClick={() => handleViewMemberDetail(member)}>
+                                    <BarChart3 className="w-4 h-4 mr-2" />
+                                    Ver Estatísticas
+                                  </DropdownMenuItem>
+                                  {!member.is_activated && (
+                                    <DropdownMenuItem onClick={() => handleSendActivationReminder(member)}>
+                                      <Bell className="w-4 h-4 mr-2" />
+                                      Enviar Lembrete Ativação
+                                    </DropdownMenuItem>
+                                  )}
+                                </>
+                              )}
                               {isAllTeamsSelected && teams.length > 0 && (
                                 <>
                                   <DropdownMenuSeparator />
@@ -539,6 +745,19 @@ export default function Members() {
                                   </DropdownMenuItem>
                                 </>
                               )}
+                              {/* Archive action for admin */}
+                              {isAdmin && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem 
+                                    className="text-amber-600"
+                                    onClick={() => { setSelectedMember(member); setArchiveDialogOpen(true); }}
+                                  >
+                                    <Archive className="w-4 h-4 mr-2" />
+                                    Arquivar Membro
+                                  </DropdownMenuItem>
+                                </>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}
@@ -547,10 +766,178 @@ export default function Members() {
                   ))}
                 </div>
               )}
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 mt-6 pt-4 border-t">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => p - 1)}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <span className="text-sm text-muted-foreground">
+                    Página {currentPage} de {totalPages}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         </>
       )}
+
+      {/* Archived Members Dialog */}
+      <Dialog open={showArchived} onOpenChange={setShowArchived}>
+        <DialogContent className="bg-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+              <Archive className="w-5 h-5" />
+              MEMBROS ARQUIVADOS
+            </DialogTitle>
+            <DialogDescription>
+              Membros arquivados mantêm as suas estatísticas e podem ser restaurados
+            </DialogDescription>
+          </DialogHeader>
+          <div className="max-h-96 overflow-y-auto">
+            {archivedMembers.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                Nenhum membro arquivado
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {archivedMembers.map(member => (
+                  <div key={member.id} className="flex items-center justify-between p-3 border rounded">
+                    <div className="flex items-center gap-3">
+                      <Avatar className="w-10 h-10">
+                        <AvatarFallback className="bg-muted text-muted-foreground">
+                          {getInitials(member.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-medium">{member.name}</p>
+                        <p className="text-sm text-muted-foreground">{member.email}</p>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => { setSelectedMember(member); setRestoreDialogOpen(true); }}
+                    >
+                      <ArchiveRestore className="w-4 h-4 mr-2" />
+                      Restaurar
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Member Detail Dialog */}
+      <Dialog open={memberDetailDialogOpen} onOpenChange={setMemberDetailDialogOpen}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+              <BarChart3 className="w-5 h-5 text-primary" />
+              ESTATÍSTICAS DO MEMBRO
+            </DialogTitle>
+          </DialogHeader>
+          {memberDetail && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-4 pb-4 border-b">
+                <Avatar className="w-16 h-16">
+                  <AvatarFallback className="bg-primary text-white text-xl">
+                    {getInitials(memberDetail.member?.name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="font-semibold text-lg">{memberDetail.member?.name}</h3>
+                  <p className="text-muted-foreground">{memberDetail.member?.email}</p>
+                  <Badge variant="outline">{getRoleName(memberDetail.member?.role)}</Badge>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardContent className="pt-4 text-center">
+                    <p className="text-3xl font-bold text-primary">{memberDetail.statistics?.total_events || 0}</p>
+                    <p className="text-sm text-muted-foreground">Eventos</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 text-center">
+                    <p className="text-3xl font-bold text-green-600">{memberDetail.statistics?.attendance_rate || 0}%</p>
+                    <p className="text-sm text-muted-foreground">Assiduidade</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 text-center">
+                    <p className="text-3xl font-bold text-blue-600">{memberDetail.statistics?.goals || 0}</p>
+                    <p className="text-sm text-muted-foreground">Golos</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 text-center">
+                    <p className="text-3xl font-bold text-purple-600">{memberDetail.statistics?.assists || 0}</p>
+                    <p className="text-sm text-muted-foreground">Assistências</p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Archive Confirmation Dialog */}
+      <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Arquivar Membro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem a certeza que pretende arquivar <strong>{selectedMember?.name}</strong>?
+              <br /><br />
+              O membro será removido de todas as equipas, mas as estatísticas e histórico serão mantidos.
+              Pode restaurar o membro a qualquer momento.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedMember(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleArchiveMember} className="bg-amber-600 hover:bg-amber-700">
+              Arquivar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Restore Confirmation Dialog */}
+      <AlertDialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restaurar Membro</AlertDialogTitle>
+            <AlertDialogDescription>
+              Restaurar <strong>{selectedMember?.name}</strong>?
+              <br /><br />
+              O membro será restaurado e pode ser adicionado a uma equipa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedMember(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRestoreMember}>
+              Restaurar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Add Existing Member Dialog */}
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>

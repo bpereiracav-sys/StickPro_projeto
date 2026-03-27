@@ -1448,6 +1448,18 @@ class MemberCreate(BaseModel):
     jersey_number: Optional[str] = None
     position: Optional[str] = None
     phone: Optional[str] = None
+    nationalities: Optional[List[str]] = None  # Up to 2 country codes
+
+class MemberUpdate(BaseModel):
+    name: Optional[str] = None
+    email: Optional[EmailStr] = None
+    role: Optional[UserRole] = None
+    jersey_number: Optional[str] = None
+    position: Optional[str] = None
+    phone: Optional[str] = None
+    nationalities: Optional[List[str]] = None
+    is_archived: Optional[bool] = None
+    is_activated: Optional[bool] = None
 
 @api_router.post("/members")
 async def create_member(data: MemberCreate, current_user: dict = Depends(get_current_user)):
@@ -1704,6 +1716,317 @@ async def remove_member_from_team(member_id: str, team_id: str, current_user: di
     )
     
     return {"message": "Membro removido da equipa"}
+
+@api_router.get("/members")
+async def get_members_paginated(
+    page: int = 1,
+    per_page: int = 20,
+    search: Optional[str] = None,
+    team_id: Optional[str] = None,
+    club_id: Optional[str] = None,
+    include_archived: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get paginated members list with search"""
+    checker = get_permission_checker(current_user)
+    
+    query = {"role": {"$ne": "admin"}}
+    
+    # Filter by archived status
+    if not include_archived:
+        query["is_archived"] = {"$ne": True}
+    
+    # Apply team filter
+    if team_id:
+        if not checker.is_admin and not checker.can_access_team(team_id):
+            raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+        query["team_ids"] = team_id
+    elif club_id:
+        query["club_id"] = club_id
+    elif not checker.is_admin:
+        # Non-admin can only see members from their teams
+        user_teams = list(checker.team_ids)
+        if user_teams:
+            query["team_ids"] = {"$in": user_teams}
+        else:
+            return {"members": [], "total": 0, "page": page, "per_page": per_page, "total_pages": 0}
+    
+    # Apply search filter
+    if search:
+        query["name"] = {"$regex": search, "$options": "i"}
+    
+    # Get total count
+    total = await db.users.count_documents(query)
+    total_pages = (total + per_page - 1) // per_page
+    
+    # Get paginated results sorted alphabetically
+    skip = (page - 1) * per_page
+    members = await db.users.find(query, {"_id": 0, "password": 0}).sort("name", 1).skip(skip).limit(per_page).to_list(per_page)
+    
+    return {
+        "members": members,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    }
+
+@api_router.get("/members/archived")
+async def get_archived_members(
+    page: int = 1,
+    per_page: int = 20,
+    search: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get archived members - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem ver membros arquivados")
+    
+    query = {"is_archived": True, "role": {"$ne": "admin"}}
+    
+    if search:
+        query["name"] = {"$regex": search, "$options": "i"}
+    
+    total = await db.users.count_documents(query)
+    total_pages = (total + per_page - 1) // per_page
+    
+    skip = (page - 1) * per_page
+    members = await db.users.find(query, {"_id": 0, "password": 0}).sort("name", 1).skip(skip).limit(per_page).to_list(per_page)
+    
+    return {
+        "members": members,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "total_pages": total_pages
+    }
+
+@api_router.get("/members/{member_id}")
+async def get_member_detail(member_id: str, current_user: dict = Depends(get_current_user)):
+    """Get member details including statistics"""
+    checker = get_permission_checker(current_user)
+    
+    member = await db.users.find_one({"id": member_id}, {"_id": 0, "password": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+    
+    # Check access - admin can see all, others can see if in same team or is self
+    if not checker.is_admin:
+        if member_id != current_user['id']:
+            member_teams = set(member.get('team_ids', []))
+            user_teams = set(checker.team_ids)
+            if not member_teams.intersection(user_teams):
+                raise HTTPException(status_code=403, detail="Sem acesso a este membro")
+    
+    # Get statistics summary
+    stats = {
+        "total_events": 0,
+        "attendance_rate": 0,
+        "goals": 0,
+        "assists": 0
+    }
+    
+    # Count attendance
+    attendances = await db.attendance.find({"player_id": member_id}, {"_id": 0}).to_list(500)
+    if attendances:
+        stats["total_events"] = len(attendances)
+        confirmed = sum(1 for a in attendances if a.get('status') == 'confirmado')
+        stats["attendance_rate"] = round((confirmed / len(attendances)) * 100, 1) if attendances else 0
+    
+    # Get player stats
+    player_stats = await db.player_match_stats.find({"player_id": member_id}, {"_id": 0}).to_list(200)
+    for ps in player_stats:
+        stats["goals"] += ps.get('goals', 0)
+        stats["assists"] += ps.get('assists', 0)
+    
+    return {
+        "member": member,
+        "statistics": stats
+    }
+
+@api_router.put("/members/{member_id}")
+async def update_member(member_id: str, data: MemberUpdate, current_user: dict = Depends(get_current_user)):
+    """Update member data"""
+    checker = get_permission_checker(current_user)
+    
+    member = await db.users.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+    
+    # Check permissions
+    is_own_profile = member_id == current_user['id']
+    can_edit = checker.is_admin or (is_own_profile and not data.is_archived and not data.role)
+    
+    if not can_edit:
+        # Staff can edit members in their teams (except role and archive)
+        if checker.is_staff:
+            member_teams = set(member.get('team_ids', []))
+            user_teams = set(checker.team_ids)
+            if member_teams.intersection(user_teams) and not data.is_archived and not data.role:
+                can_edit = True
+    
+    if not can_edit:
+        raise HTTPException(status_code=403, detail="Sem permissão para editar este membro")
+    
+    # Only admin can archive/unarchive or change role
+    if (data.is_archived is not None or data.role is not None) and not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem arquivar membros ou alterar roles")
+    
+    # Build update dict
+    update_data = {}
+    if data.name:
+        update_data["name"] = data.name
+    if data.email:
+        update_data["email"] = data.email
+    if data.role:
+        update_data["role"] = data.role
+    if data.nationalities is not None:
+        update_data["nationalities"] = data.nationalities[:2]  # Max 2
+    if data.is_archived is not None:
+        update_data["is_archived"] = data.is_archived
+        if data.is_archived:
+            update_data["archived_at"] = datetime.now(timezone.utc).isoformat()
+        else:
+            update_data["archived_at"] = None
+    if data.is_activated is not None:
+        update_data["is_activated"] = data.is_activated
+    
+    # Update profile fields
+    if data.jersey_number is not None:
+        update_data["profile.sports_info.jersey_number"] = data.jersey_number
+    if data.position is not None:
+        update_data["profile.sports_info.position"] = data.position
+    if data.phone is not None:
+        update_data["profile.identity.phone"] = data.phone
+    
+    if update_data:
+        await db.users.update_one({"id": member_id}, {"$set": update_data})
+    
+    return {"message": "Membro atualizado"}
+
+@api_router.post("/members/{member_id}/archive")
+async def archive_member(member_id: str, current_user: dict = Depends(get_current_user)):
+    """Archive a member without deleting statistics - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem arquivar membros")
+    
+    member = await db.users.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+    
+    if member.get('role') == 'admin':
+        raise HTTPException(status_code=400, detail="Não é possível arquivar administradores")
+    
+    # Archive member - remove from teams but keep statistics
+    team_ids = member.get('team_ids', [])
+    
+    # Store previous teams for potential restore
+    await db.users.update_one({"id": member_id}, {
+        "$set": {
+            "is_archived": True,
+            "archived_at": datetime.now(timezone.utc).isoformat(),
+            "archived_team_ids": team_ids,
+            "team_ids": []
+        }
+    })
+    
+    # Remove from all teams
+    for team_id in team_ids:
+        await db.teams.update_one(
+            {"id": team_id},
+            {"$pull": {"player_ids": member_id, "coach_ids": member_id, "delegate_ids": member_id}}
+        )
+    
+    return {"message": "Membro arquivado com sucesso. Estatísticas mantidas."}
+
+@api_router.post("/members/{member_id}/restore")
+async def restore_member(member_id: str, team_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Restore an archived member - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem restaurar membros")
+    
+    member = await db.users.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+    
+    if not member.get('is_archived'):
+        raise HTTPException(status_code=400, detail="Membro não está arquivado")
+    
+    # Determine which team to restore to
+    restore_team_id = team_id or (member.get('archived_team_ids', []) or [None])[0]
+    
+    update_data = {
+        "is_archived": False,
+        "archived_at": None
+    }
+    
+    if restore_team_id:
+        update_data["team_ids"] = [restore_team_id]
+        
+        # Add to team
+        role = member.get('role', 'jogador')
+        field_map = {'treinador': 'coach_ids', 'treinador_adjunto': 'coach_ids', 'delegado': 'delegate_ids'}
+        field = field_map.get(role, 'player_ids')
+        await db.teams.update_one({"id": restore_team_id}, {"$addToSet": {field: member_id}})
+    
+    await db.users.update_one({"id": member_id}, {"$set": update_data})
+    
+    return {"message": "Membro restaurado com sucesso", "team_id": restore_team_id}
+
+@api_router.post("/members/{member_id}/send-activation-reminder")
+async def send_activation_reminder(member_id: str, current_user: dict = Depends(get_current_user)):
+    """Send push notification reminder to activate account - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem enviar lembretes")
+    
+    member = await db.users.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+    
+    if member.get('is_activated'):
+        raise HTTPException(status_code=400, detail="Conta já está ativada")
+    
+    # Send push notification
+    try:
+        await send_push_to_users(
+            user_ids=[member_id],
+            title="Ativa a tua conta!",
+            body="Por favor, atualiza a tua palavra-passe para ativar a tua conta no StickPro.",
+            url="/settings"
+        )
+    except Exception as e:
+        logging.error(f"Failed to send activation reminder: {e}")
+    
+    # Send email
+    try:
+        await send_email_notification(
+            member.get('email'),
+            "Ativa a tua conta StickPro",
+            f"""
+            <h2>Olá {member.get('name', 'Atleta')}!</h2>
+            <p>A tua conta no StickPro está quase pronta. Por favor, faz login e atualiza a tua palavra-passe para ativares a tua conta.</p>
+            <p>Isto permite-te:</p>
+            <ul>
+                <li>Receber convocatórias</li>
+                <li>Confirmar presença em treinos e jogos</li>
+                <li>Ver o teu calendário de eventos</li>
+                <li>Acompanhar as tuas estatísticas</li>
+            </ul>
+            <p>Bons treinos!</p>
+            """
+        )
+    except Exception as e:
+        logging.error(f"Failed to send activation email: {e}")
+    
+    return {"message": "Lembrete enviado"}
 
 # ==================== CHAMPIONSHIP ROUTES ====================
 

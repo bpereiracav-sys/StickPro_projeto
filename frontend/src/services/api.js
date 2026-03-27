@@ -125,23 +125,6 @@ export const clubApi = {
   getMembers: (clubId) => api.get(`/clubs/${clubId}/members`)
 };
 
-// Members API
-export const membersApi = {
-  create: (data) => api.post('/members', data),
-  import: (file, clubId, teamId) => {
-    const formData = new FormData();
-    formData.append('file', file);
-    const params = new URLSearchParams();
-    if (clubId) params.append('club_id', clubId);
-    if (teamId) params.append('team_id', teamId);
-    return api.post(`/members/import?${params.toString()}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
-    });
-  },
-  addToTeam: (memberId, teamId) => api.post(`/members/${memberId}/teams/${teamId}`),
-  removeFromTeam: (memberId, teamId) => api.delete(`/members/${memberId}/teams/${teamId}`)
-};
-
 // Permissions API
 export const permissionsApi = {
   getDefaults: () => api.get('/permissions/defaults'),
@@ -160,6 +143,30 @@ export const unavailabilitiesApi = {
     params: { player_ids: playerIds.join(','), event_date: eventDate } 
   }),
   getUpcomingWithoutConvocation: () => api.get('/events/upcoming-without-convocation')
+};
+
+// Members API
+export const membersApi = {
+  getAll: (params) => api.get('/members', { params }),
+  getArchived: (params) => api.get('/members/archived', { params }),
+  getOne: (id) => api.get(`/members/${id}`),
+  create: (data) => api.post('/members', data),
+  update: (id, data) => api.put(`/members/${id}`, data),
+  archive: (id) => api.post(`/members/${id}/archive`),
+  restore: (id, teamId) => api.post(`/members/${id}/restore`, null, { params: { team_id: teamId } }),
+  sendActivationReminder: (id) => api.post(`/members/${id}/send-activation-reminder`),
+  addToTeam: (memberId, teamId) => api.post(`/members/${memberId}/teams/${teamId}`),
+  removeFromTeam: (memberId, teamId) => api.delete(`/members/${memberId}/teams/${teamId}`),
+  import: (file, clubId, teamId) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const params = new URLSearchParams();
+    if (clubId) params.append('club_id', clubId);
+    if (teamId) params.append('team_id', teamId);
+    return api.post(`/members/import?${params.toString()}`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  }
 };
 
 // Dashboard API
