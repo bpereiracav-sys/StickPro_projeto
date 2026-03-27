@@ -9,6 +9,7 @@ import os
 import io
 import logging
 import asyncio
+import resend
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
 from typing import List, Optional, Literal, Dict, Any
@@ -760,9 +761,94 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 # ==================== EMAIL MOCK ====================
 
 async def send_email_notification(to_email: str, subject: str, html_content: str, attachment_name: str = None, attachment_data: bytes = None):
-    """MOCK: Email sending - configure Resend API key to enable"""
-    logger.info(f"[MOCK EMAIL] To: {to_email}, Subject: {subject}")
-    return True
+    """Send email using Resend API - falls back gracefully if not configured"""
+    resend_api_key = os.environ.get('RESEND_API_KEY')
+    sender_email = os.environ.get('SENDER_EMAIL', 'onboarding@resend.dev')
+    
+    if not resend_api_key:
+        logger.warning(f"[EMAIL SKIPPED] RESEND_API_KEY not configured. Would send to: {to_email}, Subject: {subject}")
+        return False
+    
+    try:
+        # Configure Resend with API key
+        resend.api_key = resend_api_key
+        
+        # Build email params
+        params = {
+            "from": sender_email,
+            "to": [to_email],
+            "subject": subject,
+            "html": html_content
+        }
+        
+        # Add attachment if provided
+        if attachment_name and attachment_data:
+            params["attachments"] = [{
+                "filename": attachment_name,
+                "content": base64.b64encode(attachment_data).decode('utf-8')
+            }]
+        
+        # Send email using thread to keep async non-blocking
+        email_response = await asyncio.to_thread(resend.Emails.send, params)
+        
+        logger.info(f"[EMAIL SENT] To: {to_email}, Subject: {subject}, ID: {email_response.get('id', 'unknown')}")
+        return True
+        
+    except Exception as e:
+        # Log error but don't break the app flow
+        logger.error(f"[EMAIL ERROR] Failed to send to {to_email}: {str(e)}")
+        return False
+
+
+def build_email_template(title: str, content: str, footer_text: str = None) -> str:
+    """Build a clean, professional email template"""
+    footer = footer_text or "Esta é uma mensagem automática do StickPro."
+    
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f4f4f5;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f4f4f5; padding: 20px 0;">
+            <tr>
+                <td align="center">
+                    <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <!-- Header -->
+                        <tr>
+                            <td style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 32px; text-align: center;">
+                                <h1 style="margin: 0; color: #22d3ee; font-size: 24px; font-weight: 700; letter-spacing: 2px;">STICK PRO</h1>
+                            </td>
+                        </tr>
+                        <!-- Title -->
+                        <tr>
+                            <td style="padding: 32px 32px 16px 32px;">
+                                <h2 style="margin: 0; color: #0f172a; font-size: 20px; font-weight: 600;">{title}</h2>
+                            </td>
+                        </tr>
+                        <!-- Content -->
+                        <tr>
+                            <td style="padding: 0 32px 32px 32px; color: #374151; font-size: 15px; line-height: 1.6;">
+                                {content}
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="background-color: #f8fafc; padding: 20px 32px; border-top: 1px solid #e5e7eb;">
+                                <p style="margin: 0; color: #6b7280; font-size: 13px; text-align: center;">
+                                    {footer}
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    """
 
 # ==================== PUSH NOTIFICATIONS HELPER ====================
 
@@ -2099,21 +2185,23 @@ async def send_activation_reminder(member_id: str, current_user: dict = Depends(
     
     # Send email
     try:
-        await send_email_notification(
-            member.get('email'),
-            "Ativa a tua conta StickPro",
-            f"""
-            <h2>Olá {member.get('name', 'Atleta')}!</h2>
+        email_content = f"""
+            <p>Olá <strong>{member.get('name', 'Atleta')}</strong>!</p>
             <p>A tua conta no StickPro está quase pronta. Por favor, faz login e atualiza a tua palavra-passe para ativares a tua conta.</p>
-            <p>Isto permite-te:</p>
-            <ul>
+            <p style="margin-top: 20px;"><strong>Isto permite-te:</strong></p>
+            <ul style="padding-left: 20px;">
                 <li>Receber convocatórias</li>
                 <li>Confirmar presença em treinos e jogos</li>
                 <li>Ver o teu calendário de eventos</li>
                 <li>Acompanhar as tuas estatísticas</li>
             </ul>
-            <p>Bons treinos!</p>
-            """
+            <p style="margin-top: 20px;">Bons treinos!</p>
+        """
+        
+        await send_email_notification(
+            member.get('email'),
+            "Ativa a tua conta StickPro",
+            build_email_template("Ativa a tua conta!", email_content)
         )
     except Exception as e:
         logging.error(f"Failed to send activation email: {e}")
@@ -4699,6 +4787,7 @@ async def create_unavailability(data: UnavailabilityCreate, current_user: dict =
                 }
                 reason_label = reason_labels.get(data.reason, data.reason)
                 
+                # Send push notification
                 try:
                     await send_push_to_users(
                         user_ids=coach_user_ids,
@@ -4708,6 +4797,37 @@ async def create_unavailability(data: UnavailabilityCreate, current_user: dict =
                     )
                 except Exception as e:
                     logging.error(f"Failed to notify coaches of unavailability: {e}")
+                
+                # Send email to coaches
+                try:
+                    for coach in coaches:
+                        if coach['id'] != current_user['id']:
+                            coach_data = await db.users.find_one({"id": coach['id']}, {"_id": 0, "email": 1, "name": 1})
+                            if coach_data and coach_data.get('email'):
+                                email_content = f"""
+                                    <p>Olá <strong>{coach_data.get('name', 'Treinador')}</strong>,</p>
+                                    <p>O atleta <strong>{current_user.get('name', 'Jogador')}</strong> registou um período de indisponibilidade:</p>
+                                    <table style="margin: 20px 0; border-collapse: collapse;">
+                                        <tr style="background-color: #fef3c7;">
+                                            <td style="padding: 12px 16px; border: 1px solid #fcd34d; font-weight: 600;">Período</td>
+                                            <td style="padding: 12px 16px; border: 1px solid #fcd34d;">{data.start_date.strftime('%d/%m/%Y')} a {data.end_date.strftime('%d/%m/%Y')}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style="padding: 12px 16px; border: 1px solid #e5e7eb; font-weight: 600;">Motivo</td>
+                                            <td style="padding: 12px 16px; border: 1px solid #e5e7eb;">{reason_label}</td>
+                                        </tr>
+                                    </table>
+                                    {f'<p><strong>Notas:</strong> {data.notes}</p>' if data.notes else ''}
+                                    <p style="color: #6b7280; font-size: 14px;">O atleta não será incluído nas convocatórias durante este período.</p>
+                                """
+                                
+                                await send_email_notification(
+                                    coach_data.get('email'),
+                                    f"Indisponibilidade: {current_user.get('name', 'Jogador')}",
+                                    build_email_template("Atleta Indisponível", email_content)
+                                )
+                except Exception as e:
+                    logging.error(f"Failed to send unavailability email to coaches: {e}")
     
     return unav_dict
 
@@ -4873,22 +4993,41 @@ async def process_event_reminders():
         # Send email notification to coaches
         for coach in coaches:
             try:
+                email_content = f"""
+                    <p>Olá <strong>{coach.get('name', 'Treinador')}</strong>,</p>
+                    <p>O evento <strong>{event.get('title', 'Evento')}</strong> começa dentro de aproximadamente 4 horas e ainda não tem convocatória criada.</p>
+                    <div style="margin: 20px 0; padding: 16px; background-color: #fef3c7; border-radius: 8px; border-left: 4px solid #f59e0b;">
+                        <p style="margin: 0 0 8px 0; font-weight: 600; color: #92400e;">⚠️ Ação Necessária</p>
+                        <p style="margin: 0; color: #78350f;">Por favor, crie a convocatória para que os jogadores possam confirmar presença.</p>
+                    </div>
+                    <table style="margin: 20px 0; border-collapse: collapse; width: 100%;">
+                        <tr style="background-color: #f8fafc;">
+                            <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: 600;">Evento</td>
+                            <td style="padding: 12px; border: 1px solid #e5e7eb;">{event.get('title', 'Evento')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: 600;">Data/Hora</td>
+                            <td style="padding: 12px; border: 1px solid #e5e7eb;">{event_time.strftime('%d/%m/%Y às %H:%M')}</td>
+                        </tr>
+                        <tr style="background-color: #f8fafc;">
+                            <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: 600;">Tipo</td>
+                            <td style="padding: 12px; border: 1px solid #e5e7eb;">{event.get('event_type', 'Outro')}</td>
+                        </tr>
+                        <tr>
+                            <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: 600;">Local</td>
+                            <td style="padding: 12px; border: 1px solid #e5e7eb;">{event.get('location', 'N/A')}</td>
+                        </tr>
+                        <tr style="background-color: #f8fafc;">
+                            <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: 600;">Equipa</td>
+                            <td style="padding: 12px; border: 1px solid #e5e7eb;">{team.get('name', 'N/A')}</td>
+                        </tr>
+                    </table>
+                """
+                
                 await send_email_notification(
                     coach.get('email'),
                     f"⚠️ Lembrete: {event.get('title', 'Evento')} sem convocatória",
-                    f"""
-                    <h2>Evento sem Convocatória</h2>
-                    <p>Olá {coach.get('name', 'Treinador')},</p>
-                    <p>O evento <strong>{event.get('title', 'Evento')}</strong> começa dentro de aproximadamente 4 horas 
-                    ({event_time.strftime('%d/%m às %H:%M')}) e ainda não tem convocatória criada.</p>
-                    <p><strong>Detalhes:</strong></p>
-                    <ul>
-                        <li>Tipo: {event.get('event_type', 'Outro')}</li>
-                        <li>Local: {event.get('location', 'N/A')}</li>
-                    </ul>
-                    <p>Por favor, crie a convocatória o mais rapidamente possível para que os jogadores possam confirmar a presença.</p>
-                    <p>Equipa: {team.get('name', 'N/A')}</p>
-                    """
+                    build_email_template("Evento sem Convocatória", email_content)
                 )
             except Exception as e:
                 logging.error(f"Failed to send email reminder to {coach.get('email')}: {e}")
@@ -5463,7 +5602,7 @@ async def create_custom_payment(data: CustomPaymentCreate, current_user: dict = 
     await db.custom_payments.insert_one(payment_dict)
     payment_dict.pop('_id', None)
     
-    # Notify the user
+    # Notify the user via push and email
     try:
         await send_push_to_users(
             user_ids=[data.user_id],
@@ -5473,6 +5612,38 @@ async def create_custom_payment(data: CustomPaymentCreate, current_user: dict = 
         )
     except Exception as e:
         logging.error(f"Failed to notify user of new payment: {e}")
+    
+    # Send email notification
+    try:
+        due_date_str = data.due_date.strftime('%d/%m/%Y') if hasattr(data.due_date, 'strftime') else str(data.due_date)[:10]
+        email_content = f"""
+            <p>Olá <strong>{user.get('name', 'Atleta')}</strong>,</p>
+            <p>Foi criado um novo pagamento para ti:</p>
+            <table style="margin: 20px 0; border-collapse: collapse; width: 100%;">
+                <tr style="background-color: #f8fafc;">
+                    <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: 600;">Descrição</td>
+                    <td style="padding: 12px; border: 1px solid #e5e7eb;">{data.title}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: 600;">Valor</td>
+                    <td style="padding: 12px; border: 1px solid #e5e7eb; font-size: 18px; color: #0f172a;"><strong>€{data.amount:.2f}</strong></td>
+                </tr>
+                <tr style="background-color: #f8fafc;">
+                    <td style="padding: 12px; border: 1px solid #e5e7eb; font-weight: 600;">Vencimento</td>
+                    <td style="padding: 12px; border: 1px solid #e5e7eb;">{due_date_str}</td>
+                </tr>
+            </table>
+            {f'<p><strong>Detalhes:</strong> {data.description}</p>' if data.description else ''}
+            <p style="margin-top: 20px;">Podes aceder à app para ver todos os teus pagamentos e carregar o comprovativo.</p>
+        """
+        
+        await send_email_notification(
+            user.get('email'),
+            f"Novo Pagamento: {data.title}",
+            build_email_template("Novo Pagamento Criado", email_content)
+        )
+    except Exception as e:
+        logging.error(f"Failed to send payment email: {e}")
     
     return payment_dict
 
@@ -5495,6 +5666,38 @@ async def mark_payment_as_paid(payment_type: str, payment_id: str, current_user:
         {"id": payment_id},
         {"$set": {"paid_at": now.isoformat(), "status": "paid"}}
     )
+    
+    # Send confirmation email to the user
+    try:
+        user = await db.users.find_one({"id": payment.get('user_id')}, {"_id": 0})
+        if user and user.get('email'):
+            # Get payment description
+            if payment_type == "monthly_fee":
+                months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+                month_name = months[payment.get('month', 1) - 1]
+                payment_desc = f"Mensalidade {month_name}/{payment.get('year', '')}"
+            else:
+                payment_desc = payment.get('title', 'Pagamento')
+            
+            email_content = f"""
+                <p>Olá <strong>{user.get('name', 'Atleta')}</strong>,</p>
+                <p>Confirmamos que o teu pagamento foi registado com sucesso:</p>
+                <div style="margin: 20px 0; padding: 20px; background-color: #ecfdf5; border-radius: 8px; border-left: 4px solid #10b981;">
+                    <p style="margin: 0 0 8px 0; font-size: 14px; color: #065f46;">Pagamento Confirmado</p>
+                    <p style="margin: 0; font-size: 18px; font-weight: 600; color: #047857;">{payment_desc}</p>
+                    <p style="margin: 8px 0 0 0; font-size: 24px; font-weight: 700; color: #059669;">€{payment.get('amount', 0):.2f}</p>
+                </div>
+                <p style="color: #6b7280; font-size: 14px;">Data de confirmação: {now.strftime('%d/%m/%Y às %H:%M')}</p>
+                <p style="margin-top: 20px;">Obrigado!</p>
+            """
+            
+            await send_email_notification(
+                user.get('email'),
+                f"Pagamento Confirmado: {payment_desc}",
+                build_email_template("Pagamento Confirmado ✓", email_content)
+            )
+    except Exception as e:
+        logging.error(f"Failed to send payment confirmation email: {e}")
     
     return {"message": "Pagamento marcado como pago"}
 
