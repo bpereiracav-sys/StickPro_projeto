@@ -101,12 +101,12 @@ export default function Register() {
             <div className="w-10 h-10 bg-primary rounded-sm flex items-center justify-center">
               <span className="text-white font-heading text-xl">RH</span>
             </div>
-            <span className="font-heading text-2xl text-foreground tracking-wide">
+            <span className="font-heading text-2xl text-foreground tracking-tight">
               ROLLER HOCKEY HUB
             </span>
           </div>
 
-          <h1 className="font-heading text-4xl text-foreground tracking-wide mb-2">
+          <h1 className="font-heading text-4xl text-foreground tracking-tight mb-2">
             CRIAR CONTA
           </h1>
           <p className="text-muted-foreground mb-8">

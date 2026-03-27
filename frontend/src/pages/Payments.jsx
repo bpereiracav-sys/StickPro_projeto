@@ -377,33 +377,34 @@ export default function Payments() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6" data-testid="payments-page">
+    <div className="max-w-7xl mx-auto space-y-6" data-testid="payments-page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-heading text-3xl sm:text-4xl tracking-wide">
-            PAGAMENTOS
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl tracking-tight flex items-center gap-3">
+            <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+            Pagamentos
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-muted-foreground text-sm mt-1">
             {isAdmin ? 'Gestão de mensalidades e pagamentos' : 'Os meus pagamentos'}
           </p>
         </div>
         
         {isAdmin && (
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setShowImportDialog(true)}>
+            <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)}>
               <Upload className="w-4 h-4 mr-2" />
               Importar
             </Button>
-            <Button variant="outline" onClick={() => setShowBulkFeeDialog(true)}>
+            <Button variant="outline" size="sm" onClick={() => setShowBulkFeeDialog(true)}>
               <Users className="w-4 h-4 mr-2" />
-              Mensalidades em Massa
+              Em Massa
             </Button>
-            <Button onClick={() => setShowCreateFeeDialog(true)} data-testid="create-fee-btn">
+            <Button size="sm" onClick={() => setShowCreateFeeDialog(true)} data-testid="create-fee-btn">
               <Plus className="w-4 h-4 mr-2" />
               Mensalidade
             </Button>
-            <Button variant="secondary" onClick={() => setShowCustomPaymentDialog(true)} data-testid="create-custom-btn">
+            <Button variant="secondary" size="sm" onClick={() => setShowCustomPaymentDialog(true)} data-testid="create-custom-btn">
               <CreditCard className="w-4 h-4 mr-2" />
               Pagamento
             </Button>
@@ -414,59 +415,59 @@ export default function Payments() {
       {/* Stats Cards - Admin only */}
       {isAdmin && summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="border border-green-200 bg-green-50/50">
+          <Card className="border border-green-200 bg-green-50/50 card-hover">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
                   <CheckCircle2 className="w-5 h-5 text-green-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Cobrado (mês)</p>
-                  <p className="text-xl font-bold text-green-700">€{summary.collected_this_month?.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Cobrado (mês)</p>
+                  <p className="text-lg sm:text-xl font-bold text-green-700 font-mono">€{summary.collected_this_month?.toFixed(2)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border border-yellow-200 bg-yellow-50/50">
+          <Card className="border border-yellow-200 bg-yellow-50/50 card-hover">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-yellow-100 flex items-center justify-center">
                   <Clock className="w-5 h-5 text-yellow-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Pendente</p>
-                  <p className="text-xl font-bold text-yellow-700">€{summary.total_pending?.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Pendente</p>
+                  <p className="text-lg sm:text-xl font-bold text-yellow-700 font-mono">€{summary.total_pending?.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground">{summary.pending_count} pagamentos</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border border-red-200 bg-red-50/50">
+          <Card className="border border-red-200 bg-red-50/50 card-hover">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-red-100 flex items-center justify-center">
                   <XCircle className="w-5 h-5 text-red-600" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Em Atraso</p>
-                  <p className="text-xl font-bold text-red-700">€{summary.total_overdue?.toFixed(2)}</p>
+                  <p className="text-xs text-muted-foreground">Em Atraso</p>
+                  <p className="text-lg sm:text-xl font-bold text-red-700 font-mono">€{summary.total_overdue?.toFixed(2)}</p>
                   <p className="text-xs text-muted-foreground">{summary.overdue_count} pagamentos</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border border-border">
+          <Card className="border border-border card-hover">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
                   <TrendingUp className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Pagos (mês)</p>
-                  <p className="text-xl font-bold">{summary.paid_count_this_month}</p>
+                  <p className="text-xs text-muted-foreground">Pagos (mês)</p>
+                  <p className="text-lg sm:text-xl font-bold font-mono">{summary.paid_count_this_month}</p>
                   <p className="text-xs text-muted-foreground">pagamentos</p>
                 </div>
               </div>
@@ -505,12 +506,12 @@ export default function Payments() {
 
       {/* Payments List */}
       <Card className="border border-border">
-        <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+        <CardHeader className="pb-3">
+          <CardTitle className="font-heading text-lg sm:text-xl tracking-tight flex items-center gap-2">
             <Receipt className="w-5 h-5 text-primary" />
-            {isAdmin ? 'TODOS OS PAGAMENTOS' : 'OS MEUS PAGAMENTOS'}
+            {isAdmin ? 'Todos os Pagamentos' : 'Os Meus Pagamentos'}
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-sm">
             {filteredPayments.length} pagamento{filteredPayments.length !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
@@ -632,10 +633,10 @@ export default function Payments() {
             </div>
           ) : (
             <div className="text-center py-12">
-              <Euro className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">Nenhum pagamento encontrado</p>
+              <Euro className="w-12 h-12 text-muted-foreground/30 mx-auto mb-4" />
+              <p className="text-muted-foreground text-sm">Nenhum pagamento encontrado</p>
               {isAdmin && (
-                <Button className="mt-4" onClick={() => setShowCreateFeeDialog(true)}>
+                <Button className="mt-4" size="sm" onClick={() => setShowCreateFeeDialog(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Criar Mensalidade
                 </Button>
@@ -648,22 +649,22 @@ export default function Payments() {
       {/* Player Payment Summary */}
       {!isAdmin && payments.length > 0 && (
         <Card className="border border-border">
-          <CardHeader>
-            <CardTitle className="font-heading text-lg tracking-wide">RESUMO</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="font-heading text-lg tracking-tight">Resumo</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-3 gap-4 text-center">
-              <div className="p-4 bg-green-50 rounded-sm">
+              <div className="p-4 bg-green-50 rounded-lg">
                 <CheckCircle2 className="w-6 h-6 text-green-600 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-green-700">{stats.paid}</p>
                 <p className="text-xs text-muted-foreground">Pagos</p>
               </div>
-              <div className="p-4 bg-yellow-50 rounded-sm">
+              <div className="p-4 bg-yellow-50 rounded-lg">
                 <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-yellow-700">{stats.pending}</p>
                 <p className="text-xs text-muted-foreground">Pendentes</p>
               </div>
-              <div className="p-4 bg-red-50 rounded-sm">
+              <div className="p-4 bg-red-50 rounded-lg">
                 <XCircle className="w-6 h-6 text-red-600 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-red-700">{stats.overdue}</p>
                 <p className="text-xs text-muted-foreground">Atrasados</p>
@@ -677,7 +678,7 @@ export default function Payments() {
       <Dialog open={showCreateFeeDialog} onOpenChange={setShowCreateFeeDialog}>
         <DialogContent className="bg-white" data-testid="create-fee-dialog">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide">CRIAR MENSALIDADE</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Criar Mensalidade</DialogTitle>
             <DialogDescription>Criar uma nova mensalidade para um jogador</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateFee}>
@@ -787,9 +788,9 @@ export default function Payments() {
       <Dialog open={showBulkFeeDialog} onOpenChange={setShowBulkFeeDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
-              MENSALIDADES EM MASSA
+              Mensalidades em Massa
             </DialogTitle>
             <DialogDescription>
               Criar mensalidades para todos os jogadores ativos
@@ -876,7 +877,7 @@ export default function Payments() {
       <Dialog open={showCustomPaymentDialog} onOpenChange={setShowCustomPaymentDialog}>
         <DialogContent className="bg-white" data-testid="create-custom-dialog">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide">CRIAR PAGAMENTO</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Criar Pagamento</DialogTitle>
             <DialogDescription>Criar um pagamento personalizado para um jogador</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreateCustomPayment}>
@@ -962,9 +963,9 @@ export default function Payments() {
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <Upload className="w-5 h-5 text-primary" />
-              IMPORTAR MENSALIDADES
+              Importar Mensalidades
             </DialogTitle>
             <DialogDescription>
               Importar mensalidades a partir de um ficheiro Excel
@@ -1014,9 +1015,9 @@ export default function Payments() {
       <Dialog open={showProofDialog} onOpenChange={setShowProofDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <FileText className="w-5 h-5 text-primary" />
-              CARREGAR COMPROVATIVO
+              Carregar Comprovativo
             </DialogTitle>
             <DialogDescription>
               Anexar comprovativo de pagamento

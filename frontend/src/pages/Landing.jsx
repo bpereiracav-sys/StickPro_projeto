@@ -35,17 +35,17 @@ const StickProLogo = ({ size = 'md' }) => {
 const features = [
   {
     icon: Users,
-    title: 'GESTÃO DE EQUIPAS',
+    title: 'Gestão de Equipas',
     description: 'Organize jogadores, treinadores e delegados. Controle total do plantel.'
   },
   {
     icon: Calendar,
-    title: 'CALENDÁRIO',
+    title: 'Calendário',
     description: 'Jogos e treinos num só lugar. Sincronize com a sua equipa.'
   },
   {
     icon: ClipboardCheck,
-    title: 'CONVOCATÓRIAS',
+    title: 'Convocatórias',
     description: 'Convoque jogadores e receba confirmações em tempo real.'
   },
   {
@@ -80,7 +80,7 @@ export default function Landing() {
         
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
           <div className="max-w-3xl">
-            <h1 className="font-heading text-5xl sm:text-6xl lg:text-7xl text-white tracking-wide leading-none mb-6 animate-fade-in-up">
+            <h1 className="font-heading text-5xl sm:text-6xl lg:text-7xl text-white tracking-tight leading-none mb-6 animate-fade-in-up">
               A PLATAFORMA DE GESTÃO PARA HÓQUEI EM PATINS
             </h1>
             <p className="text-lg sm:text-xl text-slate-300 mb-8 max-w-xl animate-fade-in-up stagger-1">
@@ -125,7 +125,7 @@ export default function Landing() {
       <section className="py-24 bg-surface tactical-grid">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="font-heading text-4xl sm:text-5xl text-foreground tracking-wide mb-4">
+            <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl text-foreground tracking-tight mb-4">
               TUDO O QUE PRECISA
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -145,7 +145,7 @@ export default function Landing() {
                   <div className="w-12 h-12 bg-primary/10 rounded-sm flex items-center justify-center mb-6">
                     <Icon className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-heading text-2xl text-foreground tracking-wide mb-3">
+                  <h3 className="font-heading text-2xl text-foreground tracking-tight mb-3">
                     {feature.title}
                   </h3>
                   <p className="text-muted-foreground">
@@ -162,7 +162,7 @@ export default function Landing() {
       <section className="py-24 bg-primary">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <Zap className="w-16 h-16 text-white/80 mx-auto mb-6" />
-          <h2 className="font-heading text-4xl sm:text-5xl text-white tracking-wide mb-6">
+          <h2 className="font-heading text-3xl sm:text-4xl lg:text-5xl text-white tracking-tight mb-6">
             PRONTO PARA COMEÇAR?
           </h2>
           <p className="text-xl text-white/80 mb-8">
@@ -189,7 +189,7 @@ export default function Landing() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2">
               <StickProLogo size="sm" />
-              <span className="font-heading text-xl text-white tracking-wide">
+              <span className="font-heading text-xl text-white tracking-tight">
                 STICK PRO
               </span>
             </div>

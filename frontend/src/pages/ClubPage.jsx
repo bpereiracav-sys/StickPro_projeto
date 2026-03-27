@@ -165,7 +165,7 @@ export default function ClubPage() {
     return (
       <div className="max-w-2xl mx-auto space-y-6" data-testid="club-create-page">
         <div>
-          <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
             CRIAR CLUBE
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -337,7 +337,7 @@ export default function ClubPage() {
             </div>
           )}
           <div>
-            <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">
+            <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
               {club.name}
             </h1>
             {club.city && (
@@ -567,7 +567,7 @@ export default function ClubPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-primary" />
                 LOCALIZAÇÃO
               </CardTitle>
@@ -584,7 +584,7 @@ export default function ClubPage() {
 
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-primary" />
                 PAVILHÃO
               </CardTitle>
@@ -608,7 +608,7 @@ export default function ClubPage() {
 
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                 <Calendar className="w-5 h-5 text-primary" />
                 FUNDAÇÃO
               </CardTitle>
@@ -624,7 +624,7 @@ export default function ClubPage() {
 
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                 <Mail className="w-5 h-5 text-primary" />
                 CONTACTOS
               </CardTitle>
@@ -654,7 +654,7 @@ export default function ClubPage() {
 
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                 <Globe className="w-5 h-5 text-primary" />
                 WEBSITE
               </CardTitle>

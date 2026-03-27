@@ -165,7 +165,7 @@ export default function PlayerProfile() {
               </Avatar>
               
               <div className="flex-1">
-                <h1 className="font-heading text-4xl text-foreground tracking-wide mb-2">
+                <h1 className="font-heading text-4xl text-foreground tracking-tight mb-2">
                   {player?.name?.toUpperCase()}
                 </h1>
                 <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -234,7 +234,7 @@ export default function PlayerProfile() {
 
         {/* Consolidated Stats */}
         <div className="mb-8">
-          <h2 className="font-heading text-2xl tracking-wide mb-4 flex items-center gap-2">
+          <h2 className="font-heading text-xl tracking-tight mb-4 flex items-center gap-2">
             <BarChart3 className="w-6 h-6 text-primary" />
             ESTATÍSTICAS CONSOLIDADAS
           </h2>
@@ -245,43 +245,43 @@ export default function PlayerProfile() {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-4">
             <Card className="border border-border">
               <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Jogos</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Jogos</p>
                 <p className="text-3xl font-heading font-mono text-foreground">{consolidated?.games_played || 0}</p>
               </CardContent>
             </Card>
             <Card className="border border-border bg-secondary/5">
               <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Golos</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Golos</p>
                 <p className="text-3xl font-heading font-mono text-secondary">{consolidated?.goals || 0}</p>
               </CardContent>
             </Card>
             <Card className="border border-border">
               <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Assist.</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Assist.</p>
                 <p className="text-3xl font-heading font-mono text-foreground">{consolidated?.assists || 0}</p>
               </CardContent>
             </Card>
             <Card className="border border-border">
               <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Amarelos</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Amarelos</p>
                 <p className="text-3xl font-heading font-mono text-amber-600">{consolidated?.yellow_cards || 0}</p>
               </CardContent>
             </Card>
             <Card className="border border-border">
               <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Azuis</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Azuis</p>
                 <p className="text-3xl font-heading font-mono text-blue-600">{consolidated?.blue_cards || 0}</p>
               </CardContent>
             </Card>
             <Card className="border border-border">
               <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Verm.</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Verm.</p>
                 <p className="text-3xl font-heading font-mono text-destructive">{consolidated?.red_cards || 0}</p>
               </CardContent>
             </Card>
             <Card className="border border-border">
               <CardContent className="p-4 text-center">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Defesas</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Defesas</p>
                 <p className="text-3xl font-heading font-mono text-foreground">{consolidated?.saves || 0}</p>
               </CardContent>
             </Card>
@@ -298,7 +298,7 @@ export default function PlayerProfile() {
           <TabsContent value="per-team">
             <Card className="border border-border">
               <CardHeader>
-                <CardTitle className="font-heading text-xl tracking-wide">
+                <CardTitle className="font-heading text-xl tracking-tight">
                   ESTATÍSTICAS POR EQUIPA
                 </CardTitle>
               </CardHeader>
@@ -344,7 +344,7 @@ export default function PlayerProfile() {
                         {/* Totals Row */}
                         <TableRow className="bg-muted/50 font-semibold">
                           <TableCell>
-                            <span className="font-heading tracking-wide">TOTAL</span>
+                            <span className="font-heading tracking-tight">Total</span>
                           </TableCell>
                           <TableCell className="text-center font-mono">{consolidated?.games_played || 0}</TableCell>
                           <TableCell className="text-center font-mono text-secondary">{consolidated?.goals || 0}</TableCell>
@@ -376,7 +376,7 @@ export default function PlayerProfile() {
           <TabsContent value="teams">
             <Card className="border border-border">
               <CardHeader>
-                <CardTitle className="font-heading text-xl tracking-wide">
+                <CardTitle className="font-heading text-xl tracking-tight">
                   EQUIPAS DO ATLETA
                 </CardTitle>
               </CardHeader>

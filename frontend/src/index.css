@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,31 +6,36 @@
 
 @layer base {
     :root {
-        --background: 0 0% 100%;
+        /* Light mode - Clean professional look */
+        --background: 0 0% 98%;
         --foreground: 222 47% 11%;
         --card: 0 0% 100%;
         --card-foreground: 222 47% 11%;
         --popover: 0 0% 100%;
         --popover-foreground: 222 47% 11%;
-        --primary: 223 100% 50%;
-        --primary-foreground: 0 0% 100%;
+        --primary: 187 94% 43%;
+        --primary-foreground: 0 0% 0%;
         --secondary: 160 84% 39%;
         --secondary-foreground: 0 0% 100%;
         --muted: 210 40% 96%;
         --muted-foreground: 215 16% 47%;
-        --accent: 210 40% 96%;
-        --accent-foreground: 222 47% 11%;
+        --accent: 187 94% 95%;
+        --accent-foreground: 187 94% 30%;
         --destructive: 0 84% 60%;
         --destructive-foreground: 0 0% 100%;
         --border: 214 32% 91%;
         --input: 214 32% 91%;
-        --ring: 223 100% 50%;
-        --chart-1: 223 100% 50%;
+        --ring: 187 94% 43%;
+        --chart-1: 187 94% 43%;
         --chart-2: 160 84% 39%;
         --chart-3: 43 96% 56%;
         --chart-4: 0 84% 60%;
         --chart-5: 262 83% 58%;
-        --radius: 0.25rem;
+        --radius: 0.5rem;
+        
+        /* Surface colors */
+        --surface: 0 0% 98%;
+        --surface-elevated: 0 0% 100%;
     }
 }
 
@@ -43,8 +48,9 @@
         font-family: 'Manrope', sans-serif;
     }
     h1, h2, h3, h4, h5, h6 {
-        font-family: 'Bebas Neue', sans-serif;
-        letter-spacing: 0.05em;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        letter-spacing: -0.02em;
     }
     code, .mono {
         font-family: 'JetBrains Mono', monospace;
@@ -53,8 +59,9 @@
 
 @layer utilities {
     .font-heading {
-        font-family: 'Bebas Neue', sans-serif;
-        letter-spacing: 0.05em;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        letter-spacing: -0.02em;
     }
     .font-body {
         font-family: 'Manrope', sans-serif;
@@ -62,44 +69,56 @@
     .font-mono {
         font-family: 'JetBrains Mono', monospace;
     }
+    
+    /* Glass morphism effects */
+    .glass {
+        backdrop-filter: blur(12px);
+        background-color: rgba(255, 255, 255, 0.85);
+    }
+    
+    /* Subtle glow effect for primary elements */
+    .glow-primary {
+        box-shadow: 0 0 15px rgba(34, 211, 238, 0.15);
+    }
 }
 
 /* Tactical Grid Background */
 .tactical-grid {
     background-image: 
-        linear-gradient(to right, rgba(0, 71, 255, 0.03) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(0, 71, 255, 0.03) 1px, transparent 1px);
+        linear-gradient(to right, rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(34, 211, 238, 0.03) 1px, transparent 1px);
     background-size: 24px 24px;
 }
 
 /* Dot Matrix Pattern */
 .dot-matrix {
-    background-image: radial-gradient(circle, rgba(0, 71, 255, 0.08) 1px, transparent 1px);
+    background-image: radial-gradient(circle, rgba(34, 211, 238, 0.06) 1px, transparent 1px);
     background-size: 16px 16px;
 }
 
-/* Card Hover Effect */
+/* Card Hover Effect - Enhanced */
 .card-hover {
-    transition: transform 150ms ease, border-color 150ms ease;
+    transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease;
 }
 .card-hover:hover {
     transform: translateY(-2px);
     border-color: hsl(var(--primary));
+    box-shadow: 0 0 15px rgba(34, 211, 238, 0.1);
 }
 
 /* Button Hover Effect */
 .btn-hover {
-    transition: transform 150ms ease, box-shadow 150ms ease;
+    transition: transform 200ms ease, box-shadow 200ms ease, background-color 200ms ease;
 }
 .btn-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 71, 255, 0.25);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(34, 211, 238, 0.25);
 }
 
 /* Glass Morphism Navigation */
 .glass-nav {
     backdrop-filter: blur(12px);
-    background-color: rgba(255, 255, 255, 0.85);
+    background-color: rgba(255, 255, 255, 0.9);
     border-bottom: 1px solid hsl(var(--border));
 }
 
@@ -175,7 +194,7 @@ body.dark-theme {
     color-scheme: dark;
 }
 
-/* Dark theme: Titles and headings in primary (neon green), body text in white */
+/* Dark theme: Titles and headings in primary (cyan), body text in slate */
 body.dark-theme h1,
 body.dark-theme h2,
 body.dark-theme h3,
@@ -235,27 +254,86 @@ body.dark-theme .bg-blue-50 {
     background-color: rgba(59, 130, 246, 0.1);
 }
 
+/* StickPro Watermark */
+.stickpro-watermark {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    width: 8rem;
+    height: 8rem;
+    opacity: 0.03;
+    pointer-events: none;
+    z-index: 0;
+}
+
 @layer base {
     [data-debug-wrapper="true"] {
         display: contents !important;
     }
 }
 
-/* Hide Emergent badge on mobile to not overlap with AI Assistant button and bottom nav */
-@media (max-width: 1024px) {
-    #emergent-badge {
-        display: none !important;
-        visibility: hidden !important;
-        opacity: 0 !important;
-        pointer-events: none !important;
+/* Hide Emergent badge - Moved to StickPro branding */
+#emergent-badge {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Improved focus states */
+.focus-ring-primary:focus,
+.focus-ring-primary:focus-visible {
+    outline: none;
+    ring: 2px;
+    ring-offset: 2px;
+    ring-color: hsl(var(--primary) / 0.5);
+}
+
+/* Empty state styling */
+.empty-state {
+    @apply flex flex-col items-center justify-center py-16 text-center;
+}
+
+.empty-state-icon {
+    @apply w-16 h-16 text-muted-foreground/30 mb-4;
+}
+
+.empty-state-title {
+    @apply font-heading text-xl text-muted-foreground mb-2;
+}
+
+.empty-state-description {
+    @apply text-sm text-muted-foreground/70 mb-6 max-w-sm;
+}
+
+/* Loading skeleton animation improvements */
+@keyframes shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
     }
 }
 
-/* On desktop, move badge to top-right to avoid overlap */
-@media (min-width: 1025px) {
-    #emergent-badge {
-        bottom: auto !important;
-        top: 16px !important;
-        right: 280px !important;
-    }
+.skeleton-shimmer {
+    background: linear-gradient(90deg, 
+        hsl(var(--muted)) 25%, 
+        hsl(var(--muted-foreground) / 0.1) 50%, 
+        hsl(var(--muted)) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+/* Smooth page transitions */
+.page-enter {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.page-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 200ms ease, transform 200ms ease;
 }

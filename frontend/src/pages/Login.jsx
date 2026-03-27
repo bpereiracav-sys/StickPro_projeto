@@ -165,15 +165,15 @@ export default function Login() {
 
           <div className="flex items-center gap-2 mb-8">
             <StickProLogo size="md" />
-            <span className="font-heading text-2xl text-foreground tracking-wide">
-              STICK PRO
+            <span className="font-heading text-2xl text-foreground tracking-tight">
+              Stick<span className="text-primary">Pro</span>
             </span>
           </div>
 
-          <h1 className="font-heading text-4xl text-foreground tracking-wide mb-2">
-            {t('auth.login') || 'ENTRAR'}
+          <h1 className="font-heading text-3xl sm:text-4xl text-foreground tracking-tight mb-2">
+            {t('auth.login') || 'Entrar'}
           </h1>
-          <p className="text-muted-foreground mb-8">
+          <p className="text-muted-foreground mb-8 text-sm sm:text-base">
             {t('auth.loginSubtitle') || 'Aceda à sua conta para gerir a equipa'}
           </p>
 
@@ -208,7 +208,7 @@ export default function Login() {
 
             <Button 
               type="submit" 
-              className="w-full h-12 btn-hover rounded-sm"
+              className="w-full h-12 rounded-lg font-semibold transition-all duration-200 hover:scale-[1.02]"
               disabled={loading}
               data-testid="login-submit-btn"
             >
@@ -218,7 +218,7 @@ export default function Login() {
                   A entrar...
                 </>
               ) : (
-                'ENTRAR'
+                'Entrar'
               )}
             </Button>
           </form>

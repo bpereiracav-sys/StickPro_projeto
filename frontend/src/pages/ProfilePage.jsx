@@ -309,7 +309,7 @@ export default function ProfilePage() {
             </AvatarFallback>
           </Avatar>
           <div>
-            <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">
+            <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
               MEU PERFIL
             </h1>
             <p className="text-muted-foreground">
@@ -365,7 +365,7 @@ export default function ProfilePage() {
         <TabsContent value="identity">
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
                 IDENTIDADE
               </CardTitle>
@@ -478,7 +478,7 @@ export default function ProfilePage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+                  <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                     <Users className="w-5 h-5 text-primary" />
                     FAMILIARES
                   </CardTitle>
@@ -560,7 +560,7 @@ export default function ProfilePage() {
         <TabsContent value="biometric">
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                 <Scale className="w-5 h-5 text-primary" />
                 DADOS BIOMÉTRICOS
               </CardTitle>
@@ -607,7 +607,7 @@ export default function ProfilePage() {
         <TabsContent value="sports">
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-primary" />
                 INFORMAÇÃO DESPORTIVA
               </CardTitle>
@@ -688,7 +688,7 @@ export default function ProfilePage() {
         <TabsContent value="equipment">
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                 <Shirt className="w-5 h-5 text-primary" />
                 EQUIPAMENTO
               </CardTitle>
@@ -746,7 +746,7 @@ export default function ProfilePage() {
             <CardHeader>
               <div className="flex items-center justify-between">
                 <div>
-                  <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+                  <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                     <CalendarOff className="w-5 h-5 text-primary" />
                     INDISPONIBILIDADES
                   </CardTitle>
@@ -929,7 +929,7 @@ export default function ProfilePage() {
       <Dialog open={showAddFamilyModal} onOpenChange={setShowAddFamilyModal}>
         <DialogContent className="bg-white" data-testid="add-family-modal">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide">
+            <DialogTitle className="font-heading text-xl tracking-tight">
               ADICIONAR FAMILIAR
             </DialogTitle>
             <DialogDescription>
@@ -1020,7 +1020,7 @@ export default function ProfilePage() {
       }}>
         <DialogContent className="bg-white" data-testid="unavailability-modal">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <CalendarOff className="w-5 h-5 text-primary" />
               {editingUnavailability ? 'EDITAR INDISPONIBILIDADE' : 'ADICIONAR INDISPONIBILIDADE'}
             </DialogTitle>

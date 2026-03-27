@@ -173,8 +173,8 @@ export function TopNavBar() {
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center gap-3">
               <StickProLogo size="md" />
-              <span className="font-heading text-xl text-foreground tracking-wide">
-                STICK PRO
+              <span className="font-heading text-xl text-foreground tracking-tight">
+                Stick<span className="text-primary">Pro</span>
               </span>
             </Link>
             <div className="flex items-center gap-3">
@@ -201,14 +201,14 @@ export function TopNavBar() {
               <img 
                 src={club.logo_url} 
                 alt={club.name} 
-                className="w-10 h-10 object-contain rounded-sm"
+                className="w-10 h-10 object-contain rounded-lg"
                 data-testid="club-logo"
               />
             ) : (
               <StickProLogo size="md" />
             )}
-            <span className="font-heading text-xl text-foreground tracking-wide hidden sm:block">
-              {club?.name || 'STICK PRO'}
+            <span className="font-heading text-xl text-foreground tracking-tight hidden sm:block">
+              {club?.name || (<>Stick<span className="text-primary">Pro</span></>)}
             </span>
           </Link>
 

@@ -535,7 +535,7 @@ export default function ChampionshipDetail() {
       {/* Header */}
       <div className="flex flex-col gap-4">
         <div>
-          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-wide flex items-start gap-2">
+          <h1 className="font-heading text-2xl sm:text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight flex items-start gap-2">
             <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-primary flex-shrink-0 mt-1" />
             <span className="break-words">{championship.name}</span>
           </h1>
@@ -899,7 +899,7 @@ export default function ChampionshipDetail() {
         <TabsContent value="standings">
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-wide">CLASSIFICAÇÃO</CardTitle>
+              <CardTitle className="font-heading text-xl tracking-tight">Classificação</CardTitle>
             </CardHeader>
             <CardContent>
               {standings.length > 0 ? (
@@ -966,7 +966,7 @@ export default function ChampionshipDetail() {
       <Dialog open={matchDialogOpen} onOpenChange={setMatchDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR JOGO</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Adicionar Jogo</DialogTitle>
             <DialogDescription>
               Agendar um novo jogo na competição
             </DialogDescription>
@@ -1113,7 +1113,7 @@ export default function ChampionshipDetail() {
       <Dialog open={resultDialogOpen} onOpenChange={setResultDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">RESULTADO DO JOGO</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Resultado do Jogo</DialogTitle>
             <DialogDescription>
               {selectedMatch && `${team?.name} vs ${selectedMatch.opponent_team}`}
             </DialogDescription>
@@ -1181,7 +1181,7 @@ export default function ChampionshipDetail() {
       <Dialog open={editMatchDialogOpen} onOpenChange={setEditMatchDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">EDITAR JOGO</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Editar Jogo</DialogTitle>
             <DialogDescription>
               Alterar detalhes do jogo
             </DialogDescription>
@@ -1250,7 +1250,7 @@ export default function ChampionshipDetail() {
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <FileSpreadsheet className="w-6 h-6 text-primary" />
               IMPORTAR FICHA DE JOGO
             </DialogTitle>
@@ -1366,7 +1366,7 @@ export default function ChampionshipDetail() {
       <Dialog open={teamDialogOpen} onOpenChange={setTeamDialogOpen}>
         <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR EQUIPA</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Adicionar Equipa</DialogTitle>
             <DialogDescription>
               Registar uma equipa participante na competição
             </DialogDescription>
@@ -1585,7 +1585,7 @@ export default function ChampionshipDetail() {
       <Dialog open={editTeamDialogOpen} onOpenChange={setEditTeamDialogOpen}>
         <DialogContent className="bg-white max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">EDITAR EQUIPA</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Editar Equipa</DialogTitle>
             <DialogDescription>
               Alterar dados da equipa
             </DialogDescription>
@@ -1803,7 +1803,7 @@ export default function ChampionshipDetail() {
       <Dialog open={teamImportDialogOpen} onOpenChange={setTeamImportDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <Upload className="w-6 h-6 text-primary" />
               IMPORTAR EQUIPAS
             </DialogTitle>

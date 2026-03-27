@@ -172,7 +172,7 @@ export default function Championships() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide flex items-center gap-3">
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight flex items-center gap-3">
             <Trophy className="w-8 h-8 text-primary" />
             COMPETIÇÕES
           </h1>
@@ -223,7 +223,7 @@ export default function Championships() {
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <div>
-                    <CardTitle className="font-heading text-xl tracking-wide">{champ.name}</CardTitle>
+                    <CardTitle className="font-heading text-xl tracking-tight">{champ.name}</CardTitle>
                     <Badge variant="outline" className="mt-2">{champ.season}</Badge>
                   </div>
                   <Trophy className="w-6 h-6 text-primary" />
@@ -273,7 +273,7 @@ export default function Championships() {
         <Card className="border border-border">
           <CardContent className="py-16 text-center">
             <Trophy className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="font-heading text-xl mb-2">SEM COMPETIÇÕES</h3>
+            <h3 className="font-heading text-xl mb-2">Sem Competições</h3>
             <p className="text-muted-foreground mb-4">
               Nenhuma competição registada para esta época
             </p>
@@ -291,7 +291,7 @@ export default function Championships() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">NOVA COMPETIÇÃO</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Nova Competição</DialogTitle>
             <DialogDescription>
               Criar uma nova competição para a equipa
             </DialogDescription>

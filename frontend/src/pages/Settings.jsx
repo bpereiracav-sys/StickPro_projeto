@@ -165,14 +165,14 @@ export default function Settings() {
     <div className="max-w-3xl mx-auto space-y-6" data-testid="settings-page">
       {/* Header */}
       <div>
-        <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">DEFINIÇÕES</h1>
+        <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">Definições</h1>
         <p className="text-muted-foreground mt-1">Gerir o seu perfil e preferências</p>
       </div>
 
       {/* Profile Card */}
       <Card className="border border-border">
         <CardHeader>
-          <CardTitle className="font-heading text-2xl tracking-wide">PERFIL</CardTitle>
+          <CardTitle className="font-heading text-xl tracking-tight">Perfil</CardTitle>
           <CardDescription>Informações da sua conta</CardDescription>
         </CardHeader>
         <CardContent>
@@ -258,7 +258,7 @@ export default function Settings() {
       {/* Language Card */}
       <Card className="border border-border">
         <CardHeader>
-          <CardTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+          <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
             <Globe className="w-6 h-6 text-primary" />
             {t('settings.language').toUpperCase()}
           </CardTitle>
@@ -310,7 +310,7 @@ export default function Settings() {
       {/* Notifications Card */}
       <Card className="border border-border">
         <CardHeader>
-          <CardTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+          <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
             <Bell className="w-6 h-6 text-primary" />
             NOTIFICAÇÕES
           </CardTitle>
@@ -335,7 +335,7 @@ export default function Settings() {
         <CardHeader>
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                 <Shield className="w-6 h-6 text-primary" />
                 CONTAS ASSOCIADAS
               </CardTitle>
@@ -411,7 +411,7 @@ export default function Settings() {
       {/* Account Actions */}
       <Card className="border border-border">
         <CardHeader>
-          <CardTitle className="font-heading text-2xl tracking-wide">CONTA</CardTitle>
+          <CardTitle className="font-heading text-xl tracking-tight">Conta</CardTitle>
           <CardDescription>Gerir a sua conta</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -436,7 +436,7 @@ export default function Settings() {
       <Dialog open={showAddModal} onOpenChange={handleCloseAddModal}>
         <DialogContent className="bg-white" data-testid="add-associated-modal">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-primary" />
               ASSOCIAR CONTA
             </DialogTitle>

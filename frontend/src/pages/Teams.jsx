@@ -99,7 +99,7 @@ export default function Teams() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
-            <h1 className="font-heading text-4xl text-foreground tracking-wide">EQUIPAS</h1>
+            <h1 className="font-heading text-4xl text-foreground tracking-tight">Equipas</h1>
             <p className="text-muted-foreground mt-1">Gerir as equipas do clube</p>
           </div>
           
@@ -113,7 +113,7 @@ export default function Teams() {
               </DialogTrigger>
               <DialogContent className="bg-white">
                 <DialogHeader>
-                  <DialogTitle className="font-heading text-2xl tracking-wide">CRIAR EQUIPA</DialogTitle>
+                  <DialogTitle className="font-heading text-xl tracking-tight">Criar Equipa</DialogTitle>
                   <DialogDescription>
                     Adicione uma nova equipa ao clube
                   </DialogDescription>
@@ -196,7 +196,7 @@ export default function Teams() {
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="font-heading text-2xl tracking-wide">{team.name}</CardTitle>
+                      <CardTitle className="font-heading text-xl tracking-tight">{team.name}</CardTitle>
                       <p className="text-muted-foreground text-sm">{team.category}</p>
                     </div>
                     <Badge variant="outline" className="text-xs">
@@ -238,7 +238,7 @@ export default function Teams() {
         ) : (
           <div className="empty-state py-16">
             <Users className="empty-state-icon" />
-            <h3 className="font-heading text-2xl text-foreground tracking-wide mb-2">
+            <h3 className="font-heading text-2xl text-foreground tracking-tight mb-2">
               SEM EQUIPAS
             </h3>
             <p className="text-muted-foreground mb-6">

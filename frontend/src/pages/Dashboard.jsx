@@ -157,10 +157,10 @@ export default function Dashboard() {
       {/* Welcome Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">
-            {getGreeting().toUpperCase()}, {user?.name?.split(' ')[0]?.toUpperCase()}!
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
+            {getGreeting()}, {user?.name?.split(' ')[0]}!
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm sm:text-base">
             {format(new Date(), "EEEE, d 'de' MMMM", { locale: dateLocale })}
           </p>
         </div>
@@ -176,10 +176,10 @@ export default function Dashboard() {
 
       {/* Next Event Highlight */}
       {nextEvent && (
-        <Card className="border-2 border-primary bg-primary/5 overflow-hidden" data-testid="next-event-card">
+        <Card className="border border-primary/30 bg-gradient-to-r from-primary/5 to-transparent overflow-hidden card-hover" data-testid="next-event-card">
           <div className="flex flex-col lg:flex-row">
             <div className={`lg:w-32 p-4 flex flex-col items-center justify-center text-white ${nextEvent.event_type === 'jogo' ? 'bg-primary' : 'bg-secondary'}`}>
-              <span className="text-xs font-semibold uppercase tracking-wider opacity-80">
+              <span className="text-xs font-semibold tracking-tightr opacity-80">
                 {getEventDateLabel(nextEvent.start_time)}
               </span>
               <span className="font-heading text-4xl mt-1">
@@ -189,27 +189,27 @@ export default function Dashboard() {
                 {format(new Date(nextEvent.start_time), 'MMM', { locale: dateLocale }).toUpperCase()}
               </span>
             </div>
-            <div className="flex-1 p-6">
-              <div className="flex items-start justify-between">
+            <div className="flex-1 p-5 sm:p-6">
+              <div className="flex items-start justify-between flex-wrap gap-3">
                 <div>
                   <Badge variant={nextEvent.event_type === 'jogo' ? 'default' : 'secondary'} className="mb-2">
                     {getEventTypeName(nextEvent.event_type)}
                   </Badge>
-                  <h2 className="font-heading text-2xl text-foreground tracking-wide">
+                  <h2 className="font-heading text-xl sm:text-2xl text-foreground tracking-tight">
                     {nextEvent.title}
                   </h2>
                   {nextEvent.opponent && (
-                    <p className="text-lg text-muted-foreground mt-1">vs {nextEvent.opponent}</p>
+                    <p className="text-base sm:text-lg text-muted-foreground mt-1">vs {nextEvent.opponent}</p>
                   )}
                 </div>
-                <Button asChild data-testid="view-event-btn">
+                <Button asChild className="shrink-0" data-testid="view-event-btn">
                   <Link to="/calendar">
                     Ver Detalhes
                     <ChevronRight className="w-4 h-4 ml-1" />
                   </Link>
                 </Button>
               </div>
-              <div className="flex flex-wrap items-center gap-6 mt-4 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-4 sm:gap-6 mt-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-2">
                   <Clock className="w-4 h-4" />
                   {formatTime(nextEvent.start_time)}
@@ -233,11 +233,11 @@ export default function Dashboard() {
       {/* Main Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Upcoming Events */}
-        <CardWithStripe stripeColor="primary" className="lg:col-span-2" data-testid="upcoming-events-section">
+        <CardWithStripe stripeColor="primary" className="lg:col-span-2 card-hover" data-testid="upcoming-events-section">
           <CardStripeHeader className="flex flex-row items-center justify-between pb-2">
-            <CardStripeTitle className="flex items-center gap-2">
+            <CardStripeTitle className="flex items-center gap-2 text-base sm:text-lg">
               <Calendar className="w-5 h-5 text-primary" />
-              {t('dashboard.upcomingEvents').toUpperCase()}
+              {t('dashboard.upcomingEvents')}
             </CardStripeTitle>
             <Button asChild variant="ghost" size="sm">
               <Link to="/calendar">{t('dashboard.seeCalendar')}</Link>
@@ -249,7 +249,7 @@ export default function Dashboard() {
                 {data.upcoming_events.slice(0, 5).map((event, index) => (
                   <div 
                     key={event.id} 
-                    className="flex items-center gap-4 p-3 border border-border rounded-sm hover:border-primary transition-colors"
+                    className="flex items-center gap-4 p-3 border border-border rounded-lg hover:border-primary/50 hover:bg-accent/30 transition-all duration-200"
                     data-testid={`event-row-${event.id}`}
                   >
                     <div className={`w-1.5 h-12 rounded-full ${event.event_type === 'jogo' ? 'bg-primary' : 'bg-secondary'}`} />
@@ -260,12 +260,12 @@ export default function Dashboard() {
                       <p className="font-heading text-xl">{format(new Date(event.start_time), 'd')}</p>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{event.title}</p>
-                      <p className="text-sm text-muted-foreground truncate">
+                      <p className="font-semibold text-sm sm:text-base truncate">{event.title}</p>
+                      <p className="text-xs sm:text-sm text-muted-foreground truncate">
                         {formatTime(event.start_time)} • {event.location}
                       </p>
                     </div>
-                    <Badge variant="outline" className="hidden sm:flex">
+                    <Badge variant="outline" className="hidden sm:flex text-xs">
                       {getEventTypeName(event.event_type)}
                     </Badge>
                   </div>
@@ -273,9 +273,9 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">{t('common.noResults')}</p>
-                <Button asChild variant="outline" className="mt-4">
+                <Calendar className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                <p className="text-muted-foreground text-sm">{t('common.noResults')}</p>
+                <Button asChild variant="outline" className="mt-4" size="sm">
                   <Link to="/calendar">{t('calendar.newEvent')}</Link>
                 </Button>
               </div>
@@ -284,11 +284,11 @@ export default function Dashboard() {
         </CardWithStripe>
 
         {/* Pending Convocations */}
-        <CardWithStripe stripeColor="amber" data-testid="convocations-section">
+        <CardWithStripe stripeColor="amber" className="card-hover" data-testid="convocations-section">
           <CardStripeHeader className="flex flex-row items-center justify-between pb-2">
-            <CardStripeTitle className="flex items-center gap-2">
+            <CardStripeTitle className="flex items-center gap-2 text-base sm:text-lg">
               <ClipboardCheck className="w-5 h-5 text-amber-500" />
-              {t('dashboard.convocations').toUpperCase()}
+              {t('dashboard.convocations')}
             </CardStripeTitle>
             <Button asChild variant="ghost" size="sm">
               <Link to="/convocations">{t('dashboard.seeAll')}</Link>
@@ -300,7 +300,7 @@ export default function Dashboard() {
                 {data.pending_convocations.slice(0, 4).map((item) => (
                   <div 
                     key={item.attendance.id}
-                    className="p-3 border border-amber-200 bg-amber-50 rounded-sm"
+                    className="p-3 border border-amber-200 bg-amber-50 rounded-lg"
                     data-testid={`convocation-item-${item.attendance.id}`}
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -321,7 +321,7 @@ export default function Dashboard() {
                         <CheckCircle className="w-3 h-3 mr-1" />
                         {t('attendance.present')}
                       </Button>
-                      <Button size="sm" variant="outline" className="flex-1 h-8 text-destructive border-destructive">
+                      <Button size="sm" variant="outline" className="flex-1 h-8 text-destructive border-destructive hover:bg-destructive/10">
                         <XCircle className="w-3 h-3 mr-1" />
                         {t('attendance.absent')}
                       </Button>
@@ -331,7 +331,7 @@ export default function Dashboard() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <CheckCircle className="w-12 h-12 text-secondary mx-auto mb-3" />
+                <CheckCircle className="w-12 h-12 text-secondary/30 mx-auto mb-3" />
                 <p className="text-muted-foreground text-sm">{t('dashboard.allConvocationsAnswered')}</p>
               </div>
             )}
@@ -341,47 +341,47 @@ export default function Dashboard() {
 
       {/* Quick Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <CardWithStripe stripeColor="primary">
+        <CardWithStripe stripeColor="primary" className="card-hover">
           <CardStripeContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-primary/10 rounded-sm flex items-center justify-center">
+            <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
               <Users className="w-6 h-6 text-primary" />
             </div>
             <div>
               <p className="text-2xl font-heading">{data?.teams_count || 0}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Equipas</p>
+              <p className="text-xs text-muted-foreground">Equipas</p>
             </div>
           </CardStripeContent>
         </CardWithStripe>
-        <CardWithStripe stripeColor="secondary">
+        <CardWithStripe stripeColor="secondary" className="card-hover">
           <CardStripeContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-secondary/10 rounded-sm flex items-center justify-center">
+            <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
               <Calendar className="w-6 h-6 text-secondary" />
             </div>
             <div>
               <p className="text-2xl font-heading">{data?.upcoming_events?.length || 0}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Eventos</p>
+              <p className="text-xs text-muted-foreground">Eventos</p>
             </div>
           </CardStripeContent>
         </CardWithStripe>
-        <CardWithStripe stripeColor="amber">
+        <CardWithStripe stripeColor="amber" className="card-hover">
           <CardStripeContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-amber-100 rounded-sm flex items-center justify-center">
+            <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
               <ClipboardCheck className="w-6 h-6 text-amber-600" />
             </div>
             <div>
               <p className="text-2xl font-heading">{pendingCount}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Pendentes</p>
+              <p className="text-xs text-muted-foreground">Pendentes</p>
             </div>
           </CardStripeContent>
         </CardWithStripe>
-        <CardWithStripe stripeColor="purple">
+        <CardWithStripe stripeColor="purple" className="card-hover">
           <CardStripeContent className="p-4 flex items-center gap-4">
-            <div className="w-12 h-12 bg-purple-100 rounded-sm flex items-center justify-center">
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-6 h-6 text-purple-600" />
             </div>
             <div>
               <p className="text-2xl font-heading">{data?.recent_messages?.length || 0}</p>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide">Mensagens</p>
+              <p className="text-xs text-muted-foreground">Mensagens</p>
             </div>
           </CardStripeContent>
         </CardWithStripe>

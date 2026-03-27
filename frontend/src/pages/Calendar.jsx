@@ -890,9 +890,9 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide flex items-center gap-3">
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight flex items-center gap-3">
             <CalendarIcon className="w-8 h-8 text-primary" />
-            CALENDÁRIO
+            Calendário
           </h1>
           <p className="text-muted-foreground mt-1">Eventos e atividades</p>
         </div>
@@ -938,7 +938,7 @@ export default function CalendarPage() {
           <Button variant="outline" size="icon" onClick={navigateNext}>
             <ChevronRight className="w-4 h-4" />
           </Button>
-          <h2 className="font-heading text-xl tracking-wide ml-4 capitalize">
+          <h2 className="font-heading text-xl tracking-tight ml-4 capitalize">
             {getViewTitle()}
           </h2>
         </div>
@@ -995,7 +995,7 @@ export default function CalendarPage() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="bg-white max-w-lg" data-testid="create-event-dialog">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide">
+            <DialogTitle className="font-heading text-xl tracking-tight">
               CRIAR EVENTO
             </DialogTitle>
             <DialogDescription>
@@ -1223,7 +1223,7 @@ export default function CalendarPage() {
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide">
+            <DialogTitle className="font-heading text-xl tracking-tight">
               EDITAR EVENTO
             </DialogTitle>
           </DialogHeader>
@@ -1335,7 +1335,7 @@ export default function CalendarPage() {
       <Dialog open={convocationDialogOpen} onOpenChange={setConvocationDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
               CONVOCATÓRIA
             </DialogTitle>
@@ -1454,7 +1454,7 @@ export default function CalendarPage() {
       <Dialog open={convocationStatusDialogOpen} onOpenChange={setConvocationStatusDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5 text-primary" />
               ESTADO DA CONVOCATÓRIA
             </DialogTitle>

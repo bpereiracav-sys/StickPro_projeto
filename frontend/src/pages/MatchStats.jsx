@@ -177,7 +177,7 @@ export default function MatchStats() {
         <Card className="border border-border">
           <CardContent className="py-12 text-center">
             <User className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="font-heading text-xl mb-2">JOGO EXTERNO</h2>
+            <h2 className="font-heading text-xl mb-2">Jogo Externo</h2>
             <p className="text-muted-foreground mb-2">
               {match.home_team} vs {match.opponent_team}
             </p>
@@ -213,7 +213,7 @@ export default function MatchStats() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
-          <h1 className="font-heading text-2xl lg:text-3xl text-foreground tracking-wide">
+          <h1 className="font-heading text-2xl lg:text-3xl text-foreground tracking-tight">
             ESTATÍSTICAS DO JOGO
           </h1>
           <p className="text-muted-foreground mt-1">
@@ -244,7 +244,7 @@ export default function MatchStats() {
       {/* Stats Table - Formato Boletim APL */}
       <Card className="border border-border">
         <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-wide">BOLETIM DE JOGO - ESTATÍSTICAS INDIVIDUAIS</CardTitle>
+          <CardTitle className="font-heading text-xl tracking-tight">Boletim de Jogo - Estatísticas Individuais</CardTitle>
           <p className="text-xs text-muted-foreground mt-2">
             Formato oficial APLisboa • N.º = Número | 5I = 5 Iniciais | G = Golos | AG = Auto-Golos | D = Defesas | Pe = Penáltis (marcados/tentativas) | LD = Livres Diretos (marcados/tentativas)
           </p>

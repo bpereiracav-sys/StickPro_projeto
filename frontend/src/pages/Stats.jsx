@@ -320,21 +320,21 @@ export default function Stats() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide flex items-center gap-3">
-            <BarChart3 className="w-8 h-8 text-primary" />
-            ESTATÍSTICAS
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight flex items-center gap-3">
+            <BarChart3 className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+            Estatísticas
           </h1>
-          <p className="text-muted-foreground mt-1">Desempenho da equipa e jogadores</p>
+          <p className="text-muted-foreground mt-1 text-sm">Desempenho da equipa e jogadores</p>
         </div>
       </div>
 
       {teams.length === 0 ? (
         <Card className="border border-border">
           <CardContent className="py-16 text-center">
-            <BarChart3 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <BarChart3 className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
             <h3 className="font-heading text-xl mb-2">Sem Equipas</h3>
-            <p className="text-muted-foreground mb-4">Crie uma equipa para ver as estatísticas</p>
-            <Button asChild>
+            <p className="text-muted-foreground text-sm mb-4">Crie uma equipa para ver as estatísticas</p>
+            <Button asChild size="sm">
               <Link to="/teams">Criar Equipa</Link>
             </Button>
           </CardContent>
@@ -344,9 +344,9 @@ export default function Stats() {
           {/* Filters */}
           <Card className="border border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
-                <Filter className="w-5 h-5" />
-                FILTROS
+              <CardTitle className="font-heading text-base sm:text-lg tracking-tight flex items-center gap-2">
+                <Filter className="w-5 h-5 text-primary" />
+                Filtros
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -394,35 +394,35 @@ export default function Stats() {
               <CardContent className="p-4 text-center">
                 <Trophy className="w-8 h-8 text-secondary mx-auto mb-2" />
                 <p className="text-3xl font-heading font-mono text-secondary">{teamTotals.goals}</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Golos Marcados</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Golos Marcados</p>
               </CardContent>
             </Card>
             <Card className="border border-border bg-destructive/5">
               <CardContent className="p-4 text-center">
                 <Shield className="w-8 h-8 text-destructive mx-auto mb-2" />
                 <p className="text-3xl font-heading font-mono text-destructive">{getGoalsConceded()}</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Golos Sofridos</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Golos Sofridos</p>
               </CardContent>
             </Card>
             <Card className="border border-border">
               <CardContent className="p-4 text-center">
                 <Target className="w-8 h-8 text-primary mx-auto mb-2" />
                 <p className="text-3xl font-heading font-mono">{teamTotals.assists}</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Assistências</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Assistências</p>
               </CardContent>
             </Card>
             <Card className="border border-border">
               <CardContent className="p-4 text-center">
                 <Users className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                 <p className="text-3xl font-heading font-mono">{stats.length}</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Jogadores</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Jogadores</p>
               </CardContent>
             </Card>
             <Card className="border border-border">
               <CardContent className="p-4 text-center">
                 <TrendingUp className="w-8 h-8 text-amber-500 mx-auto mb-2" />
                 <p className="text-3xl font-heading font-mono">{teamTotals.games}</p>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">Total Jogos</p>
+                <p className="text-xs text-muted-foreground tracking-tight">Total Jogos</p>
               </CardContent>
             </Card>
           </div>
@@ -431,7 +431,7 @@ export default function Stats() {
           {selectedChampionshipId !== 'all' && getRecentResults().length > 0 && (
             <Card className="border border-border">
               <CardHeader className="pb-2">
-                <CardTitle className="font-heading text-lg tracking-wide">ÚLTIMOS 5 JOGOS</CardTitle>
+                <CardTitle className="font-heading text-base sm:text-lg tracking-tight">Últimos 5 Jogos</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-2 flex-wrap">
@@ -491,12 +491,12 @@ export default function Stats() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Full Stats Table */}
                   <Card className="lg:col-span-2 border border-border">
-                    <CardHeader>
-                      <CardTitle className="font-heading text-xl tracking-wide">
-                        ESTATÍSTICAS INDIVIDUAIS
+                    <CardHeader className="pb-3">
+                      <CardTitle className="font-heading text-base sm:text-lg tracking-tight">
+                        Estatísticas Individuais
                       </CardTitle>
                       {currentChampionship && (
-                        <CardDescription>{currentChampionship.name} - {selectedSeason}</CardDescription>
+                        <CardDescription className="text-sm">{currentChampionship.name} - {selectedSeason}</CardDescription>
                       )}
                     </CardHeader>
                     <CardContent>
@@ -677,11 +677,11 @@ export default function Stats() {
                   {/* Top Performers */}
                   <div className="space-y-6">
                     {/* Top Scorers */}
-                    <Card className="border border-border">
+                    <Card className="border border-border card-hover">
                       <CardHeader className="pb-2">
-                        <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+                        <CardTitle className="font-heading text-base sm:text-lg tracking-tight flex items-center gap-2">
                           <Trophy className="w-5 h-5 text-secondary" />
-                          MELHORES MARCADORES
+                          Melhores Marcadores
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -716,11 +716,11 @@ export default function Stats() {
                     </Card>
 
                     {/* Top Assists - renamed from "Melhores Assistências" */}
-                    <Card className="border border-border">
+                    <Card className="border border-border card-hover">
                       <CardHeader className="pb-2">
-                        <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+                        <CardTitle className="font-heading text-base sm:text-lg tracking-tight flex items-center gap-2">
                           <Target className="w-5 h-5 text-primary" />
-                          MAIS ASSISTÊNCIAS
+                          Mais Assistências
                         </CardTitle>
                       </CardHeader>
                       <CardContent>
@@ -758,9 +758,9 @@ export default function Stats() {
                     {topGoalkeepers.length > 0 && topGoalkeepers.some(s => s.saves > 0) && (
                       <Card className="border border-border bg-blue-50/50 dark:bg-blue-950/20">
                         <CardHeader className="pb-2">
-                          <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+                          <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                             <Hand className="w-5 h-5 text-blue-500" />
-                            MELHORES GUARDA-REDES
+                            Melhores Guarda-Redes
                           </CardTitle>
                         </CardHeader>
                         <CardContent>
@@ -796,8 +796,8 @@ export default function Stats() {
                 {/* Cards Statistics Section */}
                 <Card className="border border-border">
                   <CardHeader>
-                    <CardTitle className="font-heading text-xl tracking-wide">
-                      DISCIPLINA - CARTÕES
+                    <CardTitle className="font-heading text-xl tracking-tight">
+                      Disciplina - Cartões
                     </CardTitle>
                     <CardDescription>Cartões azuis, amarelos, vermelhos e brancos</CardDescription>
                   </CardHeader>
@@ -881,9 +881,9 @@ export default function Stats() {
                 {/* Set Pieces Statistics Section */}
                 <Card className="border border-border">
                   <CardHeader>
-                    <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+                    <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                       <Goal className="w-6 h-6 text-amber-500" />
-                      BOLAS PARADAS
+                      Bolas Paradas
                     </CardTitle>
                     <CardDescription>Penáltis e livres diretos - marcados e defendidos</CardDescription>
                   </CardHeader>
@@ -988,9 +988,9 @@ export default function Stats() {
                 <CardHeader>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <div>
-                      <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+                      <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                         <Medal className="w-6 h-6 text-amber-500" />
-                        CLASSIFICAÇÃO
+                        Classificação
                       </CardTitle>
                       {currentChampionship && (
                         <CardDescription>{currentChampionship.name}</CardDescription>

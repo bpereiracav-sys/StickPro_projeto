@@ -393,7 +393,7 @@ export default function LibraryPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
             BIBLIOTECA
           </h1>
           <p className="text-muted-foreground mt-1">

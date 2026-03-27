@@ -158,7 +158,7 @@ export default function TeamDetail() {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="font-heading text-4xl text-foreground tracking-wide">{team.name}</h1>
+              <h1 className="font-heading text-4xl text-foreground tracking-tight">{team.name}</h1>
               <Badge variant="outline">{team.season}</Badge>
             </div>
             <p className="text-muted-foreground">{team.category}</p>
@@ -225,7 +225,7 @@ export default function TeamDetail() {
             {/* Staff */}
             <Card className="border border-border">
               <CardHeader>
-                <CardTitle className="font-heading text-xl tracking-wide">STAFF TÉCNICO</CardTitle>
+                <CardTitle className="font-heading text-xl tracking-tight">Staff Técnico</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -269,7 +269,7 @@ export default function TeamDetail() {
             {/* Players */}
             <Card className="border border-border">
               <CardHeader>
-                <CardTitle className="font-heading text-xl tracking-wide">JOGADORES</CardTitle>
+                <CardTitle className="font-heading text-xl tracking-tight">Jogadores</CardTitle>
               </CardHeader>
               <CardContent>
                 {players.length > 0 ? (
@@ -321,7 +321,7 @@ export default function TeamDetail() {
           <TabsContent value="stats">
             <Card className="border border-border">
               <CardHeader>
-                <CardTitle className="font-heading text-xl tracking-wide">ESTATÍSTICAS DA ÉPOCA</CardTitle>
+                <CardTitle className="font-heading text-xl tracking-tight">Estatísticas da Época</CardTitle>
               </CardHeader>
               <CardContent>
                 {stats.length > 0 ? (
@@ -384,7 +384,7 @@ export default function TeamDetail() {
         <Dialog open={addMemberDialogOpen} onOpenChange={setAddMemberDialogOpen}>
           <DialogContent className="bg-white">
             <DialogHeader>
-              <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR MEMBRO</DialogTitle>
+              <DialogTitle className="font-heading text-xl tracking-tight">Adicionar Membro</DialogTitle>
               <DialogDescription>
                 Adicione um utilizador existente à equipa
               </DialogDescription>

@@ -373,7 +373,7 @@ export default function Attendance() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide flex items-center gap-3">
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight flex items-center gap-3">
             <ClipboardCheck className="w-8 h-8 text-primary" />
             PRESENÇAS
           </h1>
@@ -438,7 +438,7 @@ export default function Attendance() {
           {/* Filters */}
           <Card className="border border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+              <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                 <Filter className="w-5 h-5" />
                 FILTROS
               </CardTitle>
@@ -585,7 +585,7 @@ export default function Attendance() {
               {showUnavailabilities && unavailabilities.length > 0 && (
                 <Card className="border border-border mb-4 bg-orange-50">
                   <CardHeader className="pb-2">
-                    <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+                    <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                       <CalendarOff className="w-5 h-5 text-orange-600" />
                       INDISPONIBILIDADES
                     </CardTitle>
@@ -629,7 +629,7 @@ export default function Attendance() {
               
               <Card className="border border-border">
                 <CardHeader>
-                  <CardTitle className="font-heading text-xl tracking-wide">
+                  <CardTitle className="font-heading text-xl tracking-tight">
                     {searchResults !== null ? 'RESULTADOS DA PESQUISA' : 'ASSIDUIDADE POR JOGADOR'}
                   </CardTitle>
                   <CardDescription>
@@ -714,7 +714,7 @@ export default function Attendance() {
             <TabsContent value="event">
               <Card className="border border-border">
                 <CardHeader>
-                  <CardTitle className="font-heading text-xl tracking-wide">
+                  <CardTitle className="font-heading text-xl tracking-tight">
                     PRESENÇAS POR EVENTO
                   </CardTitle>
                 </CardHeader>
@@ -785,7 +785,7 @@ export default function Attendance() {
             <TabsContent value="week">
               <Card className="border border-border">
                 <CardHeader>
-                  <CardTitle className="font-heading text-xl tracking-wide">
+                  <CardTitle className="font-heading text-xl tracking-tight">
                     PRESENÇAS POR SEMANA
                   </CardTitle>
                 </CardHeader>
@@ -823,7 +823,7 @@ export default function Attendance() {
             <TabsContent value="month">
               <Card className="border border-border">
                 <CardHeader>
-                  <CardTitle className="font-heading text-xl tracking-wide">
+                  <CardTitle className="font-heading text-xl tracking-tight">
                     PRESENÇAS POR MÊS
                   </CardTitle>
                 </CardHeader>
@@ -863,7 +863,7 @@ export default function Attendance() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               <Card className="border border-border">
                 <CardHeader className="pb-2">
-                  <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+                  <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                     <Calendar className="w-5 h-5 text-blue-500" />
                     TREINOS
                   </CardTitle>
@@ -892,7 +892,7 @@ export default function Attendance() {
 
               <Card className="border border-border">
                 <CardHeader className="pb-2">
-                  <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+                  <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                     <Users className="w-5 h-5 text-amber-500" />
                     JOGOS CAMPEONATO
                   </CardTitle>
@@ -921,7 +921,7 @@ export default function Attendance() {
 
               <Card className="border border-border">
                 <CardHeader className="pb-2">
-                  <CardTitle className="font-heading text-lg tracking-wide flex items-center gap-2">
+                  <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
                     <TrendingUp className="w-5 h-5 text-purple-500" />
                     TORNEIOS
                   </CardTitle>

@@ -467,11 +467,11 @@ export default function Members() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide flex items-center gap-3">
-            <Users className="w-8 h-8 text-primary" />
-            MEMBROS
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight flex items-center gap-3">
+            <Users className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+            Membros
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             Gestão de jogadores e staff • {totalMembers} membro(s)
           </p>
         </div>
@@ -479,24 +479,24 @@ export default function Members() {
         {canManageTeam && (
           <div className="flex flex-wrap gap-2">
             {isAdmin && (
-              <Button variant="outline" onClick={() => { setShowArchived(true); fetchArchivedMembers(); }} data-testid="view-archived-btn">
+              <Button variant="outline" size="sm" onClick={() => { setShowArchived(true); fetchArchivedMembers(); }} data-testid="view-archived-btn">
                 <Archive className="w-4 h-4 mr-2" />
                 Arquivados
               </Button>
             )}
             {canImportData && (
-              <Button variant="outline" onClick={() => setImportDialogOpen(true)} data-testid="import-members-btn">
+              <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)} data-testid="import-members-btn">
                 <Upload className="w-4 h-4 mr-2" />
-                Importar Excel
+                Importar
               </Button>
             )}
             {!isAllTeamsSelected && (
-              <Button variant="outline" onClick={() => setAddDialogOpen(true)} data-testid="add-existing-btn">
+              <Button variant="outline" size="sm" onClick={() => setAddDialogOpen(true)} data-testid="add-existing-btn">
                 <UserPlus className="w-4 h-4 mr-2" />
-                Adicionar do Clube
+                Do Clube
               </Button>
             )}
-            <Button onClick={() => setCreateDialogOpen(true)} data-testid="create-member-btn">
+            <Button size="sm" onClick={() => setCreateDialogOpen(true)} data-testid="create-member-btn">
               <Plus className="w-4 h-4 mr-2" />
               Novo Membro
             </Button>
@@ -513,11 +513,11 @@ export default function Members() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
-            className="pl-9"
+            className="pl-9 h-10"
             data-testid="search-members-input"
           />
         </div>
-        <Button variant="outline" onClick={handleSearch} data-testid="search-members-btn">
+        <Button variant="outline" size="icon" onClick={handleSearch} data-testid="search-members-btn">
           <Search className="w-4 h-4" />
         </Button>
         {searchQuery && (
@@ -529,7 +529,7 @@ export default function Members() {
 
       {/* Info Banner when viewing Club */}
       {isAllTeamsSelected && (
-        <Card className="border border-primary/30 bg-primary/5">
+        <Card className="border border-primary/20 bg-primary/5">
           <CardContent className="py-3 px-4 flex items-center gap-3">
             <Building2 className="w-5 h-5 text-primary" />
             <div>
@@ -577,8 +577,8 @@ export default function Members() {
 
           {/* Members List */}
           <Card className="border border-border">
-            <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-wide flex items-center gap-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="font-heading text-lg sm:text-xl tracking-tight flex items-center gap-2">
                 {isAllTeamsSelected ? (
                   <>
                     <Building2 className="w-5 h-5 text-primary" />
@@ -588,7 +588,7 @@ export default function Members() {
                   currentTeam?.name || 'Membros'
                 )}
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-sm">
                 {isAllTeamsSelected 
                   ? 'Todos os membros registados no clube' 
                   : `Membros associados a esta equipa`
@@ -598,12 +598,12 @@ export default function Members() {
             <CardContent>
               {members.length === 0 ? (
                 <div className="text-center py-12">
-                  <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-                  <p className="text-muted-foreground">
+                  <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
+                  <p className="text-muted-foreground text-sm">
                     {isAllTeamsSelected ? 'Sem membros no clube' : 'Sem membros nesta equipa'}
                   </p>
                   {canManageTeam && (
-                    <p className="text-sm text-muted-foreground mt-2">
+                    <p className="text-sm text-muted-foreground/70 mt-2">
                       Use os botões acima para adicionar membros
                     </p>
                   )}
@@ -613,7 +613,7 @@ export default function Members() {
                   {members.map(member => (
                     <div 
                       key={member.id}
-                      className="flex items-center justify-between p-3 border border-border rounded-sm hover:bg-muted/30 transition-colors"
+                      className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/30 hover:border-primary/30 transition-all duration-200"
                     >
                       <div className="flex items-center gap-3">
                         <div className="relative">
@@ -800,9 +800,9 @@ export default function Members() {
       <Dialog open={showArchived} onOpenChange={setShowArchived}>
         <DialogContent className="bg-white max-w-2xl">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <Archive className="w-5 h-5" />
-              MEMBROS ARQUIVADOS
+              Membros Arquivados
             </DialogTitle>
             <DialogDescription>
               Membros arquivados mantêm as suas estatísticas e podem ser restaurados
@@ -848,9 +848,9 @@ export default function Members() {
       <Dialog open={memberDetailDialogOpen} onOpenChange={setMemberDetailDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide flex items-center gap-2">
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-primary" />
-              ESTATÍSTICAS DO MEMBRO
+              Estatísticas do Membro
             </DialogTitle>
           </DialogHeader>
           {memberDetail && (
@@ -943,7 +943,7 @@ export default function Members() {
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR MEMBRO</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Adicionar Membro</DialogTitle>
             <DialogDescription>Adicionar utilizador existente à equipa</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -987,7 +987,7 @@ export default function Members() {
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">NOVO MEMBRO</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Novo Membro</DialogTitle>
             <DialogDescription>Criar novo membro e adicionar à equipa</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1069,7 +1069,7 @@ export default function Members() {
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">IMPORTAR MEMBROS</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Importar Membros</DialogTitle>
             <DialogDescription>Importar membros a partir de ficheiro Excel ou CSV</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
@@ -1165,7 +1165,7 @@ export default function Members() {
       <Dialog open={addToTeamDialogOpen} onOpenChange={setAddToTeamDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-2xl tracking-wide">ADICIONAR A EQUIPA</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">Adicionar a Equipa</DialogTitle>
             <DialogDescription>Selecione a equipa para adicionar o membro</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

@@ -100,7 +100,7 @@ export default function Convocations() {
     <div className="space-y-6" data-testid="convocations-page">
       {/* Header */}
       <div>
-        <h1 className="font-heading text-3xl lg:text-4xl text-foreground tracking-wide">CONVOCATÓRIAS</h1>
+        <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">Convocatórias</h1>
         <p className="text-muted-foreground mt-1">Confirme a sua presença nos eventos</p>
       </div>
 
@@ -223,7 +223,7 @@ export default function Convocations() {
             ) : (
               <div className="empty-state py-16">
                 <ClipboardCheck className="empty-state-icon" />
-                <h3 className="font-heading text-2xl text-foreground tracking-wide mb-2">
+                <h3 className="font-heading text-2xl text-foreground tracking-tight mb-2">
                   SEM CONVOCATÓRIAS
                 </h3>
                 <p className="text-muted-foreground">
@@ -278,7 +278,7 @@ export default function Convocations() {
         <Dialog open={reasonDialogOpen} onOpenChange={setReasonDialogOpen}>
           <DialogContent className="bg-white">
             <DialogHeader>
-              <DialogTitle className="font-heading text-2xl tracking-wide">MOTIVO DA AUSÊNCIA</DialogTitle>
+              <DialogTitle className="font-heading text-xl tracking-tight">Motivo da Ausência</DialogTitle>
               <DialogDescription>
                 Indique o motivo pelo qual não pode comparecer (opcional)
               </DialogDescription>
