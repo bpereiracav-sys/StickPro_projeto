@@ -536,11 +536,33 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - `POST /api/members/{member_id}/teams/{team_id}` - Adicionar a equipa
   - `DELETE /api/members/{member_id}/teams/{team_id}` - Remover de equipa
 
+### Indisponibilidades e Convocatórias Avançadas (27 Mar 2026) ✅
+- **Períodos de Indisponibilidade:**
+  - CRUD completo para jogadores, treinadores e delegados
+  - Motivos: Férias, Lesão, Trabalho, Pessoal, Outro
+  - Notas opcionais
+  - Treinadores notificados quando jogador fica indisponível
+  - **Endpoints:** `/api/unavailabilities`, `/api/unavailabilities/my`, `/api/unavailabilities/check`
+  - **Frontend:** Botão "Indisponibilidade" no Calendário com dialog completo
+- **Visibilidade de Convocatórias:**
+  - Opções: "Todos", "Apenas Jogadores", "Apenas Delegados"
+  - Campo `visibility` no modelo Convocation
+  - Dropdown no dialog de convocação
+- **Integração Indisponibilidade/Convocatória:**
+  - Jogadores indisponíveis marcados com badge "Indisponível" durante convocação
+  - Jogadores indisponíveis automaticamente excluídos da convocatória
+  - Resposta inclui `skipped_unavailable_players`
+- **Eventos Sem Convocatória:**
+  - Endpoint `/api/events/upcoming-without-convocation` para alertas aos treinadores
+  - Retorna eventos nas próximas 24h sem convocatória criada
+- **Testes:** 13/13 passaram (`/app/test_reports/iteration_15.json`)
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
 
 ### P1 - Próximas
+- Notificação automática ao treinador 4h antes de evento sem convocatória (background job)
 - Web Scraping APL (importar calendário de divisões)
 - Configurar API Key Resend para emails reais (atualmente MOCKED)
 
@@ -548,4 +570,4 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - Dashboard com métricas e gráficos
 - Exportar calendário em PDF
 - Expandir traduções i18n para restantes páginas
-- Refactoring: Dividir server.py (~3500 linhas) em routers modulares
+- Refactoring: Dividir server.py (~3700 linhas) em routers modulares
