@@ -1238,13 +1238,21 @@ async def create_team(team_data: TeamCreate, current_user: dict = Depends(get_cu
 
 @api_router.get("/teams", response_model=List[Team])
 async def get_teams(current_user: dict = Depends(get_current_user)):
-    if current_user['role'] == 'admin':
+    checker = get_permission_checker(current_user)
+    
+    if checker.is_admin:
         teams = await db.teams.find({}, {"_id": 0}).to_list(100)
     else:
-        user_id = current_user['id']
-        teams = await db.teams.find({
-            "$or": [{"coach_ids": user_id}, {"delegate_ids": user_id}, {"player_ids": user_id}]
-        }, {"_id": 0}).to_list(100)
+        # Filter teams based on user's team_ids
+        user_team_ids = list(checker.team_ids)
+        if user_team_ids:
+            teams = await db.teams.find({"id": {"$in": user_team_ids}}, {"_id": 0}).to_list(100)
+        else:
+            # Legacy fallback: check if user is in team's coach/delegate/player lists
+            user_id = current_user['id']
+            teams = await db.teams.find({
+                "$or": [{"coach_ids": user_id}, {"delegate_ids": user_id}, {"player_ids": user_id}]
+            }, {"_id": 0}).to_list(100)
     
     for team in teams:
         if isinstance(team.get('created_at'), str):
@@ -1253,6 +1261,12 @@ async def get_teams(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/teams/{team_id}")
 async def get_team(team_id: str, current_user: dict = Depends(get_current_user)):
+    checker = get_permission_checker(current_user)
+    
+    # Check team access (admin can access all, others need team assignment)
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+    
     team = await db.teams.find_one({"id": team_id}, {"_id": 0})
     if not team:
         raise HTTPException(status_code=404, detail="Equipa não encontrada")
@@ -1262,8 +1276,13 @@ async def get_team(team_id: str, current_user: dict = Depends(get_current_user))
 
 @api_router.put("/teams/{team_id}")
 async def update_team(team_id: str, team_data: TeamUpdate, current_user: dict = Depends(get_current_user)):
-    if current_user['role'] not in ['admin', 'treinador']:
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_team:
         raise HTTPException(status_code=403, detail="Sem permissão para editar equipas")
+    
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
     
     team = await db.teams.find_one({"id": team_id})
     if not team:
@@ -1307,8 +1326,13 @@ async def delete_team(team_id: str, current_user: dict = Depends(get_current_use
 
 @api_router.post("/teams/{team_id}/members")
 async def add_team_member(team_id: str, member_data: dict, current_user: dict = Depends(get_current_user)):
-    if current_user['role'] not in ['admin', 'treinador']:
-        raise HTTPException(status_code=403, detail="Sem permissão")
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_team:
+        raise HTTPException(status_code=403, detail="Sem permissão para gerir membros")
+    
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
     
     team = await db.teams.find_one({"id": team_id})
     if not team:
@@ -1327,8 +1351,13 @@ async def add_team_member(team_id: str, member_data: dict, current_user: dict = 
 
 @api_router.delete("/teams/{team_id}/members/{user_id}")
 async def remove_team_member(team_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
-    if current_user['role'] not in ['admin', 'treinador']:
-        raise HTTPException(status_code=403, detail="Sem permissão")
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_team:
+        raise HTTPException(status_code=403, detail="Sem permissão para gerir membros")
+    
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
     
     await db.teams.update_one({"id": team_id}, {"$pull": {"coach_ids": user_id, "delegate_ids": user_id, "player_ids": user_id}})
     await db.users.update_one({"id": user_id}, {"$pull": {"team_ids": team_id}})
@@ -1337,11 +1366,26 @@ async def remove_team_member(team_id: str, user_id: str, current_user: dict = De
 
 @api_router.get("/teams/{team_id}/members")
 async def get_team_members(team_id: str, current_user: dict = Depends(get_current_user)):
+    checker = get_permission_checker(current_user)
+    
+    # Check team access
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+    
     team = await db.teams.find_one({"id": team_id}, {"_id": 0})
     if not team:
         raise HTTPException(status_code=404, detail="Equipa não encontrada")
     
     all_ids = team.get('coach_ids', []) + team.get('delegate_ids', []) + team.get('player_ids', [])
+    
+    # For family members, only show linked player
+    if checker.is_family_member and checker.linked_player_id:
+        if checker.linked_player_id in all_ids:
+            all_ids = [checker.linked_player_id]
+        else:
+            all_ids = []
+    
+    # For players, show all team members (read-only view)
     members = await db.users.find({"id": {"$in": all_ids}}, {"_id": 0, "password": 0}).to_list(100)
     
     result = []
@@ -2552,8 +2596,15 @@ async def get_player_all_match_stats(player_id: str, championship_id: Optional[s
 
 @api_router.post("/events")
 async def create_event(event_data: EventCreate, current_user: dict = Depends(get_current_user)):
-    if current_user['role'] not in ['admin', 'treinador', 'delegado']:
-        raise HTTPException(status_code=403, detail="Sem permissão")
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_events:
+        raise HTTPException(status_code=403, detail="Sem permissão para criar eventos")
+    
+    # Check team access if team_id is provided
+    if event_data.team_id and not checker.is_admin:
+        if not checker.can_access_team(event_data.team_id):
+            raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
     
     event = Event(**event_data.model_dump(), created_by=current_user['id'])
     event_dict = event.model_dump()
@@ -2569,18 +2620,26 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
 
 @api_router.get("/events")
 async def get_events(team_id: Optional[str] = None, event_type: Optional[str] = None, championship_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    checker = get_permission_checker(current_user)
     query = {}
+    
     if team_id:
+        # Verify user can access the requested team
+        if not checker.is_admin and not checker.can_access_team(team_id):
+            raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
         query["team_id"] = team_id
+    elif not checker.is_admin:
+        # Filter by user's accessible teams
+        user_teams = list(checker.team_ids)
+        if user_teams:
+            query["team_id"] = {"$in": user_teams}
+        else:
+            return []  # No team access, no events
+    
     if event_type:
         query["event_type"] = event_type
     if championship_id:
         query["championship_id"] = championship_id
-    
-    if current_user['role'] != 'admin':
-        user_teams = current_user.get('team_ids', [])
-        if user_teams:
-            query["team_id"] = {"$in": user_teams}
     
     events = await db.events.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
     
@@ -2594,15 +2653,25 @@ async def get_events(team_id: Optional[str] = None, event_type: Optional[str] = 
 
 @api_router.get("/events/{event_id}")
 async def get_event(event_id: str, current_user: dict = Depends(get_current_user)):
+    checker = get_permission_checker(current_user)
+    
     event = await db.events.find_one({"id": event_id}, {"_id": 0})
     if not event:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
+    
+    # Check team access
+    event_team_id = event.get('team_id')
+    if event_team_id and not checker.is_admin and not checker.can_access_team(event_team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a este evento")
+    
     return event
 
 @api_router.put("/events/{event_id}")
 async def update_event(event_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
-    if current_user['role'] not in ['admin', 'treinador', 'treinador_adjunto', 'delegado']:
-        raise HTTPException(status_code=403, detail="Sem permissão")
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_events:
+        raise HTTPException(status_code=403, detail="Sem permissão para editar eventos")
     
     event = await db.events.find_one({"id": event_id})
     if not event:
