@@ -744,3 +744,47 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - GET /api/unavailabilities/my
   - POST/PUT/DELETE /api/unavailabilities/{id}
 - **Testes:** 100% (15/15 backend + frontend) - `/app/test_reports/iteration_21.json`
+
+---
+
+### Módulo de Pagamentos e Mensalidades (27 Mar 2026) ✅
+- **Controlo de Acesso:**
+  - Admin: acesso total (criar, editar, eliminar, importar)
+  - Jogador: ver e gerir apenas os seus pagamentos
+  - Treinador/Delegado: sem acesso a este módulo
+- **Funcionalidades Admin:**
+  - Criar mensalidade individual (jogador, mês, ano, valor, vencimento)
+  - Criar mensalidades em massa (todos jogadores ativos)
+  - Importar mensalidades via Excel/CSV
+  - Criar pagamento personalizado (título, descrição, valor, vencimento)
+  - Marcar pagamento como pago
+  - Filtrar por estado (Todos, Pagos, Pendentes, Atrasados)
+  - Pesquisar por nome/email
+  - Desativar pagamentos por jogador
+- **Funcionalidades Jogador:**
+  - Ver lista de pagamentos próprios
+  - Upload de comprovativo (PDF, JPG, PNG)
+  - Ver histórico e estado atual
+- **Estados de Pagamento:**
+  - Verde: Pago
+  - Amarelo: Pendente
+  - Vermelho: Atrasado (após vencimento)
+- **Indicador no Dashboard:**
+  - Card colorido com estado geral
+  - Link para página de pagamentos
+  - Mostra total em atraso se aplicável
+- **Notificações:**
+  - Push ao jogador quando pagamento criado
+- **Endpoints:**
+  - GET /api/payments/my
+  - GET /api/payments/status
+  - GET /api/payments/admin (admin only)
+  - GET /api/payments/summary (admin only)
+  - POST /api/payments/monthly-fees
+  - POST /api/payments/monthly-fees/bulk
+  - POST /api/payments/monthly-fees/import
+  - POST /api/payments/custom
+  - PUT /api/payments/{type}/{id}/mark-paid
+  - PUT /api/payments/{type}/{id}/upload-proof
+  - DELETE /api/payments/{type}/{id}
+- **Testes:** 100% (26/26 backend + frontend) - `/app/test_reports/iteration_22.json`
