@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { dashboardApi, eventsApi } from '../services/api';
+import { dashboardApi, eventsApi, paymentsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { CardWithStripe, CardStripeHeader, CardStripeTitle, CardStripeContent } from '../components/ui/card-stripe';
 import { Button } from '../components/ui/button';
@@ -20,7 +20,9 @@ import {
   XCircle,
   HelpCircle,
   Trophy,
-  TrendingUp
+  TrendingUp,
+  CreditCard,
+  AlertTriangle
 } from 'lucide-react';
 import { formatDate, formatTime, getEventTypeName, getInitials } from '../lib/utils';
 import { format, isToday, isTomorrow, addDays, startOfWeek, endOfWeek } from 'date-fns';
@@ -33,11 +35,13 @@ export default function Dashboard() {
   const { t, language } = useLanguage();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [paymentStatus, setPaymentStatus] = useState(null);
 
   const dateLocale = locales[language] || pt;
 
   useEffect(() => {
     fetchDashboard();
+    fetchPaymentStatus();
   }, []);
 
   const fetchDashboard = async () => {
@@ -48,6 +52,15 @@ export default function Dashboard() {
       console.error('Error fetching dashboard:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchPaymentStatus = async () => {
+    try {
+      const response = await paymentsApi.getStatus();
+      setPaymentStatus(response.data);
+    } catch (error) {
+      console.log('Payment status not available');
     }
   };
 
@@ -81,6 +94,64 @@ export default function Dashboard() {
   const nextEvent = data?.upcoming_events?.[0];
   const pendingCount = data?.pending_convocations?.length || 0;
 
+  // Payment status indicator component
+  const PaymentStatusCard = () => {
+    if (!paymentStatus || paymentStatus.status === 'disabled') return null;
+    
+    const statusConfig = {
+      paid: {
+        color: 'bg-green-50 border-green-200',
+        iconColor: 'text-green-600',
+        icon: CheckCircle,
+        title: 'Pagamentos em Dia',
+        message: 'Todos os pagamentos estão regularizados'
+      },
+      pending: {
+        color: 'bg-yellow-50 border-yellow-200',
+        iconColor: 'text-yellow-600',
+        icon: Clock,
+        title: 'Pagamentos Pendentes',
+        message: `${paymentStatus.pending_count} pagamento(s) por liquidar`
+      },
+      overdue: {
+        color: 'bg-red-50 border-red-200',
+        iconColor: 'text-red-600',
+        icon: AlertTriangle,
+        title: 'Pagamentos em Atraso',
+        message: `${paymentStatus.overdue_count} pagamento(s) em atraso`
+      }
+    };
+    
+    const config = statusConfig[paymentStatus.status] || statusConfig.paid;
+    const StatusIcon = config.icon;
+    
+    return (
+      <Link to="/payments" className="block">
+        <Card className={`border ${config.color} hover:shadow-md transition-shadow cursor-pointer`} data-testid="payment-status-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${config.color}`}>
+                <StatusIcon className={`w-5 h-5 ${config.iconColor}`} />
+              </div>
+              <div className="flex-1">
+                <p className="font-semibold text-sm">{config.title}</p>
+                <p className="text-xs text-muted-foreground">{config.message}</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+            </div>
+            {paymentStatus.status === 'overdue' && paymentStatus.total_overdue > 0 && (
+              <div className="mt-2 pt-2 border-t border-red-200">
+                <p className="text-sm font-mono text-red-700">
+                  Total em atraso: €{paymentStatus.total_overdue?.toFixed(2)}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </Link>
+    );
+  };
+
   return (
     <div className="space-y-6" data-testid="dashboard-page">
       {/* Welcome Header */}
@@ -99,6 +170,9 @@ export default function Dashboard() {
           </Badge>
         )}
       </div>
+
+      {/* Payment Status Indicator */}
+      <PaymentStatusCard />
 
       {/* Next Event Highlight */}
       {nextEvent && (

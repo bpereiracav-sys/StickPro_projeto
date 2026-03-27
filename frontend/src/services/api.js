@@ -157,6 +157,35 @@ export const unavailabilitiesApi = {
   getUpcomingWithoutConvocation: () => api.get('/events/upcoming-without-convocation')
 };
 
+// Payments API
+export const paymentsApi = {
+  getMy: () => api.get('/payments/my'),
+  getStatus: () => api.get('/payments/status'),
+  getAll: (params) => api.get('/payments/admin', { params }),
+  getSummary: () => api.get('/payments/summary'),
+  getUserPayments: (userId) => api.get(`/users/${userId}/payments`),
+  createMonthlyFee: (data) => api.post('/payments/monthly-fees', data),
+  createBulkFees: (data) => api.post('/payments/monthly-fees/bulk', null, { params: data }),
+  importFees: (file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post('/payments/monthly-fees/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  createCustom: (data) => api.post('/payments/custom', data),
+  markPaid: (type, id) => api.put(`/payments/${type}/${id}/mark-paid`),
+  uploadProof: (type, id, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.put(`/payments/${type}/${id}/upload-proof`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+  },
+  delete: (type, id) => api.delete(`/payments/${type}/${id}`),
+  updateSettings: (userId, data) => api.put(`/users/${userId}/payment-settings`, data)
+};
+
 // Members API
 export const membersApi = {
   getAll: (params) => api.get('/members', { params }),

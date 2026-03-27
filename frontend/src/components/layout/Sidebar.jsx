@@ -33,7 +33,8 @@ import {
   RefreshCw,
   Shield,
   BookOpen,
-  Building2
+  Building2,
+  CreditCard
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -122,6 +123,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
     { href: '/championships', label: t('nav.championships'), icon: Trophy },
     { href: '/attendance', label: t('nav.attendance'), icon: ClipboardCheck },
     { href: '/stats', label: t('nav.stats'), icon: BarChart3 },
+    { href: '/payments', label: 'Pagamentos', icon: CreditCard },
     { href: '/library', label: 'Biblioteca', icon: BookOpen },
     { href: '/messages', label: t('nav.messages'), icon: MessageSquare },
     { href: '/club', label: 'Definições Clube', icon: Building2, adminOnly: true },

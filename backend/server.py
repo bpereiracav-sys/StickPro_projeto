@@ -673,6 +673,61 @@ class Message(BaseModel):
     attachment_url: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+# ==================== PAYMENT MODELS ====================
+
+PaymentStatus = Literal["pending", "paid", "overdue"]
+PaymentType = Literal["monthly_fee", "custom"]
+
+class MonthlyFeeCreate(BaseModel):
+    user_id: str
+    amount: float
+    month: int  # 1-12
+    year: int
+    due_date: datetime
+    notes: Optional[str] = None
+
+class MonthlyFee(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    amount: float
+    month: int
+    year: int
+    due_date: datetime
+    status: PaymentStatus = "pending"
+    paid_at: Optional[datetime] = None
+    proof_url: Optional[str] = None
+    proof_filename: Optional[str] = None
+    notes: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class CustomPaymentCreate(BaseModel):
+    user_id: str
+    title: str
+    description: Optional[str] = None
+    amount: float
+    due_date: datetime
+
+class CustomPayment(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    title: str
+    description: Optional[str] = None
+    amount: float
+    due_date: datetime
+    status: PaymentStatus = "pending"
+    paid_at: Optional[datetime] = None
+    proof_url: Optional[str] = None
+    proof_filename: Optional[str] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class PaymentSettingsUpdate(BaseModel):
+    payments_disabled: Optional[bool] = None
+    default_monthly_fee: Optional[float] = None
+
 # ==================== AUTH HELPERS ====================
 
 def hash_password(password: str) -> str:
@@ -4932,6 +4987,628 @@ async def get_pending_reminders(current_user: dict = Depends(get_current_user)):
     
     return result
 
+# ==================== PAYMENTS AND MONTHLY FEES ROUTES ====================
+
+def get_payment_status(due_date: datetime, paid_at: Optional[datetime]) -> str:
+    """Calculate payment status based on due date and payment date"""
+    if paid_at:
+        return "paid"
+    now = datetime.now(timezone.utc)
+    if isinstance(due_date, str):
+        due_date = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+    if due_date.tzinfo is None:
+        due_date = due_date.replace(tzinfo=timezone.utc)
+    if now > due_date:
+        return "overdue"
+    return "pending"
+
+@api_router.get("/payments/my")
+async def get_my_payments(season: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get current user's payments - accessible by all roles for their own data"""
+    query = {"user_id": current_user['id']}
+    
+    # Get monthly fees
+    fees = await db.monthly_fees.find(query, {"_id": 0}).sort("due_date", -1).to_list(100)
+    
+    # Get custom payments
+    custom = await db.custom_payments.find(query, {"_id": 0}).sort("due_date", -1).to_list(100)
+    
+    # Update status for each payment
+    for fee in fees:
+        fee['status'] = get_payment_status(fee.get('due_date'), fee.get('paid_at'))
+        fee['type'] = 'monthly_fee'
+    
+    for payment in custom:
+        payment['status'] = get_payment_status(payment.get('due_date'), payment.get('paid_at'))
+        payment['type'] = 'custom'
+    
+    # Combine and sort by due_date
+    all_payments = fees + custom
+    all_payments.sort(key=lambda x: x.get('due_date', ''), reverse=True)
+    
+    return all_payments
+
+@api_router.get("/payments/status")
+async def get_my_payment_status(current_user: dict = Depends(get_current_user)):
+    """Get overall payment status for dashboard indicator"""
+    now = datetime.now(timezone.utc)
+    
+    # Check if user has payments disabled
+    user = await db.users.find_one({"id": current_user['id']}, {"_id": 0})
+    if user and user.get('payments_disabled'):
+        return {"status": "disabled", "message": "Pagamentos desativados"}
+    
+    # Get unpaid fees
+    unpaid_fees = await db.monthly_fees.find({
+        "user_id": current_user['id'],
+        "paid_at": None
+    }, {"_id": 0}).to_list(50)
+    
+    # Get unpaid custom payments
+    unpaid_custom = await db.custom_payments.find({
+        "user_id": current_user['id'],
+        "paid_at": None
+    }, {"_id": 0}).to_list(50)
+    
+    overdue_count = 0
+    pending_count = 0
+    total_overdue = 0
+    total_pending = 0
+    
+    for fee in unpaid_fees:
+        due_date = fee.get('due_date')
+        if isinstance(due_date, str):
+            due_date = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+        if due_date and due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=timezone.utc)
+        if due_date and now > due_date:
+            overdue_count += 1
+            total_overdue += fee.get('amount', 0)
+        else:
+            pending_count += 1
+            total_pending += fee.get('amount', 0)
+    
+    for payment in unpaid_custom:
+        due_date = payment.get('due_date')
+        if isinstance(due_date, str):
+            due_date = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+        if due_date and due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=timezone.utc)
+        if due_date and now > due_date:
+            overdue_count += 1
+            total_overdue += payment.get('amount', 0)
+        else:
+            pending_count += 1
+            total_pending += payment.get('amount', 0)
+    
+    if overdue_count > 0:
+        return {
+            "status": "overdue",
+            "overdue_count": overdue_count,
+            "pending_count": pending_count,
+            "total_overdue": total_overdue,
+            "total_pending": total_pending
+        }
+    elif pending_count > 0:
+        return {
+            "status": "pending",
+            "pending_count": pending_count,
+            "total_pending": total_pending
+        }
+    else:
+        return {"status": "paid", "message": "Todos os pagamentos em dia"}
+
+@api_router.get("/payments/admin")
+async def get_all_payments(user_id: Optional[str] = None, status: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get all payments - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem aceder a todos os pagamentos")
+    
+    fee_query = {}
+    custom_query = {}
+    
+    if user_id:
+        fee_query["user_id"] = user_id
+        custom_query["user_id"] = user_id
+    
+    # Get monthly fees
+    fees = await db.monthly_fees.find(fee_query, {"_id": 0}).sort("due_date", -1).to_list(500)
+    
+    # Get custom payments
+    custom = await db.custom_payments.find(custom_query, {"_id": 0}).sort("due_date", -1).to_list(500)
+    
+    # Enrich with user info and update status
+    user_cache = {}
+    for fee in fees:
+        fee['status'] = get_payment_status(fee.get('due_date'), fee.get('paid_at'))
+        fee['type'] = 'monthly_fee'
+        uid = fee.get('user_id')
+        if uid not in user_cache:
+            user = await db.users.find_one({"id": uid}, {"_id": 0, "name": 1, "email": 1})
+            user_cache[uid] = user
+        if user_cache.get(uid):
+            fee['user_name'] = user_cache[uid].get('name', 'Unknown')
+            fee['user_email'] = user_cache[uid].get('email', '')
+    
+    for payment in custom:
+        payment['status'] = get_payment_status(payment.get('due_date'), payment.get('paid_at'))
+        payment['type'] = 'custom'
+        uid = payment.get('user_id')
+        if uid not in user_cache:
+            user = await db.users.find_one({"id": uid}, {"_id": 0, "name": 1, "email": 1})
+            user_cache[uid] = user
+        if user_cache.get(uid):
+            payment['user_name'] = user_cache[uid].get('name', 'Unknown')
+            payment['user_email'] = user_cache[uid].get('email', '')
+    
+    # Filter by status if specified
+    all_payments = fees + custom
+    if status:
+        all_payments = [p for p in all_payments if p.get('status') == status]
+    
+    all_payments.sort(key=lambda x: x.get('due_date', ''), reverse=True)
+    
+    return all_payments
+
+@api_router.get("/payments/summary")
+async def get_payments_summary(current_user: dict = Depends(get_current_user)):
+    """Get payments summary - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem ver resumo de pagamentos")
+    
+    now = datetime.now(timezone.utc)
+    
+    # Get all unpaid
+    unpaid_fees = await db.monthly_fees.find({"paid_at": None}, {"_id": 0}).to_list(500)
+    unpaid_custom = await db.custom_payments.find({"paid_at": None}, {"_id": 0}).to_list(500)
+    
+    # Get paid this month
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    paid_fees_month = await db.monthly_fees.find({
+        "paid_at": {"$gte": month_start.isoformat()}
+    }, {"_id": 0}).to_list(500)
+    paid_custom_month = await db.custom_payments.find({
+        "paid_at": {"$gte": month_start.isoformat()}
+    }, {"_id": 0}).to_list(500)
+    
+    total_overdue = 0
+    total_pending = 0
+    overdue_count = 0
+    pending_count = 0
+    
+    for fee in unpaid_fees:
+        due_date = fee.get('due_date')
+        if isinstance(due_date, str):
+            due_date = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+        if due_date and due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=timezone.utc)
+        if due_date and now > due_date:
+            overdue_count += 1
+            total_overdue += fee.get('amount', 0)
+        else:
+            pending_count += 1
+            total_pending += fee.get('amount', 0)
+    
+    for payment in unpaid_custom:
+        due_date = payment.get('due_date')
+        if isinstance(due_date, str):
+            due_date = datetime.fromisoformat(due_date.replace('Z', '+00:00'))
+        if due_date and due_date.tzinfo is None:
+            due_date = due_date.replace(tzinfo=timezone.utc)
+        if due_date and now > due_date:
+            overdue_count += 1
+            total_overdue += payment.get('amount', 0)
+        else:
+            pending_count += 1
+            total_pending += payment.get('amount', 0)
+    
+    total_collected_month = sum(f.get('amount', 0) for f in paid_fees_month) + sum(p.get('amount', 0) for p in paid_custom_month)
+    
+    return {
+        "overdue_count": overdue_count,
+        "pending_count": pending_count,
+        "total_overdue": total_overdue,
+        "total_pending": total_pending,
+        "collected_this_month": total_collected_month,
+        "paid_count_this_month": len(paid_fees_month) + len(paid_custom_month)
+    }
+
+@api_router.post("/payments/monthly-fees")
+async def create_monthly_fee(data: MonthlyFeeCreate, current_user: dict = Depends(get_current_user)):
+    """Create a monthly fee - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar mensalidades")
+    
+    # Check if user exists
+    user = await db.users.find_one({"id": data.user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    
+    # Check if fee already exists for this month/year
+    existing = await db.monthly_fees.find_one({
+        "user_id": data.user_id,
+        "month": data.month,
+        "year": data.year
+    })
+    if existing:
+        raise HTTPException(status_code=400, detail=f"Já existe mensalidade para {data.month}/{data.year}")
+    
+    fee = MonthlyFee(
+        user_id=data.user_id,
+        amount=data.amount,
+        month=data.month,
+        year=data.year,
+        due_date=data.due_date,
+        notes=data.notes,
+        created_by=current_user['id']
+    )
+    
+    fee_dict = fee.model_dump()
+    fee_dict['due_date'] = fee_dict['due_date'].isoformat()
+    fee_dict['created_at'] = fee_dict['created_at'].isoformat()
+    
+    await db.monthly_fees.insert_one(fee_dict)
+    fee_dict.pop('_id', None)
+    
+    return fee_dict
+
+@api_router.post("/payments/monthly-fees/bulk")
+async def create_monthly_fees_bulk(month: int, year: int, amount: float, due_date: datetime, user_ids: List[str] = None, current_user: dict = Depends(get_current_user)):
+    """Create monthly fees for multiple users - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar mensalidades")
+    
+    if not user_ids:
+        # Get all active players
+        users = await db.users.find({
+            "role": "jogador",
+            "is_archived": {"$ne": True},
+            "payments_disabled": {"$ne": True}
+        }, {"_id": 0, "id": 1}).to_list(500)
+        user_ids = [u['id'] for u in users]
+    
+    created = 0
+    skipped = 0
+    
+    for uid in user_ids:
+        # Check if already exists
+        existing = await db.monthly_fees.find_one({
+            "user_id": uid,
+            "month": month,
+            "year": year
+        })
+        if existing:
+            skipped += 1
+            continue
+        
+        # Check if user has payments disabled
+        user = await db.users.find_one({"id": uid}, {"_id": 0})
+        if user and user.get('payments_disabled'):
+            skipped += 1
+            continue
+        
+        fee = MonthlyFee(
+            user_id=uid,
+            amount=amount,
+            month=month,
+            year=year,
+            due_date=due_date,
+            created_by=current_user['id']
+        )
+        
+        fee_dict = fee.model_dump()
+        fee_dict['due_date'] = fee_dict['due_date'].isoformat()
+        fee_dict['created_at'] = fee_dict['created_at'].isoformat()
+        
+        await db.monthly_fees.insert_one(fee_dict)
+        created += 1
+    
+    return {"message": f"Mensalidades criadas: {created}, ignoradas: {skipped}"}
+
+@api_router.post("/payments/monthly-fees/import")
+async def import_monthly_fees(file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """Import monthly fees from Excel - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem importar mensalidades")
+    
+    if not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+        raise HTTPException(status_code=400, detail="Formato não suportado. Use Excel ou CSV")
+    
+    try:
+        content = await file.read()
+        
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(io.BytesIO(content))
+        else:
+            df = pd.read_excel(io.BytesIO(content))
+        
+        df.columns = [str(col).lower().strip().replace(' ', '_') for col in df.columns]
+        
+        created = 0
+        errors = []
+        
+        for idx, row in df.iterrows():
+            try:
+                # Find user by email or name
+                email = None
+                user = None
+                
+                for col in ['email', 'e-mail', 'correio']:
+                    if col in df.columns and pd.notna(row.get(col)):
+                        email = str(row[col]).strip()
+                        break
+                
+                if email:
+                    user = await db.users.find_one({"email": email}, {"_id": 0})
+                
+                if not user:
+                    errors.append(f"Linha {idx + 2}: Utilizador não encontrado")
+                    continue
+                
+                # Get amount
+                amount = None
+                for col in ['valor', 'amount', 'montante', 'quantia']:
+                    if col in df.columns and pd.notna(row.get(col)):
+                        amount = float(row[col])
+                        break
+                
+                if not amount:
+                    errors.append(f"Linha {idx + 2}: Valor não encontrado")
+                    continue
+                
+                # Get month/year
+                month = None
+                year = None
+                for col in ['mes', 'month', 'mês']:
+                    if col in df.columns and pd.notna(row.get(col)):
+                        month = int(row[col])
+                        break
+                
+                for col in ['ano', 'year']:
+                    if col in df.columns and pd.notna(row.get(col)):
+                        year = int(row[col])
+                        break
+                
+                if not month or not year:
+                    errors.append(f"Linha {idx + 2}: Mês ou ano não encontrado")
+                    continue
+                
+                # Get due date
+                due_date = None
+                for col in ['vencimento', 'due_date', 'data_limite']:
+                    if col in df.columns and pd.notna(row.get(col)):
+                        due_date = pd.to_datetime(row[col])
+                        break
+                
+                if not due_date:
+                    # Default to last day of month
+                    if month == 12:
+                        due_date = datetime(year + 1, 1, 1) - timedelta(days=1)
+                    else:
+                        due_date = datetime(year, month + 1, 1) - timedelta(days=1)
+                
+                # Check if exists
+                existing = await db.monthly_fees.find_one({
+                    "user_id": user['id'],
+                    "month": month,
+                    "year": year
+                })
+                if existing:
+                    errors.append(f"Linha {idx + 2}: Já existe mensalidade para {month}/{year}")
+                    continue
+                
+                fee = MonthlyFee(
+                    user_id=user['id'],
+                    amount=amount,
+                    month=month,
+                    year=year,
+                    due_date=due_date,
+                    created_by=current_user['id']
+                )
+                
+                fee_dict = fee.model_dump()
+                fee_dict['due_date'] = fee_dict['due_date'].isoformat()
+                fee_dict['created_at'] = fee_dict['created_at'].isoformat()
+                
+                await db.monthly_fees.insert_one(fee_dict)
+                created += 1
+                
+            except Exception as e:
+                errors.append(f"Linha {idx + 2}: {str(e)}")
+        
+        return {
+            "message": f"Importação concluída: {created} mensalidades criadas",
+            "created": created,
+            "errors": errors[:10]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao processar ficheiro: {str(e)}")
+
+@api_router.post("/payments/custom")
+async def create_custom_payment(data: CustomPaymentCreate, current_user: dict = Depends(get_current_user)):
+    """Create a custom payment/charge - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar pagamentos")
+    
+    # Check if user exists
+    user = await db.users.find_one({"id": data.user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    
+    payment = CustomPayment(
+        user_id=data.user_id,
+        title=data.title,
+        description=data.description,
+        amount=data.amount,
+        due_date=data.due_date,
+        created_by=current_user['id']
+    )
+    
+    payment_dict = payment.model_dump()
+    payment_dict['due_date'] = payment_dict['due_date'].isoformat()
+    payment_dict['created_at'] = payment_dict['created_at'].isoformat()
+    
+    await db.custom_payments.insert_one(payment_dict)
+    payment_dict.pop('_id', None)
+    
+    # Notify the user
+    try:
+        await send_push_to_users(
+            user_ids=[data.user_id],
+            title="Novo Pagamento",
+            body=f"Foi criado um novo pagamento: {data.title} - €{data.amount:.2f}",
+            url="/payments"
+        )
+    except Exception as e:
+        logging.error(f"Failed to notify user of new payment: {e}")
+    
+    return payment_dict
+
+@api_router.put("/payments/{payment_type}/{payment_id}/mark-paid")
+async def mark_payment_as_paid(payment_type: str, payment_id: str, current_user: dict = Depends(get_current_user)):
+    """Mark a payment as paid - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem marcar pagamentos como pagos")
+    
+    collection = db.monthly_fees if payment_type == "monthly_fee" else db.custom_payments
+    
+    payment = await collection.find_one({"id": payment_id}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Pagamento não encontrado")
+    
+    now = datetime.now(timezone.utc)
+    await collection.update_one(
+        {"id": payment_id},
+        {"$set": {"paid_at": now.isoformat(), "status": "paid"}}
+    )
+    
+    return {"message": "Pagamento marcado como pago"}
+
+@api_router.put("/payments/{payment_type}/{payment_id}/upload-proof")
+async def upload_payment_proof(payment_type: str, payment_id: str, file: UploadFile = File(...), current_user: dict = Depends(get_current_user)):
+    """Upload payment proof - owner or admin"""
+    collection = db.monthly_fees if payment_type == "monthly_fee" else db.custom_payments
+    
+    payment = await collection.find_one({"id": payment_id}, {"_id": 0})
+    if not payment:
+        raise HTTPException(status_code=404, detail="Pagamento não encontrado")
+    
+    checker = get_permission_checker(current_user)
+    if payment['user_id'] != current_user['id'] and not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Sem permissão para este pagamento")
+    
+    # Validate file type
+    allowed_extensions = ['.pdf', '.jpg', '.jpeg', '.png', '.webp']
+    file_ext = os.path.splitext(file.filename)[1].lower()
+    if file_ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail="Tipo de ficheiro não suportado. Use PDF, JPG ou PNG")
+    
+    # Read and save file
+    content = await file.read()
+    
+    # Create uploads directory if needed
+    uploads_dir = Path("/app/uploads/proofs")
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Generate unique filename
+    filename = f"{payment_id}_{uuid.uuid4().hex[:8]}{file_ext}"
+    file_path = uploads_dir / filename
+    
+    with open(file_path, 'wb') as f:
+        f.write(content)
+    
+    # Store relative path
+    proof_url = f"/uploads/proofs/{filename}"
+    
+    await collection.update_one(
+        {"id": payment_id},
+        {"$set": {"proof_url": proof_url, "proof_filename": file.filename}}
+    )
+    
+    return {"message": "Comprovativo carregado", "proof_url": proof_url}
+
+@api_router.delete("/payments/{payment_type}/{payment_id}")
+async def delete_payment(payment_type: str, payment_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a payment - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem eliminar pagamentos")
+    
+    collection = db.monthly_fees if payment_type == "monthly_fee" else db.custom_payments
+    
+    result = await collection.delete_one({"id": payment_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Pagamento não encontrado")
+    
+    return {"message": "Pagamento eliminado"}
+
+@api_router.put("/users/{user_id}/payment-settings")
+async def update_user_payment_settings(user_id: str, data: PaymentSettingsUpdate, current_user: dict = Depends(get_current_user)):
+    """Update user payment settings - admin only"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem alterar definições de pagamento")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    
+    update_data = {}
+    if data.payments_disabled is not None:
+        update_data['payments_disabled'] = data.payments_disabled
+    if data.default_monthly_fee is not None:
+        update_data['default_monthly_fee'] = data.default_monthly_fee
+    
+    if update_data:
+        await db.users.update_one({"id": user_id}, {"$set": update_data})
+    
+    return {"message": "Definições atualizadas"}
+
+@api_router.get("/users/{user_id}/payments")
+async def get_user_payments(user_id: str, current_user: dict = Depends(get_current_user)):
+    """Get payments for a specific user - admin or owner only"""
+    checker = get_permission_checker(current_user)
+    
+    if user_id != current_user['id'] and not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Sem permissão para ver pagamentos de outros utilizadores")
+    
+    # Get monthly fees
+    fees = await db.monthly_fees.find({"user_id": user_id}, {"_id": 0}).sort("due_date", -1).to_list(100)
+    
+    # Get custom payments
+    custom = await db.custom_payments.find({"user_id": user_id}, {"_id": 0}).sort("due_date", -1).to_list(100)
+    
+    # Update status
+    for fee in fees:
+        fee['status'] = get_payment_status(fee.get('due_date'), fee.get('paid_at'))
+        fee['type'] = 'monthly_fee'
+    
+    for payment in custom:
+        payment['status'] = get_payment_status(payment.get('due_date'), payment.get('paid_at'))
+        payment['type'] = 'custom'
+    
+    all_payments = fees + custom
+    all_payments.sort(key=lambda x: x.get('due_date', ''), reverse=True)
+    
+    return all_payments
+
+
 # Background task runner for periodic reminder processing
 async def start_reminder_scheduler():
     """
@@ -4959,6 +5636,12 @@ async def startup_event():
 # ==================== MAIN ====================
 
 app.include_router(api_router)
+
+# Static files for payment proofs
+uploads_path = Path("/app/uploads")
+uploads_path.mkdir(parents=True, exist_ok=True)
+if uploads_path.exists():
+    app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
 
 app.add_middleware(
     CORSMiddleware,

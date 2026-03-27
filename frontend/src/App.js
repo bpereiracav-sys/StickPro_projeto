@@ -34,6 +34,7 @@ import ProfilePage from "./pages/ProfilePage";
 import TeamsPage from "./pages/TeamsPage";
 import ChildrenPage from "./pages/ChildrenPage";
 import LibraryPage from "./pages/LibraryPage";
+import Payments from "./pages/Payments";
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -208,6 +209,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <Attendance />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/payments"
+        element={
+          <ProtectedRoute>
+            <Payments />
           </ProtectedRoute>
         }
       />
