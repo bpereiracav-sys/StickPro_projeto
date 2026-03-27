@@ -146,6 +146,19 @@ export const permissionsApi = {
   updateForUser: (userId, permissions) => api.put(`/permissions/${userId}`, permissions)
 };
 
+// Unavailabilities API
+export const unavailabilitiesApi = {
+  getAll: (params) => api.get('/unavailabilities', { params }),
+  getMy: () => api.get('/unavailabilities/my'),
+  create: (data) => api.post('/unavailabilities', data),
+  update: (id, data) => api.put(`/unavailabilities/${id}`, data),
+  delete: (id) => api.delete(`/unavailabilities/${id}`),
+  check: (playerIds, eventDate) => api.get('/unavailabilities/check', { 
+    params: { player_ids: playerIds.join(','), event_date: eventDate } 
+  }),
+  getUpcomingWithoutConvocation: () => api.get('/events/upcoming-without-convocation')
+};
+
 // Dashboard API
 export const dashboardApi = {
   get: () => api.get('/dashboard')

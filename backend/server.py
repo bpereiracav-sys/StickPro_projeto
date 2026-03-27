@@ -565,10 +565,16 @@ class AttendanceUpdate(BaseModel):
     reason: Optional[str] = None
 
 # Convocation Models
+class ConvocationVisibility(str, Enum):
+    players = "players"
+    delegates = "delegates"
+    all = "all"
+
 class ConvocationCreate(BaseModel):
     event_id: str
     player_ids: List[str]
     message: Optional[str] = None
+    visibility: ConvocationVisibility = ConvocationVisibility.all
 
 class Convocation(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -576,7 +582,26 @@ class Convocation(BaseModel):
     event_id: str
     player_ids: List[str]
     message: Optional[str] = None
+    visibility: ConvocationVisibility = ConvocationVisibility.all
     created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+# Unavailability Models
+class UnavailabilityCreate(BaseModel):
+    start_date: datetime
+    end_date: datetime
+    reason: str  # ferias, lesao, trabalho, pessoal, outro
+    notes: Optional[str] = None
+
+class Unavailability(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    user_id: str
+    team_ids: List[str] = []  # Teams affected
+    start_date: datetime
+    end_date: datetime
+    reason: str
+    notes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # Message Models with attachments
@@ -2801,6 +2826,41 @@ async def get_events(team_id: Optional[str] = None, event_type: Optional[str] = 
     
     return events
 
+# NOTE: This route MUST be defined BEFORE /events/{event_id} to avoid route conflicts
+@api_router.get("/events/upcoming-without-convocation")
+async def get_upcoming_events_without_convocation(current_user: dict = Depends(get_current_user)):
+    """Get upcoming events (next 24h) that don't have convocations - for coach notifications"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_create_convocations:
+        return []
+    
+    now = datetime.now(timezone.utc)
+    next_24h = now + timedelta(hours=24)
+    
+    # Build query based on user's teams
+    query = {
+        "start_time": {"$gte": now.isoformat(), "$lte": next_24h.isoformat()},
+        "status": "scheduled"
+    }
+    
+    if not checker.is_admin:
+        user_teams = list(checker.team_ids)
+        if not user_teams:
+            return []
+        query["team_id"] = {"$in": user_teams}
+    
+    events = await db.events.find(query, {"_id": 0}).to_list(50)
+    
+    # Filter events without convocations
+    events_without_conv = []
+    for event in events:
+        convocation = await db.convocations.find_one({"event_id": event['id']}, {"_id": 0})
+        if not convocation:
+            events_without_conv.append(event)
+    
+    return events_without_conv
+
 @api_router.get("/events/{event_id}")
 async def get_event(event_id: str, current_user: dict = Depends(get_current_user)):
     checker = get_permission_checker(current_user)
@@ -2883,7 +2943,29 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
     if not checker.is_admin and event.get('team_id') and not checker.can_access_team(event.get('team_id')):
         raise HTTPException(status_code=403, detail="Sem acesso a este evento")
     
-    convocation = Convocation(**conv_data.model_dump(), created_by=current_user['id'])
+    event_date = event['start_time'] if isinstance(event['start_time'], datetime) else datetime.fromisoformat(event['start_time'])
+    
+    # Check for unavailable players and warn
+    unavailable_player_ids = []
+    for player_id in conv_data.player_ids:
+        unavails = await db.unavailabilities.find({
+            "user_id": player_id,
+            "start_date": {"$lte": event_date.isoformat()},
+            "end_date": {"$gte": event_date.isoformat()}
+        }, {"_id": 0}).to_list(1)
+        if unavails:
+            unavailable_player_ids.append(player_id)
+    
+    # Filter out unavailable players from convocation (they can still be manually added later)
+    available_player_ids = [pid for pid in conv_data.player_ids if pid not in unavailable_player_ids]
+    
+    convocation = Convocation(
+        event_id=conv_data.event_id,
+        player_ids=available_player_ids,
+        message=conv_data.message,
+        visibility=conv_data.visibility,
+        created_by=current_user['id']
+    )
     conv_dict = convocation.model_dump()
     conv_dict['created_at'] = conv_dict['created_at'].isoformat()
     
@@ -2891,10 +2973,8 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
     # Remove MongoDB _id before returning
     conv_dict.pop('_id', None)
     
-    # Create attendance records
-    event_date = event['start_time'] if isinstance(event['start_time'], datetime) else datetime.fromisoformat(event['start_time'])
-    
-    for player_id in conv_data.player_ids:
+    # Create attendance records only for available players
+    for player_id in available_player_ids:
         attendance = Attendance(
             event_id=conv_data.event_id,
             convocation_id=convocation.id,
@@ -2921,13 +3001,16 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
     # Send push notifications to convoked players
     try:
         await send_push_to_users(
-            user_ids=conv_data.player_ids,
+            user_ids=available_player_ids,
             title="Nova Convocatória!",
             body=f"{event.get('title', 'Evento')} - {event_date.strftime('%d/%m às %H:%M')}",
             url="/attendance"
         )
     except Exception as e:
         logging.error(f"Failed to send push notifications: {e}")
+    
+    # Add info about unavailable players that were skipped
+    conv_dict['skipped_unavailable_players'] = unavailable_player_ids
     
     return conv_dict
 
@@ -3668,6 +3751,189 @@ async def send_notification(notification_data: dict, current_user: dict = Depend
         "success": success_count,
         "failed": failed_count
     }
+
+# ==================== UNAVAILABILITY ROUTES ====================
+
+@api_router.get("/unavailabilities")
+async def get_unavailabilities(team_id: Optional[str] = None, user_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Get unavailability periods - filtered by team/user and role permissions"""
+    checker = get_permission_checker(current_user)
+    query = {}
+    
+    if user_id:
+        # Specific user's unavailabilities
+        if user_id == current_user['id']:
+            query["user_id"] = user_id
+        elif checker.is_admin or checker.is_staff:
+            query["user_id"] = user_id
+        else:
+            raise HTTPException(status_code=403, detail="Sem permissão para ver indisponibilidades de outros utilizadores")
+    elif team_id:
+        # Team's unavailabilities
+        if not checker.is_admin and not checker.can_access_team(team_id):
+            raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+        query["team_ids"] = team_id
+    elif not checker.is_admin:
+        # Filter by user's accessible teams
+        user_teams = list(checker.team_ids)
+        if user_teams:
+            query["team_ids"] = {"$in": user_teams}
+        else:
+            # Show only own unavailabilities
+            query["user_id"] = current_user['id']
+    
+    unavailabilities = await db.unavailabilities.find(query, {"_id": 0}).sort("start_date", 1).to_list(200)
+    
+    # Enrich with user info
+    for unav in unavailabilities:
+        user = await db.users.find_one({"id": unav['user_id']}, {"_id": 0, "name": 1, "role": 1})
+        if user:
+            unav['user_name'] = user.get('name', 'Unknown')
+            unav['user_role'] = user.get('role', 'jogador')
+    
+    return unavailabilities
+
+@api_router.get("/unavailabilities/my")
+async def get_my_unavailabilities(current_user: dict = Depends(get_current_user)):
+    """Get current user's unavailabilities"""
+    unavailabilities = await db.unavailabilities.find({"user_id": current_user['id']}, {"_id": 0}).sort("start_date", 1).to_list(100)
+    return unavailabilities
+
+@api_router.post("/unavailabilities")
+async def create_unavailability(data: UnavailabilityCreate, current_user: dict = Depends(get_current_user)):
+    """Create unavailability period - players, coaches and delegates can create their own"""
+    if data.start_date >= data.end_date:
+        raise HTTPException(status_code=400, detail="Data inicial deve ser anterior à data final")
+    
+    # Get user's team IDs
+    user = await db.users.find_one({"id": current_user['id']}, {"_id": 0})
+    user_teams = user.get('team_ids', []) if user else []
+    
+    unavailability = Unavailability(
+        user_id=current_user['id'],
+        team_ids=user_teams,
+        start_date=data.start_date,
+        end_date=data.end_date,
+        reason=data.reason,
+        notes=data.notes
+    )
+    
+    unav_dict = unavailability.model_dump()
+    unav_dict['start_date'] = unav_dict['start_date'].isoformat()
+    unav_dict['end_date'] = unav_dict['end_date'].isoformat()
+    unav_dict['created_at'] = unav_dict['created_at'].isoformat()
+    
+    await db.unavailabilities.insert_one(unav_dict)
+    unav_dict.pop('_id', None)
+    
+    # Notify coaches of the affected teams
+    for team_id in user_teams:
+        # Get coaches for this team
+        team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+        if team:
+            coach_ids = team.get('coach_ids', [])
+            # Also get users with coach role assigned to this team
+            coaches = await db.users.find({
+                "$or": [
+                    {"id": {"$in": coach_ids}},
+                    {"team_ids": team_id, "role": {"$in": ["treinador", "treinador_adjunto"]}}
+                ]
+            }, {"_id": 0, "id": 1}).to_list(20)
+            
+            coach_user_ids = [c['id'] for c in coaches if c['id'] != current_user['id']]
+            
+            if coach_user_ids:
+                reason_labels = {
+                    'ferias': 'Férias',
+                    'lesao': 'Lesão',
+                    'trabalho': 'Trabalho',
+                    'pessoal': 'Pessoal',
+                    'outro': 'Outro'
+                }
+                reason_label = reason_labels.get(data.reason, data.reason)
+                
+                try:
+                    await send_push_to_users(
+                        user_ids=coach_user_ids,
+                        title="Jogador Indisponível",
+                        body=f"{current_user.get('name', 'Jogador')} está indisponível ({reason_label}) de {data.start_date.strftime('%d/%m')} a {data.end_date.strftime('%d/%m')}",
+                        url="/attendance"
+                    )
+                except Exception as e:
+                    logging.error(f"Failed to notify coaches of unavailability: {e}")
+    
+    return unav_dict
+
+@api_router.put("/unavailabilities/{unavailability_id}")
+async def update_unavailability(unavailability_id: str, data: UnavailabilityCreate, current_user: dict = Depends(get_current_user)):
+    """Update unavailability - only owner can update"""
+    unavailability = await db.unavailabilities.find_one({"id": unavailability_id}, {"_id": 0})
+    if not unavailability:
+        raise HTTPException(status_code=404, detail="Indisponibilidade não encontrada")
+    
+    if unavailability['user_id'] != current_user['id']:
+        checker = get_permission_checker(current_user)
+        if not checker.is_admin:
+            raise HTTPException(status_code=403, detail="Sem permissão para editar esta indisponibilidade")
+    
+    if data.start_date >= data.end_date:
+        raise HTTPException(status_code=400, detail="Data inicial deve ser anterior à data final")
+    
+    update_data = {
+        "start_date": data.start_date.isoformat(),
+        "end_date": data.end_date.isoformat(),
+        "reason": data.reason,
+        "notes": data.notes
+    }
+    
+    await db.unavailabilities.update_one({"id": unavailability_id}, {"$set": update_data})
+    return {"message": "Indisponibilidade atualizada"}
+
+@api_router.delete("/unavailabilities/{unavailability_id}")
+async def delete_unavailability(unavailability_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete unavailability - only owner or admin can delete"""
+    unavailability = await db.unavailabilities.find_one({"id": unavailability_id}, {"_id": 0})
+    if not unavailability:
+        raise HTTPException(status_code=404, detail="Indisponibilidade não encontrada")
+    
+    if unavailability['user_id'] != current_user['id']:
+        checker = get_permission_checker(current_user)
+        if not checker.is_admin:
+            raise HTTPException(status_code=403, detail="Sem permissão para eliminar esta indisponibilidade")
+    
+    await db.unavailabilities.delete_one({"id": unavailability_id})
+    return {"message": "Indisponibilidade eliminada"}
+
+@api_router.get("/unavailabilities/check")
+async def check_unavailability(player_ids: str, event_date: str, current_user: dict = Depends(get_current_user)):
+    """Check if players are unavailable for a specific date - used during convocation creation"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_create_convocations:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+    
+    player_id_list = player_ids.split(',')
+    event_dt = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
+    
+    # Find unavailabilities that overlap with event date
+    unavailable_players = []
+    
+    for player_id in player_id_list:
+        unavails = await db.unavailabilities.find({
+            "user_id": player_id,
+            "start_date": {"$lte": event_dt.isoformat()},
+            "end_date": {"$gte": event_dt.isoformat()}
+        }, {"_id": 0}).to_list(10)
+        
+        if unavails:
+            player = await db.users.find_one({"id": player_id}, {"_id": 0, "name": 1})
+            unavailable_players.append({
+                "player_id": player_id,
+                "player_name": player.get('name', 'Unknown') if player else 'Unknown',
+                "unavailabilities": unavails
+            })
+    
+    return {"unavailable_players": unavailable_players}
 
 # ==================== MAIN ====================
 

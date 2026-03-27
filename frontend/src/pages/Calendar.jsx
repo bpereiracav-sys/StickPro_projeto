@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { usePermissions } from '../context/PermissionsContext';
-import { eventsApi, teamsApi, usersApi } from '../services/api';
+import { eventsApi, teamsApi, usersApi, unavailabilitiesApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -16,6 +16,7 @@ import { Checkbox } from '../components/ui/checkbox';
 import { Switch } from '../components/ui/switch';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import UnavailabilityDialog from '../components/UnavailabilityDialog';
 import {
   Dialog,
   DialogContent,
@@ -80,7 +81,9 @@ import {
   ClipboardCheck,
   CheckCircle,
   AlertCircle,
-  Repeat
+  Repeat,
+  CalendarOff,
+  AlertTriangle
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
 import { 
@@ -142,6 +145,14 @@ export default function CalendarPage() {
   const [convocationStatusDialogOpen, setConvocationStatusDialogOpen] = useState(false);
   const [convocationStatus, setConvocationStatus] = useState({ attendances: [], summary: {} });
   
+  // Unavailability state
+  const [unavailabilities, setUnavailabilities] = useState([]);
+  const [unavailabilityDialogOpen, setUnavailabilityDialogOpen] = useState(false);
+  const [showUnavailabilities, setShowUnavailabilities] = useState(true);
+  
+  // Convocation visibility setting
+  const [convocationVisibility, setConvocationVisibility] = useState('all'); // players, delegates, all
+  
   const [formData, setFormData] = useState({
     team_id: '',
     event_type: 'treino',
@@ -178,9 +189,10 @@ export default function CalendarPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [eventsRes, teamsRes] = await Promise.all([
+      const [eventsRes, teamsRes, unavailRes] = await Promise.all([
         eventsApi.getAll(),
-        teamsApi.getAll()
+        teamsApi.getAll(),
+        unavailabilitiesApi.getMy().catch(() => ({ data: [] }))
       ]);
       
       // Filter events by selected team
@@ -191,6 +203,7 @@ export default function CalendarPage() {
       
       setEvents(filteredEvents);
       setTeams(teamsRes.data);
+      setUnavailabilities(unavailRes.data || []);
       
       // Set default team for form
       if (selectedTeam) {
@@ -427,12 +440,21 @@ export default function CalendarPage() {
     setEditDialogOpen(true);
   };
 
-  const openConvocationDialog = (event) => {
+  const openConvocationDialog = async (event) => {
     setSelectedEvent(event);
     fetchTeamMembers(event.team_id);
     setSelectedPlayers([]);
-    setConvocationVisible(true);
+    setConvocationVisibility('all');
     setConvocationMessage('');
+    
+    // Fetch unavailabilities for team members
+    try {
+      const response = await unavailabilitiesApi.getAll({ team_id: event.team_id });
+      setUnavailabilities(response.data || []);
+    } catch (error) {
+      console.error('Error fetching unavailabilities:', error);
+    }
+    
     setConvocationDialogOpen(true);
   };
 
@@ -443,15 +465,24 @@ export default function CalendarPage() {
     }
 
     try {
-      // Create convocation via API
-      await eventsApi.createConvocation(selectedEvent.id, {
+      // Create convocation via API with visibility setting
+      const response = await eventsApi.createConvocation(selectedEvent.id, {
         player_ids: selectedPlayers,
-        message: convocationMessage || null
+        message: convocationMessage || null,
+        visibility: convocationVisibility
       });
-      toast.success(`Convocatória criada para ${selectedPlayers.length} jogadores!`);
+      
+      // Check if any players were skipped due to unavailability
+      const skipped = response.data?.skipped_unavailable_players || [];
+      if (skipped.length > 0) {
+        toast.warning(`${skipped.length} jogador(es) indisponível(is) foram excluídos da convocatória`);
+      }
+      
+      toast.success(`Convocatória criada para ${selectedPlayers.length - skipped.length} jogadores!`);
       setConvocationDialogOpen(false);
       setSelectedPlayers([]);
       setConvocationMessage('');
+      setConvocationVisibility('all');
     } catch (error) {
       console.error('Convocation error:', error);
       const message = error.response?.data?.detail || 'Erro ao criar convocatória';
@@ -484,7 +515,17 @@ export default function CalendarPage() {
   };
 
   const selectAllPlayers = () => {
-    setSelectedPlayers(teamMembers.map(m => m.id));
+    // Exclude unavailable players when selecting all
+    const eventDate = selectedEvent?.start_time ? new Date(selectedEvent.start_time) : null;
+    const availablePlayers = teamMembers.filter(member => {
+      if (!eventDate) return true;
+      return !unavailabilities.some(u => 
+        u.user_id === member.id && 
+        new Date(u.start_date) <= eventDate && 
+        new Date(u.end_date) >= eventDate
+      );
+    });
+    setSelectedPlayers(availablePlayers.map(m => m.id));
   };
 
   const deselectAllPlayers = () => {
@@ -857,6 +898,17 @@ export default function CalendarPage() {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Unavailability */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setUnavailabilityDialogOpen(true)} 
+            data-testid="create-unavailability-btn"
+          >
+            <CalendarOff className="w-4 h-4 mr-2" />
+            Indisponibilidade
+          </Button>
+          
           {/* Export/Print */}
           <Button variant="outline" size="sm" onClick={handleExportPDF} data-testid="export-pdf-btn">
             <Download className="w-4 h-4 mr-2" />
@@ -1314,41 +1366,65 @@ export default function CalendarPage() {
                 </p>
               ) : (
                 <div className="space-y-2">
-                  {teamMembers.map(member => (
-                    <div
-                      key={member.id}
-                      className={`
-                        flex items-center gap-3 p-2 rounded-sm cursor-pointer transition-colors
-                        ${selectedPlayers.includes(member.id) ? 'bg-primary/10' : 'hover:bg-muted'}
-                      `}
-                      onClick={() => togglePlayerSelection(member.id)}
-                    >
-                      <Checkbox
-                        checked={selectedPlayers.includes(member.id)}
-                        onCheckedChange={() => togglePlayerSelection(member.id)}
-                      />
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={member.avatar_url} />
-                        <AvatarFallback className="text-xs">
-                          {getInitials(member.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium text-sm">{member.name}</span>
-                    </div>
-                  ))}
+                  {teamMembers.map(member => {
+                    // Check if player is unavailable for this event
+                    const eventDate = selectedEvent?.start_time ? new Date(selectedEvent.start_time) : null;
+                    const isUnavailable = eventDate && unavailabilities.some(u => 
+                      u.user_id === member.id && 
+                      new Date(u.start_date) <= eventDate && 
+                      new Date(u.end_date) >= eventDate
+                    );
+                    
+                    return (
+                      <div
+                        key={member.id}
+                        className={`
+                          flex items-center gap-3 p-2 rounded-sm transition-colors
+                          ${isUnavailable ? 'opacity-60 bg-red-50 cursor-not-allowed' : 'cursor-pointer hover:bg-muted'}
+                          ${selectedPlayers.includes(member.id) && !isUnavailable ? 'bg-primary/10' : ''}
+                        `}
+                        onClick={() => !isUnavailable && togglePlayerSelection(member.id)}
+                      >
+                        <Checkbox
+                          checked={selectedPlayers.includes(member.id)}
+                          onCheckedChange={() => !isUnavailable && togglePlayerSelection(member.id)}
+                          disabled={isUnavailable}
+                        />
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={member.avatar_url} />
+                          <AvatarFallback className="text-xs">
+                            {getInitials(member.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 flex items-center gap-2">
+                          <span className="font-medium text-sm">{member.name}</span>
+                          {isUnavailable && (
+                            <Badge variant="outline" className="text-xs bg-red-100 text-red-700 border-red-200">
+                              <AlertTriangle className="w-3 h-3 mr-1" />
+                              Indisponível
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </ScrollArea>
 
-            <div className="flex items-center justify-between p-3 bg-muted rounded-sm">
-              <div className="flex items-center gap-2">
-                {convocationVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                <span className="text-sm">Visível para a equipa</span>
-              </div>
-              <Switch
-                checked={convocationVisible}
-                onCheckedChange={setConvocationVisible}
-              />
+            {/* Visibility Setting */}
+            <div className="space-y-2">
+              <Label>Visibilidade da Convocatória</Label>
+              <Select value={convocationVisibility} onValueChange={setConvocationVisibility}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">Todos (Jogadores e Delegados)</SelectItem>
+                  <SelectItem value="players">Apenas Jogadores</SelectItem>
+                  <SelectItem value="delegates">Apenas Delegados</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -1492,6 +1568,13 @@ export default function CalendarPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      
+      {/* Unavailability Dialog */}
+      <UnavailabilityDialog 
+        open={unavailabilityDialogOpen}
+        onOpenChange={setUnavailabilityDialogOpen}
+        onSuccess={fetchData}
+      />
     </div>
   );
 }

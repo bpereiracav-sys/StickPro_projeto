@@ -1,0 +1,103 @@
+{
+  "summary": "Tested Unavailability API CRUD, Convocation Visibility settings, and Upcoming Events Without Convocation API. Fixed route ordering bug for /events/upcoming-without-convocation endpoint. All 13 backend tests pass. Frontend Calendar page with Unavailability dialog and Convocation dialog with visibility settings verified.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "unavailability_api": {
+      "status": "PASS",
+      "tests": [
+        "POST /api/unavailabilities - Create unavailability period",
+        "GET /api/unavailabilities/my - Get current user's unavailabilities",
+        "GET /api/unavailabilities?team_id=X - Get team unavailabilities",
+        "PUT /api/unavailabilities/{id} - Update unavailability",
+        "DELETE /api/unavailabilities/{id} - Delete unavailability",
+        "GET /api/unavailabilities/check - Check unavailability for players",
+        "All valid reasons accepted: ferias, lesao, trabalho, pessoal, outro"
+      ]
+    },
+    "convocation_visibility": {
+      "status": "PASS",
+      "tests": [
+        "Create convocation with visibility='all'",
+        "Create convocation with visibility='players'",
+        "Create convocation with visibility='delegates'",
+        "Visibility field stored and returned correctly"
+      ]
+    },
+    "upcoming_events_without_convocation": {
+      "status": "PASS",
+      "tests": [
+        "GET /api/events/upcoming-without-convocation - Returns events in next 24h without convocations",
+        "Player cannot access (returns empty list due to permission check)"
+      ],
+      "bug_fixed": "Route ordering bug - moved route before /events/{event_id} to prevent path parameter conflict"
+    },
+    "unavailable_players_in_convocation": {
+      "status": "PASS",
+      "tests": [
+        "Convocation creation skips unavailable players",
+        "skipped_unavailable_players field returned in response"
+      ]
+    },
+    "frontend_calendar": {
+      "status": "PASS",
+      "tests": [
+        "Calendar page loads correctly",
+        "Unavailability button visible and clickable",
+        "Unavailability dialog opens with correct fields (Data Início, Data Fim, Motivo, Notas)",
+        "Create Event button visible for admin",
+        "Event dropdown menu shows all options (Editar, Convocar Jogadores, Ver Estado Convocatória, Adiar, Cancelar, Eliminar)",
+        "Convocation dialog shows player list with checkboxes",
+        "Convocation dialog has 'Visibilidade da Convocatória' dropdown with options (Todos, Apenas Jogadores, Apenas Delegados)",
+        "Convocation dialog has message field"
+      ]
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_unavailability_convocation.py",
+    "/app/test_reports/pytest/unavailability_convocation_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Route ordering fixed: /events/upcoming-without-convocation now defined BEFORE /events/{event_id} to prevent FastAPI path parameter conflict",
+    "ConvocationVisibility enum properly implemented with values: players, delegates, all",
+    "Unavailability reasons properly validated: ferias, lesao, trabalho, pessoal, outro",
+    "Coach notification on unavailability creation is MOCKED (push notifications may fail silently)"
+  ],
+  "updated_files": [
+    "/app/backend/server.py - Fixed route ordering for /events/upcoming-without-convocation",
+    "/app/backend/tests/test_unavailability_convocation.py - New test file for unavailability and convocation features"
+  ],
+  "success_rate": {
+    "backend": "100% (13/13 tests passed)",
+    "frontend": "100% (all UI elements verified)"
+  },
+  "test_credentials": {
+    "admin_email": "admin@example.com",
+    "admin_password": "test123456",
+    "player_email": "testplayer@example.com",
+    "player_password": "FeBwJa8VytI",
+    "team_id": "58b17073-b32d-4c1d-afa7-e1a2936f0db2"
+  },
+  "seed_data_creation": "None - used existing test accounts and team",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Unavailability and Convocation Visibility features fully tested. Backend route ordering bug was fixed. All CRUD operations for unavailabilities work correctly. Convocation visibility settings (players/delegates/all) are properly stored and returned. Frontend UnavailabilityDialog and Convocation dialog with visibility dropdown are working. Push notifications for coach reminders are MOCKED.",
+  "mocked_apis": {
+    "email_notifications": "MOCKED - Resend API not configured",
+    "push_notifications": "MOCKED - May fail silently"
+  },
+  "bug_fixed": {
+    "issue": "GET /api/events/upcoming-without-convocation returning 404",
+    "root_cause": "Route was defined AFTER /events/{event_id}, causing FastAPI to match 'upcoming-without-convocation' as event_id parameter",
+    "fix": "Moved route definition before /events/{event_id} in server.py",
+    "verification": "All tests now pass"
+  }
+}
