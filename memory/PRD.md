@@ -601,6 +601,42 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Familiar: Presenças do jogador vinculado
 - **Testes:** 18/18 passaram (`/app/test_reports/iteration_17.json`)
 
+### Módulo de Membros Melhorado (27 Mar 2026) ✅
+- **Paginação:**
+  - 20 membros por página
+  - Controles de página (anterior/próximo)
+  - Contador total de membros
+  - Endpoint: `GET /api/members?page=1&per_page=20`
+- **Pesquisa por Nome:**
+  - Campo de pesquisa no frontend
+  - Pesquisa case-insensitive
+  - Endpoint: `GET /api/members?search=nome`
+- **Ordenação Alfabética:**
+  - Lista ordenada por nome (A-Z)
+  - Aplicado no backend via MongoDB sort
+- **Bandeiras de Nacionalidade:**
+  - Até 2 nacionalidades por membro
+  - Exibição com emojis de bandeiras
+  - Campo `nationalities` no modelo
+- **Status de Ativação (Admin):**
+  - Indicador verde = Conta ativada
+  - Indicador amarelo = Aguarda ativação
+  - Visível apenas para admin
+- **Arquivamento de Membros:**
+  - Arquivar membro sem perder estatísticas
+  - Restaurar membro com histórico intacto
+  - Lista de membros arquivados
+  - Reatribuir a equipa ao restaurar
+  - Endpoints: `POST /api/members/{id}/archive`, `POST /api/members/{id}/restore`
+- **Lembrete de Ativação:**
+  - Enviar push/email para ativar conta
+  - Endpoint: `POST /api/members/{id}/send-activation-reminder`
+- **RBAC:**
+  - Admin: Todas as ações
+  - Staff: Editar membros da equipa (exceto role/archive)
+  - Jogador: Editar apenas próprio perfil
+- **Testes:** 16/16 passaram (`/app/test_reports/iteration_18.json`)
+
 ---
 
 ## PRÓXIMAS TAREFAS (Backlog)
