@@ -639,6 +639,42 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 ---
 
+### Módulo de Estatísticas Melhorado (27 Mar 2026) ✅
+- **Pesquisa por Nome:**
+  - Campo de pesquisa em tempo real na tabela de jogadores
+  - Filtro case-insensitive
+  - data-testid='player-search'
+- **Colunas Ordenáveis:**
+  - Clicar nos cabeçalhos ordena asc/desc
+  - Colunas: N.º, Nome, G, AG, D, Cartões
+  - Ícones de setas indicam direção
+- **Cartões (4 Tipos):**
+  - Azul, Amarelo, Vermelho, Branco
+  - Secção "DISCIPLINA - CARTÕES" com totais
+  - Indicadores visuais na tabela individual
+- **Bolas Paradas:**
+  - Secção "BOLAS PARADAS"
+  - Penáltis Marcados/Defendidos
+  - Livres Diretos Marcados/Defendidos
+  - Top jogadores por categoria
+- **Destaque de Guarda-Redes:**
+  - Card "MELHORES GUARDA-REDES"
+  - Badge "GR" na tabela para jogadores GR
+  - Fundo azul para linhas de GR
+- **Renomeação:**
+  - "Melhores Assistências" → "MAIS ASSISTÊNCIAS"
+- **Toggle Bónus/Penalizações:**
+  - Switch na tab Classificação
+  - Colunas B e P visíveis quando ativo
+  - Cálculo de pontos ajustado
+  - data-testid='bonus-penalty-toggle'
+- **RBAC Mantido:**
+  - Filtros de equipa funcionais
+  - Filtros de época e campeonato
+- **Testes:** 100% (9/9 funcionalidades) - `/app/test_reports/iteration_19.json`
+
+---
+
 ## PRÓXIMAS TAREFAS (Backlog)
 
 ### P1 - Próximas
@@ -649,4 +685,4 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - Dashboard com métricas e gráficos
 - Exportar calendário/presenças em PDF
 - Expandir traduções i18n para restantes páginas
-- Refactoring: Dividir server.py (~4400 linhas) em routers modulares
+- Refactoring: Dividir server.py (~4700 linhas) em routers modulares
