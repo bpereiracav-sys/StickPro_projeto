@@ -67,7 +67,13 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - `canAccessUser()` - Verificar acesso a utilizador
 - `canEditUser()` - Verificar se pode editar
 - `hasPermission()` - Verificar permissão específica
-- **Status:** Implementado, mas UI ainda não consome para esconder botões (P1)
+- **Status:** ✅ UI implementada em Calendar, Members, ChampionshipDetail (100% testado)
+
+**Componentes com RBAC Frontend:**
+- ✅ Calendar.jsx - Botões criar/editar/eliminar eventos e convocatórias
+- ✅ Members.jsx - Botões importar/criar membros
+- ✅ ChampionshipDetail.jsx - Botões jogos, resultados, stats, lineups
+- ✅ Sidebar.jsx - "Definições Clube" apenas para admin
 
 **Endpoints RBAC:**
 - `GET /api/auth/permissions` - Obter permissões do utilizador atual
@@ -80,8 +86,9 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - `additional_roles` - Roles adicionais
 
 **Testes:**
-- `/app/backend/tests/test_rbac_permissions.py` - 25 testes
-- `/app/test_reports/iteration_13.json` - Relatório completo
+- `/app/backend/tests/test_rbac_permissions.py` - 25 testes backend
+- `/app/test_reports/iteration_13.json` - Backend RBAC completo
+- `/app/test_reports/iteration_14.json` - Frontend RBAC completo (16/16 testes)
 
 ### FASE 2 - Novo Layout e Navegação ✅
 - **TopNavBar**: Meu Clube, Minhas Equipas, Equipas dos Meus Filhos, Meu Perfil
@@ -534,9 +541,8 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 ## PRÓXIMAS TAREFAS (Backlog)
 
 ### P1 - Próximas
-- **Frontend RBAC UI:** Usar `usePermissions()` para esconder botões de ação não autorizados em Calendar.jsx, Members.jsx, ChampionshipDetail.jsx
-- Configurar API Key Resend para emails reais (atualmente MOCKED)
 - Web Scraping APL (importar calendário de divisões)
+- Configurar API Key Resend para emails reais (atualmente MOCKED)
 
 ### P2 - Futuro
 - Dashboard com métricas e gráficos
