@@ -14,7 +14,9 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ## FUNCIONALIDADES IMPLEMENTADAS
 
-### FASE 1 - Sistema de Permissões RBAC ✅ (Atualizado 27 Mar 2026)
+### FASE 1 - Sistema de Permissões RBAC ✅ COMPLETO (27 Mar 2026)
+
+**Status:** ✅ Backend 100% implementado e testado (25/25 testes passaram)
 
 **Roles do Sistema:**
 | Role | Nome PT | Acesso |
@@ -46,12 +48,26 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - `@require_role()` - Decorator para verificar roles
 - `@require_team_access()` - Decorator para acesso a equipas
 
+**Módulos com RBAC Aplicado:**
+- ✅ Teams (criar, editar, eliminar, gerir membros)
+- ✅ Events (CRUD completo com verificação de equipa)
+- ✅ Championships (CRUD + matches com verificação de equipa)
+- ✅ Convocations (criar requer staff, verificação de equipa)
+- ✅ Attendance (jogadores podem atualizar própria presença, staff pode atualizar qualquer)
+- ✅ Members (criar, importar, adicionar/remover de equipas)
+- ✅ Lineups (apenas treinadores podem gerir)
+- ✅ Library (criar/editar/eliminar requer can_manage_team)
+- ✅ Player Stats (gerir requer can_manage_stats)
+- ✅ Notifications (enviar requer can_create_convocations)
+- ✅ APL Import (importar requer can_import_data)
+
 **Frontend (PermissionsContext.jsx):**
 - `usePermissions()` - Hook para aceder às permissões
 - `canAccessTeam()` - Verificar acesso a equipa
 - `canAccessUser()` - Verificar acesso a utilizador
 - `canEditUser()` - Verificar se pode editar
 - `hasPermission()` - Verificar permissão específica
+- **Status:** Implementado, mas UI ainda não consome para esconder botões (P1)
 
 **Endpoints RBAC:**
 - `GET /api/auth/permissions` - Obter permissões do utilizador atual
@@ -62,6 +78,10 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 - `linked_player_id` - ID do jogador vinculado (para responsáveis)
 - `club_id` - ID do clube do utilizador
 - `additional_roles` - Roles adicionais
+
+**Testes:**
+- `/app/backend/tests/test_rbac_permissions.py` - 25 testes
+- `/app/test_reports/iteration_13.json` - Relatório completo
 
 ### FASE 2 - Novo Layout e Navegação ✅
 - **TopNavBar**: Meu Clube, Minhas Equipas, Equipas dos Meus Filhos, Meu Perfil
@@ -513,12 +533,13 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 ## PRÓXIMAS TAREFAS (Backlog)
 
-### P1 - Pendente
+### P1 - Próximas
+- **Frontend RBAC UI:** Usar `usePermissions()` para esconder botões de ação não autorizados em Calendar.jsx, Members.jsx, ChampionshipDetail.jsx
 - Configurar API Key Resend para emails reais (atualmente MOCKED)
-- Atualizar Import Excel com campos: Nome, Apelido, Data Nascimento, Email, Função
-- Web Scraping Opção A (divisões específicas APL)
+- Web Scraping APL (importar calendário de divisões)
 
 ### P2 - Futuro
 - Dashboard com métricas e gráficos
 - Exportar calendário em PDF
 - Expandir traduções i18n para restantes páginas
+- Refactoring: Dividir server.py (~3500 linhas) em routers modulares
