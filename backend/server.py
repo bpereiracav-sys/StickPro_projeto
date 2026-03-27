@@ -20,6 +20,9 @@ import httpx
 from bs4 import BeautifulSoup
 import re
 
+# Import RBAC permissions module
+from permissions import PermissionChecker, get_permission_checker, Role, ROLE_PERMISSIONS
+
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
@@ -212,8 +215,10 @@ class User(BaseModel):
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
     team_ids: List[str] = []
+    club_id: Optional[str] = None  # Club association
     associated_accounts: List[str] = []
     parent_account_id: Optional[str] = None
+    linked_player_id: Optional[str] = None  # For family_members: linked player's ID
     
     # Extended profile data
     profile: Optional[UserProfile] = None
@@ -233,8 +238,10 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
     team_ids: List[str] = []
+    club_id: Optional[str] = None
     associated_accounts: List[str] = []
     parent_account_id: Optional[str] = None
+    linked_player_id: Optional[str] = None
     profile: Optional[UserProfile] = None
     permissions: Optional[Dict[str, bool]] = None
 
@@ -790,9 +797,59 @@ async def login(credentials: UserLogin):
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     profiles = await build_available_profiles(current_user)
+    
+    # Build user permissions
+    checker = get_permission_checker(current_user)
+    permissions = {
+        "is_admin": checker.is_admin,
+        "is_coach": checker.is_coach,
+        "is_assistant_coach": checker.is_assistant_coach,
+        "is_delegate": checker.is_delegate,
+        "is_player": checker.is_player,
+        "is_family_member": checker.is_family_member,
+        "is_staff": checker.is_staff,
+        "can_manage_team": checker.can_manage_team,
+        "can_manage_events": checker.can_manage_events,
+        "can_manage_stats": checker.can_manage_stats,
+        "can_manage_attendance": checker.can_manage_attendance,
+        "can_create_convocations": checker.can_create_convocations,
+        "can_manage_lineups": checker.can_manage_lineups,
+        "can_import_data": checker.can_import_data,
+        "can_manage_club": checker.can_manage_club,
+    }
+    
     return {
         **UserResponse(**current_user).model_dump(),
-        "available_profiles": profiles
+        "available_profiles": profiles,
+        "permissions": permissions,
+        "accessible_team_ids": list(checker.team_ids) if not checker.is_admin else None
+    }
+
+@api_router.get("/auth/permissions")
+async def get_my_permissions(current_user: dict = Depends(get_current_user)):
+    """Get current user's permissions"""
+    checker = get_permission_checker(current_user)
+    
+    return {
+        "role": current_user.get('role'),
+        "additional_roles": current_user.get('additional_roles', []),
+        "team_ids": list(checker.team_ids),
+        "is_admin": checker.is_admin,
+        "is_coach": checker.is_coach,
+        "is_assistant_coach": checker.is_assistant_coach,
+        "is_delegate": checker.is_delegate,
+        "is_player": checker.is_player,
+        "is_family_member": checker.is_family_member,
+        "is_staff": checker.is_staff,
+        "can_manage_team": checker.can_manage_team,
+        "can_manage_events": checker.can_manage_events,
+        "can_manage_stats": checker.can_manage_stats,
+        "can_manage_attendance": checker.can_manage_attendance,
+        "can_create_convocations": checker.can_create_convocations,
+        "can_manage_lineups": checker.can_manage_lineups,
+        "can_import_data": checker.can_import_data,
+        "can_manage_club": checker.can_manage_club,
+        "linked_player_id": current_user.get('linked_player_id'),
     }
 
 @api_router.get("/auth/profiles")
@@ -901,6 +958,60 @@ async def remove_association(child_id: str, current_user: dict = Depends(get_cur
     )
     
     return {"message": "Associação removida com sucesso"}
+
+
+class LinkPlayerRequest(BaseModel):
+    """Request to link a family member to a player"""
+    player_id: str
+
+@api_router.post("/users/link-player")
+async def link_family_member_to_player(request: LinkPlayerRequest, current_user: dict = Depends(get_current_user)):
+    """Link a family member (responsavel) to a player they are responsible for"""
+    
+    # Only family members (responsavel) can be linked to players
+    if current_user.get('role') != 'responsavel':
+        raise HTTPException(status_code=400, detail="Apenas responsáveis/familiares podem ser ligados a jogadores")
+    
+    # Check if player exists and is a player
+    player = await db.users.find_one({"id": request.player_id}, {"_id": 0})
+    if not player:
+        raise HTTPException(status_code=404, detail="Jogador não encontrado")
+    
+    if player.get('role') != 'jogador':
+        raise HTTPException(status_code=400, detail="O utilizador selecionado não é um jogador")
+    
+    # Update the family member with linked_player_id
+    await db.users.update_one(
+        {"id": current_user['id']},
+        {"$set": {
+            "linked_player_id": request.player_id,
+            "team_ids": player.get('team_ids', [])  # Give family member access to player's teams
+        }}
+    )
+    
+    return {
+        "message": f"Ligado com sucesso ao jogador {player['name']}",
+        "linked_player": {
+            "id": player['id'],
+            "name": player['name'],
+            "team_ids": player.get('team_ids', [])
+        }
+    }
+
+@api_router.delete("/users/link-player")
+async def unlink_family_member_from_player(current_user: dict = Depends(get_current_user)):
+    """Remove the link between a family member and a player"""
+    
+    if not current_user.get('linked_player_id'):
+        raise HTTPException(status_code=400, detail="Não está ligado a nenhum jogador")
+    
+    await db.users.update_one(
+        {"id": current_user['id']},
+        {"$set": {"linked_player_id": None}}
+    )
+    
+    return {"message": "Ligação removida com sucesso"}
+
 
 @api_router.post("/auth/switch-profile")
 async def switch_profile(request: ActiveProfileRequest, current_user: dict = Depends(get_current_user)):

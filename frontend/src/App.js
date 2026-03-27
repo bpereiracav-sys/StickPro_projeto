@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { TeamProvider } from "./context/TeamContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { PermissionsProvider } from "./context/PermissionsContext";
 import { Toaster } from "./components/ui/sonner";
 import { AppLayout } from "./components/layout/AppLayout";
 import { PWAInstallPrompt, registerServiceWorker } from "./components/PWAInstallPrompt";
@@ -274,14 +275,16 @@ function App() {
     <BrowserRouter>
       <LanguageProvider>
         <AuthProvider>
-          <ThemeProvider>
-            <TeamProvider>
-              <AppRoutes />
-              <Toaster position="top-right" richColors />
-              <PWAInstallPrompt />
-              <AIAssistant />
-            </TeamProvider>
-          </ThemeProvider>
+          <PermissionsProvider>
+            <ThemeProvider>
+              <TeamProvider>
+                <AppRoutes />
+                <Toaster position="top-right" richColors />
+                <PWAInstallPrompt />
+                <AIAssistant />
+              </TeamProvider>
+            </ThemeProvider>
+          </PermissionsProvider>
         </AuthProvider>
       </LanguageProvider>
     </BrowserRouter>

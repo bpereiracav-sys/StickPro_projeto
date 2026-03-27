@@ -14,14 +14,54 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ## FUNCIONALIDADES IMPLEMENTADAS
 
-### FASE 1 - Sistema de Permissões ✅
-| Perfil | Acesso | Edição |
-|--------|--------|--------|
-| Admin | Total | Total + Define permissões |
-| Treinador/Adjunto | Equipa | Equipa (sem dados familiares) |
-| Delegado | Equipa | Equipa (sem dados familiares) |
-| Jogador | Equipa (leitura) | Apenas próprio perfil |
-| Responsável | Filhos | Dados familiares |
+### FASE 1 - Sistema de Permissões RBAC ✅ (Atualizado 27 Mar 2026)
+
+**Roles do Sistema:**
+| Role | Nome PT | Acesso |
+|------|---------|--------|
+| admin | Administrador | Total - todas as equipas e dados |
+| treinador | Treinador | Equipas atribuídas |
+| treinador_adjunto | Treinador Adjunto | Equipas atribuídas |
+| delegado | Delegado | Equipas atribuídas |
+| jogador | Jogador | Próprios dados + contexto da equipa |
+| responsavel | Responsável/Familiar | Dados do jogador vinculado |
+
+**Permissões por Role:**
+| Permissão | Admin | Treinador | Adjunto | Delegado | Jogador | Responsável |
+|-----------|-------|-----------|---------|----------|---------|-------------|
+| Ver todas equipas | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Gerir membros | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Gerir eventos | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Gerir estatísticas | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Gerir presenças | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Criar convocatórias | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+| Gerir lineups | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Importar dados | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Gerir clube | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+
+**Backend (permissions.py):**
+- `PermissionChecker` - Classe reutilizável para verificar permissões
+- `get_permission_checker()` - Factory function
+- `@require_permission()` - Decorator para rotas
+- `@require_role()` - Decorator para verificar roles
+- `@require_team_access()` - Decorator para acesso a equipas
+
+**Frontend (PermissionsContext.jsx):**
+- `usePermissions()` - Hook para aceder às permissões
+- `canAccessTeam()` - Verificar acesso a equipa
+- `canAccessUser()` - Verificar acesso a utilizador
+- `canEditUser()` - Verificar se pode editar
+- `hasPermission()` - Verificar permissão específica
+
+**Endpoints RBAC:**
+- `GET /api/auth/permissions` - Obter permissões do utilizador atual
+- `POST /api/users/link-player` - Vincular familiar a jogador
+- `DELETE /api/users/link-player` - Remover vínculo
+
+**Modelo User (campos novos):**
+- `linked_player_id` - ID do jogador vinculado (para responsáveis)
+- `club_id` - ID do clube do utilizador
+- `additional_roles` - Roles adicionais
 
 ### FASE 2 - Novo Layout e Navegação ✅
 - **TopNavBar**: Meu Clube, Minhas Equipas, Equipas dos Meus Filhos, Meu Perfil
