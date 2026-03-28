@@ -1982,6 +1982,152 @@ async def get_archived_members(
         "total_pages": total_pages
     }
 
+@api_router.get("/members/export")
+async def export_members_excel(
+    team_id: Optional[str] = Query(None, description="Filter by team ID"),
+    role: Optional[str] = Query(None, description="Filter by role"),
+    search: Optional[str] = Query(None, description="Search by name or email"),
+    current_user: dict = Depends(get_current_user)
+):
+    """Export members to Excel file - admin only"""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem exportar membros")
+    
+    # Build query
+    query = {"is_archived": {"$ne": True}}
+    
+    if team_id:
+        query["team_ids"] = team_id
+    
+    if role:
+        query["role"] = role
+    
+    # Get members
+    members = await db.users.find(query, {"_id": 0}).to_list(1000)
+    
+    # Get all teams for team names
+    teams = await db.teams.find({}, {"_id": 0, "id": 1, "name": 1}).to_list(100)
+    team_map = {t["id"]: t["name"] for t in teams}
+    
+    # Apply search filter
+    if search:
+        search_lower = search.lower()
+        members = [m for m in members if 
+                   search_lower in m.get('name', '').lower() or 
+                   search_lower in m.get('email', '').lower()]
+    
+    # Role translations
+    role_names = {
+        'admin': 'Administrador',
+        'treinador': 'Treinador',
+        'treinador_adjunto': 'Treinador Adjunto',
+        'jogador': 'Jogador',
+        'delegado': 'Delegado',
+        'familiar': 'Familiar'
+    }
+    
+    # Create Excel workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Membros"
+    
+    # Define headers
+    headers = [
+        "Nome",
+        "Email",
+        "Equipa(s)",
+        "Função",
+        "Nacionalidade",
+        "Data de Nascimento",
+        "Telefone",
+        "Número de Jogador",
+        "Posição"
+    ]
+    
+    # Header styling
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="0D9488", end_color="0D9488", fill_type="solid")
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Write headers
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = thin_border
+    
+    # Write data
+    for row_idx, member in enumerate(members, 2):
+        profile = member.get('profile') or {}
+        identity = profile.get('identity') or {}
+        sports = profile.get('sports') or {}
+        
+        # Get team names
+        team_ids = member.get('team_ids', [])
+        team_names = [team_map.get(tid, '') for tid in team_ids if team_map.get(tid)]
+        
+        # Format birth date
+        birth_date = identity.get('birth_date', '')
+        if birth_date:
+            try:
+                dt = datetime.fromisoformat(birth_date.replace('Z', '+00:00'))
+                birth_date = dt.strftime('%d/%m/%Y')
+            except:
+                pass
+        
+        row_data = [
+            member.get('name', ''),
+            member.get('email', ''),
+            ', '.join(team_names),
+            role_names.get(member.get('role', ''), member.get('role', '')),
+            identity.get('nationality', ''),
+            birth_date,
+            identity.get('phone', ''),
+            sports.get('player_number', ''),
+            sports.get('position', '')
+        ]
+        
+        for col, value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col, value=value)
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical="center")
+    
+    # Adjust column widths
+    column_widths = [25, 30, 25, 18, 15, 14, 15, 12, 15]
+    for col, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+    
+    # Freeze header row
+    ws.freeze_panes = 'A2'
+    
+    # Save to BytesIO
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    # Generate filename with timestamp
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f"membros_export_{timestamp}.xlsx"
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 @api_router.get("/members/{member_id}")
 async def get_member_detail(member_id: str, current_user: dict = Depends(get_current_user)):
     """Get member details including statistics"""

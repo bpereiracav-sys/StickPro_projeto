@@ -202,6 +202,10 @@ export const membersApi = {
   sendActivationReminder: (id) => api.post(`/members/${id}/send-activation-reminder`),
   addToTeam: (memberId, teamId) => api.post(`/members/${memberId}/teams/${teamId}`),
   removeFromTeam: (memberId, teamId) => api.delete(`/members/${memberId}/teams/${teamId}`),
+  exportExcel: (params) => api.get('/members/export', { 
+    params,
+    responseType: 'blob'
+  }),
   import: (file, clubId, teamId) => {
     const formData = new FormData();
     formData.append('file', file);

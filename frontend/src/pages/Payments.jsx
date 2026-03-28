@@ -320,6 +320,42 @@ export default function Payments() {
     }
   };
 
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (statusFilter !== 'all') {
+        params.status = statusFilter;
+      }
+      if (typeFilter !== 'all') {
+        params.payment_type = typeFilter;
+      }
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+      
+      const response = await paymentsApi.exportExcel(params);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const timestamp = new Date().toISOString().split('T')[0];
+      link.download = `pagamentos_${timestamp}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Exportação concluída!');
+    } catch (error) {
+      console.error('Error exporting:', error);
+      toast.error('Erro ao exportar dados');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const resetFeeForm = () => {
     setFeeForm({
       user_id: '',
@@ -413,6 +449,20 @@ export default function Payments() {
             <Button variant="secondary" size="sm" onClick={() => setShowCustomPaymentDialog(true)} data-testid="create-custom-btn">
               <CreditCard className="w-4 h-4 mr-2" />
               Pagamento
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExportExcel}
+              disabled={exporting || payments.length === 0}
+              data-testid="export-payments-btn"
+            >
+              {exporting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Exportar
             </Button>
           </div>
         )}

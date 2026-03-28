@@ -119,6 +119,7 @@ export default function Members() {
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
   const [memberDetailDialogOpen, setMemberDetailDialogOpen] = useState(false);
   const [memberDetail, setMemberDetail] = useState(null);
+  const [exporting, setExporting] = useState(false);
   const perPage = 20;
 
   const [newMember, setNewMember] = useState({
@@ -425,6 +426,39 @@ export default function Members() {
     }
   };
 
+  const handleExportExcel = async () => {
+    setExporting(true);
+    try {
+      const params = {};
+      if (!isAllTeamsSelected && selectedTeamId) {
+        params.team_id = selectedTeamId;
+      }
+      if (searchQuery) {
+        params.search = searchQuery;
+      }
+      
+      const response = await membersApi.exportExcel(params);
+      
+      // Create download link
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      const timestamp = new Date().toISOString().split('T')[0];
+      link.download = `membros_${currentTeam?.name?.replace(/\s+/g, '_') || 'clube'}_${timestamp}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Exportação concluída!');
+    } catch (error) {
+      console.error('Error exporting:', error);
+      toast.error('Erro ao exportar dados');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleRemoveMember = async () => {
     if (!selectedMember) return;
 
@@ -499,6 +533,20 @@ export default function Members() {
             <Button size="sm" onClick={() => setCreateDialogOpen(true)} data-testid="create-member-btn">
               <Plus className="w-4 h-4 mr-2" />
               Novo Membro
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleExportExcel}
+              disabled={exporting || members.length === 0}
+              data-testid="export-members-btn"
+            >
+              {exporting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Download className="w-4 h-4 mr-2" />
+              )}
+              Exportar
             </Button>
           </div>
         )}
