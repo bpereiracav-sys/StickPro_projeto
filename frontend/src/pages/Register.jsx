@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
@@ -11,8 +12,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, Globe } from 'lucide-react';
+
+// Custom Logo Component - Green transparent logo that adapts to themes
+const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/6xtd360b_logoVerdTransp.png";
+
+// Roller Hockey Images for the carousel
+const ROLLER_HOCKEY_IMAGES = [
+  "https://cdn.record.pt/images/2023-07/img_920x518uu2023-07-19-18-35-12-2152416.jpg",
+  "https://livesport-ott-images.ssl.cdn.cra.cz/r900xfq60/aaf3ecca-22c0-44d2-b20e-b36b9703ff0d.avif",
+  "https://livesport-ott-images.ssl.cdn.cra.cz/r900xfq60/8aa89ff4-8251-472a-a81d-38ed67667d1e.avif",
+  "https://cdn.cmjornal.pt/images/2025-09/img_1500x1000uu2025-09-01-23-30-36-2232752.jpg",
+  "https://www.zerozero.pt/img/galerias/041/1339041_med_wse_euro_women_2025_portugal_x_inglaterra_quartos_de_final_.jpg.jpg",
+  "https://www.zerozero.pt/img/noticias/366/imgS300I916366T20250912205951.jpg",
+  "https://thumbs.web.sapo.io/?H=960&W=1920&crop=center&delay_optim=1&epic=V2%3AT9zqVHlKlfbUbr0T7kTlZehT4ibqTN8fsWJx8vO0%2Fk98XxpDjcjt7nxTUTVY0UZElnfn5Uh%2FHMmgv5gnromvL%2FKuTXYVEST9zl2fQWdUQ57iWpNk%2BJNeMxTrY%2Bpf%2FaRUuB6SKkz29vRlo%2BBL99rhXg%3D%3D&webp=1&Q=50&tv=1"
+];
+
+const StickProLogo = ({ size = 'md' }) => {
+  const sizes = {
+    sm: { box: 'w-16 h-16' },
+    md: { box: 'w-20 h-20' },
+    lg: { box: 'w-24 h-24' }
+  };
+  const s = sizes[size] || sizes.md;
+  
+  return (
+    <img 
+      src={CUSTOM_LOGO_URL} 
+      alt="Logo" 
+      className={`${s.box} object-contain`}
+      data-testid="stick-pro-logo"
+    />
+  );
+};
 
 const roles = [
   { value: 'jogador', label: 'Jogador' },
@@ -32,8 +71,29 @@ export default function Register() {
     phone: ''
   });
   const [loading, setLoading] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { register } = useAuth();
+  const { language, changeLanguage, t } = useLanguage();
   const navigate = useNavigate();
+
+  // Image carousel effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImageIndex((prevIndex) => 
+        (prevIndex + 1) % ROLLER_HOCKEY_IMAGES.length
+      );
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const languages = [
+    { code: 'pt', label: 'Português', flag: '🇵🇹' },
+    { code: 'es', label: 'Español', flag: '🇪🇸' },
+    { code: 'fr', label: 'Français', flag: '🇫🇷' },
+    { code: 'it', label: 'Italiano', flag: '🇮🇹' },
+    { code: 'en', label: 'English', flag: '🇬🇧' }
+  ];
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -43,12 +103,12 @@ export default function Register() {
     e.preventDefault();
     
     if (formData.password !== formData.confirmPassword) {
-      toast.error('As passwords não coincidem');
+      toast.error(t('auth.passwordMismatch') || 'As passwords não coincidem');
       return;
     }
 
     if (formData.password.length < 6) {
-      toast.error('A password deve ter pelo menos 6 caracteres');
+      toast.error(t('auth.passwordTooShort') || 'A password deve ter pelo menos 6 caracteres');
       return;
     }
 
@@ -62,10 +122,10 @@ export default function Register() {
         role: formData.role,
         phone: formData.phone || undefined
       });
-      toast.success('Conta criada com sucesso!');
+      toast.success(t('auth.registerSuccess') || 'Conta criada com sucesso!');
       navigate('/dashboard');
     } catch (error) {
-      const message = error.response?.data?.detail || 'Erro ao criar conta';
+      const message = error.response?.data?.detail || t('auth.registerError') || 'Erro ao criar conta';
       toast.error(message);
     } finally {
       setLoading(false);
@@ -74,15 +134,63 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex">
-      {/* Left Panel - Image */}
-      <div className="hidden lg:block lg:flex-1 relative">
-        <div 
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ 
-            backgroundImage: 'url(https://images.pexels.com/photos/6847283/pexels-photo-6847283.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940)'
-          }}
-        />
-        <div className="absolute inset-0 bg-primary/20" />
+      {/* Language Selector - Fixed Top Right */}
+      <div className="fixed top-4 right-4 z-50">
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-2 bg-white" data-testid="language-selector">
+              <Globe className="w-4 h-4" />
+              {languages.find(l => l.code === language)?.flag || '🇵🇹'}
+              {languages.find(l => l.code === language)?.label || 'Português'}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-white">
+            {languages.map(lang => (
+              <DropdownMenuItem
+                key={lang.code}
+                onClick={() => changeLanguage(lang.code)}
+                className={`gap-2 cursor-pointer ${language === lang.code ? 'bg-primary/10' : ''}`}
+                data-testid={`lang-${lang.code}`}
+              >
+                <span>{lang.flag}</span>
+                <span>{lang.label}</span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+
+      {/* Left Panel - Image Carousel */}
+      <div className="hidden lg:block lg:flex-1 relative overflow-hidden">
+        {/* Image layers for smooth transition */}
+        {ROLLER_HOCKEY_IMAGES.map((img, index) => (
+          <div
+            key={index}
+            className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
+            style={{
+              backgroundImage: `url(${img})`,
+              opacity: index === currentImageIndex ? 1 : 0
+            }}
+          />
+        ))}
+        {/* Dark Overlay */}
+        <div className="absolute inset-0 bg-black/40" />
+        
+        {/* Image indicators */}
+        <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex gap-2">
+          {ROLLER_HOCKEY_IMAGES.map((_, index) => (
+            <button
+              key={index}
+              onClick={() => setCurrentImageIndex(index)}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                index === currentImageIndex 
+                  ? 'bg-white w-6' 
+                  : 'bg-white/50 hover:bg-white/75'
+              }`}
+              aria-label={`Ver imagem ${index + 1}`}
+            />
+          ))}
+        </div>
       </div>
 
       {/* Right Panel - Form */}
@@ -94,32 +202,30 @@ export default function Register() {
             data-testid="back-to-home"
           >
             <ArrowLeft className="w-4 h-4" />
-            Voltar ao início
+            {t('auth.backToHome') || 'Voltar ao início'}
           </Link>
 
           <div className="flex items-center gap-2 mb-8">
-            <div className="w-10 h-10 bg-primary rounded-sm flex items-center justify-center">
-              <span className="text-white font-heading text-xl">RH</span>
-            </div>
+            <StickProLogo size="md" />
             <span className="font-heading text-2xl text-foreground tracking-tight">
-              ROLLER HOCKEY HUB
+              Stick<span className="text-primary">Pro</span>
             </span>
           </div>
 
-          <h1 className="font-heading text-4xl text-foreground tracking-tight mb-2">
-            CRIAR CONTA
+          <h1 className="font-heading text-3xl sm:text-4xl text-foreground tracking-tight mb-2">
+            {t('auth.createAccount') || 'Criar Conta'}
           </h1>
-          <p className="text-muted-foreground mb-8">
-            Junte-se à plataforma de gestão de hóquei em patins
+          <p className="text-muted-foreground mb-8 text-sm sm:text-base">
+            {t('auth.registerSubtitle') || 'Junte-se à plataforma de gestão de hóquei em patins'}
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome Completo</Label>
+              <Label htmlFor="name">{t('auth.fullName') || 'Nome Completo'}</Label>
               <Input
                 id="name"
                 type="text"
-                placeholder="O seu nome"
+                placeholder={t('auth.namePlaceholder') || 'O seu nome'}
                 value={formData.name}
                 onChange={(e) => handleChange('name', e.target.value)}
                 required
@@ -129,7 +235,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('auth.email') || 'Email'}</Label>
               <Input
                 id="email"
                 type="email"
@@ -143,13 +249,13 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role">Função</Label>
+              <Label htmlFor="role">{t('auth.role') || 'Função'}</Label>
               <Select 
                 value={formData.role} 
                 onValueChange={(value) => handleChange('role', value)}
               >
                 <SelectTrigger className="h-12" data-testid="register-role-select">
-                  <SelectValue placeholder="Selecione a sua função" />
+                  <SelectValue placeholder={t('auth.selectRole') || 'Selecione a sua função'} />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
                   {roles.map(role => (
@@ -162,7 +268,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone (opcional)</Label>
+              <Label htmlFor="phone">{t('auth.phone') || 'Telefone'} ({t('common.optional') || 'opcional'})</Label>
               <Input
                 id="phone"
                 type="tel"
@@ -175,7 +281,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">{t('auth.password') || 'Password'}</Label>
               <Input
                 id="password"
                 type="password"
@@ -189,7 +295,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword">Confirmar Password</Label>
+              <Label htmlFor="confirmPassword">{t('auth.confirmPassword') || 'Confirmar Password'}</Label>
               <Input
                 id="confirmPassword"
                 type="password"
@@ -204,29 +310,29 @@ export default function Register() {
 
             <Button 
               type="submit" 
-              className="w-full h-12 btn-hover rounded-sm"
+              className="w-full h-12 rounded-lg font-semibold transition-all duration-200 hover:scale-[1.02]"
               disabled={loading}
               data-testid="register-submit-btn"
             >
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A criar conta...
+                  {t('auth.creatingAccount') || 'A criar conta...'}
                 </>
               ) : (
-                'CRIAR CONTA'
+                t('auth.createAccount') || 'Criar Conta'
               )}
             </Button>
           </form>
 
           <p className="mt-8 text-center text-muted-foreground">
-            Já tem conta?{' '}
+            {t('auth.hasAccount') || 'Já tem conta?'}{' '}
             <Link 
               to="/login" 
               className="text-primary font-semibold hover:underline"
               data-testid="login-link"
             >
-              Entrar
+              {t('auth.loginHere') || 'Entrar'}
             </Link>
           </p>
         </div>

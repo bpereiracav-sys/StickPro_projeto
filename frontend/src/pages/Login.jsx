@@ -71,6 +71,9 @@ export default function Login() {
 
   const languages = [
     { code: 'pt', label: 'Português', flag: '🇵🇹' },
+    { code: 'es', label: 'Español', flag: '🇪🇸' },
+    { code: 'fr', label: 'Français', flag: '🇫🇷' },
+    { code: 'it', label: 'Italiano', flag: '🇮🇹' },
     { code: 'en', label: 'English', flag: '🇬🇧' }
   ];
 

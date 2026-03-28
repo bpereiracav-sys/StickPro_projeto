@@ -37,12 +37,68 @@ function hexToHSL(hex) {
   };
 }
 
+// Predefined theme presets
+export const THEME_PRESETS = {
+  'light-default': {
+    id: 'light-default',
+    name: 'Claro (Padrão)',
+    nameEn: 'Light (Default)',
+    primary: '#006D5B',
+    secondary: '#FFD700',
+    accent: '#f8fafc',
+    mode: 'light',
+    sidebar: { bg: '#0f172a', text: '#f8fafc', accent: '#22d3ee' }
+  },
+  'dark-default': {
+    id: 'dark-default',
+    name: 'Escuro (Padrão)',
+    nameEn: 'Dark (Default)',
+    primary: '#22d3ee',
+    secondary: '#00ff88',
+    accent: '#111111',
+    mode: 'dark',
+    sidebar: { bg: '#0f172a', text: '#f8fafc', accent: '#22d3ee' }
+  },
+  'blue': {
+    id: 'blue',
+    name: 'Azul',
+    nameEn: 'Blue',
+    primary: '#3b82f6',
+    secondary: '#60a5fa',
+    accent: '#dbeafe',
+    mode: 'light',
+    sidebar: { bg: '#1e3a5f', text: '#f8fafc', accent: '#60a5fa' }
+  },
+  'green': {
+    id: 'green',
+    name: 'Verde',
+    nameEn: 'Green',
+    primary: '#22c55e',
+    secondary: '#4ade80',
+    accent: '#dcfce7',
+    mode: 'light',
+    sidebar: { bg: '#14532d', text: '#f8fafc', accent: '#4ade80' }
+  },
+  'red': {
+    id: 'red',
+    name: 'Vermelho',
+    nameEn: 'Red',
+    primary: '#ef4444',
+    secondary: '#f87171',
+    accent: '#fee2e2',
+    mode: 'light',
+    sidebar: { bg: '#7f1d1d', text: '#f8fafc', accent: '#f87171' }
+  }
+};
+
 // Default theme colors
 const DEFAULT_THEME = {
+  id: 'light-default',
   primary: '#006D5B',
   secondary: '#FFD700',
   accent: '#1a1a2e',
-  mode: 'light'
+  mode: 'light',
+  sidebar: { bg: '#0f172a', text: '#f8fafc', accent: '#22d3ee' }
 };
 
 // Get initial theme from localStorage or default
@@ -111,7 +167,7 @@ export function ThemeProvider({ children }) {
     // Convert and apply primary color
     const primaryHSL = hexToHSL(themeColors.primary);
     root.style.setProperty('--primary', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
-    root.style.setProperty('--primary-foreground', '0 0% 0%'); // Always black text on primary (for logo SP and buttons)
+    root.style.setProperty('--primary-foreground', isDark ? '0 0% 0%' : '0 0% 100%');
     root.style.setProperty('--ring', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
     root.style.setProperty('--chart-1', `${primaryHSL.h} ${primaryHSL.s}% ${primaryHSL.l}%`);
     
@@ -120,6 +176,14 @@ export function ThemeProvider({ children }) {
     root.style.setProperty('--secondary', `${secondaryHSL.h} ${secondaryHSL.s}% ${secondaryHSL.l}%`);
     root.style.setProperty('--secondary-foreground', isDark ? '0 0% 7%' : '0 0% 100%');
     root.style.setProperty('--chart-2', `${secondaryHSL.h} ${secondaryHSL.s}% ${secondaryHSL.l}%`);
+    
+    // Apply sidebar colors if present
+    if (themeColors.sidebar) {
+      const sidebarBgHSL = hexToHSL(themeColors.sidebar.bg);
+      const sidebarAccentHSL = hexToHSL(themeColors.sidebar.accent);
+      root.style.setProperty('--sidebar-bg', `${sidebarBgHSL.h} ${sidebarBgHSL.s}% ${sidebarBgHSL.l}%`);
+      root.style.setProperty('--sidebar-accent', `${sidebarAccentHSL.h} ${sidebarAccentHSL.s}% ${sidebarAccentHSL.l}%`);
+    }
     
     // Store theme in localStorage for faster initial load
     localStorage.setItem('stickpro-theme', JSON.stringify(themeColors));
@@ -152,12 +216,20 @@ export function ThemeProvider({ children }) {
     setTheme(newTheme);
   };
 
+  // Set theme from a preset ID
+  const setThemePreset = (presetId) => {
+    const preset = THEME_PRESETS[presetId];
+    if (preset) {
+      setTheme(preset);
+    }
+  };
+
   const refreshTheme = useCallback(() => {
     fetchClubTheme();
   }, [fetchClubTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, updateTheme, refreshTheme, loading }}>
+    <ThemeContext.Provider value={{ theme, updateTheme, setThemePreset, refreshTheme, loading, THEME_PRESETS }}>
       {children}
     </ThemeContext.Provider>
   );

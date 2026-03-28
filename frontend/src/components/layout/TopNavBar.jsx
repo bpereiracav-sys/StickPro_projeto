@@ -330,22 +330,10 @@ export function TopNavBar() {
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
-                    <UserCircle className="w-4 h-4" />
-                    {t('nav.myProfile')}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="flex items-center gap-2 cursor-pointer">
-                    <Settings className="w-4 h-4" />
-                    {t('nav.settings')}
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
                 <DropdownMenuItem 
                   className="flex items-center gap-2 text-destructive cursor-pointer"
                   onClick={handleLogout}
+                  data-testid="logout-menu-btn"
                 >
                   <LogOut className="w-4 h-4" />
                   {t('auth.logout')}

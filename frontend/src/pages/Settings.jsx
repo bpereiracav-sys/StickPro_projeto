@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useTheme, THEME_PRESETS } from '../context/ThemeContext';
 import { usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -8,7 +9,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Badge } from '../components/ui/badge';
-import { Separator } from '../components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -45,7 +46,11 @@ import {
   Shield,
   Mail,
   Globe,
-  Bell
+  Bell,
+  Palette,
+  User,
+  Check,
+  LogOut
 } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 import { ImageUpload } from '../components/ImageUpload';
@@ -54,6 +59,7 @@ import { NotificationPermission } from '../components/NotificationPermission';
 export default function Settings() {
   const { user, updateUser, logout, refreshProfiles } = useAuth();
   const { language, languages, languageNames, changeLanguage, t } = useLanguage();
+  const { theme, setThemePreset, updateTheme } = useTheme();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -93,9 +99,9 @@ export default function Settings() {
     try {
       await usersApi.update(user.id, formData);
       updateUser(formData);
-      toast.success('Perfil atualizado com sucesso!');
+      toast.success(t('common.success') + '!');
     } catch (error) {
-      toast.error('Erro ao atualizar perfil');
+      toast.error(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -161,276 +167,390 @@ export default function Settings() {
     setSearchResult(null);
   };
 
+  const handleThemeSelect = (presetId) => {
+    setThemePreset(presetId);
+    toast.success(t('settings.theme') + ' ' + t('common.success').toLowerCase());
+  };
+
+  // Get current theme id for comparison
+  const currentThemeId = theme?.id || 'light-default';
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6" data-testid="settings-page">
+    <div className="max-w-4xl mx-auto space-y-6" data-testid="settings-page">
       {/* Header */}
       <div>
-        <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">Definições</h1>
-        <p className="text-muted-foreground mt-1">Gerir o seu perfil e preferências</p>
+        <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">{t('settings.title')}</h1>
+        <p className="text-muted-foreground mt-1">{t('settings.profileDescription')}</p>
       </div>
 
-      {/* Profile Card */}
-      <Card className="border border-border">
-        <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-tight">Perfil</CardTitle>
-          <CardDescription>Informações da sua conta</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-start gap-6 mb-8">
-            <ImageUpload
-              currentUrl={formData.avatar_url || user?.avatar_url}
-              onUpload={(url) => setFormData({ ...formData, avatar_url: url })}
-              fallback={getInitials(user?.name)}
-              size="lg"
-              label="Alterar foto"
-            />
-            <div className="pt-4">
-              <h3 className="text-xl font-semibold">{user?.name}</h3>
-              <p className="text-muted-foreground">{user?.email}</p>
-              <Badge className={`${getRoleColor(user?.role)} mt-2`}>
-                {getRoleName(user?.role)}
-              </Badge>
-            </div>
-          </div>
+      {/* Tabs */}
+      <Tabs defaultValue="profile" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsTrigger value="profile" className="gap-2" data-testid="tab-profile">
+            <User className="w-4 h-4 hidden sm:block" />
+            {t('settings.profile')}
+          </TabsTrigger>
+          <TabsTrigger value="appearance" className="gap-2" data-testid="tab-appearance">
+            <Palette className="w-4 h-4 hidden sm:block" />
+            {t('settings.themeTitle') || 'Aparência'}
+          </TabsTrigger>
+          <TabsTrigger value="notifications" className="gap-2" data-testid="tab-notifications">
+            <Bell className="w-4 h-4 hidden sm:block" />
+            {t('settings.notifications')}
+          </TabsTrigger>
+          <TabsTrigger value="accounts" className="gap-2" data-testid="tab-accounts">
+            <Shield className="w-4 h-4 hidden sm:block" />
+            {t('settings.associatedAccounts') || 'Contas'}
+          </TabsTrigger>
+        </TabsList>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="O seu nome"
-                data-testid="settings-name-input"
-              />
-            </div>
+        {/* Profile Tab */}
+        <TabsContent value="profile" className="space-y-6">
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl tracking-tight">{t('settings.profile')}</CardTitle>
+              <CardDescription>{t('settings.profileDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-start gap-6 mb-8">
+                <ImageUpload
+                  currentUrl={formData.avatar_url || user?.avatar_url}
+                  onUpload={(url) => setFormData({ ...formData, avatar_url: url })}
+                  fallback={getInitials(user?.name)}
+                  size="lg"
+                  label="Alterar foto"
+                />
+                <div className="pt-4">
+                  <h3 className="text-xl font-semibold">{user?.name}</h3>
+                  <p className="text-muted-foreground">{user?.email}</p>
+                  <Badge className={`${getRoleColor(user?.role)} mt-2`}>
+                    {getRoleName(user?.role)}
+                  </Badge>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                value={user?.email}
-                disabled
-                className="bg-muted"
-              />
-              <p className="text-xs text-muted-foreground">O email não pode ser alterado</p>
-            </div>
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="name">{t('profile.fullName') || 'Nome'}</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="O seu nome"
+                    data-testid="settings-name-input"
+                  />
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                placeholder="+351 900 000 000"
-                data-testid="settings-phone-input"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    value={user?.email}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground">O email não pode ser alterado</p>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="avatar">URL do Avatar</Label>
-              <Input
-                id="avatar"
-                value={formData.avatar_url}
-                onChange={(e) => setFormData({ ...formData, avatar_url: e.target.value })}
-                placeholder="https://exemplo.com/foto.jpg"
-                data-testid="settings-avatar-input"
-              />
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">{t('profile.phone') || 'Telefone'}</Label>
+                  <Input
+                    id="phone"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    placeholder="+351 900 000 000"
+                    data-testid="settings-phone-input"
+                  />
+                </div>
 
-            <Button type="submit" disabled={loading} className="btn-hover" data-testid="save-settings-btn">
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t('common.loading')}
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  {t('common.save')}
-                </>
-              )}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+                <Button type="submit" disabled={loading} className="btn-hover" data-testid="save-settings-btn">
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {t('common.loading')}
+                    </>
+                  ) : (
+                    <>
+                      <Save className="mr-2 h-4 w-4" />
+                      {t('common.save')}
+                    </>
+                  )}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
 
-      {/* Language Card */}
-      <Card className="border border-border">
-        <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
-            <Globe className="w-6 h-6 text-primary" />
-            {t('settings.language').toUpperCase()}
-          </CardTitle>
-          <CardDescription>
-            {language === 'pt' ? 'Selecione o idioma da aplicação' :
-             language === 'es' ? 'Seleccione el idioma de la aplicación' :
-             language === 'fr' ? 'Sélectionnez la langue de l\'application' :
-             language === 'it' ? 'Seleziona la lingua dell\'applicazione' :
-             'Select the application language'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <Label>{t('settings.language')}</Label>
-            <Select value={language} onValueChange={changeLanguage}>
-              <SelectTrigger className="w-full sm:w-[280px]" data-testid="language-selector">
-                <SelectValue>
-                  <span className="flex items-center gap-2">
-                    <span className="text-lg">
-                      {language === 'pt' ? '🇵🇹' :
-                       language === 'es' ? '🇪🇸' :
-                       language === 'fr' ? '🇫🇷' :
-                       language === 'it' ? '🇮🇹' : '🇬🇧'}
-                    </span>
-                    {languageNames[language]}
-                  </span>
-                </SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {languages.map((lang) => (
-                  <SelectItem key={lang} value={lang}>
-                    <span className="flex items-center gap-2">
-                      <span className="text-lg">
-                        {lang === 'pt' ? '🇵🇹' :
-                         lang === 'es' ? '🇪🇸' :
-                         lang === 'fr' ? '🇫🇷' :
-                         lang === 'it' ? '🇮🇹' : '🇬🇧'}
-                      </span>
-                      {languageNames[lang]}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notifications Card */}
-      <Card className="border border-border">
-        <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
-            <Bell className="w-6 h-6 text-primary" />
-            NOTIFICAÇÕES
-          </CardTitle>
-          <CardDescription>
-            Recebe alertas push quando fores convocado para eventos
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                Ativa as notificações para seres avisado de novas convocatórias mesmo quando a app está fechada.
-              </p>
-            </div>
-            <NotificationPermission />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Associated Accounts Card */}
-      <Card className="border border-border">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
+          {/* Language Section */}
+          <Card className="border border-border">
+            <CardHeader>
               <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
-                <Shield className="w-6 h-6 text-primary" />
-                CONTAS ASSOCIADAS
+                <Globe className="w-6 h-6 text-primary" />
+                {t('settings.language').toUpperCase()}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <Select value={language} onValueChange={changeLanguage}>
+                  <SelectTrigger className="w-full sm:w-[280px]" data-testid="language-selector">
+                    <SelectValue>
+                      <span className="flex items-center gap-2">
+                        <span className="text-lg">
+                          {language === 'pt' ? '🇵🇹' :
+                           language === 'es' ? '🇪🇸' :
+                           language === 'fr' ? '🇫🇷' :
+                           language === 'it' ? '🇮🇹' : '🇬🇧'}
+                        </span>
+                        {languageNames[language]}
+                      </span>
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {languages.map((lang) => (
+                      <SelectItem key={lang} value={lang}>
+                        <span className="flex items-center gap-2">
+                          <span className="text-lg">
+                            {lang === 'pt' ? '🇵🇹' :
+                             lang === 'es' ? '🇪🇸' :
+                             lang === 'fr' ? '🇫🇷' :
+                             lang === 'it' ? '🇮🇹' : '🇬🇧'}
+                          </span>
+                          {languageNames[lang]}
+                        </span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Account Actions */}
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl tracking-tight">{t('settings.account')}</CardTitle>
+              <CardDescription>{t('settings.accountDescription')}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">{t('settings.signOut')}</p>
+                  <p className="text-sm text-muted-foreground">{t('settings.signOutDescription')}</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="border-destructive text-destructive hover:bg-destructive hover:text-white"
+                  onClick={logout}
+                  data-testid="logout-settings-btn"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  {t('auth.logout')}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Appearance/Theme Tab */}
+        <TabsContent value="appearance" className="space-y-6">
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
+                <Palette className="w-6 h-6 text-primary" />
+                {(t('settings.themeTitle') || 'APARÊNCIA').toUpperCase()}
               </CardTitle>
               <CardDescription>
-                Vincule contas de atletas que está a acompanhar (ex: filhos)
+                {t('settings.themeDescription') || 'Escolha o tema de cores da aplicação'}
               </CardDescription>
-            </div>
-            <Button 
-              onClick={() => setShowAddModal(true)}
-              className="btn-hover"
-              data-testid="add-associated-account-btn"
-            >
-              <UserPlus className="w-4 h-4 mr-2" />
-              Associar Conta
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {loadingAccounts ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            </div>
-          ) : associatedAccounts.length === 0 ? (
-            <div className="text-center py-8 bg-muted/30 rounded-sm">
-              <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-muted-foreground">Nenhuma conta associada</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Associe a conta de um atleta para acompanhar as suas atividades
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {associatedAccounts.map(account => (
-                <div 
-                  key={account.id}
-                  className="flex items-center justify-between p-4 border border-border rounded-sm bg-amber-50/50"
-                  data-testid={`associated-account-${account.id}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={account.avatar_url} />
-                      <AvatarFallback className="bg-amber-500 text-white">
-                        {getInitials(account.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="font-semibold">{account.name}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Mail className="w-3 h-3" />
-                        {account.email}
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.values(THEME_PRESETS).map((preset) => {
+                  const isSelected = currentThemeId === preset.id;
+                  
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleThemeSelect(preset.id)}
+                      className={`relative p-4 rounded-xl border-2 transition-all hover:scale-[1.02] text-left ${
+                        isSelected 
+                          ? 'border-primary ring-2 ring-primary/20 bg-primary/5' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      data-testid={`theme-${preset.id}`}
+                    >
+                      {isSelected && (
+                        <div className="absolute -top-2 -right-2 w-6 h-6 bg-primary rounded-full flex items-center justify-center">
+                          <Check className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                      )}
+                      
+                      {/* Theme Preview */}
+                      <div className={`h-20 rounded-lg mb-3 overflow-hidden border ${preset.mode === 'dark' ? 'bg-zinc-900' : 'bg-white'}`}>
+                        <div 
+                          className="h-6 flex items-center px-2"
+                          style={{ backgroundColor: preset.sidebar?.bg || '#0f172a' }}
+                        >
+                          <div className="flex gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: preset.sidebar?.accent || preset.primary }} />
+                            <div className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                            <div className="w-1.5 h-1.5 rounded-full bg-white/30" />
+                          </div>
+                        </div>
+                        <div className="p-2 flex gap-2">
+                          <div 
+                            className="w-8 h-8 rounded"
+                            style={{ backgroundColor: preset.primary }}
+                          />
+                          <div className="flex-1 space-y-1">
+                            <div 
+                              className="h-2 rounded w-3/4"
+                              style={{ backgroundColor: preset.mode === 'dark' ? '#374151' : '#e5e7eb' }}
+                            />
+                            <div 
+                              className="h-2 rounded w-1/2"
+                              style={{ backgroundColor: preset.mode === 'dark' ? '#374151' : '#e5e7eb' }}
+                            />
+                          </div>
+                        </div>
                       </div>
-                      <Badge variant="outline" className="mt-1">
-                        {getRoleName(account.role)}
-                      </Badge>
-                    </div>
-                  </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon"
-                    className="text-destructive hover:bg-destructive/10"
-                    onClick={() => setAccountToRemove(account)}
-                    data-testid={`remove-association-${account.id}`}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Account Actions */}
-      <Card className="border border-border">
-        <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-tight">Conta</CardTitle>
-          <CardDescription>Gerir a sua conta</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-medium">Terminar Sessão</p>
-              <p className="text-sm text-muted-foreground">Sair da sua conta</p>
-            </div>
-            <Button 
-              variant="outline" 
-              className="border-destructive text-destructive hover:bg-destructive hover:text-white"
-              onClick={logout}
-              data-testid="logout-settings-btn"
-            >
-              Sair
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+                      {/* Color swatches */}
+                      <div className="flex gap-2 mb-2">
+                        <div 
+                          className="w-6 h-6 rounded-full border border-border shadow-sm"
+                          style={{ backgroundColor: preset.primary }}
+                          title="Cor Principal"
+                        />
+                        <div 
+                          className="w-6 h-6 rounded-full border border-border shadow-sm"
+                          style={{ backgroundColor: preset.secondary }}
+                          title="Cor Secundária"
+                        />
+                        <div 
+                          className="w-6 h-6 rounded-full border border-border shadow-sm"
+                          style={{ backgroundColor: preset.sidebar?.bg || '#0f172a' }}
+                          title="Sidebar"
+                        />
+                      </div>
+                      
+                      <p className="font-semibold text-sm">{preset.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {preset.mode === 'dark' ? 'Modo Escuro' : 'Modo Claro'}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Notifications Tab */}
+        <TabsContent value="notifications" className="space-y-6">
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
+                <Bell className="w-6 h-6 text-primary" />
+                {t('settings.notifications').toUpperCase()}
+              </CardTitle>
+              <CardDescription>
+                {t('settings.notificationsDescription') || 'Recebe alertas push quando fores convocado para eventos'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground">
+                    {t('settings.notificationsHint') || 'Ativa as notificações para seres avisado de novas convocatórias mesmo quando a app está fechada.'}
+                  </p>
+                </div>
+                <NotificationPermission />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Associated Accounts Tab */}
+        <TabsContent value="accounts" className="space-y-6">
+          <Card className="border border-border">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
+                    <Shield className="w-6 h-6 text-primary" />
+                    {(t('settings.associatedAccounts') || 'CONTAS ASSOCIADAS').toUpperCase()}
+                  </CardTitle>
+                  <CardDescription>
+                    {t('settings.associatedAccountsDescription') || 'Vincule contas de atletas que está a acompanhar (ex: filhos)'}
+                  </CardDescription>
+                </div>
+                <Button 
+                  onClick={() => setShowAddModal(true)}
+                  className="btn-hover"
+                  data-testid="add-associated-account-btn"
+                >
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  {t('settings.addAssociatedAccount') || 'Associar Conta'}
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingAccounts ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-primary" />
+                </div>
+              ) : associatedAccounts.length === 0 ? (
+                <div className="text-center py-8 bg-muted/30 rounded-lg">
+                  <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                  <p className="text-muted-foreground">{t('settings.noAssociatedAccounts') || 'Nenhuma conta associada'}</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {t('settings.noAssociatedAccountsHint') || 'Associe a conta de um atleta para acompanhar as suas atividades'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {associatedAccounts.map(account => (
+                    <div 
+                      key={account.id}
+                      className="flex items-center justify-between p-4 border border-border rounded-lg bg-amber-50/50"
+                      data-testid={`associated-account-${account.id}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={account.avatar_url} />
+                          <AvatarFallback className="bg-amber-500 text-white">
+                            {getInitials(account.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold">{account.name}</p>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Mail className="w-3 h-3" />
+                            {account.email}
+                          </div>
+                          <Badge variant="outline" className="mt-1">
+                            {getRoleName(account.role)}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => setAccountToRemove(account)}
+                        data-testid={`remove-association-${account.id}`}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       {/* Add Associated Account Modal */}
       <Dialog open={showAddModal} onOpenChange={handleCloseAddModal}>
@@ -438,10 +558,10 @@ export default function Settings() {
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <UserPlus className="w-5 h-5 text-primary" />
-              ASSOCIAR CONTA
+              {(t('settings.addAssociatedAccount') || 'ASSOCIAR CONTA').toUpperCase()}
             </DialogTitle>
             <DialogDescription>
-              Pesquise pelo email da conta que pretende associar
+              {t('settings.searchByEmail') || 'Pesquise pelo email da conta que pretende associar'}
             </DialogDescription>
           </DialogHeader>
 
@@ -468,7 +588,7 @@ export default function Settings() {
             </div>
 
             {searchResult && (
-              <div className="p-4 border border-primary/30 bg-primary/5 rounded-sm">
+              <div className="p-4 border border-primary/30 bg-primary/5 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-12 w-12">
                     <AvatarImage src={searchResult.avatar_url} />
@@ -490,7 +610,7 @@ export default function Settings() {
 
           <DialogFooter>
             <Button variant="outline" onClick={handleCloseAddModal}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button 
               onClick={handleAssociate} 
@@ -501,12 +621,12 @@ export default function Settings() {
               {associating ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A associar...
+                  {t('common.loading')}
                 </>
               ) : (
                 <>
                   <UserPlus className="mr-2 h-4 w-4" />
-                  Associar Conta
+                  {t('settings.addAssociatedAccount') || 'Associar Conta'}
                 </>
               )}
             </Button>
@@ -518,20 +638,20 @@ export default function Settings() {
       <AlertDialog open={!!accountToRemove} onOpenChange={() => setAccountToRemove(null)}>
         <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
-            <AlertDialogTitle>Remover Associação</AlertDialogTitle>
+            <AlertDialogTitle>{t('settings.removeAssociation') || 'Remover Associação'}</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem a certeza que pretende remover a associação com a conta de {accountToRemove?.name}?
-              Deixará de poder acompanhar as atividades deste atleta.
+              {t('settings.removeAssociationConfirm') || 'Tem a certeza que pretende remover a associação com a conta de'} {accountToRemove?.name}?
+              {' '}{t('settings.removeAssociationWarning') || 'Deixará de poder acompanhar as atividades deste atleta.'}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className="bg-destructive text-white hover:bg-destructive/90"
               onClick={handleRemoveAssociation}
               data-testid="confirm-remove-association-btn"
             >
-              Remover
+              {t('common.remove') || 'Remover'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
