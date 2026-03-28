@@ -215,22 +215,22 @@ export default function Login() {
               {loading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A entrar...
+                  {t('auth.loggingIn') || 'A entrar...'}
                 </>
               ) : (
-                'Entrar'
+                t('auth.loginButton') || 'Entrar'
               )}
             </Button>
           </form>
 
           <p className="mt-8 text-center text-muted-foreground">
-            Não tem conta?{' '}
+            {t('auth.noAccount') || 'Não tem conta?'}{' '}
             <Link 
               to="/register" 
               className="text-primary font-semibold hover:underline"
               data-testid="register-link"
             >
-              Criar conta
+              {t('auth.createAccount') || 'Criar conta'}
             </Link>
           </p>
         </div>

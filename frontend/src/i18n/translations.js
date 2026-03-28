@@ -54,6 +54,8 @@ export const translations = {
     // Auth
     auth: {
       login: 'Entrar',
+      loginButton: 'Entrar',
+      loggingIn: 'A entrar...',
       logout: 'Sair',
       register: 'Registar',
       email: 'Email',
@@ -66,6 +68,9 @@ export const translations = {
       invalidCredentials: 'Credenciais inválidas',
       alreadyHaveAccount: 'Já tenho conta',
       noAccount: 'Não tem conta?',
+      createAccount: 'Criar conta',
+      hasAccount: 'Já tem conta?',
+      loginHere: 'Entrar aqui',
       backToHome: 'Voltar ao início',
       loginSubtitle: 'Aceda à sua conta para gerir a equipa',
     },
@@ -1024,6 +1029,8 @@ export const translations = {
     // Auth
     auth: {
       login: 'Login',
+      loginButton: 'Sign In',
+      loggingIn: 'Signing in...',
       logout: 'Logout',
       register: 'Register',
       email: 'Email',
@@ -1036,6 +1043,9 @@ export const translations = {
       invalidCredentials: 'Invalid credentials',
       alreadyHaveAccount: 'Already have an account',
       noAccount: "Don't have an account?",
+      createAccount: 'Create account',
+      hasAccount: 'Already have an account?',
+      loginHere: 'Sign in here',
       backToHome: 'Back to home',
       loginSubtitle: 'Sign in to your account to manage the team',
     },

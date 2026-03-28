@@ -887,3 +887,19 @@ https://roller-hockey-hub-1.preview.emergentagent.com
    - routes/championships.py
    - routes/teams.py
    - routes/notifications.py
+
+
+---
+
+### Bug Fixes (28 Mar 2026) ✅
+- **Bug 1 - Members Navigation**: Corrigido ordem dos itens no dropdown - "Ver Estatísticas" navega para /players/:id, "Ver Perfil" abre modal de detalhes
+- **Bug 2 - Attendance Export**: Implementada função handleExportExcel() que exporta dados de presenças para CSV com suporte UTF-8
+- **Bug 3 - Language Translations**: Adicionadas chaves de tradução em falta (loginButton, loggingIn, createAccount, hasAccount, loginHere) e corrigido Login.jsx para usar sistema de traduções
+- **Bug 4 - Profile Mobile**: Implementado layout responsivo com flex-col sm:flex-row, tabs visíveis em mobile, botões alinhados, sem overflow
+- **Testes:** 100% Frontend - `/app/test_reports/iteration_25.json`
+
+### Excel Export para Payments (28 Mar 2026) ✅
+- **Backend**: Endpoint `/api/payments/export` com filtros completos (status, type, user_id, team_id, season, date ranges, search)
+- **Frontend**: Método `paymentsApi.exportExcel()` com responseType blob
+- **Colunas Excel**: Nome, Data Nascimento, Equipa, Época, Tipo, Descrição, Valor, Data Criação, Data Vencimento, Estado, Data Pagamento, Comprovativo, Notas
+- **Segurança**: Apenas admin pode exportar (RBAC enforced)
