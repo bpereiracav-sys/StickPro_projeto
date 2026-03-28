@@ -39,6 +39,7 @@ export const teamsApi = {
   getMembersForMessage: (id) => api.get(`/teams/${id}/members-for-message`),
   addMember: (teamId, data) => api.post(`/teams/${teamId}/members`, data),
   removeMember: (teamId, userId) => api.delete(`/teams/${teamId}/members/${userId}`),
+  updateMemberRole: (teamId, userId, role) => api.put(`/teams/${teamId}/members/${userId}/role`, { role }),
   getStats: (id, championshipId) => api.get(`/teams/${id}/stats`, { params: { championship_id: championshipId } }),
   getAttendance: (id, params) => api.get(`/teams/${id}/attendance`, { params }),
   getAttendanceSummary: (id) => api.get(`/teams/${id}/attendance/summary`),
@@ -113,13 +114,18 @@ export const usersApi = {
   update: (id, data) => api.put(`/users/${id}`, data),
   updateProfile: (id, profileData) => api.put(`/users/${id}`, { profile: profileData }),
   updateRole: (id, role) => api.put(`/users/${id}/role`, { role }),
+  updateAdminRole: (id, isAdmin) => api.put(`/users/${id}/admin-role`, { is_admin: isAdmin }),
   getConsolidatedStats: (id) => api.get(`/player-stats/${id}/consolidated`),
   getMatchStats: (id, championshipId) => api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } }),
   // Associated accounts
   getAssociated: () => api.get('/users/associated'),
   searchToAssociate: (email) => api.post('/users/associate/search', null, { params: { email } }),
   associate: (childUserId, relationship) => api.post('/users/associate', { child_user_id: childUserId, relationship }),
-  removeAssociation: (childId) => api.delete(`/users/associate/${childId}`)
+  removeAssociation: (childId) => api.delete(`/users/associate/${childId}`),
+  // Player linking for family accounts
+  linkPlayer: (playerId) => api.post('/users/link-player', { player_id: playerId }),
+  linkPlayers: (playerIds) => api.post('/users/link-players', { player_ids: playerIds }),
+  unlinkPlayer: () => api.delete('/users/link-player')
 };
 
 // Auth API

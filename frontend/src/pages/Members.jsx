@@ -69,7 +69,8 @@ import {
   Eye,
   Edit,
   CheckCircle,
-  Clock
+  Clock,
+  Shield
 } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 
@@ -84,7 +85,7 @@ const FLAGS = {
 };
 
 export default function Members() {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const { canManageTeam, canImportData, canAccessTeam, isAdmin } = usePermissions();
   const [teams, setTeams] = useState([]);
@@ -129,6 +130,7 @@ export default function Members() {
     jersey_number: '',
     position: '',
     phone: '',
+    nationality: '',
     nationalities: []
   });
 
@@ -474,12 +476,29 @@ export default function Members() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "Nome,Apelido,Data de Nascimento,Email,Função,Número,Posição,Telefone\nJoão,Silva,2010-05-15,joao@exemplo.com,jogador,10,JC,912345678\nMaria,Santos,2009-03-22,maria@exemplo.com,jogador,1,GR,923456789\nPedro,Costa,2011-08-10,pedro@exemplo.com,jogador,7,AD,934567890";
+    const csvContent = "Nome,Apelido,Data de Nascimento,Email,Função,Número,Posição,Telefone,Nacionalidade\nJoão,Silva,2010-05-15,joao@exemplo.com,jogador,10,JC,912345678,Portuguesa\nMaria,Santos,2009-03-22,maria@exemplo.com,jogador,1,GR,923456789,Portuguesa\nPedro,Costa,2011-08-10,pedro@exemplo.com,jogador,7,AD,934567890,Brasileira";
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'template_membros.csv';
     link.click();
+  };
+
+  const handleToggleAdminRole = async (member) => {
+    const newIsAdmin = member.role !== 'admin';
+    const action = newIsAdmin ? 'conceder' : 'remover';
+    
+    if (!confirm(`Tem a certeza que quer ${action} role de admin a ${member.name}?`)) {
+      return;
+    }
+    
+    try {
+      await usersApi.updateAdminRole(member.id, newIsAdmin);
+      toast.success(newIsAdmin ? `${member.name} é agora admin` : `Role de admin removido de ${member.name}`);
+      fetchTeamMembers();
+    } catch (error) {
+      toast.error('Erro ao alterar role de admin');
+    }
   };
 
   const availableUsers = allUsers.filter(u => !members.find(m => m.id === u.id));
@@ -797,6 +816,15 @@ export default function Members() {
                               {isAdmin && (
                                 <>
                                   <DropdownMenuSeparator />
+                                  {/* Toggle Admin Role */}
+                                  {member.id !== user?.id && (
+                                    <DropdownMenuItem 
+                                      onClick={() => handleToggleAdminRole(member)}
+                                    >
+                                      <Shield className="w-4 h-4 mr-2" />
+                                      {member.role === 'admin' ? 'Remover Admin' : 'Tornar Admin'}
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem 
                                     className="text-amber-600"
                                     onClick={() => { setSelectedMember(member); setArchiveDialogOpen(true); }}
@@ -1016,8 +1044,10 @@ export default function Members() {
                 </SelectTrigger>
                 <SelectContent className="bg-white">
                   <SelectItem value="jogador">Jogador</SelectItem>
-                  <SelectItem value="treinador">Treinador</SelectItem>
+                  <SelectItem value="treinador">Treinador Principal</SelectItem>
+                  <SelectItem value="treinador_adjunto">Treinador Adjunto</SelectItem>
                   <SelectItem value="delegado">Delegado</SelectItem>
+                  <SelectItem value="familiar">Responsável/Familiar</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1069,8 +1099,10 @@ export default function Members() {
                   </SelectTrigger>
                   <SelectContent className="bg-white">
                     <SelectItem value="jogador">Jogador</SelectItem>
-                    <SelectItem value="treinador">Treinador</SelectItem>
+                    <SelectItem value="treinador">Treinador Principal</SelectItem>
+                    <SelectItem value="treinador_adjunto">Treinador Adjunto</SelectItem>
                     <SelectItem value="delegado">Delegado</SelectItem>
+                    <SelectItem value="familiar">Responsável/Familiar</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1095,13 +1127,23 @@ export default function Members() {
                 </Select>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label>Telefone</Label>
-              <Input
-                placeholder="912345678"
-                value={newMember.phone}
-                onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Telefone</Label>
+                <Input
+                  placeholder="912345678"
+                  value={newMember.phone}
+                  onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Nacionalidade</Label>
+                <Input
+                  placeholder="Portuguesa"
+                  value={newMember.nationality || ''}
+                  onChange={(e) => setNewMember({ ...newMember, nationality: e.target.value })}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

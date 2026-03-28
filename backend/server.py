@@ -186,6 +186,7 @@ class UserProfile(BaseModel):
     nickname: Optional[str] = None
     birth_date: Optional[str] = None  # ISO date string
     gender: Optional[str] = None  # masculino, feminino
+    nationality: Optional[str] = None  # NEW: Nationality
     fpp_license: Optional[str] = None  # Federação Portuguesa de Patinagem
     
     # Family members
@@ -215,15 +216,17 @@ class User(BaseModel):
     email: EmailStr
     name: str
     surname: Optional[str] = None
-    role: UserRole  # Primary role
+    role: UserRole  # Primary/global role (admin stays here)
     additional_roles: List[UserRole] = []
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
     team_ids: List[str] = []
+    team_roles: Dict[str, UserRole] = {}  # NEW: team_id -> role mapping
     club_id: Optional[str] = None  # Club association
     associated_accounts: List[str] = []
     parent_account_id: Optional[str] = None
     linked_player_id: Optional[str] = None  # For family_members: linked player's ID
+    linked_player_ids: List[str] = []  # NEW: Multiple linked players for family accounts
     
     # Extended profile data
     profile: Optional[UserProfile] = None
@@ -243,10 +246,12 @@ class UserResponse(BaseModel):
     phone: Optional[str] = None
     avatar_url: Optional[str] = None
     team_ids: List[str] = []
+    team_roles: Dict[str, UserRole] = {}  # NEW
     club_id: Optional[str] = None
     associated_accounts: List[str] = []
     parent_account_id: Optional[str] = None
     linked_player_id: Optional[str] = None
+    linked_player_ids: List[str] = []  # NEW
     profile: Optional[UserProfile] = None
     permissions: Optional[Dict[str, bool]] = None
 
@@ -1175,6 +1180,49 @@ async def remove_association(child_id: str, current_user: dict = Depends(get_cur
     
     return {"message": "Associação removida com sucesso"}
 
+@api_router.put("/users/{user_id}/admin-role")
+async def toggle_admin_role(user_id: str, role_data: dict, current_user: dict = Depends(get_current_user)):
+    """Grant or revoke admin role - only admins can do this"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem alterar roles de admin")
+    
+    # Can't remove own admin role
+    if user_id == current_user['id'] and not role_data.get('is_admin', True):
+        raise HTTPException(status_code=400, detail="Não pode remover o seu próprio role de admin")
+    
+    user = await db.users.find_one({"id": user_id}, {"_id": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+    
+    is_admin = role_data.get('is_admin', False)
+    
+    if is_admin:
+        # Grant admin role
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"role": "admin"}}
+        )
+        return {"message": f"Role de admin concedido a {user['name']}", "role": "admin"}
+    else:
+        # Remove admin role - set to most common role in their teams or jogador
+        new_role = "jogador"
+        team_roles = user.get('team_roles', {})
+        if team_roles:
+            # Use the most common role from their team roles
+            roles_count = {}
+            for role in team_roles.values():
+                roles_count[role] = roles_count.get(role, 0) + 1
+            if roles_count:
+                new_role = max(roles_count, key=roles_count.get)
+        
+        await db.users.update_one(
+            {"id": user_id},
+            {"$set": {"role": new_role}}
+        )
+        return {"message": f"Role de admin removido de {user['name']}", "role": new_role}
+
 
 class LinkPlayerRequest(BaseModel):
     """Request to link a family member to a player"""
@@ -1212,6 +1260,44 @@ async def link_family_member_to_player(request: LinkPlayerRequest, current_user:
             "name": player['name'],
             "team_ids": player.get('team_ids', [])
         }
+    }
+
+@api_router.post("/users/link-players")
+async def link_multiple_players(request: dict, current_user: dict = Depends(get_current_user)):
+    """Link a family member to multiple players - for family accounts"""
+    
+    # Only family members (responsavel/familiar) can be linked to players
+    if current_user.get('role') not in ['responsavel', 'familiar']:
+        raise HTTPException(status_code=400, detail="Apenas responsáveis/familiares podem ser ligados a jogadores")
+    
+    player_ids = request.get('player_ids', [])
+    if not player_ids:
+        raise HTTPException(status_code=400, detail="Deve fornecer pelo menos um jogador")
+    
+    # Verify all players exist
+    players = await db.users.find({"id": {"$in": player_ids}, "role": "jogador"}, {"_id": 0}).to_list(100)
+    
+    if len(players) != len(player_ids):
+        raise HTTPException(status_code=404, detail="Um ou mais jogadores não encontrados")
+    
+    # Collect all team_ids from linked players
+    all_team_ids = set()
+    for player in players:
+        all_team_ids.update(player.get('team_ids', []))
+    
+    # Update the family member with linked_player_ids
+    await db.users.update_one(
+        {"id": current_user['id']},
+        {"$set": {
+            "linked_player_ids": player_ids,
+            "linked_player_id": player_ids[0] if player_ids else None,  # Keep backwards compatibility
+            "team_ids": list(all_team_ids)  # Give family member access to all linked players' teams
+        }}
+    )
+    
+    return {
+        "message": f"Ligado com sucesso a {len(players)} jogador(es)",
+        "linked_players": [{"id": p['id'], "name": p['name']} for p in players]
     }
 
 @api_router.delete("/users/link-player")
@@ -1301,6 +1387,12 @@ async def update_user(user_id: str, updates: dict, current_user: dict = Depends(
         
         # Update profile in database
         if profile_data:
+            # First ensure profile object exists (to avoid "Cannot create field in null" error)
+            await db.users.update_one(
+                {"id": user_id, "profile": None},
+                {"$set": {"profile": {}}}
+            )
+            # Then update the profile fields
             await db.users.update_one(
                 {"id": user_id},
                 {"$set": {f"profile.{k}": v for k, v in profile_data.items()}}
@@ -1561,13 +1653,55 @@ async def add_team_member(team_id: str, member_data: dict, current_user: dict = 
     user_id = member_data.get('user_id')
     role = member_data.get('role', 'jogador')
     
-    field_map = {'treinador': 'coach_ids', 'delegado': 'delegate_ids', 'jogador': 'player_ids', 'responsavel': 'player_ids'}
+    # Map role to team field
+    field_map = {'treinador': 'coach_ids', 'treinador_adjunto': 'coach_ids', 'delegado': 'delegate_ids', 'jogador': 'player_ids', 'responsavel': 'player_ids', 'familiar': 'player_ids'}
     field = field_map.get(role, 'player_ids')
     
+    # Add to team
     await db.teams.update_one({"id": team_id}, {"$addToSet": {field: user_id}})
-    await db.users.update_one({"id": user_id}, {"$addToSet": {"team_ids": team_id}})
     
-    return {"message": "Membro adicionado à equipa"}
+    # Update user: add team_id and set team_roles mapping
+    await db.users.update_one(
+        {"id": user_id}, 
+        {
+            "$addToSet": {"team_ids": team_id},
+            "$set": {f"team_roles.{team_id}": role}
+        }
+    )
+    
+    return {"message": "Membro adicionado à equipa", "role": role}
+
+@api_router.put("/teams/{team_id}/members/{user_id}/role")
+async def update_team_member_role(team_id: str, user_id: str, role_data: dict, current_user: dict = Depends(get_current_user)):
+    """Update a member's role within a specific team"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_team:
+        raise HTTPException(status_code=403, detail="Sem permissão para gerir membros")
+    
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+    
+    new_role = role_data.get('role', 'jogador')
+    
+    # Remove from old field and add to new field in team
+    await db.teams.update_one(
+        {"id": team_id}, 
+        {"$pull": {"coach_ids": user_id, "delegate_ids": user_id, "player_ids": user_id}}
+    )
+    
+    field_map = {'treinador': 'coach_ids', 'treinador_adjunto': 'coach_ids', 'delegado': 'delegate_ids', 'jogador': 'player_ids', 'responsavel': 'player_ids', 'familiar': 'player_ids'}
+    field = field_map.get(new_role, 'player_ids')
+    
+    await db.teams.update_one({"id": team_id}, {"$addToSet": {field: user_id}})
+    
+    # Update team_roles mapping
+    await db.users.update_one(
+        {"id": user_id},
+        {"$set": {f"team_roles.{team_id}": new_role}}
+    )
+    
+    return {"message": "Role atualizado", "role": new_role}
 
 @api_router.delete("/teams/{team_id}/members/{user_id}")
 async def remove_team_member(team_id: str, user_id: str, current_user: dict = Depends(get_current_user)):

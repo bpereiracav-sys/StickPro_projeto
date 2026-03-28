@@ -89,6 +89,7 @@ export default function ProfilePage() {
     nickname: user?.profile?.nickname || '',
     birth_date: user?.profile?.birth_date || '',
     gender: user?.profile?.gender || '',
+    nationality: user?.profile?.nationality || '',
     fpp_license: user?.profile?.fpp_license || '',
     
     // Family
@@ -465,6 +466,15 @@ export default function ProfilePage() {
                     onChange={(e) => handleChange('fpp_license', e.target.value)}
                     placeholder="Nº da licença"
                     data-testid="profile-fpp-license-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nacionalidade</Label>
+                  <Input
+                    value={formData.nationality || ''}
+                    onChange={(e) => handleChange('nationality', e.target.value)}
+                    placeholder="Ex: Portuguesa"
+                    data-testid="profile-nationality-input"
                   />
                 </div>
               </div>
