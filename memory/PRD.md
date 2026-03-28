@@ -903,3 +903,20 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 - **Frontend**: Método `paymentsApi.exportExcel()` com responseType blob
 - **Colunas Excel**: Nome, Data Nascimento, Equipa, Época, Tipo, Descrição, Valor, Data Criação, Data Vencimento, Estado, Data Pagamento, Comprovativo, Notas
 - **Segurança**: Apenas admin pode exportar (RBAC enforced)
+
+### Excel Export Completo (28 Mar 2026) ✅
+- **Members Export**:
+  - Endpoint: `/api/members/export`
+  - Formato: XLSX
+  - Colunas: Nome, Email, Equipa(s), Função, Nacionalidade, Data de Nascimento, Telefone, Número de Jogador, Posição
+  - Filtros: team_id, role, search
+- **Payments Export**:
+  - Endpoint: `/api/payments/export`
+  - Formato: XLSX
+  - Colunas: Nome do Jogador, Data Nascimento, Equipa, Época, Tipo, Descrição, Valor, Data Criação, Data Vencimento, Estado, Data Pagamento, Comprovativo, Notas
+  - Filtros: status, payment_type, user_id, team_id, season, date ranges, search
+- **Attendance Export**:
+  - Geração: Client-side CSV
+  - Colunas: Jogador, Email, Eventos, Presenças, Ausências, Pendentes, Taxa Presença (%)
+- **Segurança**: Todos os exports apenas para admin (RBAC enforced, botões escondidos para não-admin)
+- **Testes:** 100% Backend e Frontend - `/app/test_reports/iteration_26.json`
