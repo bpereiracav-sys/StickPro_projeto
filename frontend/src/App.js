@@ -31,6 +31,7 @@ import MatchStats from "./pages/MatchStats";
 import Attendance from "./pages/Attendance";
 import ClubPage from "./pages/ClubPage";
 import ProfilePage from "./pages/ProfilePage";
+import MemberProfilePage from "./pages/MemberProfilePage";
 import TeamsPage from "./pages/TeamsPage";
 import ChildrenPage from "./pages/ChildrenPage";
 import LibraryPage from "./pages/LibraryPage";
@@ -129,6 +130,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <PlayerProfile />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/members/:memberId/profile"
+        element={
+          <ProtectedRoute>
+            <MemberProfilePage />
           </ProtectedRoute>
         }
       />

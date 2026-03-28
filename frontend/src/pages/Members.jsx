@@ -709,8 +709,9 @@ export default function Members() {
                         <div>
                           <div className="flex items-center gap-2">
                             <Link 
-                              to={`/players/${member.id}`}
+                              to={`/members/${member.id}/profile`}
                               className="font-medium hover:text-primary transition-colors"
+                              data-testid={`member-profile-link-${member.id}`}
                             >
                               {member.name}
                             </Link>
@@ -765,7 +766,13 @@ export default function Members() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="bg-white">
                               <DropdownMenuItem asChild>
-                                <Link to={`/players/${member.id}`}>
+                                <Link to={`/members/${member.id}/profile`} data-testid={`view-profile-${member.id}`}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  Ver Perfil
+                                </Link>
+                              </DropdownMenuItem>
+                              <DropdownMenuItem asChild>
+                                <Link to={`/players/${member.id}`} data-testid={`view-stats-${member.id}`}>
                                   <BarChart3 className="w-4 h-4 mr-2" />
                                   Ver Estatísticas
                                 </Link>
@@ -773,10 +780,6 @@ export default function Members() {
                               {/* Admin actions */}
                               {isAdmin && (
                                 <>
-                                  <DropdownMenuItem onClick={() => handleViewMemberDetail(member)}>
-                                    <Eye className="w-4 h-4 mr-2" />
-                                    Ver Perfil
-                                  </DropdownMenuItem>
                                   {!member.is_activated && (
                                     <DropdownMenuItem onClick={() => handleSendActivationReminder(member)}>
                                       <Bell className="w-4 h-4 mr-2" />
