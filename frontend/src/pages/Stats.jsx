@@ -274,9 +274,9 @@ export default function Stats() {
   }), { games: 0, goals: 0, assists: 0, yellows: 0, blues: 0, whites: 0, reds: 0, saves: 0, 
         penalties_scored: 0, penalties_missed: 0, free_kicks_scored: 0, free_kicks_missed: 0 });
 
-  // Top scorers and assists
-  const topScorers = [...stats].sort((a, b) => (b.goals || 0) - (a.goals || 0)).slice(0, 5);
-  const topAssists = [...stats].sort((a, b) => (b.assists || 0) - (a.assists || 0)).slice(0, 5);
+  // Top scorers and assists - TOP 3 only
+  const topScorers = [...stats].sort((a, b) => (b.goals || 0) - (a.goals || 0)).slice(0, 3);
+  const topAssists = [...stats].sort((a, b) => (b.assists || 0) - (a.assists || 0)).slice(0, 3);
   
   // Top goalkeepers (most saves) - only players with GR position
   const topGoalkeepers = [...stats]
@@ -286,22 +286,6 @@ export default function Stats() {
     })
     .sort((a, b) => (b.saves || 0) - (a.saves || 0))
     .slice(0, 3);
-  
-  // Cards stats
-  const cardsStats = {
-    blue: [...stats].sort((a, b) => (b.blue_cards || 0) - (a.blue_cards || 0)).slice(0, 5),
-    yellow: [...stats].sort((a, b) => (b.yellow_cards || 0) - (a.yellow_cards || 0)).slice(0, 5),
-    red: [...stats].sort((a, b) => (b.red_cards || 0) - (a.red_cards || 0)).slice(0, 5),
-    white: [...stats].sort((a, b) => (b.white_cards || 0) - (a.white_cards || 0)).slice(0, 5)
-  };
-  
-  // Set pieces stats
-  const setPiecesStats = {
-    penalties_scored: [...stats].sort((a, b) => (b.penalties_scored || 0) - (a.penalties_scored || 0)).slice(0, 5),
-    penalties_saved: [...stats].sort((a, b) => (b.penalties_saved || 0) - (a.penalties_saved || 0)).slice(0, 5),
-    free_kicks_scored: [...stats].sort((a, b) => (b.free_kicks_scored || 0) - (a.free_kicks_scored || 0)).slice(0, 5),
-    free_kicks_saved: [...stats].sort((a, b) => (b.free_kicks_saved || 0) - (a.free_kicks_saved || 0)).slice(0, 5)
-  };
 
   if (loading) {
     return (
@@ -427,37 +411,80 @@ export default function Stats() {
             </Card>
           </div>
 
-          {/* Recent Results Sequence */}
-          {selectedChampionshipId !== 'all' && getRecentResults().length > 0 && (
-            <Card className="border border-border">
-              <CardHeader className="pb-2">
-                <CardTitle className="font-heading text-base sm:text-lg tracking-tight">Últimos 5 Jogos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {getRecentResults().map((r, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => navigate(`/championships/${selectedChampionshipId}/matches/${r.match.id}/stats`)}
-                      className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white transition-transform hover:scale-110 cursor-pointer ${
-                        r.result === 'V' ? 'bg-green-500 hover:bg-green-600' :
-                        r.result === 'D' ? 'bg-red-500 hover:bg-red-600' :
-                        'bg-amber-500 hover:bg-amber-600'
-                      }`}
-                      title={`${r.match.opponent_team} (${r.match.home_score}-${r.match.away_score})`}
-                    >
-                      {r.result}
-                    </button>
-                  ))}
-                  <span className="text-sm text-muted-foreground ml-2">
-                    (clique para ver o jogo)
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  V = Vitória | E = Empate | D = Derrota
-                </p>
-              </CardContent>
-            </Card>
+          {/* Recent Results + Set Pieces Row */}
+          {selectedChampionshipId !== 'all' && (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Recent Results Sequence */}
+              {getRecentResults().length > 0 && (
+                <Card className="border border-border">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="font-heading text-base sm:text-lg tracking-tight">Últimos 5 Jogos</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {getRecentResults().map((r, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => navigate(`/championships/${selectedChampionshipId}/matches/${r.match.id}/stats`)}
+                          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white transition-transform hover:scale-110 cursor-pointer ${
+                            r.result === 'V' ? 'bg-green-500 hover:bg-green-600' :
+                            r.result === 'D' ? 'bg-red-500 hover:bg-red-600' :
+                            'bg-amber-500 hover:bg-amber-600'
+                          }`}
+                          title={`${r.match.opponent_team} (${r.match.home_score}-${r.match.away_score})`}
+                        >
+                          {r.result}
+                        </button>
+                      ))}
+                      <span className="text-sm text-muted-foreground ml-2">
+                        (clique para ver)
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      V = Vitória | E = Empate | D = Derrota
+                    </p>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Set Pieces - Compact */}
+              <Card className="border border-border">
+                <CardHeader className="pb-2">
+                  <CardTitle className="font-heading text-base sm:text-lg tracking-tight flex items-center gap-2">
+                    <Goal className="w-5 h-5 text-amber-500" />
+                    Bolas Paradas
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Penáltis</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {teamTotals.penalties_scored}/{teamTotals.penalties_scored + teamTotals.penalties_missed}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-green-50 dark:bg-green-950/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Livres Diretos</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {teamTotals.free_kicks_scored}/{teamTotals.free_kicks_scored + teamTotals.free_kicks_missed}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Penáltis Defendidos</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {stats.reduce((acc, s) => acc + (s.penalties_saved || 0), 0)}
+                      </p>
+                    </div>
+                    <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                      <p className="text-xs text-muted-foreground mb-1">Livres Defendidos</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {stats.reduce((acc, s) => acc + (s.free_kicks_saved || 0), 0)}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Tabs: Players / Standings */}
@@ -676,7 +703,7 @@ export default function Stats() {
 
                   {/* Top Performers */}
                   <div className="space-y-6">
-                    {/* Top Scorers */}
+                    {/* Top Scorers - Top 3 */}
                     <Card className="border border-border card-hover">
                       <CardHeader className="pb-2">
                         <CardTitle className="font-heading text-base sm:text-lg tracking-tight flex items-center gap-2">
@@ -692,8 +719,7 @@ export default function Stats() {
                                 <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                                   index === 0 ? 'bg-yellow-400 text-yellow-900' :
                                   index === 1 ? 'bg-slate-300 text-slate-700' :
-                                  index === 2 ? 'bg-amber-600 text-white' :
-                                  'bg-muted text-muted-foreground'
+                                  'bg-amber-600 text-white'
                                 }`}>
                                   {index + 1}
                                 </span>
@@ -715,7 +741,7 @@ export default function Stats() {
                       </CardContent>
                     </Card>
 
-                    {/* Top Assists - renamed from "Melhores Assistências" */}
+                    {/* Top Assists - Top 3 */}
                     <Card className="border border-border card-hover">
                       <CardHeader className="pb-2">
                         <CardTitle className="font-heading text-base sm:text-lg tracking-tight flex items-center gap-2">
@@ -731,8 +757,7 @@ export default function Stats() {
                                 <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                                   index === 0 ? 'bg-yellow-400 text-yellow-900' :
                                   index === 1 ? 'bg-slate-300 text-slate-700' :
-                                  index === 2 ? 'bg-amber-600 text-white' :
-                                  'bg-muted text-muted-foreground'
+                                  'bg-amber-600 text-white'
                                 }`}>
                                   {index + 1}
                                 </span>
@@ -754,11 +779,44 @@ export default function Stats() {
                       </CardContent>
                     </Card>
 
+                    {/* Discipline - Cards Summary (Totals Only) */}
+                    <Card className="border border-border">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="font-heading text-base sm:text-lg tracking-tight">
+                          Disciplina - Cartões
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-4 gap-2">
+                          <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+                            <div className="w-5 h-6 bg-blue-500 border border-blue-700 rounded-sm mx-auto mb-2" />
+                            <p className="text-2xl font-bold text-blue-600">{teamTotals.blues}</p>
+                            <p className="text-[10px] text-muted-foreground">Azuis</p>
+                          </div>
+                          <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg">
+                            <div className="w-5 h-6 bg-yellow-400 border border-yellow-600 rounded-sm mx-auto mb-2" />
+                            <p className="text-2xl font-bold text-yellow-600">{teamTotals.yellows}</p>
+                            <p className="text-[10px] text-muted-foreground">Amarelos</p>
+                          </div>
+                          <div className="text-center p-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
+                            <div className="w-5 h-6 bg-red-600 border border-red-800 rounded-sm mx-auto mb-2" />
+                            <p className="text-2xl font-bold text-red-600">{teamTotals.reds}</p>
+                            <p className="text-[10px] text-muted-foreground">Vermelhos</p>
+                          </div>
+                          <div className="text-center p-3 bg-gray-50 dark:bg-gray-950/30 rounded-lg">
+                            <div className="w-5 h-6 bg-white border border-gray-400 rounded-sm mx-auto mb-2" />
+                            <p className="text-2xl font-bold text-gray-600">{teamTotals.whites}</p>
+                            <p className="text-[10px] text-muted-foreground">Brancos</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
                     {/* Top Goalkeepers */}
                     {topGoalkeepers.length > 0 && topGoalkeepers.some(s => s.saves > 0) && (
                       <Card className="border border-border bg-blue-50/50 dark:bg-blue-950/20">
                         <CardHeader className="pb-2">
-                          <CardTitle className="font-heading text-lg tracking-tight flex items-center gap-2">
+                          <CardTitle className="font-heading text-base sm:text-lg tracking-tight flex items-center gap-2">
                             <Hand className="w-5 h-5 text-blue-500" />
                             Melhores Guarda-Redes
                           </CardTitle>
@@ -770,8 +828,7 @@ export default function Stats() {
                                 <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
                                   index === 0 ? 'bg-yellow-400 text-yellow-900' :
                                   index === 1 ? 'bg-slate-300 text-slate-700' :
-                                  index === 2 ? 'bg-amber-600 text-white' :
-                                  'bg-muted text-muted-foreground'
+                                  'bg-amber-600 text-white'
                                 }`}>
                                   {index + 1}
                                 </span>
@@ -793,192 +850,6 @@ export default function Stats() {
                   </div>
                 </div>
 
-                {/* Cards Statistics Section */}
-                <Card className="border border-border">
-                  <CardHeader>
-                    <CardTitle className="font-heading text-xl tracking-tight">
-                      Disciplina - Cartões
-                    </CardTitle>
-                    <CardDescription>Cartões azuis, amarelos, vermelhos e brancos</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                      {/* Blue Cards */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-6 bg-blue-500 border border-blue-700 rounded-sm" />
-                          <span className="font-medium">Azuis ({teamTotals.blues})</span>
-                        </div>
-                        {cardsStats.blue.filter(s => s.blue_cards > 0).length > 0 ? (
-                          cardsStats.blue.filter(s => s.blue_cards > 0).slice(0, 3).map((stat, idx) => (
-                            <div key={stat.player_id} className="flex items-center justify-between text-sm">
-                              <span className="truncate">{stat.player?.name}</span>
-                              <Badge variant="outline">{stat.blue_cards}</Badge>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem cartões</p>
-                        )}
-                      </div>
-
-                      {/* Yellow Cards */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-6 bg-yellow-400 border border-yellow-600 rounded-sm" />
-                          <span className="font-medium">Amarelos ({teamTotals.yellows})</span>
-                        </div>
-                        {cardsStats.yellow.filter(s => s.yellow_cards > 0).length > 0 ? (
-                          cardsStats.yellow.filter(s => s.yellow_cards > 0).slice(0, 3).map((stat, idx) => (
-                            <div key={stat.player_id} className="flex items-center justify-between text-sm">
-                              <span className="truncate">{stat.player?.name}</span>
-                              <Badge variant="outline">{stat.yellow_cards}</Badge>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem cartões</p>
-                        )}
-                      </div>
-
-                      {/* Red Cards */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-6 bg-red-600 border border-red-800 rounded-sm" />
-                          <span className="font-medium">Vermelhos ({teamTotals.reds})</span>
-                        </div>
-                        {cardsStats.red.filter(s => s.red_cards > 0).length > 0 ? (
-                          cardsStats.red.filter(s => s.red_cards > 0).slice(0, 3).map((stat, idx) => (
-                            <div key={stat.player_id} className="flex items-center justify-between text-sm">
-                              <span className="truncate">{stat.player?.name}</span>
-                              <Badge variant="outline">{stat.red_cards}</Badge>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem cartões</p>
-                        )}
-                      </div>
-
-                      {/* White Cards */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-5 h-6 bg-white border border-gray-400 rounded-sm" />
-                          <span className="font-medium">Brancos ({teamTotals.whites})</span>
-                        </div>
-                        {cardsStats.white.filter(s => s.white_cards > 0).length > 0 ? (
-                          cardsStats.white.filter(s => s.white_cards > 0).slice(0, 3).map((stat, idx) => (
-                            <div key={stat.player_id} className="flex items-center justify-between text-sm">
-                              <span className="truncate">{stat.player?.name}</span>
-                              <Badge variant="outline">{stat.white_cards}</Badge>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem cartões</p>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Set Pieces Statistics Section */}
-                <Card className="border border-border">
-                  <CardHeader>
-                    <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
-                      <Goal className="w-6 h-6 text-amber-500" />
-                      Bolas Paradas
-                    </CardTitle>
-                    <CardDescription>Penáltis e livres diretos - marcados e defendidos</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                      {/* Penalties Scored */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            Penáltis Marcados
-                          </Badge>
-                        </div>
-                        <div className="text-2xl font-bold text-green-600">
-                          {teamTotals.penalties_scored}/{teamTotals.penalties_scored + teamTotals.penalties_missed}
-                        </div>
-                        {setPiecesStats.penalties_scored.filter(s => s.penalties_scored > 0).length > 0 ? (
-                          setPiecesStats.penalties_scored.filter(s => s.penalties_scored > 0).slice(0, 3).map((stat) => (
-                            <div key={stat.player_id} className="flex items-center justify-between text-sm">
-                              <span className="truncate">{stat.player?.name}</span>
-                              <span className="font-mono">{stat.penalties_scored}/{(stat.penalties_scored || 0) + (stat.penalties_missed || 0)}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem dados</p>
-                        )}
-                      </div>
-
-                      {/* Free Kicks Scored */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                            Livres Marcados
-                          </Badge>
-                        </div>
-                        <div className="text-2xl font-bold text-green-600">
-                          {teamTotals.free_kicks_scored}/{teamTotals.free_kicks_scored + teamTotals.free_kicks_missed}
-                        </div>
-                        {setPiecesStats.free_kicks_scored.filter(s => s.free_kicks_scored > 0).length > 0 ? (
-                          setPiecesStats.free_kicks_scored.filter(s => s.free_kicks_scored > 0).slice(0, 3).map((stat) => (
-                            <div key={stat.player_id} className="flex items-center justify-between text-sm">
-                              <span className="truncate">{stat.player?.name}</span>
-                              <span className="font-mono">{stat.free_kicks_scored}/{(stat.free_kicks_scored || 0) + (stat.free_kicks_missed || 0)}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem dados</p>
-                        )}
-                      </div>
-
-                      {/* Penalties Saved (GK) */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            Penáltis Defendidos
-                          </Badge>
-                        </div>
-                        <div className="text-2xl font-bold text-blue-600">
-                          {stats.reduce((acc, s) => acc + (s.penalties_saved || 0), 0)}
-                        </div>
-                        {setPiecesStats.penalties_saved.filter(s => s.penalties_saved > 0).length > 0 ? (
-                          setPiecesStats.penalties_saved.filter(s => s.penalties_saved > 0).slice(0, 3).map((stat) => (
-                            <div key={stat.player_id} className="flex items-center justify-between text-sm">
-                              <span className="truncate">{stat.player?.name}</span>
-                              <span className="font-mono">{stat.penalties_saved}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem dados</p>
-                        )}
-                      </div>
-
-                      {/* Free Kicks Saved (GK) */}
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2">
-                          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                            Livres Defendidos
-                          </Badge>
-                        </div>
-                        <div className="text-2xl font-bold text-blue-600">
-                          {stats.reduce((acc, s) => acc + (s.free_kicks_saved || 0), 0)}
-                        </div>
-                        {setPiecesStats.free_kicks_saved.filter(s => s.free_kicks_saved > 0).length > 0 ? (
-                          setPiecesStats.free_kicks_saved.filter(s => s.free_kicks_saved > 0).slice(0, 3).map((stat) => (
-                            <div key={stat.player_id} className="flex items-center justify-between text-sm">
-                              <span className="truncate">{stat.player?.name}</span>
-                              <span className="font-mono">{stat.free_kicks_saved}</span>
-                            </div>
-                          ))
-                        ) : (
-                          <p className="text-xs text-muted-foreground">Sem dados</p>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             </TabsContent>
 
