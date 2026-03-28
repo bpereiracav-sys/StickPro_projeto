@@ -920,3 +920,28 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Colunas: Jogador, Email, Eventos, Presenças, Ausências, Pendentes, Taxa Presença (%)
 - **Segurança**: Todos os exports apenas para admin (RBAC enforced, botões escondidos para não-admin)
 - **Testes:** 100% Backend e Frontend - `/app/test_reports/iteration_26.json`
+
+
+### Gestão de Utilizadores e Roles Melhorada (28 Mar 2026) ✅
+- **Multi-role por equipa**:
+  - Novo campo `team_roles: Dict[str, UserRole]` no modelo User
+  - Mapeia team_id -> role (ex: `{"team1": "treinador", "team2": "jogador"}`)
+  - Role global `admin` permanece no campo `role`
+- **Seleção de role ao adicionar membro**:
+  - 5 roles disponíveis: Jogador, Treinador Principal, Treinador Adjunto, Delegado, Responsável/Familiar
+  - Endpoints: `PUT /teams/{team_id}/members/{user_id}/role`
+- **Gestão de Admin**:
+  - Endpoint: `PUT /users/{user_id}/admin-role`
+  - Admin pode conceder/remover role de admin a outros utilizadores
+  - Admin não pode remover próprio role de admin (proteção)
+  - Menu dropdown com opção "Tornar Admin" / "Remover Admin"
+- **Perfil - Nacionalidade**:
+  - Campo `nationality` adicionado ao UserProfile
+  - Visível em Profile > tab Identidade
+  - data-testid: `profile-nationality-input`
+- **Contas Familiares**:
+  - Novo campo `linked_player_ids: List[str]` para múltiplos jogadores
+  - Endpoint: `POST /users/link-players`
+  - Família tem acesso a equipas de todos os jogadores ligados
+- **RBAC**: Sistema mantido e funcional - non-admin não pode alterar roles
+- **Testes:** 100% Backend e Frontend - `/app/test_reports/iteration_27.json`
