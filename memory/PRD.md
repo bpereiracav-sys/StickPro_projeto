@@ -945,3 +945,86 @@ https://roller-hockey-hub-1.preview.emergentagent.com
   - Família tem acesso a equipas de todos os jogadores ligados
 - **RBAC**: Sistema mantido e funcional - non-admin não pode alterar roles
 - **Testes:** 100% Backend e Frontend - `/app/test_reports/iteration_27.json`
+
+
+
+### Temas Dinâmicos e Melhorias de Autenticação (28 Mar 2026) ✅
+
+**Temas Dinâmicos da UI:**
+- **5 Temas disponíveis**:
+  - `light-default` - Claro (Padrão) - Verde StickPro, modo claro
+  - `dark-default` - Escuro (Padrão) - Cyan/verde, modo escuro
+  - `blue` - Azul - Tons de azul, modo claro
+  - `green` - Verde - Verde lima, modo claro
+  - `red` - Vermelho - Tons de vermelho, modo claro
+- **Implementação**:
+  - `ThemeContext.jsx` - Export `THEME_PRESETS` e função `setThemePreset()`
+  - Cada tema define: primary, secondary, accent, mode, sidebar colors
+  - Aplicação imediata via CSS variables
+  - Persistência em localStorage
+- **Componentes atualizados**: Sidebar adapta cores conforme tema
+
+**Páginas de Autenticação Melhoradas:**
+- **Login.jsx**:
+  - Logo StickPro (verde transparente)
+  - Carrossel de 7 imagens de hóquei em patins
+  - Indicadores de imagem interativos
+  - Seletor de idioma no canto superior direito
+- **Register.jsx**:
+  - Mesmo estilo do Login
+  - Carrossel de imagens à esquerda
+  - Formulário completo com seleção de role
+  - Seletor de idioma
+
+**Suporte a 5 Idiomas (i18n):**
+- Português (PT) - Default
+- Español (ES)
+- Français (FR)
+- Italiano (IT)
+- English (EN)
+- **Traduções completas para**: auth, settings, common, nav, dashboard, calendar, members, championships, attendance, stats, profile, messages, time, seasons
+
+**Settings Consolidado:**
+- **4 Tabs**:
+  1. Profile - Informações da conta, foto, nome, telefone, idioma
+  2. Appearance - Seleção de tema com pré-visualização
+  3. Notifications - Configuração de notificações push
+  4. Associated Accounts - Gestão de contas associadas (filhos)
+- **data-testid**: `tab-profile`, `tab-appearance`, `tab-notifications`, `tab-accounts`
+
+**Menu de Utilizador Simplificado:**
+- TopNavBar dropdown apenas com opção "Logout"
+- Removidos: Profile, Settings (acessíveis pela Sidebar)
+- **data-testid**: `logout-menu-btn`
+
+**Ícone e Manifest:**
+- `manifest.json` - theme_color atualizado para `#006D5B` (verde StickPro)
+- `index.html` - meta theme-color atualizado
+
+**Testes:** 100% Frontend - `/app/test_reports/iteration_28.json`
+
+---
+
+## TAREFAS PENDENTES
+
+### P1 - APL Web Scraping (Em Pausa)
+- Endpoint `/api/championships/scrape/apl` existe
+- Aguarda conclusão do P0 (Temas e Auth)
+
+### P1 - Excel Import Mapping
+- Finalizar mapeamento de campos para importação de Membros/Equipas
+
+### P2 - PDF Export para Calendário
+- Exportar calendário em formato PDF
+
+### P0 - REFACTORING (CRÍTICO)
+- `/app/backend/server.py` tem ~6300 linhas
+- Dividir em routers modulares:
+  - `routes/auth.py`
+  - `routes/members.py`
+  - `routes/payments.py`
+  - `routes/events.py`
+  - `routes/teams.py`
+  - `routes/championships.py`
+  - `routes/attendance.py`
+  - etc.
