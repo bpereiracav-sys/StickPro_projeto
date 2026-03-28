@@ -5545,6 +5545,8 @@ async def export_payments_excel(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
+
+@api_router.get("/payments/summary")
 async def get_payments_summary(current_user: dict = Depends(get_current_user)):
     """Get payments summary - admin only"""
     checker = get_permission_checker(current_user)

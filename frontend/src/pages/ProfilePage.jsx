@@ -298,26 +298,26 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6" data-testid="profile-page">
+    <div className="max-w-4xl mx-auto space-y-6 px-2 sm:px-0" data-testid="profile-page">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <Avatar className="w-20 h-20 border-4 border-primary">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <Avatar className="w-14 h-14 sm:w-20 sm:h-20 border-4 border-primary flex-shrink-0">
             <AvatarImage src={formData.photo_url} />
-            <AvatarFallback className="bg-primary text-white text-2xl font-heading">
+            <AvatarFallback className="bg-primary text-white text-lg sm:text-2xl font-heading">
               {getInitials(formData.first_name || user?.name)}
             </AvatarFallback>
           </Avatar>
-          <div>
-            <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
-              MEU PERFIL
+          <div className="min-w-0 flex-1">
+            <h1 className="font-heading text-xl sm:text-2xl lg:text-3xl text-foreground tracking-tight">
+              Meu Perfil
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm truncate">
               {user?.email} - {getRoleName(user?.role)}
             </p>
           </div>
         </div>
-        <Button onClick={handleSave} disabled={loading} data-testid="save-profile-btn">
+        <Button onClick={handleSave} disabled={loading} className="w-full sm:w-auto" data-testid="save-profile-btn">
           {loading ? (
             <>
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -334,30 +334,30 @@ export default function ProfilePage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-6 w-full">
-          <TabsTrigger value="identity" className="flex items-center gap-2">
+        <TabsList className="grid grid-cols-6 w-full h-auto">
+          <TabsTrigger value="identity" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
             <User className="w-4 h-4" />
-            <span className="hidden sm:inline">Identidade</span>
+            <span className="text-[10px] sm:text-sm">Identidade</span>
           </TabsTrigger>
-          <TabsTrigger value="family" className="flex items-center gap-2">
+          <TabsTrigger value="family" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
             <Users className="w-4 h-4" />
-            <span className="hidden sm:inline">Familiares</span>
+            <span className="text-[10px] sm:text-sm">Familiares</span>
           </TabsTrigger>
-          <TabsTrigger value="biometric" className="flex items-center gap-2">
+          <TabsTrigger value="biometric" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
             <Scale className="w-4 h-4" />
-            <span className="hidden sm:inline">Biométricos</span>
+            <span className="text-[10px] sm:text-sm">Biométricos</span>
           </TabsTrigger>
-          <TabsTrigger value="sports" className="flex items-center gap-2">
+          <TabsTrigger value="sports" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
             <Trophy className="w-4 h-4" />
-            <span className="hidden sm:inline">Desportivo</span>
+            <span className="text-[10px] sm:text-sm">Desportivo</span>
           </TabsTrigger>
-          <TabsTrigger value="equipment" className="flex items-center gap-2">
+          <TabsTrigger value="equipment" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
             <Shirt className="w-4 h-4" />
-            <span className="hidden sm:inline">Equipamento</span>
+            <span className="text-[10px] sm:text-sm">Equipamento</span>
           </TabsTrigger>
-          <TabsTrigger value="unavailability" className="flex items-center gap-2" data-testid="unavailability-tab">
+          <TabsTrigger value="unavailability" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3" data-testid="unavailability-tab">
             <CalendarOff className="w-4 h-4" />
-            <span className="hidden sm:inline">Ausências</span>
+            <span className="text-[10px] sm:text-sm">Ausências</span>
           </TabsTrigger>
         </TabsList>
 
@@ -365,9 +365,9 @@ export default function ProfilePage() {
         <TabsContent value="identity">
           <Card className="border border-border">
             <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
+              <CardTitle className="font-heading text-lg sm:text-xl tracking-tight flex items-center gap-2">
                 <User className="w-5 h-5 text-primary" />
-                IDENTIDADE
+                Identidade
               </CardTitle>
               <CardDescription>Informações pessoais</CardDescription>
             </CardHeader>
@@ -480,7 +480,7 @@ export default function ProfilePage() {
                 <div>
                   <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                     <Users className="w-5 h-5 text-primary" />
-                    FAMILIARES
+                    Familiares
                   </CardTitle>
                   <CardDescription>Contactos dos responsáveis/familiares</CardDescription>
                 </div>
@@ -562,7 +562,7 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                 <Scale className="w-5 h-5 text-primary" />
-                DADOS BIOMÉTRICOS
+                DADOS Biométricos
               </CardTitle>
               <CardDescription>Informações físicas</CardDescription>
             </CardHeader>
@@ -690,7 +690,7 @@ export default function ProfilePage() {
             <CardHeader>
               <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                 <Shirt className="w-5 h-5 text-primary" />
-                EQUIPAMENTO
+                Equipamento
               </CardTitle>
               <CardDescription>Tamanhos de roupa e equipamento</CardDescription>
             </CardHeader>
@@ -748,7 +748,7 @@ export default function ProfilePage() {
                 <div>
                   <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                     <CalendarOff className="w-5 h-5 text-primary" />
-                    INDISPONIBILIDADES
+                    Indisponibilidades
                   </CardTitle>
                   <CardDescription>
                     Períodos em que não estarei disponível para treinos/jogos
@@ -805,34 +805,35 @@ export default function ProfilePage() {
                         return (
                           <div 
                             key={unav.id}
-                            className="flex items-center justify-between p-4 border border-border rounded-sm bg-white"
+                            className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border border-border rounded-lg bg-white gap-3"
                             data-testid={`unavailability-${unav.id}`}
                           >
-                            <div className="flex items-center gap-4">
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${reasonInfo.color}`}>
-                                <ReasonIcon className="w-5 h-5" />
+                            <div className="flex items-start sm:items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                              <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${reasonInfo.color}`}>
+                                <ReasonIcon className="w-4 h-4 sm:w-5 sm:h-5" />
                               </div>
-                              <div>
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="secondary" className={reasonInfo.color}>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Badge variant="secondary" className={`${reasonInfo.color} text-xs`}>
                                     {reasonInfo.label}
                                   </Badge>
                                   {new Date(unav.start_date) <= new Date() && new Date(unav.end_date) >= new Date() && (
                                     <Badge variant="destructive" className="text-xs">Agora</Badge>
                                   )}
                                 </div>
-                                <p className="font-semibold mt-1">
+                                <p className="font-semibold mt-1 text-sm sm:text-base">
                                   {formatDate(unav.start_date)} → {formatDate(unav.end_date)}
                                 </p>
                                 {unav.notes && (
-                                  <p className="text-sm text-muted-foreground mt-1">{unav.notes}</p>
+                                  <p className="text-xs sm:text-sm text-muted-foreground mt-1 truncate">{unav.notes}</p>
                                 )}
                               </div>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 self-end sm:self-center flex-shrink-0">
                               <Button 
                                 variant="ghost" 
                                 size="icon"
+                                className="h-8 w-8"
                                 onClick={() => openEditUnavailability(unav)}
                                 data-testid={`edit-unavailability-${unav.id}`}
                               >
@@ -841,7 +842,7 @@ export default function ProfilePage() {
                               <Button 
                                 variant="ghost" 
                                 size="icon"
-                                className="text-destructive hover:bg-destructive/10"
+                                className="h-8 w-8 text-destructive hover:bg-destructive/10"
                                 onClick={() => handleDeleteUnavailability(unav.id)}
                                 disabled={deletingUnavailability === unav.id}
                                 data-testid={`delete-unavailability-${unav.id}`}
@@ -930,7 +931,7 @@ export default function ProfilePage() {
         <DialogContent className="bg-white" data-testid="add-family-modal">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">
-              ADICIONAR FAMILIAR
+              Adicionar Familiar
             </DialogTitle>
             <DialogDescription>
               Adicione os dados de um responsável ou familiar
@@ -1022,7 +1023,7 @@ export default function ProfilePage() {
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <CalendarOff className="w-5 h-5 text-primary" />
-              {editingUnavailability ? 'EDITAR INDISPONIBILIDADE' : 'ADICIONAR INDISPONIBILIDADE'}
+              {editingUnavailability ? 'Editar Indisponibilidade' : 'Adicionar Indisponibilidade'}
             </DialogTitle>
             <DialogDescription>
               {editingUnavailability 

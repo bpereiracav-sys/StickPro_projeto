@@ -699,16 +699,16 @@ export default function Members() {
                             <DropdownMenuContent align="end" className="bg-white">
                               <DropdownMenuItem asChild>
                                 <Link to={`/players/${member.id}`}>
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  Ver Perfil
+                                  <BarChart3 className="w-4 h-4 mr-2" />
+                                  Ver Estatísticas
                                 </Link>
                               </DropdownMenuItem>
                               {/* Admin actions */}
                               {isAdmin && (
                                 <>
                                   <DropdownMenuItem onClick={() => handleViewMemberDetail(member)}>
-                                    <BarChart3 className="w-4 h-4 mr-2" />
-                                    Ver Estatísticas
+                                    <Eye className="w-4 h-4 mr-2" />
+                                    Ver Perfil
                                   </DropdownMenuItem>
                                   {!member.is_activated && (
                                     <DropdownMenuItem onClick={() => handleSendActivationReminder(member)}>

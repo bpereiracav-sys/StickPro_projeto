@@ -1,0 +1,108 @@
+{
+  "summary": "Bug fix verification testing for 4 critical bugs. All bugs verified as FIXED: 1) Members dropdown menu order corrected, 2) Attendance export working, 3) Language selector functional (partial translation coverage), 4) Profile page mobile responsive.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Login page",
+        "issues": ["Some text not translated when language is changed (submit button 'Entrar' stays in Portuguese when English selected)"]
+      }
+    ]
+  },
+  "features_tested": {
+    "bug_1_members_dropdown": {
+      "status": "PASS",
+      "tests": [
+        "Dropdown menu shows 'Ver Estatísticas' first with BarChart3 icon",
+        "Dropdown menu shows 'Ver Perfil' second with Eye icon",
+        "'Ver Estatísticas' navigates to /players/:id (PlayerProfile page)",
+        "'Ver Perfil' opens member detail modal with statistics"
+      ],
+      "evidence": "URL changed to /players/86a7a7c4-9b90-4fe0-9eb2-286912b1cd43 after clicking 'Ver Estatísticas'"
+    },
+    "bug_2_attendance_export": {
+      "status": "PASS",
+      "tests": [
+        "Export button exists with data-testid='export-attendance-btn'",
+        "Export button text is 'Exportar'",
+        "Clicking export shows success toast 'Exportação concluída!'",
+        "CSV file download triggered"
+      ],
+      "evidence": "Toast message 'Exportação concluída!' displayed after clicking export"
+    },
+    "bug_3_language_selector": {
+      "status": "PARTIAL PASS",
+      "tests": [
+        "Language selector dropdown works (shows Português and English options)",
+        "Language selector button updates to show selected language",
+        "Title 'Login' and subtitle change to English",
+        "Submit button 'Entrar' does NOT change to English (hardcoded)"
+      ],
+      "evidence": "Title shows 'Login', subtitle shows 'Sign in to your account to manage the team', but button still shows 'Entrar'",
+      "note": "Translation system works but not all components use it - some text is hardcoded in Portuguese"
+    },
+    "bug_4_profile_mobile": {
+      "status": "PASS",
+      "tests": [
+        "Header uses flex-direction: column on mobile",
+        "Save button is full-width (342px on 390px viewport)",
+        "All 6 tabs visible and readable (Identidade, Familiares, Biométricos, Desportivo, Equipamento, Ausências)",
+        "Unavailability cards use flex-direction: column on mobile",
+        "No text overflow detected",
+        "Bottom navigation visible"
+      ],
+      "evidence": "Computed styles confirm responsive layout patterns applied"
+    }
+  },
+  "test_report_links": [
+    "/app/test_reports/iteration_25.json"
+  ],
+  "action_items": [
+    "Bug 3 (Language): Login page submit button and 'Não tem conta? Criar conta' text are hardcoded in Portuguese - should use translation system"
+  ],
+  "critical_code_review_comments": [
+    "Members.jsx: Dropdown menu order is correct - 'Ver Estatísticas' (BarChart3) first, 'Ver Perfil' (Eye) second",
+    "Attendance.jsx: handleExportExcel function properly creates CSV with BOM for Excel UTF-8 support",
+    "ProfilePage.jsx: Responsive patterns (flex-col sm:flex-row) correctly applied to header and unavailability cards",
+    "translations.js: Contains comprehensive translations but Login.jsx may not be using them for all text"
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "frontend": "95%"
+  },
+  "test_credentials": {
+    "email": "admin@example.com",
+    "password": "test123456"
+  },
+  "seed_data_creation": "None - used existing data",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All 4 bug fixes verified. Bug 1 (Members dropdown) and Bug 2 (Attendance export) fully working. Bug 3 (Language) works but Login page has some hardcoded Portuguese text. Bug 4 (Profile mobile) fully responsive.",
+  "bugs_verified": {
+    "bug_1": {
+      "description": "Members navigation - 'View Profile' opens statistics, 'View Statistics' opens profile",
+      "status": "FIXED",
+      "verification": "'Ver Estatísticas' correctly navigates to /players/:id, 'Ver Perfil' opens modal"
+    },
+    "bug_2": {
+      "description": "Attendance export not working",
+      "status": "FIXED",
+      "verification": "Export button works, downloads CSV file, shows success toast"
+    },
+    "bug_3": {
+      "description": "Language translations not complete",
+      "status": "PARTIALLY FIXED",
+      "verification": "Language selector works, some translations applied, but Login page has hardcoded Portuguese text"
+    },
+    "bug_4": {
+      "description": "Mobile UI text overflow and button misalignment (profile, availability)",
+      "status": "FIXED",
+      "verification": "Profile page uses responsive flex patterns, no overflow, buttons aligned correctly"
+    }
+  }
+}

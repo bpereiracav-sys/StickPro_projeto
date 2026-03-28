@@ -42,7 +42,8 @@ import {
   Search,
   AlertTriangle,
   CalendarOff,
-  UserX
+  UserX,
+  Loader2
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
 import { format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, parseISO, isSameWeek, isSameMonth } from 'date-fns';
@@ -111,6 +112,7 @@ export default function Attendance() {
   const [searchResults, setSearchResults] = useState(null);
   const [unavailabilities, setUnavailabilities] = useState([]);
   const [showUnavailabilities, setShowUnavailabilities] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   // Set selected team from context
   useEffect(() => {
@@ -215,6 +217,74 @@ export default function Attendance() {
       setSummary(response.data);
     } catch (error) {
       console.error('Error fetching summary:', error);
+    }
+  };
+
+  // Export attendance to Excel
+  const handleExportExcel = async () => {
+    if (!selectedTeamId) {
+      toast.error('Selecione uma equipa primeiro');
+      return;
+    }
+    
+    setExporting(true);
+    try {
+      // Create Excel content using CSV format that Excel can open
+      const headers = ['Jogador', 'Email', 'Eventos', 'Presenças', 'Ausências', 'Pendentes', 'Taxa Presença (%)'];
+      
+      const rows = attendance.map(a => [
+        a.player_name || '',
+        a.player_email || '',
+        a.total || 0,
+        a.confirmado || 0,
+        a.ausente || 0,
+        a.pendente || 0,
+        a.total > 0 ? Math.round((a.confirmado / a.total) * 100) : 0
+      ]);
+      
+      // Add totals row
+      rows.push([
+        'TOTAL',
+        '',
+        totals.total,
+        totals.confirmed,
+        totals.absent,
+        totals.pending,
+        overallRate
+      ]);
+      
+      // Create CSV content
+      const csvContent = [
+        `Relatório de Presenças - ${currentTeam?.name || 'Equipa'}`,
+        `Época: ${selectedSeason}`,
+        `Mês: ${selectedMonth === 'all' ? 'Todos' : months.find(m => m.value === selectedMonth)?.label}`,
+        `Tipo: ${selectedEventType === 'all' ? 'Todos' : eventTypes.find(t => t.value === selectedEventType)?.label}`,
+        '',
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+      
+      // Add BOM for Excel UTF-8 support
+      const BOM = '\uFEFF';
+      const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const timestamp = new Date().toISOString().split('T')[0];
+      link.download = `presencas_${currentTeam?.name?.replace(/\s+/g, '_') || 'equipa'}_${timestamp}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Exportação concluída!');
+    } catch (error) {
+      console.error('Error exporting:', error);
+      toast.error('Erro ao exportar dados');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -415,9 +485,24 @@ export default function Attendance() {
             )}
           </Button>
           
-          <Button variant="outline" size="sm">
-            <Download className="w-4 h-4 mr-2" />
-            Exportar
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={handleExportExcel}
+            disabled={exporting || attendance.length === 0}
+            data-testid="export-attendance-btn"
+          >
+            {exporting ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                A exportar...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Exportar
+              </>
+            )}
           </Button>
         </div>
       </div>
