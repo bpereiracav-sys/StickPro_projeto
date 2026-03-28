@@ -1003,6 +1003,38 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 **Testes:** 100% Frontend - `/app/test_reports/iteration_28.json`
 
+### Correção da Navegação dos Membros (28 Mar 2026) ✅
+
+**Problema:** Ao clicar num membro na lista, era redirecionado para estatísticas em vez de dados pessoais.
+
+**Solução Implementada:**
+- **Nova página MemberProfilePage.jsx**:
+  - Rota: `/members/:memberId/profile`
+  - 5 tabs: Identidade, Familiares, Biométricos, Desportivo, Equipamento
+  - Botão "Ver Estatísticas" para navegar para `/players/{id}`
+  - Botão "Guardar" para admin/treinador guardar alterações
+  - Botão "Voltar aos Membros" para voltar à lista
+  - Modo visualização para utilizadores sem permissão de edição
+
+- **Atualização Members.jsx**:
+  - Clicar no nome do membro → `/members/{id}/profile` (perfil)
+  - "Ver Perfil" no dropdown → `/members/{id}/profile` (perfil)
+  - "Ver Estatísticas" no dropdown → `/players/{id}` (estatísticas)
+
+- **Nova rota em App.js**:
+  - `/members/:memberId/profile` → MemberProfilePage
+
+**data-testid:**
+- `member-profile-page`
+- `member-profile-link-{id}`
+- `view-profile-{id}`
+- `view-stats-{id}`
+- `save-member-profile-btn`
+- `back-to-members-btn`
+- `view-stats-btn`
+
+**Testes:** 100% Frontend - `/app/test_reports/iteration_29.json`
+
 ---
 
 ## TAREFAS PENDENTES
