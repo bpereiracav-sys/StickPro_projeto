@@ -315,26 +315,26 @@ export default function MemberProfilePage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid grid-cols-5 w-full h-auto">
-          <TabsTrigger value="identity" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
-            <User className="w-4 h-4" />
-            <span className="text-[10px] sm:text-sm">Identidade</span>
+        <TabsList className="flex flex-wrap h-auto gap-1 p-1 w-full">
+          <TabsTrigger value="identity" className="flex-1 min-w-[60px] flex-col sm:flex-row items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-1.5 sm:px-3">
+            <User className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[9px] sm:text-xs leading-tight">Identidade</span>
           </TabsTrigger>
-          <TabsTrigger value="family" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
-            <Users className="w-4 h-4" />
-            <span className="text-[10px] sm:text-sm">Familiares</span>
+          <TabsTrigger value="family" className="flex-1 min-w-[60px] flex-col sm:flex-row items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-1.5 sm:px-3">
+            <Users className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[9px] sm:text-xs leading-tight">Família</span>
           </TabsTrigger>
-          <TabsTrigger value="biometric" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
-            <Scale className="w-4 h-4" />
-            <span className="text-[10px] sm:text-sm">Biométricos</span>
+          <TabsTrigger value="biometric" className="flex-1 min-w-[60px] flex-col sm:flex-row items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-1.5 sm:px-3">
+            <Scale className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[9px] sm:text-xs leading-tight">Biométrico</span>
           </TabsTrigger>
-          <TabsTrigger value="sports" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
-            <Trophy className="w-4 h-4" />
-            <span className="text-[10px] sm:text-sm">Desportivo</span>
+          <TabsTrigger value="sports" className="flex-1 min-w-[60px] flex-col sm:flex-row items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-1.5 sm:px-3">
+            <Trophy className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[9px] sm:text-xs leading-tight">Desporto</span>
           </TabsTrigger>
-          <TabsTrigger value="equipment" className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 py-2 px-1 sm:px-3">
-            <Shirt className="w-4 h-4" />
-            <span className="text-[10px] sm:text-sm">Equipamento</span>
+          <TabsTrigger value="equipment" className="flex-1 min-w-[60px] flex-col sm:flex-row items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-1.5 sm:px-3">
+            <Shirt className="w-4 h-4 flex-shrink-0" />
+            <span className="text-[9px] sm:text-xs leading-tight">Equip.</span>
           </TabsTrigger>
         </TabsList>
 

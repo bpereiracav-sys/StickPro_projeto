@@ -275,11 +275,11 @@ export default function LibraryPage() {
 
   const renderItemCard = (item) => (
     <Card key={item.id} className="border border-border hover:border-primary/50 transition-colors group">
-      <CardContent className="p-4">
-        <div className="flex items-start gap-4">
+      <CardContent className="p-3 sm:p-4">
+        <div className="flex items-start gap-3 sm:gap-4">
           {/* Thumbnail or Icon */}
           {item.thumbnail_url ? (
-            <div className="w-24 h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+            <div className="w-16 h-12 sm:w-24 sm:h-16 rounded-lg overflow-hidden bg-muted flex-shrink-0 relative">
               <img 
                 src={item.thumbnail_url} 
                 alt="" 
@@ -287,59 +287,61 @@ export default function LibraryPage() {
               />
               {item.item_type === 'video' && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <Play className="w-6 h-6 text-white" />
+                  <Play className="w-4 h-4 sm:w-6 sm:h-6 text-white" />
                 </div>
               )}
             </div>
           ) : (
-            <div className={`w-12 h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${getTypeColor(item.item_type)}`}>
+            <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg flex items-center justify-center flex-shrink-0 ${getTypeColor(item.item_type)}`}>
               {getTypeIcon(item.item_type)}
             </div>
           )}
 
           {/* Content */}
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <div className="flex items-start justify-between gap-2">
-              <div>
-                <h3 className="font-medium truncate">{item.title}</h3>
+              <div className="min-w-0 flex-1">
+                <h3 className="font-medium text-sm sm:text-base truncate" title={item.title}>
+                  {item.title}
+                </h3>
                 {item.description && (
-                  <p className="text-sm text-muted-foreground line-clamp-2 mt-1">
+                  <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 mt-1 break-words">
                     {item.description}
                   </p>
                 )}
               </div>
               {canManageLibrary && (
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity flex-shrink-0">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8"
+                    className="h-7 w-7 sm:h-8 sm:w-8"
                     onClick={() => openEditDialog(item)}
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-destructive"
+                    className="h-7 w-7 sm:h-8 sm:w-8 text-destructive"
                     onClick={() => {
                       setSelectedItem(item);
                       setShowDeleteDialog(true);
                     }}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3 sm:w-4 sm:h-4" />
                   </Button>
                 </div>
               )}
             </div>
 
-            <div className="flex items-center gap-2 mt-3">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 mt-2 sm:mt-3">
               {item.category && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-[10px] sm:text-xs">
                   {item.category}
                 </Badge>
               )}
-              <Badge variant="outline" className="text-xs">
+              <Badge variant="outline" className="text-[10px] sm:text-xs">
                 {item.item_type === 'pdf' ? 'PDF' : item.item_type === 'video' ? 'Vídeo' : 'Link'}
               </Badge>
               
@@ -348,23 +350,23 @@ export default function LibraryPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-7"
+                className="h-6 sm:h-7 text-xs px-2"
                 onClick={() => window.open(item.url, '_blank')}
               >
                 {item.item_type === 'pdf' ? (
                   <>
                     <Download className="w-3 h-3 mr-1" />
-                    Abrir
+                    <span className="hidden xs:inline">Abrir</span>
                   </>
                 ) : item.item_type === 'video' ? (
                   <>
                     <Play className="w-3 h-3 mr-1" />
-                    Ver
+                    <span className="hidden xs:inline">Ver</span>
                   </>
                 ) : (
                   <>
                     <ExternalLink className="w-3 h-3 mr-1" />
-                    Visitar
+                    <span className="hidden xs:inline">Visitar</span>
                   </>
                 )}
               </Button>

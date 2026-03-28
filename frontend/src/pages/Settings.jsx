@@ -185,22 +185,22 @@ export default function Settings() {
 
       {/* Tabs */}
       <Tabs defaultValue="profile" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
-          <TabsTrigger value="profile" className="gap-2" data-testid="tab-profile">
-            <User className="w-4 h-4 hidden sm:block" />
-            {t('settings.profile')}
+        <TabsList className="flex flex-wrap h-auto gap-1 p-1 w-full">
+          <TabsTrigger value="profile" className="flex-1 min-w-[70px] gap-1 text-xs sm:text-sm py-2 px-2 sm:px-3" data-testid="tab-profile">
+            <User className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden xs:inline sm:inline">Perfil</span>
           </TabsTrigger>
-          <TabsTrigger value="appearance" className="gap-2" data-testid="tab-appearance">
-            <Palette className="w-4 h-4 hidden sm:block" />
-            {t('settings.themeTitle') || 'Aparência'}
+          <TabsTrigger value="appearance" className="flex-1 min-w-[70px] gap-1 text-xs sm:text-sm py-2 px-2 sm:px-3" data-testid="tab-appearance">
+            <Palette className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden xs:inline sm:inline">Tema</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="gap-2" data-testid="tab-notifications">
-            <Bell className="w-4 h-4 hidden sm:block" />
-            {t('settings.notifications')}
+          <TabsTrigger value="notifications" className="flex-1 min-w-[70px] gap-1 text-xs sm:text-sm py-2 px-2 sm:px-3" data-testid="tab-notifications">
+            <Bell className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden xs:inline sm:inline">Alertas</span>
           </TabsTrigger>
-          <TabsTrigger value="accounts" className="gap-2" data-testid="tab-accounts">
-            <Shield className="w-4 h-4 hidden sm:block" />
-            {t('settings.associatedAccounts') || 'Contas'}
+          <TabsTrigger value="accounts" className="flex-1 min-w-[70px] gap-1 text-xs sm:text-sm py-2 px-2 sm:px-3" data-testid="tab-accounts">
+            <Shield className="w-4 h-4 flex-shrink-0" />
+            <span className="hidden xs:inline sm:inline">Contas</span>
           </TabsTrigger>
         </TabsList>
 
