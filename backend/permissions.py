@@ -285,8 +285,17 @@ class PermissionChecker:
         if self.is_admin:
             return True
         
-        # Staff and players can only access their assigned teams
-        return team_id in self.team_ids
+        # Staff and players can access their assigned teams
+        if team_id in self.team_ids:
+            return True
+        
+        # Family members can access their linked players' teams
+        # Note: This requires async lookup, so for now we check against team_ids
+        # The linked player's teams should be included in team_ids during user fetch
+        if self.is_family_member:
+            return team_id in self.team_ids
+        
+        return False
     
     def can_access_teams(self, team_ids: List[str]) -> bool:
         """

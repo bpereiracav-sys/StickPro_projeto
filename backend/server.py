@@ -4982,12 +4982,47 @@ async def get_members_for_message(team_id: str, current_user: dict = Depends(get
 
 @api_router.get("/dashboard")
 async def get_dashboard(current_user: dict = Depends(get_current_user)):
+    """
+    Get dashboard data filtered by user role:
+    - Admin/Gestor Desportivo: ALL club events
+    - Coach/Delegate/Player: ONLY events from their teams
+    - Parent/Guardian: Events of their linked children
+    """
+    user_role = current_user.get('role')
     user_teams = current_user.get('team_ids', [])
+    linked_player_ids = current_user.get('linked_player_ids', [])
+    linked_player_id = current_user.get('linked_player_id')
     
+    # Build event query based on role
     now = datetime.now(timezone.utc).isoformat()
     upcoming_query = {"start_time": {"$gte": now}}
-    if not is_admin_role(current_user['role']) and user_teams:
-        upcoming_query["team_id"] = {"$in": user_teams}
+    
+    if is_admin_role(user_role):
+        # Admin/Gestor Desportivo: see ALL club events (no team filter)
+        pass
+    elif user_role == 'responsavel':
+        # Parent/Guardian: see events of their children
+        # Get team_ids from linked players
+        child_team_ids = set()
+        all_linked = linked_player_ids if linked_player_ids else ([linked_player_id] if linked_player_id else [])
+        
+        for player_id in all_linked:
+            player = await db.users.find_one({"id": player_id}, {"_id": 0, "team_ids": 1})
+            if player and player.get('team_ids'):
+                child_team_ids.update(player['team_ids'])
+        
+        if child_team_ids:
+            upcoming_query["team_id"] = {"$in": list(child_team_ids)}
+        else:
+            # No linked children or children have no teams - return empty
+            upcoming_query["team_id"] = {"$in": []}
+    else:
+        # Coach/Delegate/Player: see ONLY events from their teams
+        if user_teams:
+            upcoming_query["team_id"] = {"$in": user_teams}
+        else:
+            # User has no teams - return empty
+            upcoming_query["team_id"] = {"$in": []}
     
     upcoming_events = await db.events.find(upcoming_query, {"_id": 0}).sort("start_time", 1).limit(5).to_list(5)
     
@@ -4997,7 +5032,15 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         team = await db.teams.find_one({"id": event['team_id']}, {"_id": 0})
         event['team'] = team
     
-    pending_attendances = await db.attendance.find({"player_id": current_user['id'], "status": "pendente"}, {"_id": 0}).to_list(10)
+    # Pending attendances - always user's own or linked players'
+    attendance_query = {"status": "pendente"}
+    if user_role == 'responsavel' and (linked_player_ids or linked_player_id):
+        all_linked = linked_player_ids if linked_player_ids else ([linked_player_id] if linked_player_id else [])
+        attendance_query["player_id"] = {"$in": [current_user['id']] + all_linked}
+    else:
+        attendance_query["player_id"] = current_user['id']
+    
+    pending_attendances = await db.attendance.find(attendance_query, {"_id": 0}).to_list(10)
     
     pending_convocations = []
     for att in pending_attendances:
@@ -5007,10 +5050,37 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
                 event['start_time'] = datetime.fromisoformat(event['start_time'])
             pending_convocations.append({"attendance": att, "event": event})
     
-    teams_count = await db.teams.count_documents({}) if current_user['role'] == 'admin' else len(user_teams)
+    # Teams count based on role
+    if is_admin_role(user_role):
+        teams_count = await db.teams.count_documents({})
+    elif user_role == 'responsavel':
+        # Count teams of linked children
+        child_team_ids = set()
+        all_linked = linked_player_ids if linked_player_ids else ([linked_player_id] if linked_player_id else [])
+        for player_id in all_linked:
+            player = await db.users.find_one({"id": player_id}, {"_id": 0, "team_ids": 1})
+            if player and player.get('team_ids'):
+                child_team_ids.update(player['team_ids'])
+        teams_count = len(child_team_ids)
+    else:
+        teams_count = len(user_teams)
     
+    # Recent messages - filter by accessible teams
     recent_messages = []
-    if user_teams:
+    if is_admin_role(user_role):
+        # Admin sees all messages
+        recent_messages = await db.messages.find({}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
+    elif user_role == 'responsavel':
+        # Parent sees messages from children's teams
+        child_team_ids = set()
+        all_linked = linked_player_ids if linked_player_ids else ([linked_player_id] if linked_player_id else [])
+        for player_id in all_linked:
+            player = await db.users.find_one({"id": player_id}, {"_id": 0, "team_ids": 1})
+            if player and player.get('team_ids'):
+                child_team_ids.update(player['team_ids'])
+        if child_team_ids:
+            recent_messages = await db.messages.find({"team_id": {"$in": list(child_team_ids)}}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
+    elif user_teams:
         recent_messages = await db.messages.find({"team_id": {"$in": user_teams}}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
     
     return {
