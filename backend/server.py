@@ -2528,16 +2528,18 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
         import secrets
         for row in rows:
             try:
-                # Campos: Nome, Apelido, Data de Nascimento, Email, Função
-                # Suporta várias variações de nomes de colunas
-                nome = row.get('Nome') or row.get('nome') or row.get('name') or row.get('first_name') or ""
-                apelido = row.get('Apelido') or row.get('apelido') or row.get('surname') or row.get('last_name') or ""
-                data_nascimento = row.get('Data de Nascimento') or row.get('data_nascimento') or row.get('nascimento') or row.get('birth_date') or ""
-                email = row.get('Email') or row.get('email') or row.get('email_contacto') or ""
-                funcao = row.get('Função') or row.get('funcao') or row.get('role') or row.get('função') or 'jogador'
-                numero = row.get('Número') or row.get('numero') or row.get('n') or row.get('jersey') or ""
-                posicao = row.get('Posição') or row.get('posicao') or row.get('position') or ""
-                telefone = row.get('Telefone') or row.get('telefone') or row.get('phone') or row.get('contacto') or ""
+                # Campos: Nome, Apelido, Data de Nascimento, Email, Função, Número, Posição, Telefone, Nacionalidade
+                # Suporta várias variações de nomes de colunas (PT, EN, ES)
+                nome = row.get('Nome') or row.get('nome') or row.get('name') or row.get('first_name') or row.get('Nombre') or ""
+                apelido = row.get('Apelido') or row.get('apelido') or row.get('surname') or row.get('last_name') or row.get('Apellido') or ""
+                data_nascimento = row.get('Data de Nascimento') or row.get('data_nascimento') or row.get('nascimento') or row.get('birth_date') or row.get('Fecha de Nacimiento') or row.get('Date of Birth') or ""
+                email = row.get('Email') or row.get('email') or row.get('email_contacto') or row.get('Correo') or row.get('e-mail') or ""
+                funcao = row.get('Função') or row.get('funcao') or row.get('role') or row.get('função') or row.get('Rol') or row.get('Role') or 'jogador'
+                numero = row.get('Número') or row.get('numero') or row.get('n') or row.get('jersey') or row.get('Jersey') or row.get('Number') or ""
+                posicao = row.get('Posição') or row.get('posicao') or row.get('position') or row.get('Position') or row.get('Posicion') or ""
+                telefone = row.get('Telefone') or row.get('telefone') or row.get('phone') or row.get('contacto') or row.get('Phone') or row.get('Teléfono') or ""
+                nacionalidade = row.get('Nacionalidade') or row.get('nacionalidade') or row.get('nationality') or row.get('Nationality') or row.get('Nacionalidad') or ""
+                sexo = row.get('Sexo') or row.get('sexo') or row.get('gender') or row.get('Gender') or row.get('Género') or ""
                 
                 # Combinar nome e apelido
                 full_name = f"{nome} {apelido}".strip() if apelido else nome.strip()
@@ -2546,32 +2548,114 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
                     results["errors"].append(f"Linha sem nome ou email: {row}")
                     continue
                 
-                # Emails duplicados são permitidos (ex: pai com vários filhos menores)
+                # Verificar se email já existe e avisar (mas permitir - ex: pai com vários filhos)
+                existing_user = await db.users.find_one({"email": email.strip().lower()})
+                if existing_user:
+                    results["warnings"] = results.get("warnings", [])
+                    results["warnings"].append(f"Email duplicado (existente): {email} - criado novo utilizador")
                 
                 temp_password = secrets.token_urlsafe(8)
                 hashed = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
                 
                 user_id = str(uuid.uuid4())
                 
-                # Normalizar função
+                # Normalizar função - suporta PT, EN, ES
                 funcao_map = {
                     'administrador': 'admin',
                     'admin': 'admin',
+                    'administrator': 'admin',
+                    'gestor desportivo': 'gestor_desportivo',
+                    'gestor_desportivo': 'gestor_desportivo',
+                    'sports manager': 'gestor_desportivo',
+                    'gestor deportivo': 'gestor_desportivo',
                     'treinador': 'treinador',
+                    'treinador principal': 'treinador',
                     'coach': 'treinador',
+                    'head coach': 'treinador',
+                    'entrenador': 'treinador',
                     'treinador adjunto': 'treinador_adjunto',
                     'adjunto': 'treinador_adjunto',
+                    'assistant coach': 'treinador_adjunto',
+                    'entrenador adjunto': 'treinador_adjunto',
                     'delegado': 'delegado',
+                    'delegate': 'delegado',
+                    'team manager': 'delegado',
                     'jogador': 'jogador',
                     'atleta': 'jogador',
                     'player': 'jogador',
+                    'jugador': 'jogador',
                     'responsavel': 'responsavel',
                     'responsável': 'responsavel',
                     'pai': 'responsavel',
                     'mãe': 'responsavel',
                     'encarregado': 'responsavel',
+                    'guardian': 'responsavel',
+                    'parent': 'responsavel',
+                    'familiar': 'responsavel',
+                    'family': 'responsavel',
                 }
                 role = funcao_map.get(funcao.lower().strip(), 'jogador') if funcao else 'jogador'
+                
+                # Normalizar posição
+                posicao_map = {
+                    'guarda-redes': 'GR',
+                    'gr': 'GR',
+                    'goalkeeper': 'GR',
+                    'portero': 'GR',
+                    'jogador de campo': 'JC',
+                    'jc': 'JC',
+                    'field player': 'JC',
+                    'jugador de campo': 'JC',
+                    'avançado': 'JC',
+                    'defesa': 'JC',
+                }
+                normalized_position = posicao_map.get(str(posicao).lower().strip(), str(posicao).strip().upper() if posicao else "")
+                
+                # Normalizar sexo
+                sexo_map = {
+                    'masculino': 'Masculino',
+                    'm': 'Masculino',
+                    'male': 'Masculino',
+                    'hombre': 'Masculino',
+                    'feminino': 'Feminino',
+                    'f': 'Feminino',
+                    'female': 'Feminino',
+                    'mujer': 'Feminino',
+                }
+                normalized_gender = sexo_map.get(str(sexo).lower().strip(), "") if sexo else ""
+                
+                # Processar nacionalidades (pode ser separado por vírgula ou ponto e vírgula)
+                nationalities = []
+                if nacionalidade:
+                    # Mapeamento de nomes de países para códigos ISO
+                    nationality_map = {
+                        'portuguesa': 'PT', 'portugal': 'PT', 'pt': 'PT',
+                        'espanhola': 'ES', 'espanha': 'ES', 'spain': 'ES', 'es': 'ES', 'española': 'ES',
+                        'francesa': 'FR', 'frança': 'FR', 'france': 'FR', 'fr': 'FR',
+                        'brasileira': 'BR', 'brasil': 'BR', 'brazil': 'BR', 'br': 'BR',
+                        'italiana': 'IT', 'itália': 'IT', 'italy': 'IT', 'it': 'IT',
+                        'alemã': 'DE', 'alemanha': 'DE', 'germany': 'DE', 'de': 'DE',
+                        'inglesa': 'GB', 'inglaterra': 'GB', 'uk': 'GB', 'gb': 'GB', 'england': 'GB',
+                        'americana': 'US', 'eua': 'US', 'usa': 'US', 'us': 'US',
+                        'angolana': 'AO', 'angola': 'AO', 'ao': 'AO',
+                        'moçambicana': 'MZ', 'moçambique': 'MZ', 'mozambique': 'MZ', 'mz': 'MZ',
+                        'cabo-verdiana': 'CV', 'cabo verde': 'CV', 'cv': 'CV',
+                        'guineense': 'GW', 'guiné-bissau': 'GW', 'gw': 'GW',
+                        'são-tomense': 'ST', 'são tomé': 'ST', 'st': 'ST',
+                        'holandesa': 'NL', 'holanda': 'NL', 'netherlands': 'NL', 'nl': 'NL',
+                        'belga': 'BE', 'bélgica': 'BE', 'belgium': 'BE', 'be': 'BE',
+                        'suíça': 'CH', 'suíça': 'CH', 'switzerland': 'CH', 'ch': 'CH',
+                        'argentina': 'AR', 'ar': 'AR',
+                        'marroquina': 'MA', 'marrocos': 'MA', 'morocco': 'MA', 'ma': 'MA',
+                        'romena': 'RO', 'roménia': 'RO', 'romania': 'RO', 'ro': 'RO',
+                    }
+                    # Separar múltiplas nacionalidades
+                    nat_parts = [n.strip() for n in str(nacionalidade).replace(';', ',').split(',')]
+                    for nat in nat_parts:
+                        if nat:
+                            code = nationality_map.get(nat.lower(), nat.upper()[:2] if len(nat) == 2 else None)
+                            if code and code not in nationalities:
+                                nationalities.append(code)
                 
                 user = {
                     "id": user_id,
@@ -2579,16 +2663,19 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
                     "email": email.strip().lower(),
                     "password": hashed,
                     "role": role,
-                    "club_id": club_id,  # Associate with club
+                    "club_id": club_id,
                     "team_ids": [team_id] if team_id else [],
+                    "nationalities": nationalities[:2],  # Max 2 nacionalidades
+                    "is_activated": False,
                     "profile": {
                         "sports_info": {
                             "jersey_number": str(numero).strip() if numero else "",
-                            "position": str(posicao).strip() if posicao else ""
+                            "position": normalized_position
                         },
                         "identity": {
                             "phone": str(telefone).strip() if telefone else "",
-                            "birth_date": str(data_nascimento).strip() if data_nascimento else ""
+                            "birth_date": str(data_nascimento).strip() if data_nascimento else "",
+                            "gender": normalized_gender
                         }
                     },
                     "created_at": datetime.now(timezone.utc).isoformat()

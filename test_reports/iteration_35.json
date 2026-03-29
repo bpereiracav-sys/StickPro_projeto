@@ -1,0 +1,160 @@
+{
+  "summary": "Tested Excel/CSV Import Mapping for Members with all columns. All 21 backend tests passed. Frontend import dialog verified with all expected elements.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "csv_import_basic": {
+      "status": "PASS",
+      "description": "Import CSV with all columns (Nome, Apelido, Data Nascimento, Email, Função, Número, Posição, Telefone, Nacionalidade, Sexo)"
+    },
+    "excel_import": {
+      "status": "PASS",
+      "description": "Import Excel (.xlsx) files with all columns"
+    },
+    "role_mapping_jogador": {
+      "status": "PASS",
+      "description": "Role mapping for 'jogador'"
+    },
+    "role_mapping_treinador": {
+      "status": "PASS",
+      "description": "Role mapping for 'treinador'"
+    },
+    "role_mapping_treinador_adjunto": {
+      "status": "PASS",
+      "description": "Role mapping for 'treinador adjunto'"
+    },
+    "role_mapping_delegado": {
+      "status": "PASS",
+      "description": "Role mapping for 'delegado'"
+    },
+    "role_mapping_responsavel": {
+      "status": "PASS",
+      "description": "Role mapping for 'responsável'"
+    },
+    "role_mapping_gestor_desportivo": {
+      "status": "PASS",
+      "description": "Role mapping for 'gestor desportivo'"
+    },
+    "position_normalization_gr": {
+      "status": "PASS",
+      "description": "Position normalization for GR (Guarda-Redes, goalkeeper, etc.)"
+    },
+    "position_normalization_jc": {
+      "status": "PASS",
+      "description": "Position normalization for JC (Jogador de Campo, field player, etc.)"
+    },
+    "nationality_conversion_pt": {
+      "status": "PASS",
+      "description": "Nationality conversion to ISO code PT (Portuguesa, Portugal)"
+    },
+    "nationality_conversion_br": {
+      "status": "PASS",
+      "description": "Nationality conversion to ISO code BR (Brasileira, Brasil)"
+    },
+    "nationality_conversion_es": {
+      "status": "PASS",
+      "description": "Nationality conversion to ISO code ES (Espanhola, Espanha)"
+    },
+    "duplicate_email_warning": {
+      "status": "PASS",
+      "description": "Duplicate emails generate warnings but still create users"
+    },
+    "gender_normalization": {
+      "status": "PASS",
+      "description": "Gender/Sexo normalization (Masculino, M, male, Feminino, F, female)"
+    },
+    "club_association": {
+      "status": "PASS",
+      "description": "Members associated with club_id on import"
+    },
+    "team_association": {
+      "status": "PASS",
+      "description": "Members associated with team_id when provided"
+    },
+    "template_download": {
+      "status": "PASS",
+      "description": "CSV template download button works"
+    },
+    "import_dialog_ui": {
+      "status": "PASS",
+      "description": "Import dialog shows expected columns, valid functions, and valid positions"
+    },
+    "nationality_flags_display": {
+      "status": "PASS",
+      "description": "Nationality flags (🇵🇹, 🇧🇷, 🇪🇸) displayed correctly in members list"
+    }
+  },
+  "backend_verification": {
+    "pytest_results": {
+      "total_tests": 21,
+      "passed": 21,
+      "failed": 0,
+      "test_file": "/app/backend/tests/test_member_import.py"
+    },
+    "endpoints_tested": [
+      "POST /api/members/import - CSV import with all columns",
+      "POST /api/members/import?team_id=X - Import with team association",
+      "POST /api/members/import?club_id=X - Import with club association",
+      "Role mapping: jogador, treinador, treinador_adjunto, delegado, responsavel, gestor_desportivo",
+      "Position normalization: GR, JC",
+      "Nationality conversion: PT, BR, ES, FR, IT, DE, GB, US, AO, MZ, CV, GW, ST, NL, BE, CH, AR, MA, RO",
+      "Gender normalization: Masculino, Feminino",
+      "Duplicate email warning generation"
+    ]
+  },
+  "frontend_verification": {
+    "import_dialog": {
+      "title": "Importar Membros",
+      "description": "Importar membros a partir de ficheiro Excel ou CSV",
+      "expected_columns": "Nome, Apelido, Data de Nascimento, Email, Função",
+      "optional_columns": "Número, Posição, Telefone, Nacionalidade, Sexo",
+      "valid_functions": "jogador, treinador, treinador adjunto, delegado, responsável, gestor desportivo",
+      "valid_positions": "GR (Guarda-Redes), JC (Jogador de Campo)",
+      "template_button": "visible and functional",
+      "file_selection_button": "visible and functional"
+    },
+    "members_list": {
+      "nationality_flags": "Displayed correctly (🇵🇹, 🇧🇷, 🇪🇸)",
+      "roles": "Displayed correctly (Jogador, Treinador)",
+      "positions": "Displayed correctly (GR, JC)",
+      "jersey_numbers": "Displayed correctly (#88, #7, #3)"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_member_import.py",
+    "/app/test_reports/pytest/member_import_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Import endpoint correctly handles all 10 columns: Nome, Apelido, Data de Nascimento, Email, Função, Número, Posição, Telefone, Nacionalidade, Sexo",
+    "Role mapping supports PT, EN, ES variations (e.g., 'treinador', 'coach', 'entrenador')",
+    "Position normalization handles multiple formats (GR, guarda-redes, goalkeeper, portero)",
+    "Nationality conversion supports 20+ countries with ISO codes",
+    "Duplicate email detection generates warnings but allows creation (for family accounts)",
+    "Gender normalization handles M/F, Masculino/Feminino, male/female"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_member_import.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin": {"email": "admin@example.com", "password": "test123456"}
+  },
+  "seed_data_creation": "Test import created multiple test users with 'test_import_' prefix in email",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Member import functionality fully tested. All 21 pytest tests pass. Import supports CSV and Excel files with 10 columns. Role mapping, position normalization, nationality conversion, and duplicate email warnings all working correctly. Frontend import dialog displays all expected information.",
+  "mocked_apis": {
+    "resend_email": "MOCKED - Resend email requires user API key"
+  }
+}

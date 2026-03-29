@@ -476,7 +476,14 @@ export default function Members() {
   };
 
   const downloadTemplate = () => {
-    const csvContent = "Nome,Apelido,Data de Nascimento,Email,Função,Número,Posição,Telefone,Nacionalidade\nJoão,Silva,2010-05-15,joao@exemplo.com,jogador,10,JC,912345678,Portuguesa\nMaria,Santos,2009-03-22,maria@exemplo.com,jogador,1,GR,923456789,Portuguesa\nPedro,Costa,2011-08-10,pedro@exemplo.com,jogador,7,AD,934567890,Brasileira";
+    const csvContent = `Nome,Apelido,Data de Nascimento,Email,Função,Número,Posição,Telefone,Nacionalidade,Sexo
+João,Silva,2010-05-15,joao@exemplo.com,jogador,10,JC,912345678,Portuguesa,Masculino
+Maria,Santos,2009-03-22,maria@exemplo.com,jogador,1,GR,923456789,Portuguesa,Feminino
+Pedro,Costa,2011-08-10,pedro@exemplo.com,jogador,7,JC,934567890,Brasileira,Masculino
+Carlos,Ferreira,1985-01-20,carlos@exemplo.com,treinador,,,915555555,Portuguesa,Masculino
+Ana,Oliveira,1990-06-30,ana@exemplo.com,treinador adjunto,,,916666666,Portuguesa,Feminino
+Manuel,Rodrigues,1975-03-12,manuel@exemplo.com,delegado,,,917777777,Portuguesa,Masculino
+Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Feminino`;
     const blob = new Blob(["\uFEFF" + csvContent], { type: 'text/csv;charset=utf-8;' }); // BOM for Excel
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
@@ -1195,6 +1202,9 @@ export default function Members() {
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <Badge variant="default">{importResults.success} importados</Badge>
+                  {importResults.warnings?.length > 0 && (
+                    <Badge variant="secondary">{importResults.warnings.length} avisos</Badge>
+                  )}
                   {importResults.errors.length > 0 && (
                     <Badge variant="destructive">{importResults.errors.length} erros</Badge>
                   )}
@@ -1207,8 +1217,15 @@ export default function Members() {
                     ))}
                   </div>
                 )}
+                {importResults.warnings?.length > 0 && (
+                  <div className="max-h-32 overflow-y-auto text-sm text-amber-600 border border-amber-200 bg-amber-50 dark:bg-amber-950/20 rounded p-2">
+                    <p className="font-medium mb-1">Avisos:</p>
+                    {importResults.warnings.map((w, i) => <p key={i}>{w}</p>)}
+                  </div>
+                )}
                 {importResults.errors.length > 0 && (
                   <div className="max-h-40 overflow-y-auto text-sm text-destructive border border-destructive/20 rounded p-2">
+                    <p className="font-medium mb-1">Erros:</p>
                     {importResults.errors.map((e, i) => <p key={i}>{e}</p>)}
                   </div>
                 )}
@@ -1219,10 +1236,13 @@ export default function Members() {
               <p className="font-medium mb-1">Colunas esperadas:</p>
               <code className="text-xs bg-muted px-2 py-1 rounded block">Nome, Apelido, Data de Nascimento, Email, Função</code>
               <p className="text-xs mt-2 text-muted-foreground">
-                Colunas opcionais: Número, Posição, Telefone
+                Colunas opcionais: Número, Posição, Telefone, Nacionalidade, Sexo
               </p>
               <p className="text-xs mt-1">
-                <strong>Funções válidas:</strong> jogador, treinador, treinador adjunto, delegado, responsável
+                <strong>Funções válidas:</strong> jogador, treinador, treinador adjunto, delegado, responsável, gestor desportivo
+              </p>
+              <p className="text-xs mt-1">
+                <strong>Posições válidas:</strong> GR (Guarda-Redes), JC (Jogador de Campo)
               </p>
             </div>
           </div>
