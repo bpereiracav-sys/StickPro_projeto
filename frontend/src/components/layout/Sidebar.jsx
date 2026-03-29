@@ -172,7 +172,13 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
   return (
     <>
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-slate-900 border-b border-slate-800 z-40 flex items-center justify-between px-4">
+      <header 
+        className="lg:hidden fixed top-0 left-0 right-0 h-14 z-40 flex items-center justify-between px-4"
+        style={{ 
+          backgroundColor: 'hsl(var(--sidebar-bg))',
+          borderBottom: '1px solid hsl(var(--sidebar-border))'
+        }}
+      >
         <div className="flex items-center gap-2 ml-2">
           <img 
             src={CUSTOM_LOGO_URL} 
@@ -181,18 +187,24 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
             style={{ filter: 'brightness(1.5) saturate(1.2)' }}
             data-testid="mobile-header-logo"
           />
-          <span className="font-heading text-base text-white tracking-tight">
-            Stick<span className="text-cyan-400">Pro</span>
+          <span className="font-heading text-base tracking-tight" style={{ color: 'var(--sidebar-text)' }}>
+            Stick<span style={{ color: 'var(--sidebar-active-text)' }}>Pro</span>
           </span>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="relative h-9 w-9 text-white hover:bg-slate-800">
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="relative h-9 w-9"
+            style={{ color: 'var(--sidebar-text)' }}
+          >
             <Bell className="w-5 h-5" />
           </Button>
           <Button 
             variant="ghost" 
             size="icon"
-            className="h-9 w-9 text-white hover:bg-slate-800"
+            className="h-9 w-9"
+            style={{ color: 'var(--sidebar-text)' }}
             onClick={() => setMenuOpen(!menuOpen)}
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -209,21 +221,31 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
       )}
 
       {/* Sidebar */}
-      <aside className={`
-        fixed top-0 left-0 h-full bg-slate-900 text-white z-50
-        transition-transform duration-300 ease-in-out
-        w-64 lg:translate-x-0 border-r border-slate-800
-        ${menuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-      `}>
+      <aside 
+        className={`
+          fixed top-0 left-0 h-full z-50
+          transition-transform duration-300 ease-in-out
+          w-64 lg:translate-x-0
+          ${menuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+        `}
+        style={{ 
+          backgroundColor: 'hsl(var(--sidebar-bg))',
+          borderRight: '1px solid hsl(var(--sidebar-border))',
+          color: 'var(--sidebar-text)'
+        }}
+      >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div className="h-16 flex items-center gap-3 px-4 border-b border-slate-800">
+          <div 
+            className="h-16 flex items-center gap-3 px-4"
+            style={{ borderBottom: '1px solid hsl(var(--sidebar-border))' }}
+          >
             <StickProLogo size="md" isDark={isDarkTheme} />
             <div>
-              <span className="font-heading text-lg tracking-tight block leading-tight text-white">
-                Stick<span className="text-cyan-400">Pro</span>
+              <span className="font-heading text-lg tracking-tight block leading-tight" style={{ color: 'var(--sidebar-text)' }}>
+                Stick<span style={{ color: 'var(--sidebar-active-text)' }}>Pro</span>
               </span>
-              <span className="text-xs text-slate-400">Gestão Desportiva</span>
+              <span className="text-xs" style={{ color: 'hsl(var(--sidebar-muted))' }}>Gestão Desportiva</span>
             </div>
           </div>
 
@@ -255,20 +277,23 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
 
           {/* Team Selector - Only show when a specific team is selected (not "My Club" mode) */}
           {activeTeam && !isAllTeamsSelected && (
-            <div className="px-3 py-4 border-b border-slate-800">
+            <div className="px-3 py-4" style={{ borderBottom: '1px solid hsl(var(--sidebar-border))' }}>
               <div className="flex items-center gap-3 px-2 py-2">
-                <div className="w-10 h-10 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                <div 
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: 'hsla(var(--sidebar-accent), 0.2)' }}
+                >
                   {activeTeam.photo_url ? (
                     <img src={activeTeam.photo_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
                   ) : (
-                    <Users className="w-5 h-5 text-cyan-400" />
+                    <Users className="w-5 h-5" style={{ color: 'var(--sidebar-active-text)' }} />
                   )}
                 </div>
                 <div className="text-left flex-1 min-w-0">
-                  <p className="font-semibold text-sm text-white truncate">
+                  <p className="font-semibold text-sm truncate" style={{ color: 'var(--sidebar-text)' }}>
                     {activeTeam.name}
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs" style={{ color: 'hsl(var(--sidebar-muted))' }}>
                     {activeTeam.category} • {activeTeam.season}
                   </p>
                 </div>
@@ -292,16 +317,27 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                     key={link.href}
                     to={link.href}
                     onClick={() => setMenuOpen(false)}
-                    className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative sidebar-nav-link
-                      ${isActive 
-                        ? 'bg-cyan-500/10 border-l-2 pl-[10px] sidebar-nav-active' 
-                        : 'text-slate-300 hover:bg-slate-800/50 hover:text-white border-l-2 border-transparent pl-[10px]'}
-                    `}
+                    className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative sidebar-nav-link border-l-2 pl-[10px]"
                     style={isActive ? { 
                       color: 'var(--sidebar-active-text, #22d3ee)',
-                      borderLeftColor: 'var(--sidebar-active-text, #22d3ee)'
-                    } : {}}
+                      borderLeftColor: 'var(--sidebar-active-text, #22d3ee)',
+                      backgroundColor: 'hsla(var(--sidebar-accent), 0.1)'
+                    } : {
+                      color: 'hsl(var(--sidebar-muted))',
+                      borderLeftColor: 'transparent'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'hsl(var(--sidebar-hover))';
+                        e.currentTarget.style.color = 'var(--sidebar-text)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                        e.currentTarget.style.color = 'hsl(var(--sidebar-muted))';
+                      }
+                    }}
                     data-testid={testId}
                   >
                     <Icon className="w-5 h-5" style={isActive ? { color: 'var(--sidebar-active-text, #22d3ee)' } : {}} />
@@ -322,25 +358,32 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
           </ScrollArea>
 
           {/* User Menu */}
-          <div className="p-3 border-t border-slate-800">
+          <div className="p-3" style={{ borderTop: '1px solid hsl(var(--sidebar-border))' }}>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button 
                   variant="ghost" 
-                  className="w-full justify-start text-white hover:bg-slate-800 h-auto py-3 rounded-lg"
+                  className="w-full justify-start h-auto py-3 rounded-lg"
+                  style={{ color: 'var(--sidebar-text)' }}
                   data-testid="user-menu-sidebar"
                 >
                   <Avatar className={`h-9 w-9 mr-3 ${isViewingAsAssociated ? 'ring-2 ring-amber-400' : ''}`}>
                     <AvatarImage src={user?.avatar_url} alt={displayName} />
-                    <AvatarFallback className={`${isViewingAsAssociated ? 'bg-amber-500' : 'bg-cyan-500'} text-white text-sm font-semibold`}>
+                    <AvatarFallback 
+                      className="text-sm font-semibold"
+                      style={{ 
+                        backgroundColor: isViewingAsAssociated ? '#f59e0b' : 'hsl(var(--sidebar-accent))',
+                        color: 'var(--sidebar-text)'
+                      }}
+                    >
                       {getInitials(displayName)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="text-left flex-1">
-                    <p className="font-semibold text-sm truncate">{displayName}</p>
-                    <p className="text-xs text-slate-400">{getRoleName(displayRole)}</p>
+                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--sidebar-text)' }}>{displayName}</p>
+                    <p className="text-xs" style={{ color: 'hsl(var(--sidebar-muted))' }}>{getRoleName(displayRole)}</p>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-slate-400" />
+                  <ChevronDown className="w-4 h-4" style={{ color: 'hsl(var(--sidebar-muted))' }} />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent className="w-64 bg-slate-800 border-slate-700" align="end">

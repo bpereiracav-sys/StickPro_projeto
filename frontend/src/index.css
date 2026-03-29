@@ -36,6 +36,15 @@
         /* Surface colors */
         --surface: 0 0% 98%;
         --surface-elevated: 0 0% 100%;
+        
+        /* Sidebar colors - defaults (dark sidebar) */
+        --sidebar-bg: 222 47% 11%;
+        --sidebar-text: #f8fafc;
+        --sidebar-muted: 220 13% 65%;
+        --sidebar-border: 222 47% 16%;
+        --sidebar-hover: 222 47% 14%;
+        --sidebar-accent: 187 94% 43%;
+        --sidebar-active-text: #22d3ee;
     }
 }
 

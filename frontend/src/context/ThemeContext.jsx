@@ -191,6 +191,17 @@ export function ThemeProvider({ children }) {
       const sidebarAccentHSL = hexToHSL(themeColors.sidebar.accent);
       root.style.setProperty('--sidebar-bg', `${sidebarBgHSL.h} ${sidebarBgHSL.s}% ${sidebarBgHSL.l}%`);
       root.style.setProperty('--sidebar-accent', `${sidebarAccentHSL.h} ${sidebarAccentHSL.s}% ${sidebarAccentHSL.l}%`);
+      // Set sidebar text color
+      root.style.setProperty('--sidebar-text', themeColors.sidebar.text || '#f8fafc');
+      // Calculate a lighter/darker border color based on bg
+      const borderLightness = sidebarBgHSL.l > 50 ? sidebarBgHSL.l - 10 : sidebarBgHSL.l + 10;
+      root.style.setProperty('--sidebar-border', `${sidebarBgHSL.h} ${sidebarBgHSL.s}% ${borderLightness}%`);
+      // Calculate muted text color for inactive items
+      const mutedLightness = sidebarBgHSL.l > 50 ? 45 : 65;
+      root.style.setProperty('--sidebar-muted', `${sidebarBgHSL.h} ${Math.min(sidebarBgHSL.s, 20)}% ${mutedLightness}%`);
+      // Calculate hover background
+      const hoverLightness = sidebarBgHSL.l > 50 ? sidebarBgHSL.l - 5 : sidebarBgHSL.l + 5;
+      root.style.setProperty('--sidebar-hover', `${sidebarBgHSL.h} ${sidebarBgHSL.s}% ${hoverLightness}%`);
     }
     
     // Apply sidebar active text color - always apply with fallback
@@ -230,11 +241,17 @@ export function ThemeProvider({ children }) {
     setTheme(newTheme);
   };
 
-  // Set theme from a preset ID
+  // Set theme from a preset ID - preserves user's sidebar accent color
   const setThemePreset = (presetId) => {
     const preset = THEME_PRESETS[presetId];
     if (preset) {
-      setTheme(preset);
+      // Preserve the user's sidebar accent color when changing themes
+      const userSidebarColor = theme.sidebarAccentColor;
+      const newTheme = { 
+        ...preset, 
+        sidebarAccentColor: userSidebarColor || preset.sidebar?.accent || '#22d3ee' 
+      };
+      setTheme(newTheme);
     }
   };
 
