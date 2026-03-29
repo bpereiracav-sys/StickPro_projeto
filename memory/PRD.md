@@ -1092,6 +1092,49 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 ---
 
+### Sistema de Aparência Unificado - Sidebar Adaptativa (29 Mar 2026) ✅
+
+**Funcionalidade:** A sidebar agora adapta o background conforme o tema selecionado, mantendo a cor do item ativo independente e configurável pelo utilizador.
+
+**Comportamento:**
+- **Tema** controla: Background da sidebar, cor do texto inativo, bordas, hover
+- **Cor Ativa** (Club Settings) controla: Texto e borda do item de menu ativo
+
+**Temas e Cores da Sidebar:**
+| Tema | Background Sidebar | Modo |
+|------|-------------------|------|
+| Claro (Padrão) | `#0f172a` (azul escuro) | Light |
+| Escuro (Padrão) | `#0f172a` (azul escuro) | Dark |
+| Azul | `#1e3a5f` (azul médio) | Light |
+| Verde | `#14532d` (verde escuro) | Light |
+| Vermelho | `#7f1d1d` (vermelho escuro) | Light |
+
+**Variáveis CSS:**
+- `--sidebar-bg`: Background da sidebar (HSL)
+- `--sidebar-text`: Texto principal (`#f8fafc`)
+- `--sidebar-muted`: Itens inativos
+- `--sidebar-border`: Bordas e separadores
+- `--sidebar-hover`: Background no hover
+- `--sidebar-active-text`: Cor do item ativo (definida pelo utilizador)
+
+**Preservação de Configuração:**
+- A cor do item ativo é preservada ao mudar de tema
+- Tema e cor ativa persistem no localStorage
+- Cor ativa carrega do servidor (Club.sidebar_accent_color)
+
+**Ficheiros Alterados:**
+- `/app/frontend/src/context/ThemeContext.jsx` - `setThemePreset()` preserva cor ativa
+- `/app/frontend/src/components/layout/Sidebar.jsx` - Usa variáveis CSS dinâmicas
+- `/app/frontend/src/index.css` - Valores padrão das variáveis
+
+**Acessibilidade:**
+- Texto branco (`#f8fafc`) em backgrounds escuros = excelente contraste
+- Cor ativa destacada com borda lateral colorida
+
+**Testes:** 100% Frontend - `/app/test_reports/iteration_31.json`
+
+---
+
 ## TAREFAS PENDENTES
 
 ### P1 - APL Web Scraping (Em Pausa)
