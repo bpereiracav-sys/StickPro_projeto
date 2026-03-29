@@ -267,4 +267,10 @@ export const aiApi = {
   clearHistory: (sessionId) => api.delete('/ai/chat/history', { params: { session_id: sessionId } })
 };
 
+// Guardian (Parent) API
+export const guardianApi = {
+  getChildren: () => api.get('/guardian/children'),
+  getChildTeams: (childId) => api.get(`/guardian/children/${childId}/teams`)
+};
+
 export default api;

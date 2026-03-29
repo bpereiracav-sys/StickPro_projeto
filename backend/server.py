@@ -1934,6 +1934,107 @@ async def update_user_permissions(user_id: str, permissions: dict, current_user:
     
     return {"message": "Permissões atualizadas"}
 
+# ==================== GUARDIAN (PARENT) ROUTES ====================
+
+@api_router.get("/guardian/children")
+async def get_guardian_children(current_user: dict = Depends(get_current_user)):
+    """
+    Get list of children (linked players) for a guardian/parent user.
+    Returns children with their teams count.
+    """
+    user_role = current_user.get('role')
+    
+    # Only responsavel (parent/guardian) can access this
+    if user_role != 'responsavel':
+        raise HTTPException(status_code=403, detail="Apenas responsáveis podem aceder a esta funcionalidade")
+    
+    # Get linked player IDs from user
+    linked_player_ids = current_user.get('linked_player_ids', [])
+    linked_player_id = current_user.get('linked_player_id')
+    
+    # Combine both fields (backwards compatibility)
+    all_linked = list(set(linked_player_ids + ([linked_player_id] if linked_player_id else [])))
+    
+    if not all_linked:
+        return []
+    
+    # Fetch children data
+    children = []
+    for child_id in all_linked:
+        child = await db.users.find_one({"id": child_id}, {"_id": 0, "password": 0})
+        if child:
+            # Count teams
+            team_ids = child.get('team_ids', [])
+            children.append({
+                "id": child['id'],
+                "name": child.get('name', 'Atleta'),
+                "avatar_url": child.get('avatar_url'),
+                "email": child.get('email'),
+                "role": child.get('role'),
+                "teams_count": len(team_ids),
+                "team_ids": team_ids
+            })
+    
+    return children
+
+@api_router.get("/guardian/children/{child_id}/teams")
+async def get_guardian_child_teams(child_id: str, current_user: dict = Depends(get_current_user)):
+    """
+    Get teams and clubs for a specific child.
+    Returns same structure as "As minhas equipas".
+    """
+    user_role = current_user.get('role')
+    
+    # Only responsavel (parent/guardian) can access this
+    if user_role != 'responsavel':
+        raise HTTPException(status_code=403, detail="Apenas responsáveis podem aceder a esta funcionalidade")
+    
+    # Verify that child is linked to this parent
+    linked_player_ids = current_user.get('linked_player_ids', [])
+    linked_player_id = current_user.get('linked_player_id')
+    all_linked = list(set(linked_player_ids + ([linked_player_id] if linked_player_id else [])))
+    
+    if child_id not in all_linked:
+        raise HTTPException(status_code=403, detail="Este atleta não está associado à sua conta")
+    
+    # Fetch child data
+    child = await db.users.find_one({"id": child_id}, {"_id": 0})
+    if not child:
+        raise HTTPException(status_code=404, detail="Atleta não encontrado")
+    
+    # Get child's teams
+    child_team_ids = child.get('team_ids', [])
+    
+    teams = []
+    if child_team_ids:
+        teams = await db.teams.find({"id": {"$in": child_team_ids}}, {"_id": 0}).to_list(100)
+        
+        # Add child's role in each team
+        for team in teams:
+            team_role = 'jogador'  # Default
+            if child_id in team.get('coach_ids', []):
+                team_role = 'treinador'
+            elif child_id in team.get('assistant_coach_ids', []):
+                team_role = 'treinador_adjunto'
+            elif child_id in team.get('delegate_ids', []):
+                team_role = 'delegado'
+            team['child_role'] = team_role
+            team['child_name'] = child.get('name', 'Atleta').split(' ')[0]
+    
+    # Get club data
+    clubs = await db.clubs.find({}, {"_id": 0}).to_list(10)
+    club = clubs[0] if clubs else None
+    
+    return {
+        "child": {
+            "id": child['id'],
+            "name": child.get('name'),
+            "avatar_url": child.get('avatar_url')
+        },
+        "teams": teams,
+        "club": club
+    }
+
 # ==================== TEAM ROUTES ====================
 
 @api_router.post("/teams", response_model=Team)

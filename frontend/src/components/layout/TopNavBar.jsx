@@ -125,6 +125,9 @@ export function TopNavBar() {
 
   // Check if user has children accounts
   const hasChildren = availableProfiles?.some(p => p.type === 'associated');
+  
+  // Check if user is admin
+  const isAdmin = ['admin', 'gestor_desportivo'].includes(user?.role);
 
   // Mobile navigation items
   const navItems = [
@@ -272,11 +275,19 @@ export function TopNavBar() {
                 )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
-                  <Link to="/teams-management" className="flex items-center gap-2 cursor-pointer">
-                    <Settings className="w-4 h-4" />
-                    Gerir Equipas
+                  <Link to="/my-teams" className="flex items-center gap-2 cursor-pointer">
+                    <Users className="w-4 h-4" />
+                    As Minhas Equipas
                   </Link>
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/teams-management" className="flex items-center gap-2 cursor-pointer">
+                      <Settings className="w-4 h-4" />
+                      Gerir Equipas
+                    </Link>
+                  </DropdownMenuItem>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
 
@@ -288,7 +299,7 @@ export function TopNavBar() {
                 asChild
                 data-testid="nav-children"
               >
-                <Link to="/children">
+                <Link to="/my-teams?tab=children">
                   <Baby className="w-4 h-4" />
                   Os Meus Filhos
                 </Link>

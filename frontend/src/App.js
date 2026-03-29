@@ -33,6 +33,7 @@ import ClubPage from "./pages/ClubPage";
 import ProfilePage from "./pages/ProfilePage";
 import MemberProfilePage from "./pages/MemberProfilePage";
 import TeamsPage from "./pages/TeamsPage";
+import MyTeamsPage from "./pages/MyTeamsPage";
 import ChildrenPage from "./pages/ChildrenPage";
 import LibraryPage from "./pages/LibraryPage";
 import Payments from "./pages/Payments";
@@ -267,6 +268,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <TeamsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/my-teams"
+        element={
+          <ProtectedRoute>
+            <MyTeamsPage />
           </ProtectedRoute>
         }
       />
