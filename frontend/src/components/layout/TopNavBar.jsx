@@ -30,7 +30,7 @@ import { getInitials, getRoleName } from '../../lib/utils';
 import { clubApi, teamsApi, usersApi } from '../../services/api';
 
 // Custom Logo Component with Theme Support
-const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/6xtd360b_logoVerdTransp.png";
+const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/e8f8q5qy_logoBranco2.png";
 
 const StickProLogo = ({ size = 'md' }) => {
   const sizes = {

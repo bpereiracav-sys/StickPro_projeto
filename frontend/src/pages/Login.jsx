@@ -16,7 +16,7 @@ import { Loader2, ArrowLeft, Globe } from 'lucide-react';
 import ProfileSelectionModal from '../components/profile/ProfileSelectionModal';
 
 // Custom Logo Component - Green transparent logo that adapts to themes
-const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/6xtd360b_logoVerdTransp.png";
+const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/e8f8q5qy_logoBranco2.png";
 
 // Roller Hockey Images for the carousel
 const ROLLER_HOCKEY_IMAGES = [

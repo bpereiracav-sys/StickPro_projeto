@@ -42,9 +42,9 @@ import { toast } from 'sonner';
 import { dashboardApi } from '../../services/api';
 
 // Custom Logo URL - Green transparent logo that adapts to themes
-const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/6xtd360b_logoVerdTransp.png";
+const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/e8f8q5qy_logoBranco2.png";
 
-// Theme-aware Logo Component - uses CSS filters to adapt colors
+// Theme-aware Logo Component - new white logo on black background
 const StickProLogo = ({ size = 'md', isDark = false }) => {
   const sizes = {
     sm: { box: 'w-16 h-16' },
@@ -53,18 +53,11 @@ const StickProLogo = ({ size = 'md', isDark = false }) => {
   };
   const s = sizes[size] || sizes.md;
   
-  // In dark mode: invert and adjust hue to make it brighter/lighter
-  // In light mode: keep original green
-  const filterStyle = isDark 
-    ? 'brightness(1.5) saturate(1.2)' // Brighten for dark backgrounds
-    : 'none';
-  
   return (
     <img 
       src={CUSTOM_LOGO_URL} 
       alt="Logo" 
       className={`${s.box} object-contain transition-all duration-300`}
-      style={{ filter: filterStyle }}
       data-testid="stick-pro-logo"
     />
   );
@@ -184,7 +177,6 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
             src={CUSTOM_LOGO_URL} 
             alt="Logo" 
             className="w-10 h-10 object-contain flex-shrink-0"
-            style={{ filter: 'brightness(1.5) saturate(1.2)' }}
             data-testid="mobile-header-logo"
           />
           <span className="font-heading text-base tracking-tight" style={{ color: 'var(--sidebar-text)' }}>

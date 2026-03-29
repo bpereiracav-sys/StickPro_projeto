@@ -1301,6 +1301,60 @@ GET /api/guardian/children/:id/teams
 
 ---
 
+### Novo Logo + Notificações para Responsáveis + Estrutura Modular (29 Mar 2026) ✅
+
+**1. Novo Logo Atualizado:**
+- URL: `https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/e8f8q5qy_logoBranco2.png`
+- Logo branco com fundo preto circular
+- Atualizado em: Sidebar, TopNavBar, Login, Register, Landing
+
+**2. Notificações para Responsáveis:**
+Quando um evento é criado para uma equipa, os responsáveis dos atletas dessa equipa são notificados automaticamente.
+
+Tipos de notificação:
+- **Email**: Envia email personalizado com detalhes do evento e nome dos filhos
+- **Push**: Notificação push para dispositivos com subscrição
+
+Template do email:
+```
+Assunto: Novo [Treino/Jogo] - [Nome da Equipa]
+
+Olá [Nome do Pai],
+Foi criado um novo evento para a equipa [Equipa]:
+- Tipo: [Treino/Jogo/Torneio]
+- Título: [Título do Evento]
+- Data/Hora: [Data]
+
+Aceda à aplicação para confirmar a presença de [Nome do Filho].
+```
+
+Função implementada: `notify_guardians_of_team_event()`
+- Localiza membros da equipa via `team_ids` dos utilizadores
+- Encontra responsáveis com `linked_player_ids` correspondentes
+- Envia email e push notification em background (não bloqueia resposta)
+
+**3. Estrutura Modular do Backend Preparada:**
+```
+/app/backend/
+├── models/
+│   └── __init__.py      # Pydantic models, types, permissions
+├── routes/
+│   ├── __init__.py      # Package docs
+│   ├── auth.py          # Template - Authentication
+│   ├── teams.py         # Template - Teams
+│   ├── events.py        # Template - Events
+│   ├── clubs.py         # Template - Clubs
+│   └── guardian.py      # Template - Guardian
+├── utils/
+│   └── __init__.py      # Utility functions
+└── server.py            # Main server (~7100 linhas - para migração incremental)
+```
+
+**Nota sobre Refactoring:**
+O `server.py` mantém-se funcional com todas as rotas. A estrutura modular foi criada como templates para migração incremental futura. Recomendação: migrar uma rota de cada vez, testando cada migração antes de prosseguir.
+
+---
+
 ## TAREFAS PENDENTES
 
 ### P1 - APL Web Scraping (Em Pausa)

@@ -1021,6 +1021,137 @@ async def send_push_to_users(user_ids: List[str], title: str, body: str, url: st
         except Exception as e:
             logger.error(f"Push error: {e}")
 
+
+async def notify_guardians_of_team_event(team_id: str, event_title: str, event_type: str, event_time: str):
+    """
+    Notify all guardians (parents) whose children are members of a team when an event is created.
+    
+    Args:
+        team_id: ID of the team the event is for
+        event_type: Type of event (treino, jogo_campeonato, etc.)
+        event_title: Title of the event
+        event_time: When the event will happen
+    """
+    try:
+        # Get the team
+        team = await db.teams.find_one({"id": team_id}, {"_id": 0, "name": 1, "player_ids": 1, "member_ids": 1})
+        if not team:
+            logger.warning(f"Team {team_id} not found for notification")
+            return
+        
+        team_name = team.get('name', 'Equipa')
+        # Use player_ids or member_ids (whichever has data)
+        member_ids = team.get('player_ids', []) or team.get('member_ids', [])
+        
+        # If no members in team, find users who have this team in their team_ids
+        if not member_ids:
+            member_ids = []
+            async for user in db.users.find({"team_ids": team_id}, {"_id": 0, "id": 1}):
+                member_ids.append(user['id'])
+        
+        if not member_ids:
+            logger.info(f"No members found in team {team_name} for notification")
+            return
+        
+        logger.info(f"Found {len(member_ids)} members in team {team_name}")
+        
+        # Find all guardians who have children in this team
+        guardian_ids = []
+        async for user in db.users.find(
+            {
+                "role": "responsavel",
+                "$or": [
+                    {"linked_player_ids": {"$in": member_ids}},
+                    {"linked_player_id": {"$in": member_ids}}
+                ]
+            },
+            {"_id": 0, "id": 1, "email": 1, "name": 1, "linked_player_ids": 1, "linked_player_id": 1}
+        ):
+            guardian_ids.append(user['id'])
+            
+            # Get children names for the email
+            all_linked = user.get('linked_player_ids', [])
+            if user.get('linked_player_id'):
+                all_linked = list(set(all_linked + [user['linked_player_id']]))
+            
+            # Filter to only children in this team
+            children_in_team = [pid for pid in all_linked if pid in member_ids]
+            
+            if children_in_team and user.get('email'):
+                # Get child names
+                child_names = []
+                for child_id in children_in_team:
+                    child = await db.users.find_one({"id": child_id}, {"_id": 0, "name": 1})
+                    if child:
+                        child_names.append(child.get('name', 'Atleta').split(' ')[0])
+                
+                children_str = ', '.join(child_names) if child_names else 'o seu filho'
+                
+                # Send email notification
+                event_type_names = {
+                    'treino': 'Treino',
+                    'jogo_campeonato': 'Jogo de Campeonato',
+                    'jogo_amigavel': 'Jogo Amigável',
+                    'torneio': 'Torneio',
+                    'outro': 'Evento'
+                }
+                event_type_name = event_type_names.get(event_type, 'Evento')
+                
+                html_content = f"""
+                <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <h2 style="color: #006D5B;">Novo Evento para {children_str}</h2>
+                        <p>Olá {user.get('name', 'Responsável').split(' ')[0]},</p>
+                        <p>Foi criado um novo evento para a equipa <strong>{team_name}</strong>:</p>
+                        <div style="background-color: #f5f5f5; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                            <p style="margin: 5px 0;"><strong>Tipo:</strong> {event_type_name}</p>
+                            <p style="margin: 5px 0;"><strong>Título:</strong> {event_title}</p>
+                            <p style="margin: 5px 0;"><strong>Data/Hora:</strong> {event_time}</p>
+                        </div>
+                        <p>Aceda à aplicação para confirmar a presença de {children_str}.</p>
+                        <p style="color: #666; font-size: 12px; margin-top: 30px;">
+                            Este email foi enviado automaticamente pelo StickPro.
+                        </p>
+                    </div>
+                </body>
+                </html>
+                """
+                
+                try:
+                    await send_email_notification(
+                        to_email=user['email'],
+                        subject=f"Novo {event_type_name} - {team_name}",
+                        html_content=html_content
+                    )
+                    logger.info(f"Email notification sent to guardian {user['email']} about event {event_title}")
+                except Exception as e:
+                    logger.error(f"Failed to send email to guardian {user['email']}: {e}")
+        
+        # Send push notifications to all guardians
+        if guardian_ids:
+            event_type_names = {
+                'treino': 'Treino',
+                'jogo_campeonato': 'Jogo',
+                'jogo_amigavel': 'Jogo',
+                'torneio': 'Torneio',
+                'outro': 'Evento'
+            }
+            event_type_name = event_type_names.get(event_type, 'Evento')
+            
+            await send_push_to_users(
+                user_ids=guardian_ids,
+                title=f"Novo {event_type_name} - {team_name}",
+                body=f"{event_title}",
+                url="/dashboard"
+            )
+            logger.info(f"Push notifications sent to {len(guardian_ids)} guardians")
+        else:
+            logger.info(f"No guardians found to notify for team {team_name}")
+    
+    except Exception as e:
+        logger.error(f"Error notifying guardians: {e}")
+
 # ==================== AUTH ROUTES ====================
 
 async def build_available_profiles(user: dict) -> List[dict]:
@@ -4329,6 +4460,27 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
     await db.events.insert_one(event_dict)
     # Remove MongoDB _id before returning
     event_dict.pop('_id', None)
+    
+    # Notify guardians (parents) of team members about the new event
+    if event_data.team_id:
+        # Format event time for notification
+        event_time = event_dict['start_time']
+        if isinstance(event_time, str):
+            try:
+                dt = datetime.fromisoformat(event_time.replace('Z', '+00:00'))
+                event_time = dt.strftime('%d/%m/%Y às %H:%M')
+            except:
+                pass
+        
+        # Run notification in background (don't block response)
+        import asyncio
+        asyncio.create_task(notify_guardians_of_team_event(
+            team_id=event_data.team_id,
+            event_title=event_data.title,
+            event_type=event_data.event_type,
+            event_time=event_time
+        ))
+    
     return event_dict
 
 @api_router.get("/events")
