@@ -143,6 +143,16 @@ export const clubApi = {
   getMembers: (clubId) => api.get(`/clubs/${clubId}/members`)
 };
 
+// Seasons API
+export const seasonsApi = {
+  getAll: (clubId) => api.get(`/clubs/${clubId}/seasons`),
+  getActive: (clubId) => api.get(`/clubs/${clubId}/seasons/active`),
+  create: (clubId, data) => api.post(`/clubs/${clubId}/seasons`, data),
+  update: (clubId, seasonId, data) => api.put(`/clubs/${clubId}/seasons/${seasonId}`, data),
+  delete: (clubId, seasonId) => api.delete(`/clubs/${clubId}/seasons/${seasonId}`),
+  activate: (clubId, seasonId) => api.put(`/clubs/${clubId}/seasons/${seasonId}/activate`)
+};
+
 // Permissions API
 export const permissionsApi = {
   getDefaults: () => api.get('/permissions/defaults'),

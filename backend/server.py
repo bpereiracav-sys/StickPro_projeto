@@ -329,6 +329,8 @@ class Club(BaseModel):
     secondary_color: Optional[str] = "#FFD700"  # Default gold
     accent_color: Optional[str] = "#1a1a2e"  # Default dark
     theme_mode: Optional[str] = "light"  # light or dark
+    # Timezone
+    timezone: Optional[str] = "Europe/Lisbon"  # Default timezone
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ClubUpdate(BaseModel):
@@ -347,6 +349,30 @@ class ClubUpdate(BaseModel):
     secondary_color: Optional[str] = None
     accent_color: Optional[str] = None
     theme_mode: Optional[str] = None
+    timezone: Optional[str] = None
+
+# Season Models
+class SeasonCreate(BaseModel):
+    name: str  # e.g., "2024/2025"
+    start_date: str  # ISO date string
+    end_date: str  # ISO date string
+    is_active: bool = False
+
+class Season(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    club_id: str
+    name: str
+    start_date: str
+    end_date: str
+    is_active: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SeasonUpdate(BaseModel):
+    name: Optional[str] = None
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    is_active: Optional[bool] = None
 
 # Library Models
 class LibraryItemType(str, Enum):
@@ -1478,13 +1504,110 @@ async def update_club(club_id: str, updates: dict, current_user: dict = Depends(
     if current_user['role'] != 'admin' and current_user['id'] not in club.get('admin_ids', []):
         raise HTTPException(status_code=403, detail="Sem permissão")
     
-    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color', 'theme_mode']
+    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color', 'theme_mode', 'timezone']
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
     
     if filtered_updates:
         await db.clubs.update_one({"id": club_id}, {"$set": filtered_updates})
     
     return {"message": "Clube atualizado"}
+
+# ==================== SEASONS ROUTES ====================
+
+@api_router.post("/clubs/{club_id}/seasons")
+async def create_season(club_id: str, season_data: SeasonCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new season for a club"""
+    if current_user['role'] not in ['admin', 'gestor_desportivo']:
+        raise HTTPException(status_code=403, detail="Sem permissão para criar temporadas")
+    
+    club = await db.clubs.find_one({"id": club_id})
+    if not club:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+    
+    # If this season is active, deactivate all other seasons
+    if season_data.is_active:
+        await db.seasons.update_many(
+            {"club_id": club_id},
+            {"$set": {"is_active": False}}
+        )
+    
+    season = Season(
+        club_id=club_id,
+        name=season_data.name,
+        start_date=season_data.start_date,
+        end_date=season_data.end_date,
+        is_active=season_data.is_active
+    )
+    
+    await db.seasons.insert_one(season.model_dump())
+    
+    return {"message": "Temporada criada", "season": season.model_dump()}
+
+@api_router.get("/clubs/{club_id}/seasons")
+async def get_seasons(club_id: str, current_user: dict = Depends(get_current_user)):
+    """Get all seasons for a club"""
+    seasons = await db.seasons.find({"club_id": club_id}, {"_id": 0}).sort("start_date", -1).to_list(100)
+    return seasons
+
+@api_router.get("/clubs/{club_id}/seasons/active")
+async def get_active_season(club_id: str, current_user: dict = Depends(get_current_user)):
+    """Get the active season for a club"""
+    season = await db.seasons.find_one({"club_id": club_id, "is_active": True}, {"_id": 0})
+    return season
+
+@api_router.put("/clubs/{club_id}/seasons/{season_id}")
+async def update_season(club_id: str, season_id: str, updates: SeasonUpdate, current_user: dict = Depends(get_current_user)):
+    """Update a season"""
+    if current_user['role'] not in ['admin', 'gestor_desportivo']:
+        raise HTTPException(status_code=403, detail="Sem permissão para editar temporadas")
+    
+    season = await db.seasons.find_one({"id": season_id, "club_id": club_id})
+    if not season:
+        raise HTTPException(status_code=404, detail="Temporada não encontrada")
+    
+    update_data = updates.model_dump(exclude_unset=True)
+    
+    # If setting this season as active, deactivate others
+    if update_data.get('is_active'):
+        await db.seasons.update_many(
+            {"club_id": club_id, "id": {"$ne": season_id}},
+            {"$set": {"is_active": False}}
+        )
+    
+    if update_data:
+        await db.seasons.update_one({"id": season_id}, {"$set": update_data})
+    
+    return {"message": "Temporada atualizada"}
+
+@api_router.delete("/clubs/{club_id}/seasons/{season_id}")
+async def delete_season(club_id: str, season_id: str, current_user: dict = Depends(get_current_user)):
+    """Delete a season"""
+    if current_user['role'] not in ['admin', 'gestor_desportivo']:
+        raise HTTPException(status_code=403, detail="Sem permissão para eliminar temporadas")
+    
+    result = await db.seasons.delete_one({"id": season_id, "club_id": club_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Temporada não encontrada")
+    
+    return {"message": "Temporada eliminada"}
+
+@api_router.put("/clubs/{club_id}/seasons/{season_id}/activate")
+async def activate_season(club_id: str, season_id: str, current_user: dict = Depends(get_current_user)):
+    """Set a season as active (deactivates all others)"""
+    if current_user['role'] not in ['admin', 'gestor_desportivo']:
+        raise HTTPException(status_code=403, detail="Sem permissão para ativar temporadas")
+    
+    season = await db.seasons.find_one({"id": season_id, "club_id": club_id})
+    if not season:
+        raise HTTPException(status_code=404, detail="Temporada não encontrada")
+    
+    # Deactivate all seasons
+    await db.seasons.update_many({"club_id": club_id}, {"$set": {"is_active": False}})
+    
+    # Activate this season
+    await db.seasons.update_one({"id": season_id}, {"$set": {"is_active": True}})
+    
+    return {"message": "Temporada ativada"}
 
 # ==================== PERMISSIONS ROUTES ====================
 
