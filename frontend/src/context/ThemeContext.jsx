@@ -98,7 +98,8 @@ const DEFAULT_THEME = {
   secondary: '#FFD700',
   accent: '#1a1a2e',
   mode: 'light',
-  sidebar: { bg: '#0f172a', text: '#f8fafc', accent: '#22d3ee' }
+  sidebar: { bg: '#0f172a', text: '#f8fafc', accent: '#22d3ee' },
+  sidebarAccentColor: '#22d3ee'
 };
 
 // Get initial theme from localStorage or default
@@ -106,11 +107,18 @@ function getInitialTheme() {
   try {
     const stored = localStorage.getItem('stickpro-theme');
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      // Apply sidebar active color immediately on load
+      if (parsed.sidebarAccentColor) {
+        document.documentElement.style.setProperty('--sidebar-active-text', parsed.sidebarAccentColor);
+      }
+      return parsed;
     }
   } catch (e) {
     console.error('Error reading theme from localStorage:', e);
   }
+  // Apply default sidebar color
+  document.documentElement.style.setProperty('--sidebar-active-text', DEFAULT_THEME.sidebarAccentColor);
   return DEFAULT_THEME;
 }
 
@@ -185,10 +193,9 @@ export function ThemeProvider({ children }) {
       root.style.setProperty('--sidebar-accent', `${sidebarAccentHSL.h} ${sidebarAccentHSL.s}% ${sidebarAccentHSL.l}%`);
     }
     
-    // Apply sidebar active text color if present
-    if (themeColors.sidebarAccentColor) {
-      root.style.setProperty('--sidebar-active-text', themeColors.sidebarAccentColor);
-    }
+    // Apply sidebar active text color - always apply with fallback
+    const sidebarActiveColor = themeColors.sidebarAccentColor || '#22d3ee';
+    root.style.setProperty('--sidebar-active-text', sidebarActiveColor);
     
     // Store theme in localStorage for faster initial load
     localStorage.setItem('stickpro-theme', JSON.stringify(themeColors));
@@ -200,15 +207,16 @@ export function ThemeProvider({ children }) {
       const response = await clubApi.getAll();
       if (response.data.length > 0) {
         const club = response.data[0];
-        if (club.primary_color) {
-          setTheme({
-            primary: club.primary_color || DEFAULT_THEME.primary,
-            secondary: club.secondary_color || DEFAULT_THEME.secondary,
-            accent: club.accent_color || DEFAULT_THEME.accent,
-            mode: club.theme_mode || 'light',
-            sidebarAccentColor: club.sidebar_accent_color || '#22d3ee'
-          });
-        }
+        const newTheme = {
+          primary: club.primary_color || DEFAULT_THEME.primary,
+          secondary: club.secondary_color || DEFAULT_THEME.secondary,
+          accent: club.accent_color || DEFAULT_THEME.accent,
+          mode: club.theme_mode || 'light',
+          sidebarAccentColor: club.sidebar_accent_color || '#22d3ee'
+        };
+        setTheme(newTheme);
+        // Apply sidebar active text color immediately
+        document.documentElement.style.setProperty('--sidebar-active-text', newTheme.sidebarAccentColor);
       }
     } catch (error) {
       // Silently fail - use cached or default theme

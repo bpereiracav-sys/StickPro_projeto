@@ -287,6 +287,12 @@ export const translations = {
       seasonUpdated: 'Temporada atualizada',
       seasonDeleted: 'Temporada eliminada',
       seasonActivated: 'Temporada ativada',
+      // Sidebar active color
+      sidebarActiveColor: 'Cor do Menu Ativo',
+      sidebarActiveColorDesc: 'Escolha a cor do texto do item de menu ativo na barra lateral',
+      currentSidebarColor: 'Cor atual do menu ativo',
+      sidebarColorUpdated: 'Cor do menu atualizada com sucesso',
+      preview: 'Pré-visualização',
     },
     // Subscription
     subscription: {
@@ -655,6 +661,11 @@ export const translations = {
       seasonUpdated: 'Temporada actualizada',
       seasonDeleted: 'Temporada eliminada',
       seasonActivated: 'Temporada activada',
+      sidebarActiveColor: 'Color del Menú Activo',
+      sidebarActiveColorDesc: 'Elige el color del texto del elemento de menú activo en la barra lateral',
+      currentSidebarColor: 'Color actual del menú activo',
+      sidebarColorUpdated: 'Color del menú actualizado',
+      preview: 'Vista previa',
     },
     // Subscription
     subscription: {
@@ -1023,6 +1034,11 @@ export const translations = {
       seasonUpdated: 'Saison mise à jour',
       seasonDeleted: 'Saison supprimée',
       seasonActivated: 'Saison activée',
+      sidebarActiveColor: 'Couleur du Menu Actif',
+      sidebarActiveColorDesc: 'Choisissez la couleur du texte de l\'élément de menu actif dans la barre latérale',
+      currentSidebarColor: 'Couleur actuelle du menu actif',
+      sidebarColorUpdated: 'Couleur du menu mise à jour',
+      preview: 'Aperçu',
     },
     // Subscription
     subscription: {
@@ -1391,6 +1407,11 @@ export const translations = {
       seasonUpdated: 'Stagione aggiornata',
       seasonDeleted: 'Stagione eliminata',
       seasonActivated: 'Stagione attivata',
+      sidebarActiveColor: 'Colore del Menu Attivo',
+      sidebarActiveColorDesc: 'Scegli il colore del testo dell\'elemento di menu attivo nella barra laterale',
+      currentSidebarColor: 'Colore attuale del menu attivo',
+      sidebarColorUpdated: 'Colore del menu aggiornato',
+      preview: 'Anteprima',
     },
     // Subscription
     subscription: {
@@ -1759,6 +1780,11 @@ export const translations = {
       seasonUpdated: 'Season updated',
       seasonDeleted: 'Season deleted',
       seasonActivated: 'Season activated',
+      sidebarActiveColor: 'Active Menu Color',
+      sidebarActiveColorDesc: 'Choose the text color of the active menu item in the sidebar',
+      currentSidebarColor: 'Current active menu color',
+      sidebarColorUpdated: 'Menu color updated',
+      preview: 'Preview',
     },
     // Subscription
     subscription: {

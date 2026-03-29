@@ -293,14 +293,18 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                     to={link.href}
                     onClick={() => setMenuOpen(false)}
                     className={`
-                      flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative
+                      flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative sidebar-nav-link
                       ${isActive 
-                        ? 'bg-cyan-500/10 text-cyan-400 border-l-2 border-cyan-400 pl-[10px]' 
+                        ? 'bg-cyan-500/10 border-l-2 pl-[10px] sidebar-nav-active' 
                         : 'text-slate-300 hover:bg-slate-800/50 hover:text-white border-l-2 border-transparent pl-[10px]'}
                     `}
+                    style={isActive ? { 
+                      color: 'var(--sidebar-active-text, #22d3ee)',
+                      borderLeftColor: 'var(--sidebar-active-text, #22d3ee)'
+                    } : {}}
                     data-testid={testId}
                   >
-                    <Icon className={`w-5 h-5 ${isActive ? 'text-cyan-400' : ''}`} />
+                    <Icon className="w-5 h-5" style={isActive ? { color: 'var(--sidebar-active-text, #22d3ee)' } : {}} />
                     <span className="font-medium text-sm">{link.label}</span>
                     {/* Notification Badge */}
                     {link.notificationCount > 0 && (

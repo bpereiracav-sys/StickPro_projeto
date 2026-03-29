@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme } from '../context/ThemeContext';
+import { useTheme, THEME_PRESETS } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { clubApi, seasonsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -53,7 +53,9 @@ import {
   Plus,
   Trash2,
   Star,
-  CalendarDays
+  CalendarDays,
+  Home,
+  Users
 } from 'lucide-react';
 import { LogoUpload } from '../components/ImageUpload';
 
@@ -88,9 +90,33 @@ const TIMEZONES = [
   { value: 'UTC', label: 'UTC (GMT+0)' },
 ];
 
+// 20 Predefined sidebar active text colors
+const SIDEBAR_ACCENT_COLORS = [
+  { name: 'Ciano', hex: '#22d3ee' },
+  { name: 'Azul Claro', hex: '#60a5fa' },
+  { name: 'Azul', hex: '#3b82f6' },
+  { name: 'Índigo', hex: '#818cf8' },
+  { name: 'Violeta', hex: '#a78bfa' },
+  { name: 'Roxo', hex: '#c084fc' },
+  { name: 'Fúcsia', hex: '#e879f9' },
+  { name: 'Rosa', hex: '#f472b6' },
+  { name: 'Vermelho', hex: '#f87171' },
+  { name: 'Laranja', hex: '#fb923c' },
+  { name: 'Âmbar', hex: '#fbbf24' },
+  { name: 'Amarelo', hex: '#facc15' },
+  { name: 'Lima', hex: '#a3e635' },
+  { name: 'Verde Claro', hex: '#4ade80' },
+  { name: 'Verde', hex: '#22c55e' },
+  { name: 'Esmeralda', hex: '#34d399' },
+  { name: 'Teal', hex: '#2dd4bf' },
+  { name: 'Branco', hex: '#ffffff' },
+  { name: 'Cinza Claro', hex: '#d1d5db' },
+  { name: 'Dourado', hex: '#ffd700' },
+];
+
 export default function ClubPage() {
   const { user } = useAuth();
-  const { refreshTheme } = useTheme();
+  const { refreshTheme, setSidebarAccentColor, theme } = useTheme();
   const { t } = useLanguage();
   const [club, setClub] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -98,6 +124,8 @@ export default function ClubPage() {
   const [saving, setSaving] = useState(false);
   const [selectedPalette, setSelectedPalette] = useState(null);
   const [activeTab, setActiveTab] = useState('info');
+  const [savingSidebarColor, setSavingSidebarColor] = useState(false);
+  const [selectedSidebarColor, setSelectedSidebarColor] = useState('#22d3ee');
   
   // Seasons state
   const [seasons, setSeasons] = useState([]);
@@ -150,6 +178,7 @@ export default function ClubPage() {
       if (response.data.length > 0) {
         const clubData = response.data[0];
         setClub(clubData);
+        setSelectedSidebarColor(clubData.sidebar_accent_color || '#22d3ee');
         setFormData({
           name: clubData.name || '',
           logo_url: clubData.logo_url || '',
@@ -236,6 +265,28 @@ export default function ClubPage() {
 
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Handler for sidebar accent color change - auto-save
+  const handleSidebarColorChange = async (color) => {
+    if (!club?.id || !isAdmin) return;
+    
+    setSelectedSidebarColor(color);
+    setSidebarAccentColor(color); // Apply immediately to UI
+    setSavingSidebarColor(true);
+    
+    try {
+      await clubApi.update(club.id, { sidebar_accent_color: color });
+      setClub({ ...club, sidebar_accent_color: color });
+      toast.success(t('club.sidebarColorUpdated') || 'Cor atualizada com sucesso');
+    } catch (error) {
+      toast.error(t('common.error'));
+      // Revert on error
+      setSelectedSidebarColor(club.sidebar_accent_color || '#22d3ee');
+      setSidebarAccentColor(club.sidebar_accent_color || '#22d3ee');
+    } finally {
+      setSavingSidebarColor(false);
+    }
   };
 
   // Season handlers
@@ -823,9 +874,10 @@ export default function ClubPage() {
           )}
         </TabsContent>
 
-        {/* Settings Tab (Timezone) */}
+        {/* Settings Tab (Timezone + Sidebar Color) */}
         <TabsContent value="settings">
-          <Card className="border border-border">
+          {/* Timezone Card */}
+          <Card className="border border-border mb-6">
             <CardHeader>
               <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                 <Clock className="w-5 h-5 text-primary" />
@@ -870,6 +922,103 @@ export default function ClubPage() {
                   <Clock className="w-4 h-4 inline mr-1" />
                   {t('club.timezone')}: <span className="font-medium text-foreground">{club.timezone || 'Europe/Lisbon'}</span>
                 </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Sidebar Active Color Card */}
+          <Card className="border border-border">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
+                <Palette className="w-5 h-5 text-primary" />
+                {t('club.sidebarActiveColor') || 'COR DO MENU ATIVO'}
+              </CardTitle>
+              <CardDescription>
+                {t('club.sidebarActiveColorDesc') || 'Escolha a cor do texto do item de menu ativo na barra lateral'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {/* Color Grid */}
+              <div className="grid grid-cols-5 sm:grid-cols-10 gap-3" data-testid="sidebar-color-picker">
+                {SIDEBAR_ACCENT_COLORS.map((color) => {
+                  const isSelected = selectedSidebarColor?.toLowerCase() === color.hex.toLowerCase();
+                  return (
+                    <button
+                      key={color.hex}
+                      type="button"
+                      onClick={() => handleSidebarColorChange(color.hex)}
+                      disabled={!isAdmin || savingSidebarColor}
+                      className={`
+                        relative w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all duration-200 
+                        border-2 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary
+                        ${isSelected 
+                          ? 'ring-2 ring-offset-2 ring-primary border-primary scale-110' 
+                          : 'border-border hover:border-primary/50'}
+                        ${!isAdmin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                      `}
+                      style={{ backgroundColor: color.hex }}
+                      title={color.name}
+                      data-testid={`sidebar-color-${color.hex.replace('#', '')}`}
+                    >
+                      {isSelected && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                          <Check 
+                            className="w-5 h-5" 
+                            style={{ 
+                              color: ['#ffffff', '#ffd700', '#facc15', '#fbbf24', '#d1d5db', '#a3e635'].includes(color.hex.toLowerCase()) 
+                                ? '#1f2937' 
+                                : '#ffffff' 
+                            }} 
+                          />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Current Color Preview */}
+              <div className="flex items-center gap-4 p-4 bg-slate-900 rounded-lg">
+                <div className="flex items-center gap-3 flex-1">
+                  <div 
+                    className="w-8 h-8 rounded-full border-2 border-white/20"
+                    style={{ backgroundColor: selectedSidebarColor }}
+                  />
+                  <div>
+                    <p className="text-sm text-slate-400">{t('club.currentSidebarColor') || 'Cor atual do menu ativo'}</p>
+                    <p className="font-mono text-sm" style={{ color: selectedSidebarColor }}>
+                      {selectedSidebarColor?.toUpperCase()}
+                    </p>
+                  </div>
+                </div>
+                {savingSidebarColor && (
+                  <Loader2 className="w-5 h-5 animate-spin text-slate-400" />
+                )}
+              </div>
+
+              {/* Preview Example */}
+              <div className="p-4 bg-slate-900 rounded-lg">
+                <p className="text-xs text-slate-500 mb-3 uppercase tracking-wide">{t('club.preview') || 'Pré-visualização'}</p>
+                <div className="space-y-1">
+                  <div className="flex items-center gap-3 px-3 py-2 text-slate-400">
+                    <Home className="w-4 h-4" />
+                    <span className="text-sm">Dashboard</span>
+                  </div>
+                  <div 
+                    className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/5 border-l-2"
+                    style={{ 
+                      color: selectedSidebarColor,
+                      borderLeftColor: selectedSidebarColor 
+                    }}
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span className="text-sm font-medium">{t('nav.calendar') || 'Calendário'} (Ativo)</span>
+                  </div>
+                  <div className="flex items-center gap-3 px-3 py-2 text-slate-400">
+                    <Users className="w-4 h-4" />
+                    <span className="text-sm">{t('nav.members') || 'Membros'}</span>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
