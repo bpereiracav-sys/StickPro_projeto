@@ -1243,6 +1243,64 @@ else:
 
 ---
 
+### Secção "Os Meus Filhos" para Responsáveis (29 Mar 2026) ✅
+
+**Funcionalidade:** Nova secção integrada na página "As minhas equipas e os meus clubes" que permite aos responsáveis (pais/familiares) verem as equipas e clubes dos seus filhos.
+
+**Tabs Implementados:**
+| Tab | Descrição |
+|-----|-----------|
+| As minhas equipas | Equipas do próprio utilizador |
+| Os meus clubes | Clubes do próprio utilizador |
+| Os meus filhos | Equipas/clubes dos filhos (só visível para `responsavel`) |
+
+**UI - Seletor de Filhos:**
+- Botões circulares com avatar
+- Formato: "Nome (nº equipas)" (ex: "António (3)")
+- Clique filtra os cards para mostrar apenas equipas desse filho
+
+**Cards de Equipa/Clube:**
+- Badge "EQUIPA DO CLUBE" ou "CLUBE"
+- Título com nome do filho (ex: "Sub-13 (António)")
+- Desporto: "Hóquei em patins"
+- Papel: "Jogador", "Treinador", etc.
+- Ícones: Chat, Menu de opções
+
+**Endpoints Backend:**
+```
+GET /api/guardian/children
+→ Lista de filhos com: id, name, avatar_url, teams_count
+
+GET /api/guardian/children/:id/teams
+→ Equipas do filho com: teams[], club, child.name
+```
+
+**Permissões:**
+- ✅ Apenas `responsavel` pode aceder aos endpoints
+- ✅ Responsável só pode ver filhos ligados à sua conta
+- ✅ Responsáveis só podem **visualizar**, sem acções de edição
+- ❌ Admin/outros papéis recebem 403
+
+**Campos Utilizados:**
+- `user.linked_player_ids`: IDs dos filhos ligados
+- `user.linked_player_id`: ID do filho (retrocompatibilidade)
+
+**Ficheiros:**
+- `/app/frontend/src/pages/MyTeamsPage.jsx` - Nova página com 3 tabs
+- `/app/frontend/src/services/api.js` - `guardianApi` adicionado
+- `/app/backend/server.py` - Endpoints Guardian Routes
+
+**Rota:** `/my-teams` (com `?tab=children` para ir directo ao tab filhos)
+
+**Conta de Teste:**
+- Email: `parent.sub13@test.com`
+- Password: `test123456`
+- Filhos: Jogador Sub-13, Jogador Escolares
+
+**Testes:** 100% Backend + Frontend (10 testes) - `/app/test_reports/iteration_34.json`
+
+---
+
 ## TAREFAS PENDENTES
 
 ### P1 - APL Web Scraping (Em Pausa)
