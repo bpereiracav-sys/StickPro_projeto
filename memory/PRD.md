@@ -1037,6 +1037,61 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 ---
 
+### Paleta de Cores para Item Ativo da Sidebar (29 Mar 2026) ✅
+
+**Funcionalidade:** Seletor de 20 cores para personalizar a cor do texto do item de menu ativo na sidebar.
+
+**Cores Disponíveis (20):**
+| Nome | Hex |
+|------|-----|
+| Ciano | #22d3ee |
+| Azul Claro | #60a5fa |
+| Azul | #3b82f6 |
+| Índigo | #818cf8 |
+| Violeta | #a78bfa |
+| Roxo | #c084fc |
+| Fúcsia | #e879f9 |
+| Rosa | #f472b6 |
+| Vermelho | #f87171 |
+| Laranja | #fb923c |
+| Âmbar | #fbbf24 |
+| Amarelo | #facc15 |
+| Lima | #a3e635 |
+| Verde Claro | #4ade80 |
+| Verde | #22c55e |
+| Esmeralda | #34d399 |
+| Teal | #2dd4bf |
+| Branco | #ffffff |
+| Cinza Claro | #d1d5db |
+| Dourado | #ffd700 |
+
+**Implementação:**
+- **Backend**: Campo `sidebar_accent_color` no modelo `Club` (server.py linha 335)
+- **Frontend**: 
+  - `ClubPage.jsx` - UI do seletor na aba "Definições"
+  - `Sidebar.jsx` - Aplica `var(--sidebar-active-text)` ao item ativo
+  - `ThemeContext.jsx` - Gere a variável CSS e persistência
+
+**Comportamento:**
+- Auto-save imediato ao clicar numa cor (sem botão guardar)
+- Toast de confirmação: "Cor atualizada com sucesso"
+- Indicador de checkmark na cor selecionada
+- Preview em tempo real antes de guardar
+- Persistência no servidor (DB) e localStorage
+
+**CSS Variable:**
+- `--sidebar-active-text` - Define a cor do texto e borda do item ativo
+
+**data-testid:**
+- `sidebar-color-picker` - Container do seletor
+- `sidebar-color-{hex}` - Botões individuais (ex: `sidebar-color-22d3ee`)
+
+**Traduções:** PT, ES, FR, IT, EN (club.sidebarActiveColor, etc.)
+
+**Testes:** 100% Frontend - `/app/test_reports/iteration_30.json`
+
+---
+
 ## TAREFAS PENDENTES
 
 ### P1 - APL Web Scraping (Em Pausa)
