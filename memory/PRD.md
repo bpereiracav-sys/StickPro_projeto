@@ -1135,6 +1135,62 @@ https://roller-hockey-hub-1.preview.emergentagent.com
 
 ---
 
+### Novo Papel: Gestor Desportivo (29 Mar 2026) ✅
+
+**Funcionalidade:** Adicionado novo papel `gestor_desportivo` com as mesmas permissões que `admin`.
+
+**Roles Administrativos:**
+| Role | Permissões |
+|------|------------|
+| `admin` | Acesso total |
+| `gestor_desportivo` | Acesso total (igual a admin) |
+
+**Verificação de Permissões:**
+```javascript
+// Frontend
+const ADMIN_ROLES = ['admin', 'gestor_desportivo'];
+const isAdmin = ADMIN_ROLES.includes(user.role);
+
+// Backend
+ADMIN_ROLES = ["admin", "gestor_desportivo"]
+def is_admin_role(role: str) -> bool:
+    return role in ADMIN_ROLES
+```
+
+**Acesso Garantido:**
+- ✅ Club settings (criar, editar, visualizar)
+- ✅ Members (criar, editar, arquivar)
+- ✅ Teams (criar, editar, eliminar)
+- ✅ Subscription (visualizar, cancelar)
+- ✅ Invoices (criar, editar)
+- ✅ Permissions (visualizar, modificar)
+- ✅ Import/Export (Excel, APL)
+
+**Ficheiros Alterados:**
+- `/app/backend/server.py` - `ADMIN_ROLES`, `is_admin_role()`
+- `/app/backend/permissions.py` - `ADMIN_LEVEL_ROLES`, `Role.SPORTS_MANAGER`
+- `/app/frontend/src/context/PermissionsContext.jsx` - `ADMIN_ROLES`, `ROLE_NAMES`
+- `/app/frontend/src/context/AuthContext.jsx` - `isAdmin` check
+- `/app/frontend/src/lib/utils.js` - `getRoleName()`
+- `/app/frontend/src/i18n/translations.js` - Traduções
+
+**Traduções:**
+| Língua | Tradução |
+|--------|----------|
+| PT | Gestor Desportivo |
+| ES | Gestor Deportivo |
+| FR | Gestionnaire Sportif |
+| IT | Direttore Sportivo |
+| EN | Sports Manager |
+
+**Conta de Teste:**
+- Email: `gestor@example.com`
+- Password: `test123456`
+
+**Testes:** 100% Backend + Frontend - `/app/test_reports/iteration_32.json`
+
+---
+
 ## TAREFAS PENDENTES
 
 ### P1 - APL Web Scraping (Em Pausa)
