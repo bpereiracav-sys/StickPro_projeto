@@ -153,6 +153,18 @@ export const seasonsApi = {
   activate: (clubId, seasonId) => api.put(`/clubs/${clubId}/seasons/${seasonId}/activate`)
 };
 
+// Subscription API
+export const subscriptionApi = {
+  get: () => api.get('/subscription'),
+  update: (data) => api.patch('/subscription', data),
+  cancel: () => api.post('/subscription/cancel'),
+  getInvoices: () => api.get('/subscription/invoices'),
+  getInvoice: (invoiceId) => api.get(`/subscription/invoices/${invoiceId}`),
+  createInvoice: (data) => api.post('/subscription/invoices', data),
+  updateInvoice: (invoiceId, data) => api.patch(`/subscription/invoices/${invoiceId}`, data),
+  downloadInvoice: (invoiceId) => api.get(`/subscription/invoices/${invoiceId}/download`)
+};
+
 // Permissions API
 export const permissionsApi = {
   getDefaults: () => api.get('/permissions/defaults'),

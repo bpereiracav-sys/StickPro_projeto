@@ -127,6 +127,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
     { href: '/library', label: 'Biblioteca', icon: BookOpen },
     { href: '/messages', label: t('nav.messages'), icon: MessageSquare },
     { href: '/club', label: t('nav.club') || 'Clube', icon: Building2, adminOnly: true },
+    { href: '/subscription', label: t('nav.subscription') || 'Subscrição', icon: CreditCard, adminOnly: true },
     { href: '/settings', label: t('nav.settings'), icon: Settings },
   ];
 

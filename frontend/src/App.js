@@ -36,6 +36,7 @@ import TeamsPage from "./pages/TeamsPage";
 import ChildrenPage from "./pages/ChildrenPage";
 import LibraryPage from "./pages/LibraryPage";
 import Payments from "./pages/Payments";
+import SubscriptionPage from "./pages/SubscriptionPage";
 
 // Protected Route Component
 function ProtectedRoute({ children }) {
@@ -242,6 +243,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <ClubPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/subscription"
+        element={
+          <ProtectedRoute>
+            <SubscriptionPage />
           </ProtectedRoute>
         }
       />

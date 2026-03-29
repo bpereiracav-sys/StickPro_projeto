@@ -374,6 +374,73 @@ class SeasonUpdate(BaseModel):
     end_date: Optional[str] = None
     is_active: Optional[bool] = None
 
+# Subscription Models
+class SubscriptionPlan(str, Enum):
+    standard = "standard"
+    plus = "plus"
+
+class SubscriptionStatus(str, Enum):
+    active = "active"
+    expired = "expired"
+    cancelled = "cancelled"
+    pending = "pending"
+
+class PaymentMethod(str, Enum):
+    credit_card = "credit_card"
+    bank_transfer = "bank_transfer"
+
+class InvoiceStatus(str, Enum):
+    pending = "pending"
+    paid = "paid"
+    overdue = "overdue"
+    cancelled = "cancelled"
+
+class SubscriptionCreate(BaseModel):
+    plan_type: SubscriptionPlan = SubscriptionPlan.standard
+    payment_method: PaymentMethod = PaymentMethod.bank_transfer
+
+class Subscription(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    club_id: str
+    plan_type: str = "standard"  # "standard" or "plus"
+    start_date: str  # ISO date string
+    end_date: str  # ISO date string (1 year after start)
+    status: str = "active"  # "active", "expired", "cancelled", "pending"
+    payment_method: str = "bank_transfer"  # "credit_card" or "bank_transfer"
+    member_count: int = 0  # Number of subscribed members
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SubscriptionUpdate(BaseModel):
+    plan_type: Optional[str] = None
+    payment_method: Optional[str] = None
+    status: Optional[str] = None
+    member_count: Optional[int] = None
+
+class SubscriptionInvoice(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    subscription_id: str
+    club_id: str
+    invoice_number: str  # e.g., "INV-2024-001"
+    start_date: str  # Billing period start
+    end_date: str  # Billing period end
+    paying_members: int
+    price_per_member: float  # e.g., 2.50
+    total_due: float
+    total_paid: float = 0.0
+    status: str = "pending"  # "pending", "paid", "overdue", "cancelled"
+    file_url: Optional[str] = None  # PDF invoice link
+    paid_at: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class SubscriptionInvoiceCreate(BaseModel):
+    start_date: str
+    end_date: str
+    paying_members: int
+    price_per_member: float
+    total_due: float
+
 # Library Models
 class LibraryItemType(str, Enum):
     pdf = "pdf"
@@ -1608,6 +1675,201 @@ async def activate_season(club_id: str, season_id: str, current_user: dict = Dep
     await db.seasons.update_one({"id": season_id}, {"$set": {"is_active": True}})
     
     return {"message": "Temporada ativada"}
+
+# ==================== SUBSCRIPTION ROUTES ====================
+
+@api_router.get("/subscription")
+async def get_subscription(current_user: dict = Depends(get_current_user)):
+    """Get subscription for current user's club"""
+    if current_user['role'] not in ['admin', 'gestor_desportivo']:
+        raise HTTPException(status_code=403, detail="Sem permissão para ver subscrição")
+    
+    # Get club
+    club = await db.clubs.find_one({}, {"_id": 0})
+    if not club:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+    
+    # Get or create subscription
+    subscription = await db.subscriptions.find_one({"club_id": club['id']}, {"_id": 0})
+    
+    if not subscription:
+        # Create default subscription
+        from datetime import timedelta
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        one_year_later = (datetime.now(timezone.utc) + timedelta(days=365)).strftime("%Y-%m-%d")
+        
+        # Count active members
+        member_count = await db.users.count_documents({"is_archived": {"$ne": True}})
+        
+        new_subscription = Subscription(
+            club_id=club['id'],
+            plan_type="standard",
+            start_date=today,
+            end_date=one_year_later,
+            status="active",
+            payment_method="bank_transfer",
+            member_count=member_count
+        )
+        await db.subscriptions.insert_one(new_subscription.model_dump())
+        subscription = new_subscription.model_dump()
+    
+    # Update member count
+    member_count = await db.users.count_documents({"is_archived": {"$ne": True}})
+    if subscription.get('member_count') != member_count:
+        await db.subscriptions.update_one(
+            {"id": subscription['id']},
+            {"$set": {"member_count": member_count}}
+        )
+        subscription['member_count'] = member_count
+    
+    return subscription
+
+@api_router.patch("/subscription")
+async def update_subscription(updates: SubscriptionUpdate, current_user: dict = Depends(get_current_user)):
+    """Update subscription settings"""
+    if current_user['role'] not in ['admin', 'gestor_desportivo']:
+        raise HTTPException(status_code=403, detail="Sem permissão para editar subscrição")
+    
+    club = await db.clubs.find_one({}, {"_id": 0})
+    if not club:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+    
+    subscription = await db.subscriptions.find_one({"club_id": club['id']})
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Subscrição não encontrada")
+    
+    update_data = updates.model_dump(exclude_unset=True)
+    if update_data:
+        await db.subscriptions.update_one(
+            {"id": subscription['id']},
+            {"$set": update_data}
+        )
+    
+    return {"message": "Subscrição atualizada"}
+
+@api_router.post("/subscription/cancel")
+async def cancel_subscription(current_user: dict = Depends(get_current_user)):
+    """Cancel the subscription"""
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas administradores podem cancelar subscrições")
+    
+    club = await db.clubs.find_one({}, {"_id": 0})
+    if not club:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+    
+    subscription = await db.subscriptions.find_one({"club_id": club['id']})
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Subscrição não encontrada")
+    
+    await db.subscriptions.update_one(
+        {"id": subscription['id']},
+        {"$set": {"status": "cancelled"}}
+    )
+    
+    return {"message": "Subscrição cancelada"}
+
+@api_router.get("/subscription/invoices")
+async def get_invoices(current_user: dict = Depends(get_current_user)):
+    """Get all invoices for the subscription"""
+    if current_user['role'] not in ['admin', 'gestor_desportivo']:
+        raise HTTPException(status_code=403, detail="Sem permissão para ver faturas")
+    
+    club = await db.clubs.find_one({}, {"_id": 0})
+    if not club:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+    
+    subscription = await db.subscriptions.find_one({"club_id": club['id']}, {"_id": 0})
+    if not subscription:
+        return []
+    
+    invoices = await db.subscription_invoices.find(
+        {"subscription_id": subscription['id']},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    
+    return invoices
+
+@api_router.post("/subscription/invoices")
+async def create_invoice(invoice_data: SubscriptionInvoiceCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new invoice (admin only)"""
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas administradores podem criar faturas")
+    
+    club = await db.clubs.find_one({}, {"_id": 0})
+    if not club:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+    
+    subscription = await db.subscriptions.find_one({"club_id": club['id']})
+    if not subscription:
+        raise HTTPException(status_code=404, detail="Subscrição não encontrada")
+    
+    # Generate invoice number
+    count = await db.subscription_invoices.count_documents({"club_id": club['id']})
+    invoice_number = f"INV-{datetime.now().year}-{str(count + 1).zfill(3)}"
+    
+    invoice = SubscriptionInvoice(
+        subscription_id=subscription['id'],
+        club_id=club['id'],
+        invoice_number=invoice_number,
+        start_date=invoice_data.start_date,
+        end_date=invoice_data.end_date,
+        paying_members=invoice_data.paying_members,
+        price_per_member=invoice_data.price_per_member,
+        total_due=invoice_data.total_due,
+        status="pending"
+    )
+    
+    await db.subscription_invoices.insert_one(invoice.model_dump())
+    
+    return {"message": "Fatura criada", "invoice": invoice.model_dump()}
+
+@api_router.get("/subscription/invoices/{invoice_id}")
+async def get_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a specific invoice"""
+    if current_user['role'] not in ['admin', 'gestor_desportivo']:
+        raise HTTPException(status_code=403, detail="Sem permissão para ver faturas")
+    
+    invoice = await db.subscription_invoices.find_one({"id": invoice_id}, {"_id": 0})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Fatura não encontrada")
+    
+    return invoice
+
+@api_router.get("/subscription/invoices/{invoice_id}/download")
+async def download_invoice(invoice_id: str, current_user: dict = Depends(get_current_user)):
+    """Get download link for invoice"""
+    if current_user['role'] not in ['admin', 'gestor_desportivo']:
+        raise HTTPException(status_code=403, detail="Sem permissão para descarregar faturas")
+    
+    invoice = await db.subscription_invoices.find_one({"id": invoice_id}, {"_id": 0})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Fatura não encontrada")
+    
+    if not invoice.get('file_url'):
+        raise HTTPException(status_code=404, detail="Ficheiro da fatura não disponível")
+    
+    return {"download_url": invoice['file_url']}
+
+@api_router.patch("/subscription/invoices/{invoice_id}")
+async def update_invoice(invoice_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
+    """Update an invoice (mark as paid, etc.)"""
+    if current_user['role'] != 'admin':
+        raise HTTPException(status_code=403, detail="Apenas administradores podem editar faturas")
+    
+    invoice = await db.subscription_invoices.find_one({"id": invoice_id})
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Fatura não encontrada")
+    
+    allowed_fields = ['status', 'total_paid', 'paid_at', 'file_url']
+    filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
+    
+    if filtered_updates:
+        await db.subscription_invoices.update_one(
+            {"id": invoice_id},
+            {"$set": filtered_updates}
+        )
+    
+    return {"message": "Fatura atualizada"}
 
 # ==================== PERMISSIONS ROUTES ====================
 
