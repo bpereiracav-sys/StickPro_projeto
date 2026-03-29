@@ -79,8 +79,8 @@ export default function TeamsPage() {
     photo_url: ''
   });
 
-  const isAdmin = user?.role === 'admin';
-  const canManageTeams = user?.role === 'admin' || user?.role === 'treinador';
+  const isAdmin = ['admin', 'gestor_desportivo'].includes(user?.role);
+  const canManageTeams = ['admin', 'gestor_desportivo', 'treinador'].includes(user?.role);
 
   useEffect(() => {
     setLoading(teamsLoading);

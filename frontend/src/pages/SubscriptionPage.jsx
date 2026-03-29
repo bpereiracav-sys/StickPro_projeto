@@ -60,7 +60,7 @@ export default function SubscriptionPage() {
   const [cancelling, setCancelling] = useState(false);
   const [updatingPayment, setUpdatingPayment] = useState(false);
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = ['admin', 'gestor_desportivo'].includes(user?.role);
 
   useEffect(() => {
     fetchSubscription();

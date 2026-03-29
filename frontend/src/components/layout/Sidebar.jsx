@@ -306,7 +306,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
             <nav className="px-3 space-y-1">
               {navLinks.map((link) => {
                 // Skip admin-only links for non-admin users
-                if (link.adminOnly && effectiveRole !== 'admin') {
+                if (link.adminOnly && !['admin', 'gestor_desportivo'].includes(effectiveRole)) {
                   return null;
                 }
                 const Icon = link.icon;

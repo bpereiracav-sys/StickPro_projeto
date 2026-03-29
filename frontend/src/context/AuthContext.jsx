@@ -135,11 +135,14 @@ export function AuthProvider({ children }) {
   // Current effective role (considering if viewing as associated)
   const effectiveRole = viewingAs?.role || user?.role;
   
-  const isAdmin = effectiveRole === 'admin';
+  // Admin-level roles have full permissions
+  const ADMIN_ROLES = ['admin', 'gestor_desportivo'];
+  const isAdmin = ADMIN_ROLES.includes(effectiveRole);
   const isCoach = effectiveRole === 'treinador';
   const isDelegate = effectiveRole === 'delegado';
   const isPlayer = effectiveRole === 'jogador';
   const isParent = effectiveRole === 'responsavel';
+  const isSportsManager = effectiveRole === 'gestor_desportivo';
   const canManageTeam = isAdmin || isCoach;
   const canManageEvents = isAdmin || isCoach || isDelegate;
   
@@ -171,6 +174,7 @@ export function AuthProvider({ children }) {
       isDelegate,
       isPlayer,
       isParent,
+      isSportsManager,
       canManageTeam,
       canManageEvents,
       isAuthenticated: !!user

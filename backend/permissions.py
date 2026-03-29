@@ -3,6 +3,7 @@ Role-Based Access Control (RBAC) System for StickPro
 
 User Roles:
 - admin: Full access to all data and teams
+- gestor_desportivo (sports_manager): Full access to all data and teams (same as admin)
 - treinador (coach): Access to assigned teams
 - treinador_adjunto (assistant_coach): Access to assigned teams  
 - delegado (delegate): Access to assigned teams
@@ -11,7 +12,7 @@ User Roles:
 
 Team Association Rules:
 - Users can be associated with one or more teams via team_ids
-- Admin can access all teams
+- Admin/Sports Manager can access all teams
 - Staff (coach, assistant, delegate) access only assigned teams
 - Players access their own team(s)
 - Family members access linked player's data
@@ -25,6 +26,7 @@ from fastapi import HTTPException
 
 class Role(str, Enum):
     ADMIN = "admin"
+    SPORTS_MANAGER = "gestor_desportivo"
     COACH = "treinador"
     ASSISTANT_COACH = "treinador_adjunto"
     DELEGATE = "delegado"
@@ -32,9 +34,14 @@ class Role(str, Enum):
     FAMILY_MEMBER = "responsavel"
 
 
+# Admin-level roles that have full permissions
+ADMIN_LEVEL_ROLES = {Role.ADMIN, Role.SPORTS_MANAGER}
+
+
 # Role hierarchy - higher roles inherit lower role permissions
 ROLE_HIERARCHY = {
     Role.ADMIN: 100,
+    Role.SPORTS_MANAGER: 100,  # Same level as admin
     Role.COACH: 80,
     Role.ASSISTANT_COACH: 70,
     Role.DELEGATE: 60,
@@ -45,6 +52,22 @@ ROLE_HIERARCHY = {
 # Permissions by role
 ROLE_PERMISSIONS = {
     Role.ADMIN: {
+        "view_all_teams": True,
+        "manage_all_teams": True,
+        "view_all_users": True,
+        "manage_all_users": True,
+        "view_all_events": True,
+        "manage_all_events": True,
+        "view_all_stats": True,
+        "manage_all_stats": True,
+        "view_all_attendance": True,
+        "manage_all_attendance": True,
+        "view_club_settings": True,
+        "manage_club_settings": True,
+        "import_data": True,
+        "export_data": True,
+    },
+    Role.SPORTS_MANAGER: {
         "view_all_teams": True,
         "manage_all_teams": True,
         "view_all_users": True,
@@ -145,8 +168,13 @@ class PermissionChecker:
     
     @property
     def is_admin(self) -> bool:
-        """Check if user is admin."""
-        return self.role == Role.ADMIN
+        """Check if user has admin-level permissions (admin or sports manager)."""
+        return self.role in ADMIN_LEVEL_ROLES
+    
+    @property
+    def is_sports_manager(self) -> bool:
+        """Check if user is sports manager."""
+        return self.role == Role.SPORTS_MANAGER
     
     @property
     def is_coach(self) -> bool:

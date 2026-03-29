@@ -21,6 +21,7 @@ const PermissionsContext = createContext(null);
 // Role constants
 export const ROLES = {
   ADMIN: 'admin',
+  SPORTS_MANAGER: 'gestor_desportivo',
   COACH: 'treinador',
   ASSISTANT_COACH: 'treinador_adjunto',
   DELEGATE: 'delegado',
@@ -28,9 +29,13 @@ export const ROLES = {
   FAMILY_MEMBER: 'responsavel',
 };
 
+// Admin-level roles (have full permissions)
+export const ADMIN_ROLES = [ROLES.ADMIN, ROLES.SPORTS_MANAGER];
+
 // Role display names
 export const ROLE_NAMES = {
   admin: 'Administrador',
+  gestor_desportivo: 'Gestor Desportivo',
   treinador: 'Treinador',
   treinador_adjunto: 'Treinador Adjunto',
   delegado: 'Delegado',
@@ -81,8 +86,8 @@ export function PermissionsProvider({ children }) {
     const teamIds = new Set(user.team_ids || []);
     const linkedPlayerId = user.linked_player_id || viewingAs?.linked_player_id;
 
-    // Role checks
-    const isAdmin = role === ROLES.ADMIN;
+    // Role checks - Admin-level roles have full permissions
+    const isAdmin = ADMIN_ROLES.includes(role);
     const isCoach = allRoles.includes(ROLES.COACH);
     const isAssistantCoach = allRoles.includes(ROLES.ASSISTANT_COACH);
     const isDelegate = allRoles.includes(ROLES.DELEGATE);

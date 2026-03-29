@@ -825,7 +825,7 @@ export default function Members() {
                                       onClick={() => handleToggleAdminRole(member)}
                                     >
                                       <Shield className="w-4 h-4 mr-2" />
-                                      {member.role === 'admin' ? 'Remover Admin' : 'Tornar Admin'}
+                                      {['admin', 'gestor_desportivo'].includes(member.role) ? 'Remover Admin' : 'Tornar Admin'}
                                     </DropdownMenuItem>
                                   )}
                                   <DropdownMenuItem 

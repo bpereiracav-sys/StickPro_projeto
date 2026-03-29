@@ -170,7 +170,7 @@ export default function PlayerProfile() {
                 </h1>
                 <div className="flex flex-wrap items-center gap-3 mb-4">
                   {/* Role Badge with Admin dropdown */}
-                  {user?.role === 'admin' && player?.id !== user?.id ? (
+                  {['admin', 'gestor_desportivo'].includes(user?.role) && player?.id !== user?.id ? (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button 

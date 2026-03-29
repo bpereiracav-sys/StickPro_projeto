@@ -160,7 +160,7 @@ export default function ClubPage() {
     timezone: 'Europe/Lisbon'
   });
 
-  const isAdmin = user?.role === 'admin' || user?.role === 'gestor_desportivo';
+  const isAdmin = ['admin', 'gestor_desportivo'].includes(user?.role);
 
   useEffect(() => {
     fetchClub();

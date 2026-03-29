@@ -1,0 +1,121 @@
+{
+  "summary": "Tested new 'gestor_desportivo' (Sports Manager) role with same permissions as admin. All 8 features tested and working correctly. Fixed missing role name translation in getRoleName() utility function.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "gestor_desportivo_login": {
+      "status": "PASS",
+      "description": "gestor_desportivo can login successfully",
+      "verified": "Login with gestor@example.com / test123456 redirects to dashboard"
+    },
+    "club_menu_visible": {
+      "status": "PASS",
+      "description": "gestor_desportivo sees Club menu in sidebar",
+      "verified": "[data-testid='nav-club'] is visible in sidebar"
+    },
+    "subscription_menu_visible": {
+      "status": "PASS",
+      "description": "gestor_desportivo sees Subscription menu in sidebar",
+      "verified": "[data-testid='nav-subscription'] is visible in sidebar"
+    },
+    "club_settings_access": {
+      "status": "PASS",
+      "description": "gestor_desportivo can access Club settings page",
+      "verified": "Navigation to /club works, Edit button visible"
+    },
+    "subscription_access": {
+      "status": "PASS",
+      "description": "gestor_desportivo can access Subscription page",
+      "verified": "Navigation to /subscription works, subscription details visible"
+    },
+    "members_access": {
+      "status": "PASS",
+      "description": "gestor_desportivo can access Members page",
+      "verified": "Navigation to /members works, 29 members visible"
+    },
+    "edit_club_button": {
+      "status": "PASS",
+      "description": "gestor_desportivo can edit club details (Edit button visible)",
+      "verified": "[data-testid='edit-club-btn'] found on Club page"
+    },
+    "role_name_translation": {
+      "status": "PASS",
+      "description": "Role name displays correctly in translations",
+      "verified": "Sidebar shows 'Gestor Desportivo' instead of raw 'gestor_desportivo'",
+      "fix_applied": "Added gestor_desportivo and treinador_adjunto to getRoleName() in utils.js"
+    }
+  },
+  "backend_verification": {
+    "api_auth_me": {
+      "status": "PASS",
+      "response": {
+        "role": "gestor_desportivo",
+        "is_admin": true,
+        "can_manage_team": true,
+        "can_manage_events": true,
+        "can_manage_stats": true,
+        "can_manage_attendance": true,
+        "can_create_convocations": true,
+        "can_manage_lineups": true,
+        "can_import_data": true,
+        "can_manage_club": true
+      }
+    },
+    "api_clubs": {
+      "status": "PASS",
+      "description": "gestor_desportivo can access /api/clubs"
+    },
+    "api_subscription": {
+      "status": "PASS",
+      "description": "gestor_desportivo can access /api/subscription"
+    },
+    "api_users": {
+      "status": "PASS",
+      "description": "gestor_desportivo can access /api/users (63 users)"
+    }
+  },
+  "implementation_details": {
+    "admin_roles_array": ["admin", "gestor_desportivo"],
+    "backend_files": [
+      "/app/backend/server.py - ADMIN_ROLES constant, is_admin_role() function",
+      "/app/backend/permissions.py - ADMIN_LEVEL_ROLES, Role.SPORTS_MANAGER"
+    ],
+    "frontend_files": [
+      "/app/frontend/src/context/PermissionsContext.jsx - ADMIN_ROLES array, ROLE_NAMES",
+      "/app/frontend/src/context/AuthContext.jsx - ADMIN_ROLES for isAdmin check",
+      "/app/frontend/src/i18n/translations.js - sportsManager translations"
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "ADMIN_ROLES array correctly includes both 'admin' and 'gestor_desportivo'",
+    "is_admin_role() function correctly checks role membership in ADMIN_ROLES",
+    "Sidebar correctly filters admin-only links using effectiveRole check",
+    "Backend permissions.py correctly defines ADMIN_LEVEL_ROLES with Role.SPORTS_MANAGER"
+  ],
+  "updated_files": [
+    "/app/frontend/src/lib/utils.js - Added gestor_desportivo and treinador_adjunto to getRoleName()"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "gestor_email": "gestor@example.com",
+    "gestor_password": "test123456",
+    "admin_email": "admin@example.com",
+    "admin_password": "test123456"
+  },
+  "seed_data_creation": "None - gestor_desportivo account already existed",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "New role 'gestor_desportivo' (Sports Manager) fully tested. Has same permissions as admin. Account: gestor@example.com / test123456. All admin features accessible: Club, Subscription, Members, Teams, Payments. Role name translation fixed in utils.js."
+}

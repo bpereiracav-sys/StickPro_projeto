@@ -158,7 +158,7 @@ export default function Chat() {
     // I am a recipient
     if (msg.recipient_ids.includes(user.id)) return true;
     // Admins see all
-    if (user.role === 'admin') return true;
+    if (['admin', 'gestor_desportivo'].includes(user.role)) return true;
     return false;
   };
 

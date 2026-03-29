@@ -61,7 +61,7 @@ logger = logging.getLogger(__name__)
 
 # ==================== MODELS ====================
 
-UserRole = Literal["admin", "treinador", "treinador_adjunto", "delegado", "jogador", "responsavel"]
+UserRole = Literal["admin", "gestor_desportivo", "treinador", "treinador_adjunto", "delegado", "jogador", "responsavel"]
 EventType = Literal["treino", "jogo_campeonato", "jogo_amigavel", "torneio", "outro"]
 AttendanceStatus = Literal["confirmado", "ausente", "pendente", "faltou_sem_aviso"]
 MatchLocation = Literal["casa", "fora", "neutro"]
@@ -70,11 +70,29 @@ ChampionshipFormat = Literal["5x5", "3x3"]
 ConvocationType = Literal["automatica", "manual"]
 EquipmentSize = str  # Free text: S/M/L/XL or 8/10/12 etc
 
+# Admin-level roles (have full permissions)
+ADMIN_ROLES = ["admin", "gestor_desportivo"]
+
+def is_admin_role(role: str) -> bool:
+    """Check if a role has admin-level permissions"""
+    return role in ADMIN_ROLES
+
 # ==================== PERMISSION SYSTEM ====================
 
 # Default permissions by role
 DEFAULT_PERMISSIONS = {
     "admin": {
+        "can_view_all": True,
+        "can_edit_all": True,
+        "can_manage_permissions": True,
+        "can_view_family_data": True,
+        "can_edit_family_data": True,
+        "can_manage_teams": True,
+        "can_manage_championships": True,
+        "can_manage_events": True,
+        "can_manage_members": True,
+    },
+    "gestor_desportivo": {
         "can_view_all": True,
         "can_edit_all": True,
         "can_manage_permissions": True,
@@ -1464,7 +1482,7 @@ async def get_user(user_id: str, current_user: dict = Depends(get_current_user))
 
 @api_router.put("/users/{user_id}")
 async def update_user(user_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
-    if current_user['id'] != user_id and current_user['role'] != 'admin':
+    if current_user['id'] != user_id and not is_admin_role(current_user['role']):
         raise HTTPException(status_code=403, detail="Sem permissão")
     
     # Check if user has permission to edit this data
@@ -1505,15 +1523,15 @@ async def update_user(user_id: str, updates: dict, current_user: dict = Depends(
 @api_router.put("/users/{user_id}/role")
 async def update_user_role(user_id: str, role_data: dict, current_user: dict = Depends(get_current_user)):
     """Update user role - Admin only"""
-    if current_user['role'] != 'admin':
+    if not is_admin_role(current_user['role']):
         raise HTTPException(status_code=403, detail="Apenas administradores podem alterar permissões")
     
     new_role = role_data.get('role')
-    if new_role not in ['admin', 'treinador', 'treinador_adjunto', 'delegado', 'jogador', 'responsavel']:
+    if new_role not in ['admin', 'gestor_desportivo', 'treinador', 'treinador_adjunto', 'delegado', 'jogador', 'responsavel']:
         raise HTTPException(status_code=400, detail="Role inválido")
     
     # Cannot demote yourself
-    if current_user['id'] == user_id and new_role != 'admin':
+    if current_user['id'] == user_id and not is_admin_role(new_role):
         raise HTTPException(status_code=400, detail="Não podes remover o teu próprio privilégio de admin")
     
     user = await db.users.find_one({"id": user_id})
@@ -1540,7 +1558,7 @@ def get_user_permissions(user: dict) -> dict:
 
 @api_router.post("/clubs")
 async def create_club(club_data: ClubCreate, current_user: dict = Depends(get_current_user)):
-    if current_user['role'] != 'admin':
+    if not is_admin_role(current_user['role']):
         raise HTTPException(status_code=403, detail="Apenas administradores podem criar clubes")
     
     club = Club(**club_data.model_dump())
@@ -1571,7 +1589,7 @@ async def update_club(club_id: str, updates: dict, current_user: dict = Depends(
     if not club:
         raise HTTPException(status_code=404, detail="Clube não encontrado")
     
-    if current_user['role'] != 'admin' and current_user['id'] not in club.get('admin_ids', []):
+    if not is_admin_role(current_user['role']) and current_user['id'] not in club.get('admin_ids', []):
         raise HTTPException(status_code=403, detail="Sem permissão")
     
     allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color', 'theme_mode', 'timezone', 'sidebar_accent_color']
@@ -1753,7 +1771,7 @@ async def update_subscription(updates: SubscriptionUpdate, current_user: dict = 
 @api_router.post("/subscription/cancel")
 async def cancel_subscription(current_user: dict = Depends(get_current_user)):
     """Cancel the subscription"""
-    if current_user['role'] != 'admin':
+    if not is_admin_role(current_user['role']):
         raise HTTPException(status_code=403, detail="Apenas administradores podem cancelar subscrições")
     
     club = await db.clubs.find_one({}, {"_id": 0})
@@ -1795,7 +1813,7 @@ async def get_invoices(current_user: dict = Depends(get_current_user)):
 @api_router.post("/subscription/invoices")
 async def create_invoice(invoice_data: SubscriptionInvoiceCreate, current_user: dict = Depends(get_current_user)):
     """Create a new invoice (admin only)"""
-    if current_user['role'] != 'admin':
+    if not is_admin_role(current_user['role']):
         raise HTTPException(status_code=403, detail="Apenas administradores podem criar faturas")
     
     club = await db.clubs.find_one({}, {"_id": 0})
@@ -1856,7 +1874,7 @@ async def download_invoice(invoice_id: str, current_user: dict = Depends(get_cur
 @api_router.patch("/subscription/invoices/{invoice_id}")
 async def update_invoice(invoice_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
     """Update an invoice (mark as paid, etc.)"""
-    if current_user['role'] != 'admin':
+    if not is_admin_role(current_user['role']):
         raise HTTPException(status_code=403, detail="Apenas administradores podem editar faturas")
     
     invoice = await db.subscription_invoices.find_one({"id": invoice_id})
@@ -1879,14 +1897,14 @@ async def update_invoice(invoice_id: str, updates: dict, current_user: dict = De
 @api_router.get("/permissions/defaults")
 async def get_default_permissions(current_user: dict = Depends(get_current_user)):
     """Get default permissions for all roles"""
-    if current_user['role'] != 'admin':
+    if not is_admin_role(current_user['role']):
         raise HTTPException(status_code=403, detail="Apenas administradores podem ver permissões")
     return DEFAULT_PERMISSIONS
 
 @api_router.get("/permissions/{user_id}")
 async def get_user_permissions_endpoint(user_id: str, current_user: dict = Depends(get_current_user)):
     """Get effective permissions for a specific user"""
-    if current_user['role'] != 'admin' and current_user['id'] != user_id:
+    if not is_admin_role(current_user['role']) and current_user['id'] != user_id:
         raise HTTPException(status_code=403, detail="Sem permissão")
     
     user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
@@ -1898,7 +1916,7 @@ async def get_user_permissions_endpoint(user_id: str, current_user: dict = Depen
 @api_router.put("/permissions/{user_id}")
 async def update_user_permissions(user_id: str, permissions: dict, current_user: dict = Depends(get_current_user)):
     """Update custom permissions for a user (admin only)"""
-    if current_user['role'] != 'admin':
+    if not is_admin_role(current_user['role']):
         raise HTTPException(status_code=403, detail="Apenas administradores podem modificar permissões")
     
     user = await db.users.find_one({"id": user_id})
@@ -4968,7 +4986,7 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
     
     now = datetime.now(timezone.utc).isoformat()
     upcoming_query = {"start_time": {"$gte": now}}
-    if current_user['role'] != 'admin' and user_teams:
+    if not is_admin_role(current_user['role']) and user_teams:
         upcoming_query["team_id"] = {"$in": user_teams}
     
     upcoming_events = await db.events.find(upcoming_query, {"_id": 0}).sort("start_time", 1).limit(5).to_list(5)

@@ -92,7 +92,7 @@ export default function LibraryPage() {
     tags: []
   });
 
-  const canManageLibrary = user?.role === 'admin' || user?.role === 'treinador';
+  const canManageLibrary = ['admin', 'gestor_desportivo', 'treinador'].includes(user?.role);
 
   useEffect(() => {
     fetchItems();

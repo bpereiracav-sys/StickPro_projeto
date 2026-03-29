@@ -42,7 +42,9 @@ export function getInitials(name) {
 export function getRoleName(role) {
   const roles = {
     admin: 'Administrador',
+    gestor_desportivo: 'Gestor Desportivo',
     treinador: 'Treinador',
+    treinador_adjunto: 'Treinador Adjunto',
     delegado: 'Delegado',
     jogador: 'Jogador',
     responsavel: 'Responsável'
