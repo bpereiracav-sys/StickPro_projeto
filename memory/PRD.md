@@ -1359,10 +1359,61 @@ O `server.py` mantém-se funcional com todas as rotas. A estrutura modular foi c
 
 ### P1 - APL Web Scraping (Em Pausa)
 - Endpoint `/api/championships/scrape/apl` existe
-- Aguarda conclusão do P0 (Temas e Auth)
+- Aguarda implementação de scraping de calendários de divisões
 
-### P1 - Excel Import Mapping
-- Finalizar mapeamento de campos para importação de Membros/Equipas
+### ✅ P0 - Excel Import Mapping (29 Mar 2026) - CONCLUÍDO
+**Funcionalidade:** Import completo de membros via CSV e Excel (.xlsx)
+
+**Colunas Suportadas (10):**
+| Coluna | Obrigatória | Descrição |
+|--------|-------------|-----------|
+| Nome | ✅ | Primeiro nome |
+| Apelido | ❌ | Sobrenome |
+| Data de Nascimento | ❌ | Formato: YYYY-MM-DD |
+| Email | ✅ | Email único |
+| Função | ❌ | Role do utilizador |
+| Número | ❌ | Número da camisola |
+| Posição | ❌ | GR ou JC |
+| Telefone | ❌ | Contacto |
+| Nacionalidade | ❌ | País (convertido para ISO) |
+| Sexo | ❌ | Masculino ou Feminino |
+
+**Mapeamento de Funções (PT/EN/ES):**
+| Input | Role |
+|-------|------|
+| jogador, atleta, player, jugador | jogador |
+| treinador, coach, entrenador | treinador |
+| treinador adjunto, adjunto, assistant coach | treinador_adjunto |
+| delegado, delegate, team manager | delegado |
+| responsavel, pai, mãe, guardian, parent | responsavel |
+| gestor desportivo, sports manager | gestor_desportivo |
+| admin, administrador | admin |
+
+**Normalização de Posições:**
+| Input | Posição |
+|-------|---------|
+| guarda-redes, gr, goalkeeper, portero | GR |
+| jogador de campo, jc, field player | JC |
+
+**Conversão de Nacionalidades (20+ países):**
+- Portuguesa/Portugal/PT → PT (🇵🇹)
+- Brasileira/Brasil/BR → BR (🇧🇷)
+- Espanhola/Espanha/ES → ES (🇪🇸)
+- E mais: FR, IT, DE, GB, US, AO, MZ, CV, GW, ST, NL, BE, CH, AR, MA, RO
+
+**Funcionalidades:**
+- ✅ Import para clube (club_id)
+- ✅ Import para equipa específica (team_id)
+- ✅ Aviso de emails duplicados (permite criar)
+- ✅ Template CSV descarregável
+- ✅ Passwords temporárias geradas automaticamente
+- ✅ Bandeiras de nacionalidade na lista de membros
+
+**Endpoint:** `POST /api/members/import`
+- Query params: `team_id` (opcional), `club_id` (opcional)
+- Body: form-data com `file` (CSV ou XLSX)
+
+**Testes:** 100% (21/21) - `/app/test_reports/iteration_35.json`
 
 ### P2 - PDF Export para Calendário
 - Exportar calendário em formato PDF
