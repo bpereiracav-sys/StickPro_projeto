@@ -331,6 +331,8 @@ class Club(BaseModel):
     theme_mode: Optional[str] = "light"  # light or dark
     # Timezone
     timezone: Optional[str] = "Europe/Lisbon"  # Default timezone
+    # Sidebar accent color for active item text
+    sidebar_accent_color: Optional[str] = "#22d3ee"  # Default cyan
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class ClubUpdate(BaseModel):
@@ -350,6 +352,7 @@ class ClubUpdate(BaseModel):
     accent_color: Optional[str] = None
     theme_mode: Optional[str] = None
     timezone: Optional[str] = None
+    sidebar_accent_color: Optional[str] = None
 
 # Season Models
 class SeasonCreate(BaseModel):
@@ -1571,7 +1574,7 @@ async def update_club(club_id: str, updates: dict, current_user: dict = Depends(
     if current_user['role'] != 'admin' and current_user['id'] not in club.get('admin_ids', []):
         raise HTTPException(status_code=403, detail="Sem permissão")
     
-    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color', 'theme_mode', 'timezone']
+    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color', 'theme_mode', 'timezone', 'sidebar_accent_color']
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
     
     if filtered_updates:

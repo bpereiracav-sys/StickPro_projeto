@@ -185,6 +185,11 @@ export function ThemeProvider({ children }) {
       root.style.setProperty('--sidebar-accent', `${sidebarAccentHSL.h} ${sidebarAccentHSL.s}% ${sidebarAccentHSL.l}%`);
     }
     
+    // Apply sidebar active text color if present
+    if (themeColors.sidebarAccentColor) {
+      root.style.setProperty('--sidebar-active-text', themeColors.sidebarAccentColor);
+    }
+    
     // Store theme in localStorage for faster initial load
     localStorage.setItem('stickpro-theme', JSON.stringify(themeColors));
   };
@@ -200,7 +205,8 @@ export function ThemeProvider({ children }) {
             primary: club.primary_color || DEFAULT_THEME.primary,
             secondary: club.secondary_color || DEFAULT_THEME.secondary,
             accent: club.accent_color || DEFAULT_THEME.accent,
-            mode: club.theme_mode || 'light'
+            mode: club.theme_mode || 'light',
+            sidebarAccentColor: club.sidebar_accent_color || '#22d3ee'
           });
         }
       }
@@ -224,12 +230,20 @@ export function ThemeProvider({ children }) {
     }
   };
 
+  // Update only the sidebar accent color
+  const setSidebarAccentColor = (color) => {
+    const newTheme = { ...theme, sidebarAccentColor: color };
+    setTheme(newTheme);
+    // Apply immediately
+    document.documentElement.style.setProperty('--sidebar-active-text', color);
+  };
+
   const refreshTheme = useCallback(() => {
     fetchClubTheme();
   }, [fetchClubTheme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, updateTheme, setThemePreset, refreshTheme, loading, THEME_PRESETS }}>
+    <ThemeContext.Provider value={{ theme, updateTheme, setThemePreset, setSidebarAccentColor, refreshTheme, loading, THEME_PRESETS }}>
       {children}
     </ThemeContext.Provider>
   );
