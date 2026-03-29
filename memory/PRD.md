@@ -1191,6 +1191,58 @@ def is_admin_role(role: str) -> bool:
 
 ---
 
+### Filtragem do Dashboard por Papel (29 Mar 2026) ✅
+
+**Problema Corrigido:** O dashboard mostrava todos os eventos do clube para todos os utilizadores. Agora filtra automaticamente baseado no papel.
+
+**Lógica de Filtragem:**
+| Papel | Eventos Visíveis | Teams Count |
+|-------|------------------|-------------|
+| Admin / Gestor Desportivo | TODOS os eventos do clube | Total de equipas |
+| Treinador / Delegado / Jogador | Apenas eventos das suas equipas | Nº das suas equipas |
+| Responsável (Pai/Familiar) | Eventos das equipas dos filhos ligados | Nº equipas dos filhos |
+
+**Implementação Backend:**
+```python
+# Endpoint: GET /api/dashboard
+if is_admin_role(user_role):
+    # Admin/Gestor: ver todos (sem filtro de team_id)
+    pass
+elif user_role == 'responsavel':
+    # Responsável: buscar equipas dos filhos ligados
+    for player_id in linked_player_ids:
+        player = await db.users.find_one({"id": player_id})
+        child_team_ids.update(player['team_ids'])
+    query["team_id"] = {"$in": list(child_team_ids)}
+else:
+    # Staff/Jogador: apenas as suas equipas
+    query["team_id"] = {"$in": user_teams}
+```
+
+**Frontend:**
+- `Dashboard.jsx` usa `dashboardApi.get()` sem filtragem manual
+- Backend envia dados já filtrados
+
+**Campos Utilizados:**
+- `user.team_ids`: Equipas do utilizador
+- `user.linked_player_ids` / `user.linked_player_id`: IDs dos filhos (para responsáveis)
+
+**Segurança:**
+- ✅ Nenhuma fuga de dados entre equipas
+- ✅ Responsáveis só veem eventos dos filhos ligados
+- ✅ Jogadores não podem ver eventos de outras equipas
+
+**Contas de Teste:**
+| Email | Password | Papel | Equipa |
+|-------|----------|-------|--------|
+| player.escolares@test.com | test123456 | Jogador | Escolares |
+| player.sub13@test.com | test123456 | Jogador | Sub-13 |
+| parent.sub13@test.com | test123456 | Responsável | (filho na Sub-13) |
+
+**Testes:** 100% Backend + Frontend (17 pytest tests) - `/app/test_reports/iteration_33.json`
+
+---
+
 ## TAREFAS PENDENTES
 
 ### P1 - APL Web Scraping (Em Pausa)
