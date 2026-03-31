@@ -5105,7 +5105,45 @@ async def create_player_match_stats(match_id: str, stats: PlayerMatchStatsCreate
 
 @api_router.get("/matches/{match_id}/player-stats")
 async def get_match_player_stats(match_id: str, current_user: dict = Depends(get_current_user)):
-    stats = await db.player_match_stats.find({"match_id": match_id}, {"_id": 0}).to_list(100)
+    stats = await db.player_match_stats.find({"match_id": match_id}, {"_id": 0}).to_list(500)
+    
+    # Deduplicate - keep only the most recent record for each player
+    # Group by player_id and keep the one with most recent created_at or non-empty data
+    player_stats_map = {}
+    for stat in stats:
+        player_id = stat.get('player_id')
+        if player_id not in player_stats_map:
+            player_stats_map[player_id] = stat
+        else:
+            # Compare - prefer record with actual data
+            existing = player_stats_map[player_id]
+            existing_has_data = any([
+                existing.get('goals', 0) > 0,
+                existing.get('saves', 0) > 0,
+                existing.get('penalties_scored', 0) > 0,
+                existing.get('penalties_missed', 0) > 0,
+                existing.get('yellow_cards', 0) > 0,
+                existing.get('started_match', False)
+            ])
+            new_has_data = any([
+                stat.get('goals', 0) > 0,
+                stat.get('saves', 0) > 0,
+                stat.get('penalties_scored', 0) > 0,
+                stat.get('penalties_missed', 0) > 0,
+                stat.get('yellow_cards', 0) > 0,
+                stat.get('started_match', False)
+            ])
+            # Prefer record with data, or more recent if both have data or neither has
+            if new_has_data and not existing_has_data:
+                player_stats_map[player_id] = stat
+            elif new_has_data == existing_has_data:
+                # Compare created_at
+                new_time = stat.get('created_at', '')
+                existing_time = existing.get('created_at', '')
+                if new_time > existing_time:
+                    player_stats_map[player_id] = stat
+    
+    stats = list(player_stats_map.values())
     
     # Enrich with player info
     for stat in stats:
