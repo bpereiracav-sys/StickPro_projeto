@@ -3663,6 +3663,129 @@ async def delete_match(match_id: str, current_user: dict = Depends(get_current_u
     await db.championship_matches.delete_one({"id": match_id})
     return {"message": "Jogo eliminado"}
 
+@api_router.get("/championships/matches/import-template")
+async def download_matches_import_template(token: str = None, current_user: dict = None):
+    """Download Excel template for importing matches"""
+    # Allow token via query param for direct download links
+    if token and not current_user:
+        try:
+            payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            current_user = await db.users.find_one({"id": payload["user_id"]}, {"_id": 0, "password": 0})
+        except:
+            pass
+    
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+    import io
+    
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Modelo Importação Jogos"
+    
+    # Define headers (Portuguese as main, others in comments)
+    headers = [
+        "Jornada",           # Round / Matchday
+        "Data",              # Date
+        "Hora",              # Time
+        "Equipa Casa",       # Home Team
+        "Adversário",        # Opponent / Away Team
+        "Local",             # Venue / Pavilion
+        "Localização"        # Location (casa/fora/neutro)
+    ]
+    
+    # Style definitions
+    header_fill = PatternFill(start_color="1E3A5F", end_color="1E3A5F", fill_type="solid")  # Dark blue
+    header_font = Font(color="FFFFFF", bold=True, size=11)
+    example_fill = PatternFill(start_color="E8F4FD", end_color="E8F4FD", fill_type="solid")  # Light blue
+    hint_fill = PatternFill(start_color="FFF3CD", end_color="FFF3CD", fill_type="solid")  # Light yellow
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    center_align = Alignment(horizontal='center', vertical='center')
+    left_align = Alignment(horizontal='left', vertical='center')
+    
+    # Write headers
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = center_align
+        cell.border = thin_border
+    
+    # Example data rows
+    example_data = [
+        [1, "2026-01-15", "15:00", "Escolares", "UD Vilafranquense", "Pavilhão Municipal", "casa"],
+        [1, "2026-01-15", "16:30", "SC Torres", "Escolares", "Pavilhão SC Torres", "fora"],
+        [2, "2026-01-22", "10:00", "Escolares", "Benfica", "Pavilhão Municipal", "casa"],
+        [2, "2026-01-22", "17:00", "Sporting", "Escolares", "Pavilhão João Rocha", "fora"],
+        [3, "2026-01-29", "14:00", "Escolares", "Porto", "Campo Neutro", "neutro"],
+    ]
+    
+    for row_idx, row_data in enumerate(example_data, 2):
+        for col_idx, value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell.fill = example_fill
+            cell.border = thin_border
+            cell.alignment = center_align if col_idx in [1, 2, 3, 7] else left_align
+    
+    # Add hints row
+    hints = [
+        "Número da jornada (1, 2, 3...)",
+        "AAAA-MM-DD ou DD/MM/AAAA",
+        "HH:MM (24h)",
+        "Nome da equipa da casa",
+        "Nome do adversário",
+        "Nome do pavilhão (opcional)",
+        "casa, fora ou neutro"
+    ]
+    
+    hint_row = len(example_data) + 3
+    ws.cell(row=hint_row, column=1, value="INSTRUÇÕES:").font = Font(bold=True, size=10)
+    
+    for col, hint in enumerate(hints, 1):
+        cell = ws.cell(row=hint_row + 1, column=col, value=hint)
+        cell.fill = hint_fill
+        cell.font = Font(size=9, italic=True)
+        cell.alignment = left_align
+    
+    # Multi-language support note
+    ws.cell(row=hint_row + 3, column=1, value="Cabeçalhos alternativos suportados:").font = Font(bold=True, size=10)
+    alt_headers = [
+        "PT: Jornada | ES: Jornada | EN: Round/Matchday | FR: Journée | IT: Giornata",
+        "PT: Data | ES: Fecha | EN: Date | FR: Date | IT: Data",
+        "PT: Hora | ES: Hora | EN: Time | FR: Heure | IT: Ora",
+        "PT: Equipa Casa | ES: Equipo Local | EN: Home Team | FR: Équipe Domicile | IT: Squadra Casa",
+        "PT: Adversário | ES: Rival | EN: Opponent/Away Team | FR: Adversaire | IT: Avversario",
+        "PT: Local/Pavilhão | ES: Lugar/Pabellón | EN: Venue/Pavilion | FR: Lieu | IT: Luogo",
+        "PT: Localização | ES: Ubicación | EN: Location | FR: Localisation | IT: Localizzazione",
+    ]
+    for idx, text in enumerate(alt_headers):
+        ws.cell(row=hint_row + 4 + idx, column=1, value=text).font = Font(size=9, color="666666")
+    
+    # Adjust column widths
+    column_widths = [10, 14, 8, 25, 25, 30, 15]
+    for col, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+    
+    # Save to BytesIO
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    from fastapi.responses import StreamingResponse
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": "attachment; filename=modelo_importacao_jogos.xlsx"
+        }
+    )
+
 @api_router.post("/championships/{championship_id}/matches/import")
 async def import_championship_matches(
     championship_id: str, 

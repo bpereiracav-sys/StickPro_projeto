@@ -86,6 +86,12 @@ export const championshipsApi = {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
   },
+  // Download import template
+  downloadMatchesTemplate: () => {
+    const baseUrl = process.env.REACT_APP_BACKEND_URL || '';
+    const token = localStorage.getItem('token');
+    return `${baseUrl}/api/championships/matches/import-template?token=${token}`;
+  },
   // Extract player stats from gamesheet URL
   extractGamesheetStats: (url) => api.post('/championships/extract-gamesheet-stats', { url }),
   // Get gamesheet stats for a match
