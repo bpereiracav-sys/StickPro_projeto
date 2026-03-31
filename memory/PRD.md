@@ -14,6 +14,52 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ## ÚLTIMAS ATUALIZAÇÕES
 
+### ✅ Extração de Estatísticas de Fichas de Jogo (31 Mar 2026) - COMPLETO
+**Status:** 100% implementado e testado (16/16 testes passaram)
+
+**Funcionalidades Implementadas:**
+1. **Endpoint de Extração de Estatísticas**
+   - `POST /api/championships/extract-gamesheet-stats`
+   - Extrai estatísticas de jogadores a partir de URL de ficha de jogo (APL)
+   - Suporte multilingue para deteção de idioma
+
+2. **Schema de Output por Jogador**
+   | Campo | Tipo | Descrição |
+   |-------|------|-----------|
+   | player_name | str | Nome do jogador (sem marcador de capitão ©) |
+   | player_name_normalized | str | Nome normalizado (sem acentos, minúsculas) |
+   | team | str | Nome da equipa |
+   | jersey_number | str | Número da camisola |
+   | G | int | Golos |
+   | AG | int | Assistências |
+   | D | int | Defesas |
+   | PM | int | Penáltis Marcados |
+   | PF | int | Penáltis Falhados |
+   | LDM | int | Livres Diretos Marcados |
+   | LDF | int | Livres Diretos Falhados |
+   | yellow | int | Cartões Amarelos |
+   | blue | int | Cartões Azuis |
+   | red | int | Cartões Vermelhos |
+
+3. **Parsing de Formato X/Y**
+   - Penáltis: `1/2` → PM=1 (marcados), PF=1 (falhados = 2-1)
+   - Livres Diretos: `1/3` → LDM=1 (marcados), LDF=2 (falhados = 3-1)
+   - `0/0` → 0, 0
+   - `--` ou vazio → 0, 0
+
+4. **Regras de Parsing**
+   - Remove marcador de capitão (©) dos nomes
+   - Salta staff técnico (T, T2, MAS, MEC, D)
+   - Normaliza nomes (remove acentos para fuzzy matching)
+   - Validação: PM/PF/LDM/LDF >= 0
+
+5. **Traduções Multilingue (5 idiomas)**
+   - statHeaders completos em PT, ES, FR, IT, EN
+
+**Testes:** `/app/test_reports/iteration_38.json`
+
+---
+
 ### ✅ Módulo de Competições Melhorado (31 Mar 2026) - COMPLETO
 **Status:** 100% implementado e testado (16/16 testes passaram)
 
