@@ -225,6 +225,7 @@ export const membersApi = {
   getOne: (id) => api.get(`/members/${id}`),
   create: (data) => api.post('/members', data),
   update: (id, data) => api.put(`/members/${id}`, data),
+  delete: (id) => api.delete(`/members/${id}`),
   archive: (id) => api.post(`/members/${id}/archive`),
   restore: (id, teamId) => api.post(`/members/${id}/restore`, null, { params: { team_id: teamId } }),
   sendActivationReminder: (id) => api.post(`/members/${id}/send-activation-reminder`),

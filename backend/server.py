@@ -12,7 +12,7 @@ import logging
 import asyncio
 import resend
 from pathlib import Path
-from pydantic import BaseModel, Field, EmailStr, ConfigDict
+from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 from typing import List, Optional, Literal, Dict, Any
 import uuid
 from datetime import datetime, timezone, timedelta
@@ -219,14 +219,44 @@ class UserProfile(BaseModel):
     year_joined_club: Optional[int] = None
     fpp_number: Optional[str] = None
     function: Optional[UserRole] = None  # jogador, treinador, etc
-    position: Optional[PlayerPosition] = None  # GR/JC
-    jersey_number: Optional[int] = None
+    position: Optional[str] = None  # GR/JC - changed to str for flexibility
+    jersey_number: Optional[str] = None  # Changed to str for flexibility
     
     # Equipment sizes (free text)
     training_kit_size: Optional[str] = None
     tracksuit_size: Optional[str] = None
     polo_size: Optional[str] = None
     training_sock_size: Optional[str] = None
+
+    model_config = ConfigDict(extra="ignore")
+
+    # Validator to handle empty strings and type coercion
+    @field_validator('weight', 'height', mode='before')
+    @classmethod
+    def empty_str_to_none_float(cls, v):
+        if v == '' or v is None:
+            return None
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return None
+
+    @field_validator('year_joined_club', mode='before')
+    @classmethod
+    def empty_str_to_none_int(cls, v):
+        if v == '' or v is None:
+            return None
+        try:
+            return int(v)
+        except (ValueError, TypeError):
+            return None
+
+    @field_validator('jersey_number', 'position', mode='before')
+    @classmethod
+    def coerce_to_string(cls, v):
+        if v is None or v == '':
+            return None
+        return str(v)
 
 class User(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -2528,20 +2558,72 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
         import secrets
         for row in rows:
             try:
-                # Campos: Nome, Apelido, Data de Nascimento, Email, Função, Número, Posição, Telefone, Nacionalidade
-                # Suporta várias variações de nomes de colunas (PT, EN, ES)
-                nome = row.get('Nome') or row.get('nome') or row.get('name') or row.get('first_name') or row.get('Nombre') or ""
-                apelido = row.get('Apelido') or row.get('apelido') or row.get('surname') or row.get('last_name') or row.get('Apellido') or ""
-                data_nascimento = row.get('Data de Nascimento') or row.get('data_nascimento') or row.get('nascimento') or row.get('birth_date') or row.get('Fecha de Nacimiento') or row.get('Date of Birth') or ""
-                email = row.get('Email') or row.get('email') or row.get('email_contacto') or row.get('Correo') or row.get('e-mail') or ""
-                funcao = row.get('Função') or row.get('funcao') or row.get('role') or row.get('função') or row.get('Rol') or row.get('Role') or 'jogador'
-                numero = row.get('Número') or row.get('numero') or row.get('n') or row.get('jersey') or row.get('Jersey') or row.get('Number') or ""
-                posicao = row.get('Posição') or row.get('posicao') or row.get('position') or row.get('Position') or row.get('Posicion') or ""
-                telefone = row.get('Telefone') or row.get('telefone') or row.get('phone') or row.get('contacto') or row.get('Phone') or row.get('Teléfono') or ""
-                nacionalidade = row.get('Nacionalidade') or row.get('nacionalidade') or row.get('nationality') or row.get('Nationality') or row.get('Nacionalidad') or ""
-                sexo = row.get('Sexo') or row.get('sexo') or row.get('gender') or row.get('Gender') or row.get('Género') or ""
+                # Multilingual header mapping (PT, ES, FR, IT, EN)
+                # First Name
+                nome = (row.get('Nome') or row.get('nome') or row.get('Nombre') or row.get('nombre') or 
+                       row.get('Prénom') or row.get('prenom') or row.get('prénom') or 
+                       row.get('Nome') or  # IT same as PT
+                       row.get('First Name') or row.get('first_name') or row.get('name') or "")
                 
-                # Combinar nome e apelido
+                # Surname
+                apelido = (row.get('Apelido') or row.get('apelido') or row.get('Sobrenome') or row.get('sobrenome') or
+                          row.get('Apellido') or row.get('apellido') or 
+                          row.get('Nom') or row.get('nom') or 
+                          row.get('Cognome') or row.get('cognome') or
+                          row.get('Surname') or row.get('surname') or row.get('last_name') or "")
+                
+                # Birth Date
+                data_nascimento = (row.get('Data de Nascimento') or row.get('data_nascimento') or row.get('nascimento') or
+                                  row.get('Fecha de Nacimiento') or row.get('fecha_nacimiento') or
+                                  row.get('Date de Naissance') or row.get('date_naissance') or
+                                  row.get('Data di Nascita') or row.get('data_nascita') or
+                                  row.get('Date of Birth') or row.get('birth_date') or row.get('dob') or "")
+                
+                # Email
+                email = (row.get('Email') or row.get('email') or row.get('E-mail') or row.get('e-mail') or
+                        row.get('Correo') or row.get('correo') or "")
+                
+                # Role/Function
+                funcao = (row.get('Função') or row.get('funcao') or row.get('função') or
+                         row.get('Rol') or row.get('rol') or
+                         row.get('Fonction') or row.get('fonction') or
+                         row.get('Ruolo') or row.get('ruolo') or
+                         row.get('Role') or row.get('role') or 'jogador')
+                
+                # Jersey Number
+                numero = (row.get('Número') or row.get('numero') or row.get('Nº') or row.get('nº') or row.get('N') or row.get('n') or
+                         row.get('Numero') or  # ES/IT
+                         row.get('Numéro') or row.get('numéro') or
+                         row.get('Number') or row.get('number') or row.get('Jersey') or row.get('jersey') or "")
+                
+                # Position
+                posicao = (row.get('Posição') or row.get('posicao') or row.get('posição') or
+                          row.get('Posición') or row.get('posicion') or
+                          row.get('Poste') or row.get('poste') or
+                          row.get('Posizione') or row.get('posizione') or
+                          row.get('Position') or row.get('position') or "")
+                
+                # Phone
+                telefone = (row.get('Telefone') or row.get('telefone') or row.get('contacto') or
+                           row.get('Teléfono') or row.get('telefono') or
+                           row.get('Téléphone') or row.get('téléphone') or row.get('telephone') or
+                           row.get('Telefono') or  # IT
+                           row.get('Phone') or row.get('phone') or "")
+                
+                # Nationality
+                nacionalidade = (row.get('Nacionalidade') or row.get('nacionalidade') or
+                                row.get('Nacionalidad') or row.get('nacionalidad') or
+                                row.get('Nationalité') or row.get('nationalité') or row.get('nationalite') or
+                                row.get('Nazionalità') or row.get('nazionalità') or row.get('nazionalita') or
+                                row.get('Nationality') or row.get('nationality') or "")
+                
+                # Gender/Sex
+                sexo = (row.get('Sexo') or row.get('sexo') or
+                       row.get('Sexe') or row.get('sexe') or
+                       row.get('Sesso') or row.get('sesso') or
+                       row.get('Gender') or row.get('gender') or row.get('Sex') or row.get('sex') or "")
+                
+                # Combine first name and surname
                 full_name = f"{nome} {apelido}".strip() if apelido else nome.strip()
                 
                 if not full_name or not email:
@@ -2559,40 +2641,70 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
                 
                 user_id = str(uuid.uuid4())
                 
-                # Normalizar função - suporta PT, EN, ES
+                # Normalizar função - suporta PT, EN, ES, FR, IT
                 funcao_map = {
+                    # Portuguese
                     'administrador': 'admin',
                     'admin': 'admin',
-                    'administrator': 'admin',
                     'gestor desportivo': 'gestor_desportivo',
                     'gestor_desportivo': 'gestor_desportivo',
-                    'sports manager': 'gestor_desportivo',
-                    'gestor deportivo': 'gestor_desportivo',
+                    'diretor desportivo': 'gestor_desportivo',
                     'treinador': 'treinador',
                     'treinador principal': 'treinador',
-                    'coach': 'treinador',
-                    'head coach': 'treinador',
-                    'entrenador': 'treinador',
                     'treinador adjunto': 'treinador_adjunto',
                     'adjunto': 'treinador_adjunto',
-                    'assistant coach': 'treinador_adjunto',
-                    'entrenador adjunto': 'treinador_adjunto',
                     'delegado': 'delegado',
-                    'delegate': 'delegado',
-                    'team manager': 'delegado',
                     'jogador': 'jogador',
                     'atleta': 'jogador',
-                    'player': 'jogador',
-                    'jugador': 'jogador',
                     'responsavel': 'responsavel',
                     'responsável': 'responsavel',
                     'pai': 'responsavel',
                     'mãe': 'responsavel',
                     'encarregado': 'responsavel',
+                    # English
+                    'administrator': 'admin',
+                    'sports manager': 'gestor_desportivo',
+                    'sports director': 'gestor_desportivo',
+                    'coach': 'treinador',
+                    'head coach': 'treinador',
+                    'assistant coach': 'treinador_adjunto',
+                    'assistant': 'treinador_adjunto',
+                    'delegate': 'delegado',
+                    'team manager': 'delegado',
+                    'player': 'jogador',
                     'guardian': 'responsavel',
                     'parent': 'responsavel',
-                    'familiar': 'responsavel',
                     'family': 'responsavel',
+                    # Spanish
+                    'gestor deportivo': 'gestor_desportivo',
+                    'director deportivo': 'gestor_desportivo',
+                    'entrenador': 'treinador',
+                    'entrenador principal': 'treinador',
+                    'entrenador asistente': 'treinador_adjunto',
+                    'entrenador adjunto': 'treinador_adjunto',
+                    'jugador': 'jogador',
+                    'responsable': 'responsavel',
+                    'familiar': 'responsavel',
+                    # French
+                    'administrateur': 'admin',
+                    'responsable sportif': 'gestor_desportivo',
+                    'directeur sportif': 'gestor_desportivo',
+                    'entraîneur': 'treinador',
+                    'entraineur': 'treinador',
+                    'entraîneur adjoint': 'treinador_adjunto',
+                    'entraineur adjoint': 'treinador_adjunto',
+                    'délégué': 'delegado',
+                    'delegue': 'delegado',
+                    'joueur': 'jogador',
+                    # Italian
+                    'amministratore': 'admin',
+                    'responsabile sportivo': 'gestor_desportivo',
+                    'direttore sportivo': 'gestor_desportivo',
+                    'allenatore': 'treinador',
+                    'allenatore in seconda': 'treinador_adjunto',
+                    'vice allenatore': 'treinador_adjunto',
+                    'delegato': 'delegado',
+                    'giocatore': 'jogador',
                 }
                 role = funcao_map.get(funcao.lower().strip(), 'jogador') if funcao else 'jogador'
                 
@@ -2754,6 +2866,69 @@ async def remove_member_from_team(member_id: str, team_id: str, current_user: di
     )
     
     return {"message": "Membro removido da equipa"}
+
+@api_router.delete("/members/{member_id}")
+async def delete_member_permanently(member_id: str, current_user: dict = Depends(get_current_user)):
+    """Permanently delete a member and all associated data (Admin only)"""
+    checker = get_permission_checker(current_user)
+    
+    # Only admin can permanently delete members
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores podem eliminar membros permanentemente")
+    
+    # Check if member exists
+    member = await db.users.find_one({"id": member_id})
+    if not member:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+    
+    # Cannot delete yourself
+    if member_id == current_user.get('id'):
+        raise HTTPException(status_code=400, detail="Não pode eliminar a sua própria conta")
+    
+    # Cannot delete admin accounts
+    if member.get('role') in ['admin']:
+        raise HTTPException(status_code=400, detail="Não pode eliminar contas de administrador")
+    
+    # Remove member from all teams
+    team_ids = member.get('team_ids', [])
+    for team_id in team_ids:
+        await db.teams.update_one(
+            {"id": team_id},
+            {"$pull": {"player_ids": member_id, "coach_ids": member_id, "delegate_ids": member_id}}
+        )
+    
+    # Remove from linked_player_ids (guardians)
+    await db.users.update_many(
+        {"linked_player_ids": member_id},
+        {"$pull": {"linked_player_ids": member_id}}
+    )
+    
+    # Remove attendance records
+    await db.attendance.delete_many({"user_id": member_id})
+    
+    # Remove player stats
+    await db.player_stats.delete_many({"player_id": member_id})
+    
+    # Remove unavailabilities
+    await db.unavailabilities.delete_many({"user_id": member_id})
+    
+    # Remove payments
+    await db.payments.delete_many({"user_id": member_id})
+    await db.monthly_fees.delete_many({"user_id": member_id})
+    
+    # Remove push subscriptions
+    await db.push_subscriptions.delete_many({"user_id": member_id})
+    
+    # Remove user messages (private ones)
+    await db.messages.delete_many({"sender_id": member_id})
+    
+    # Finally, delete the user
+    result = await db.users.delete_one({"id": member_id})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=500, detail="Erro ao eliminar membro")
+    
+    return {"message": "Membro eliminado permanentemente", "deleted_id": member_id}
 
 @api_router.get("/members")
 async def get_members_paginated(

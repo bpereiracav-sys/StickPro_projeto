@@ -39,15 +39,72 @@ export function getInitials(name) {
     .slice(0, 2);
 }
 
-export function getRoleName(role) {
+// Internal role keys mapping (for backwards compatibility)
+export const ROLE_INTERNAL_KEYS = {
+  // Portuguese (legacy DB values)
+  admin: 'admin',
+  gestor_desportivo: 'sports_manager',
+  treinador: 'coach',
+  treinador_adjunto: 'assistant_coach',
+  delegado: 'delegate',
+  jogador: 'player',
+  responsavel: 'guardian',
+  // English internal keys
+  sports_manager: 'sports_manager',
+  sports_director: 'sports_director',
+  coach: 'coach',
+  assistant_coach: 'assistant_coach',
+  delegate: 'delegate',
+  player: 'player',
+  guardian: 'guardian',
+};
+
+// Role groups for team view
+export const ROLE_GROUPS = {
+  players: ['player', 'jogador'],
+  staff: ['coach', 'assistant_coach', 'delegate', 'sports_director', 'sports_manager', 'treinador', 'treinador_adjunto', 'delegado', 'gestor_desportivo', 'admin']
+};
+
+// Check if role is staff
+export function isStaffRole(role) {
+  return ROLE_GROUPS.staff.includes(role);
+}
+
+// Check if role is player
+export function isPlayerRole(role) {
+  return ROLE_GROUPS.players.includes(role);
+}
+
+// Normalize role to internal key
+export function normalizeRole(role) {
+  if (!role) return 'player';
+  const lowerRole = role.toLowerCase().trim();
+  return ROLE_INTERNAL_KEYS[lowerRole] || lowerRole;
+}
+
+// Get role name (fallback for non-translated contexts)
+export function getRoleName(role, translations = null) {
+  // If translations provided, use them
+  if (translations?.roles?.[role]) {
+    return translations.roles[role];
+  }
+  
+  // Fallback to static mapping (Portuguese)
   const roles = {
     admin: 'Administrador',
     gestor_desportivo: 'Gestor Desportivo',
+    sports_manager: 'Gestor Desportivo',
+    sports_director: 'Diretor Desportivo',
     treinador: 'Treinador',
+    coach: 'Treinador',
     treinador_adjunto: 'Treinador Adjunto',
+    assistant_coach: 'Treinador Adjunto',
     delegado: 'Delegado',
+    delegate: 'Delegado',
     jogador: 'Jogador',
-    responsavel: 'Responsável'
+    player: 'Jogador',
+    responsavel: 'Responsável',
+    guardian: 'Responsável'
   };
   return roles[role] || role;
 }

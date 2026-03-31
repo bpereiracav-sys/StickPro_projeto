@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { usePermissions } from '../context/PermissionsContext';
+import { useLanguage } from '../context/LanguageContext';
 import { teamsApi, usersApi, clubApi, membersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -70,9 +71,12 @@ import {
   Edit,
   CheckCircle,
   Clock,
-  Shield
+  Shield,
+  Trash2,
+  UsersRound,
+  Briefcase
 } from 'lucide-react';
-import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
+import { getInitials, getRoleName, getRoleColor, isStaffRole, isPlayerRole } from '../lib/utils';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -84,10 +88,179 @@ const FLAGS = {
   BE: '🇧🇪', CH: '🇨🇭', LU: '🇱🇺', MA: '🇲🇦', RO: '🇷🇴'
 };
 
+// Staff roles (for grouping)
+const STAFF_ROLES = ['admin', 'gestor_desportivo', 'sports_manager', 'treinador', 'coach', 'treinador_adjunto', 'assistant_coach', 'delegado', 'delegate', 'sports_director'];
+
+// MemberRow component for rendering individual member
+function MemberRow({ 
+  member, 
+  isAdmin, 
+  canManageTeam, 
+  isAllTeamsSelected, 
+  teams,
+  onArchive, 
+  onDelete,
+  onAddToTeam, 
+  onRemoveFromTeam,
+  onSendReminder,
+  onToggleAdmin,
+  getTranslatedRoleName,
+  t,
+  user
+}) {
+  return (
+    <div 
+      className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/30 hover:border-primary/30 transition-all duration-200"
+      data-testid={`member-row-${member.id}`}
+    >
+      <div className="flex items-center gap-3">
+        <div className="relative">
+          <Avatar>
+            <AvatarImage src={member.avatar_url} />
+            <AvatarFallback className={`${getRoleColor(member.team_role || member.role)} text-white`}>
+              {getInitials(member.name)}
+            </AvatarFallback>
+          </Avatar>
+          {isAdmin && (
+            <span 
+              className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${
+                member.is_activated ? 'bg-green-500' : 'bg-yellow-500'
+              }`}
+              title={member.is_activated ? 'Activated' : 'Pending activation'}
+            >
+              {member.is_activated ? (
+                <CheckCircle className="w-3 h-3 text-white" />
+              ) : (
+                <Clock className="w-3 h-3 text-white" />
+              )}
+            </span>
+          )}
+        </div>
+        <div>
+          <div className="flex items-center gap-2">
+            <Link 
+              to={`/members/${member.id}/profile`}
+              className="font-medium hover:text-primary transition-colors"
+              data-testid={`member-profile-link-${member.id}`}
+            >
+              {member.name}
+            </Link>
+            {member.nationalities?.slice(0, 2).map((nat, i) => (
+              <span key={i} className="text-lg" title={nat}>
+                {FLAGS[nat] || nat}
+              </span>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            <Badge variant="outline" className="text-xs">
+              {getTranslatedRoleName(member.team_role || member.role)}
+            </Badge>
+            {member.profile?.sports_info?.jersey_number && (
+              <span>#{member.profile.sports_info.jersey_number}</span>
+            )}
+            {member.profile?.sports_info?.position && (
+              <span>{member.profile.sports_info.position}</span>
+            )}
+            {isAllTeamsSelected && member.team_ids?.length > 0 && (
+              <span className="text-xs bg-muted px-2 py-0.5 rounded">
+                {member.team_ids.length} {t('members.teamsCount')}
+              </span>
+            )}
+            {isAllTeamsSelected && (!member.team_ids || member.team_ids.length === 0) && (
+              <span className="text-xs text-amber-600">{t('members.noTeam')}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {member.email && (
+          <a href={`mailto:${member.email}`} className="text-muted-foreground hover:text-primary">
+            <Mail className="w-4 h-4" />
+          </a>
+        )}
+        {member.profile?.identity?.phone && (
+          <a href={`tel:${member.profile.identity.phone}`} className="text-muted-foreground hover:text-primary">
+            <Phone className="w-4 h-4" />
+          </a>
+        )}
+        
+        {canManageTeam && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-white">
+              <DropdownMenuItem asChild>
+                <Link to={`/members/${member.id}/profile`} data-testid={`view-profile-${member.id}`}>
+                  <Eye className="w-4 h-4 mr-2" />
+                  {t('members.viewProfile')}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link to={`/players/${member.id}`} data-testid={`view-stats-${member.id}`}>
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  {t('members.viewStats')}
+                </Link>
+              </DropdownMenuItem>
+              {isAdmin && !member.is_activated && (
+                <DropdownMenuItem onClick={onSendReminder}>
+                  <Bell className="w-4 h-4 mr-2" />
+                  {t('members.sendReminder')}
+                </DropdownMenuItem>
+              )}
+              {isAllTeamsSelected && teams.length > 0 && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={onAddToTeam}>
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    {t('members.addToTeam')}
+                  </DropdownMenuItem>
+                </>
+              )}
+              {!isAllTeamsSelected && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem className="text-destructive" onClick={onRemoveFromTeam}>
+                    <UserMinus className="w-4 h-4 mr-2" />
+                    {t('members.removeFromTeam')}
+                  </DropdownMenuItem>
+                </>
+              )}
+              {isAdmin && (
+                <>
+                  <DropdownMenuSeparator />
+                  {member.id !== user?.id && (
+                    <DropdownMenuItem onClick={onToggleAdmin}>
+                      <Shield className="w-4 h-4 mr-2" />
+                      {['admin', 'gestor_desportivo'].includes(member.role) ? t('common.remove') + ' Admin' : t('common.add') + ' Admin'}
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuItem className="text-amber-600" onClick={onArchive}>
+                    <Archive className="w-4 h-4 mr-2" />
+                    {t('common.archived')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-destructive" onClick={onDelete} data-testid={`delete-member-${member.id}`}>
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    {t('members.deleteMember')}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Members() {
   const { token, user } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const { canManageTeam, canImportData, canAccessTeam, isAdmin } = usePermissions();
+  const { t } = useLanguage();
   const [teams, setTeams] = useState([]);
   const [club, setClub] = useState(null);
   const [selectedTeamId, setSelectedTeamId] = useState('');
@@ -99,9 +272,11 @@ export default function Members() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [importDialogOpen, setImportDialogOpen] = useState(false);
   const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [addToTeamDialogOpen, setAddToTeamDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState('');
   const [selectedRole, setSelectedRole] = useState('jogador');
@@ -502,10 +677,66 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
     try {
       await usersApi.updateAdminRole(member.id, newIsAdmin);
       toast.success(newIsAdmin ? `${member.name} é agora admin` : `Role de admin removido de ${member.name}`);
-      fetchTeamMembers();
+      refreshMembers();
     } catch (error) {
       toast.error('Erro ao alterar role de admin');
     }
+  };
+
+  // Delete member permanently
+  const handleDeleteMember = async () => {
+    if (!selectedMember) return;
+    setDeleting(true);
+
+    try {
+      await membersApi.delete(selectedMember.id);
+      toast.success(t('members.memberDeleted'));
+      setDeleteDialogOpen(false);
+      setSelectedMember(null);
+      refreshMembers();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  // Refresh members list (for real-time sync)
+  const refreshMembers = () => {
+    if (isAllTeamsSelected && club) {
+      fetchClubMembers();
+    } else if (selectedTeamId) {
+      fetchTeamMembers();
+    }
+  };
+
+  // Get translated role name
+  const getTranslatedRoleName = (role) => {
+    // Map DB role keys to translation keys
+    const roleMap = {
+      admin: 'admin',
+      gestor_desportivo: 'sports_manager',
+      treinador: 'coach',
+      treinador_adjunto: 'assistant_coach',
+      delegado: 'delegate',
+      jogador: 'player',
+      responsavel: 'guardian',
+      sports_manager: 'sports_manager',
+      sports_director: 'sports_director',
+      coach: 'coach',
+      assistant_coach: 'assistant_coach',
+      delegate: 'delegate',
+      player: 'player',
+      guardian: 'guardian',
+    };
+    const key = roleMap[role] || role;
+    return t(`roles.${key}`) || getRoleName(role);
+  };
+
+  // Group members by role type (for team view)
+  const groupedMembers = {
+    staff: members.filter(m => STAFF_ROLES.includes(m.team_role || m.role)).sort((a, b) => a.name.localeCompare(b.name)),
+    players: members.filter(m => !STAFF_ROLES.includes(m.team_role || m.role)).sort((a, b) => a.name.localeCompare(b.name))
   };
 
   const availableUsers = allUsers.filter(u => !members.find(m => m.id === u.id));
@@ -656,16 +887,16 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 {isAllTeamsSelected ? (
                   <>
                     <Building2 className="w-5 h-5 text-primary" />
-                    Membros do Clube
+                    {t('members.title')}
                   </>
                 ) : (
-                  currentTeam?.name || 'Membros'
+                  currentTeam?.name || t('members.title')
                 )}
               </CardTitle>
               <CardDescription className="text-sm">
                 {isAllTeamsSelected 
-                  ? 'Todos os membros registados no clube' 
-                  : `Membros associados a esta equipa`
+                  ? t('members.subtitle')
+                  : `${t('members.subtitle')}`
                 }
               </CardDescription>
             </CardHeader>
@@ -674,182 +905,106 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 <div className="text-center py-12">
                   <Users className="w-12 h-12 text-muted-foreground/30 mx-auto mb-3" />
                   <p className="text-muted-foreground text-sm">
-                    {isAllTeamsSelected ? 'Sem membros no clube' : 'Sem membros nesta equipa'}
+                    {isAllTeamsSelected ? t('members.noTeam') : t('common.noResults')}
                   </p>
                   {canManageTeam && (
                     <p className="text-sm text-muted-foreground/70 mt-2">
-                      Use os botões acima para adicionar membros
+                      {t('members.addMember')}
                     </p>
                   )}
                 </div>
-              ) : (
+              ) : isAllTeamsSelected ? (
+                // Admin/Club view - single list sorted by name
                 <div className="space-y-2">
-                  {members.map(member => (
-                    <div 
-                      key={member.id}
-                      className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/30 hover:border-primary/30 transition-all duration-200"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="relative">
-                          <Avatar>
-                            <AvatarImage src={member.avatar_url} />
-                            <AvatarFallback className={`${getRoleColor(member.team_role || member.role)} text-white`}>
-                              {getInitials(member.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          {/* Activation status indicator for admin */}
-                          {isAdmin && (
-                            <span 
-                              className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white flex items-center justify-center ${
-                                member.is_activated ? 'bg-green-500' : 'bg-yellow-500'
-                              }`}
-                              title={member.is_activated ? 'Conta ativada' : 'Aguarda ativação'}
-                            >
-                              {member.is_activated ? (
-                                <CheckCircle className="w-3 h-3 text-white" />
-                              ) : (
-                                <Clock className="w-3 h-3 text-white" />
-                              )}
-                            </span>
-                          )}
-                        </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <Link 
-                              to={`/members/${member.id}/profile`}
-                              className="font-medium hover:text-primary transition-colors"
-                              data-testid={`member-profile-link-${member.id}`}
-                            >
-                              {member.name}
-                            </Link>
-                            {/* Nationality flags (max 2) */}
-                            {member.nationalities?.slice(0, 2).map((nat, i) => (
-                              <span key={i} className="text-lg" title={nat}>
-                                {FLAGS[nat] || nat}
-                              </span>
-                            ))}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                            <Badge variant="outline" className="text-xs">
-                              {getRoleName(member.team_role || member.role)}
-                            </Badge>
-                            {member.profile?.sports_info?.jersey_number && (
-                              <span>#{member.profile.sports_info.jersey_number}</span>
-                            )}
-                            {member.profile?.sports_info?.position && (
-                              <span>{member.profile.sports_info.position}</span>
-                            )}
-                            {/* Show teams when viewing club level */}
-                            {isAllTeamsSelected && member.team_ids?.length > 0 && (
-                              <span className="text-xs bg-muted px-2 py-0.5 rounded">
-                                {member.team_ids.length} equipa(s)
-                              </span>
-                            )}
-                            {isAllTeamsSelected && (!member.team_ids || member.team_ids.length === 0) && (
-                              <span className="text-xs text-amber-600">Sem equipa</span>
-                            )}
-                          </div>
-                        </div>
+                  {members.sort((a, b) => a.name.localeCompare(b.name)).map(member => (
+                    <MemberRow 
+                      key={member.id} 
+                      member={member} 
+                      isAdmin={isAdmin}
+                      canManageTeam={canManageTeam}
+                      isAllTeamsSelected={isAllTeamsSelected}
+                      teams={teams}
+                      onViewStats={() => {}}
+                      onArchive={() => { setSelectedMember(member); setArchiveDialogOpen(true); }}
+                      onDelete={() => { setSelectedMember(member); setDeleteDialogOpen(true); }}
+                      onAddToTeam={() => { setSelectedMember(member); setSelectedMembersToAdd([member.id]); setAddToTeamDialogOpen(true); }}
+                      onRemoveFromTeam={() => { setSelectedMember(member); setRemoveDialogOpen(true); }}
+                      onSendReminder={() => handleSendActivationReminder(member)}
+                      onToggleAdmin={() => handleToggleAdminRole(member)}
+                      getTranslatedRoleName={getTranslatedRoleName}
+                      t={t}
+                      user={user}
+                    />
+                  ))}
+                </div>
+              ) : (
+                // Team view - grouped by Staff/Players
+                <div className="space-y-6">
+                  {/* Staff Section */}
+                  {groupedMembers.staff.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                        <Briefcase className="w-4 h-4 text-primary" />
+                        <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                          {t('groups.staff')} ({groupedMembers.staff.length})
+                        </h3>
                       </div>
-
-                      <div className="flex items-center gap-2">
-                        {member.email && (
-                          <a href={`mailto:${member.email}`} className="text-muted-foreground hover:text-primary">
-                            <Mail className="w-4 h-4" />
-                          </a>
-                        )}
-                        {member.profile?.identity?.phone && (
-                          <a href={`tel:${member.profile.identity.phone}`} className="text-muted-foreground hover:text-primary">
-                            <Phone className="w-4 h-4" />
-                          </a>
-                        )}
-                        
-                        {canManageTeam && (
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8">
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-white">
-                              <DropdownMenuItem asChild>
-                                <Link to={`/members/${member.id}/profile`} data-testid={`view-profile-${member.id}`}>
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  Ver Perfil
-                                </Link>
-                              </DropdownMenuItem>
-                              <DropdownMenuItem asChild>
-                                <Link to={`/players/${member.id}`} data-testid={`view-stats-${member.id}`}>
-                                  <BarChart3 className="w-4 h-4 mr-2" />
-                                  Ver Estatísticas
-                                </Link>
-                              </DropdownMenuItem>
-                              {/* Admin actions */}
-                              {isAdmin && (
-                                <>
-                                  {!member.is_activated && (
-                                    <DropdownMenuItem onClick={() => handleSendActivationReminder(member)}>
-                                      <Bell className="w-4 h-4 mr-2" />
-                                      Enviar Lembrete Ativação
-                                    </DropdownMenuItem>
-                                  )}
-                                </>
-                              )}
-                              {isAllTeamsSelected && teams.length > 0 && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                    onClick={() => { 
-                                      setSelectedMember(member); 
-                                      setSelectedMembersToAdd([member.id]);
-                                      setAddToTeamDialogOpen(true); 
-                                    }}
-                                  >
-                                    <UserPlus className="w-4 h-4 mr-2" />
-                                    Adicionar a Equipa
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              {!isAllTeamsSelected && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  <DropdownMenuItem 
-                                    className="text-destructive"
-                                    onClick={() => { setSelectedMember(member); setRemoveDialogOpen(true); }}
-                                  >
-                                    <UserMinus className="w-4 h-4 mr-2" />
-                                    Remover da Equipa
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                              {/* Archive action for admin */}
-                              {isAdmin && (
-                                <>
-                                  <DropdownMenuSeparator />
-                                  {/* Toggle Admin Role */}
-                                  {member.id !== user?.id && (
-                                    <DropdownMenuItem 
-                                      onClick={() => handleToggleAdminRole(member)}
-                                    >
-                                      <Shield className="w-4 h-4 mr-2" />
-                                      {['admin', 'gestor_desportivo'].includes(member.role) ? 'Remover Admin' : 'Tornar Admin'}
-                                    </DropdownMenuItem>
-                                  )}
-                                  <DropdownMenuItem 
-                                    className="text-amber-600"
-                                    onClick={() => { setSelectedMember(member); setArchiveDialogOpen(true); }}
-                                  >
-                                    <Archive className="w-4 h-4 mr-2" />
-                                    Arquivar Membro
-                                  </DropdownMenuItem>
-                                </>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        )}
+                      <div className="space-y-2">
+                        {groupedMembers.staff.map(member => (
+                          <MemberRow 
+                            key={member.id} 
+                            member={member} 
+                            isAdmin={isAdmin}
+                            canManageTeam={canManageTeam}
+                            isAllTeamsSelected={isAllTeamsSelected}
+                            teams={teams}
+                            onArchive={() => { setSelectedMember(member); setArchiveDialogOpen(true); }}
+                            onDelete={() => { setSelectedMember(member); setDeleteDialogOpen(true); }}
+                            onAddToTeam={() => { setSelectedMember(member); setSelectedMembersToAdd([member.id]); setAddToTeamDialogOpen(true); }}
+                            onRemoveFromTeam={() => { setSelectedMember(member); setRemoveDialogOpen(true); }}
+                            onSendReminder={() => handleSendActivationReminder(member)}
+                            onToggleAdmin={() => handleToggleAdminRole(member)}
+                            getTranslatedRoleName={getTranslatedRoleName}
+                            t={t}
+                            user={user}
+                          />
+                        ))}
                       </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Players Section */}
+                  {groupedMembers.players.length > 0 && (
+                    <div>
+                      <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                        <UsersRound className="w-4 h-4 text-primary" />
+                        <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
+                          {t('groups.players')} ({groupedMembers.players.length})
+                        </h3>
+                      </div>
+                      <div className="space-y-2">
+                        {groupedMembers.players.map(member => (
+                          <MemberRow 
+                            key={member.id} 
+                            member={member} 
+                            isAdmin={isAdmin}
+                            canManageTeam={canManageTeam}
+                            isAllTeamsSelected={isAllTeamsSelected}
+                            teams={teams}
+                            onArchive={() => { setSelectedMember(member); setArchiveDialogOpen(true); }}
+                            onDelete={() => { setSelectedMember(member); setDeleteDialogOpen(true); }}
+                            onAddToTeam={() => { setSelectedMember(member); setSelectedMembersToAdd([member.id]); setAddToTeamDialogOpen(true); }}
+                            onRemoveFromTeam={() => { setSelectedMember(member); setRemoveDialogOpen(true); }}
+                            onSendReminder={() => handleSendActivationReminder(member)}
+                            onToggleAdmin={() => handleToggleAdminRole(member)}
+                            getTranslatedRoleName={getTranslatedRoleName}
+                            t={t}
+                            user={user}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -881,6 +1036,30 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
           </Card>
         </>
       )}
+
+      {/* Delete Member Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="bg-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('members.deleteMember')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('members.deleteMemberConfirm')}
+              <br /><br />
+              <strong className="text-destructive">{t('members.deleteMemberWarning')}</strong>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setSelectedMember(null)}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={handleDeleteMember} 
+              className="bg-destructive text-white hover:bg-destructive/90"
+              disabled={deleting}
+            >
+              {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : t('common.delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Archived Members Dialog */}
       <Dialog open={showArchived} onOpenChange={setShowArchived}>

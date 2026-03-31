@@ -1,0 +1,142 @@
+{
+  "summary": "Tested Members module multilingual support, delete functionality, and grouping logic. All 18 backend tests passed. Frontend UI verified with screenshots showing Staff/Players grouping, delete confirmation dialog, and import dialog with multilingual info.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "delete_member_endpoint": {
+      "status": "PASS",
+      "description": "DELETE /api/members/{member_id} - Permanently deletes member and all related data (attendance, stats, payments, etc.)"
+    },
+    "delete_requires_admin": {
+      "status": "PASS",
+      "description": "Only admin users can delete members"
+    },
+    "cannot_delete_own_account": {
+      "status": "PASS",
+      "description": "Admin cannot delete their own account"
+    },
+    "cannot_delete_admin_accounts": {
+      "status": "PASS",
+      "description": "Cannot delete other admin accounts"
+    },
+    "multilingual_import_pt": {
+      "status": "PASS",
+      "description": "Import CSV with Portuguese headers (Nome, Apelido, Data de Nascimento, Email, Função)"
+    },
+    "multilingual_import_es": {
+      "status": "PASS",
+      "description": "Import CSV with Spanish headers (Nombre, Apellido, Fecha de Nacimiento, Email, Rol)"
+    },
+    "multilingual_import_fr": {
+      "status": "PASS",
+      "description": "Import CSV with French headers (Prénom, Nom, Date de Naissance, Email, Fonction)"
+    },
+    "multilingual_import_it": {
+      "status": "PASS",
+      "description": "Import CSV with Italian headers (Nome, Cognome, Data di Nascita, Email, Ruolo)"
+    },
+    "multilingual_import_en": {
+      "status": "PASS",
+      "description": "Import CSV with English headers (First Name, Surname, Date of Birth, Email, Role)"
+    },
+    "role_mapping_portuguese": {
+      "status": "PASS",
+      "description": "Role mapping: treinador, treinador adjunto, delegado, jogador, responsável, gestor desportivo"
+    },
+    "role_mapping_spanish": {
+      "status": "PASS",
+      "description": "Role mapping: entrenador, entrenador asistente, jugador, responsable"
+    },
+    "role_mapping_french": {
+      "status": "PASS",
+      "description": "Role mapping: entraîneur, entraîneur adjoint, délégué, joueur"
+    },
+    "role_mapping_italian": {
+      "status": "PASS",
+      "description": "Role mapping: allenatore, allenatore in seconda, giocatore"
+    },
+    "role_mapping_english": {
+      "status": "PASS",
+      "description": "Role mapping: coach, assistant coach, delegate, player, guardian, sports manager"
+    },
+    "member_grouping_team_view": {
+      "status": "PASS",
+      "description": "Team view shows Staff and Players sections with proper icons (Briefcase for Staff, UsersRound for Players)"
+    },
+    "member_grouping_admin_view": {
+      "status": "PASS",
+      "description": "Admin/Club view shows single list sorted by name"
+    },
+    "translation_keys": {
+      "status": "PASS",
+      "description": "Translation keys exist for all roles: admin, sports_manager, coach, assistant_coach, delegate, player, guardian"
+    },
+    "delete_ui_flow": {
+      "status": "PASS",
+      "description": "Delete Member option in dropdown menu, confirmation dialog with warning about irreversible action"
+    }
+  },
+  "backend_verification": {
+    "pytest_results": {
+      "total_tests": 18,
+      "passed": 18,
+      "failed": 0,
+      "test_file": "/app/backend/tests/test_members_multilingual.py"
+    },
+    "endpoints_tested": [
+      "DELETE /api/members/{member_id} - Permanent member deletion",
+      "POST /api/members/import - Multilingual header mapping (PT, ES, FR, IT, EN)",
+      "POST /api/members - Create member",
+      "GET /api/members - Get paginated members with team_role",
+      "GET /api/users - Get all users"
+    ]
+  },
+  "frontend_verification": {
+    "members_page": {
+      "staff_players_grouping": "Working - Team view shows STAFF and PLAYERS sections",
+      "delete_option": "Working - Delete Member option in dropdown menu",
+      "delete_confirmation": "Working - Dialog shows warning about irreversible action",
+      "import_dialog": "Working - Shows expected columns, valid roles, valid positions"
+    },
+    "settings_page": {
+      "language_section": "Present - LANGUAGE section visible"
+    }
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_members_multilingual.py",
+    "/app/test_reports/pytest/members_multilingual_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "DELETE endpoint correctly removes member from all teams, linked_player_ids, attendance, player_stats, unavailabilities, payments, push_subscriptions, and messages",
+    "Import endpoint supports 5 languages (PT, ES, FR, IT, EN) for all column headers",
+    "Role mapping supports variations in all 5 languages (e.g., 'treinador', 'coach', 'entrenador', 'entraîneur', 'allenatore')",
+    "MemberRow component correctly uses getTranslatedRoleName for multilingual role display",
+    "groupedMembers logic correctly separates Staff and Players based on STAFF_ROLES array",
+    "Translation keys defined for all 7 roles in all 5 languages"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_members_multilingual.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin": {"email": "admin@example.com", "password": "test123456"}
+  },
+  "seed_data_creation": "Test members created during testing were cleaned up via delete endpoint",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Members module multilingual support fully tested. DELETE endpoint works correctly with proper validation (admin only, cannot delete self, cannot delete admins). Import supports 5 languages for headers and role mapping. Team view shows Staff/Players grouping. All 18 pytest tests pass.",
+  "mocked_apis": {
+    "resend_email": "MOCKED - Resend email requires user API key"
+  }
+}
