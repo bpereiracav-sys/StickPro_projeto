@@ -77,6 +77,14 @@ export const championshipsApi = {
     return api.post(`/championships/${championshipId}/teams/import`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
+  },
+  // Import matches from Excel/CSV
+  importMatches: (championshipId, file) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post(`/championships/${championshipId}/matches/import`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
   }
 };
 

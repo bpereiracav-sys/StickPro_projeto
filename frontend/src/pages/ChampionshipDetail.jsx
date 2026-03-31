@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
+import { useLanguage } from '../context/LanguageContext';
 import { championshipsApi, teamsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -54,6 +55,7 @@ export default function ChampionshipDetail() {
   const { championshipId } = useParams();
   const { token } = useAuth();
   const { canManageEvents, canManageStats, canManageLineups, canImportData, canAccessTeam, isAdmin } = usePermissions();
+  const { t } = useLanguage();
   const [championship, setChampionship] = useState(null);
   const [matches, setMatches] = useState([]);
   const [standings, setStandings] = useState([]);
@@ -73,6 +75,9 @@ export default function ChampionshipDetail() {
   const [aplImportDialogOpen, setAplImportDialogOpen] = useState(false);
   const [aplCalendarUrl, setAplCalendarUrl] = useState('');
   const [importingApl, setImportingApl] = useState(false);
+  const [matchImportDialogOpen, setMatchImportDialogOpen] = useState(false);
+  const [importingMatches, setImportingMatches] = useState(false);
+  const [matchImportResults, setMatchImportResults] = useState(null);
   
   // Competition Teams state
   const [competitionTeams, setCompetitionTeams] = useState([]);
@@ -103,34 +108,48 @@ export default function ChampionshipDetail() {
     }
   });
   
-  // Matches grouped by round
+  // Matches grouped by round - sorted by date and time
   const matchesByRound = useMemo(() => {
     const grouped = {};
     matches.forEach(match => {
-      const round = match.matchday || 'Sem Jornada';
+      const round = match.matchday || t('championships.noRound');
       if (!grouped[round]) grouped[round] = [];
       grouped[round].push(match);
     });
-    // Sort matches within each round by date
+    // Sort matches within each round by date AND time
     Object.keys(grouped).forEach(round => {
-      grouped[round].sort((a, b) => new Date(a.match_date) - new Date(b.match_date));
+      grouped[round].sort((a, b) => {
+        const dateA = new Date(a.match_date);
+        const dateB = new Date(b.match_date);
+        if (dateA.getTime() !== dateB.getTime()) {
+          return dateA - dateB;
+        }
+        // If same date, sort by match_time if available
+        const timeA = a.match_time || '00:00';
+        const timeB = b.match_time || '00:00';
+        return timeA.localeCompare(timeB);
+      });
     });
     return grouped;
-  }, [matches]);
+  }, [matches, t]);
   
   // Get sorted round keys
   const sortedRounds = useMemo(() => {
     return Object.keys(matchesByRound).sort((a, b) => {
-      if (a === 'Sem Jornada') return 1;
-      if (b === 'Sem Jornada') return -1;
+      const noRoundLabel = t('championships.noRound');
+      if (a === noRoundLabel) return 1;
+      if (b === noRoundLabel) return -1;
       return parseInt(a) - parseInt(b);
     });
-  }, [matchesByRound]);
+  }, [matchesByRound, t]);
   
   const [matchForm, setMatchForm] = useState({
+    home_team_id: '',
     home_team: '',
+    opponent_team_id: '',
     opponent_team: '',
     match_date: '',
+    match_time: '',
     location: 'casa',
     venue: '',
     is_club_match: true,
@@ -183,21 +202,49 @@ export default function ChampionshipDetail() {
 
   const handleCreateMatch = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!matchForm.is_club_match && matchForm.home_team_id === matchForm.opponent_team_id && matchForm.home_team_id !== '') {
+      toast.error(t('championships.sameTeamError'));
+      return;
+    }
+    
     setCreating(true);
 
     try {
+      // Build home_team name
+      let homeTeamName = matchForm.is_club_match ? team?.name : '';
+      if (!matchForm.is_club_match && matchForm.home_team_id) {
+        const selectedHomeTeam = competitionTeams.find(t => t.id === matchForm.home_team_id);
+        homeTeamName = selectedHomeTeam?.name || matchForm.home_team;
+      } else if (!matchForm.is_club_match) {
+        homeTeamName = matchForm.home_team;
+      }
+      
+      // Build opponent name
+      let opponentName = matchForm.opponent_team;
+      if (matchForm.opponent_team_id) {
+        const selectedOpponent = competitionTeams.find(t => t.id === matchForm.opponent_team_id);
+        opponentName = selectedOpponent?.name || matchForm.opponent_team;
+      }
+      
       const matchData = {
         ...matchForm,
         championship_id: championshipId,
         match_date: new Date(matchForm.match_date).toISOString(),
-        home_team: matchForm.is_club_match ? team?.name : matchForm.home_team,
+        home_team: homeTeamName,
+        opponent_team: opponentName,
       };
       
       await championshipsApi.createMatch(championshipId, matchData);
-      toast.success('Jogo adicionado!');
+      toast.success(t('championships.matchCreated'));
       setMatchDialogOpen(false);
-      setMatchForm({ home_team: '', opponent_team: '', match_date: '', location: 'casa', venue: '', is_club_match: true, bonus_points: 0, penalty_points: 0, matchday: 1 });
-      fetchData();
+      setMatchForm({ 
+        home_team_id: '', home_team: '', opponent_team_id: '', opponent_team: '', 
+        match_date: '', match_time: '', location: 'casa', venue: '', 
+        is_club_match: true, bonus_points: 0, penalty_points: 0, matchday: 1 
+      });
+      fetchData(); // Auto-refresh
     } catch (error) {
       toast.error('Erro ao adicionar jogo');
     } finally {
@@ -211,13 +258,26 @@ export default function ChampionshipDetail() {
     setCreating(true);
 
     try {
-      await championshipsApi.updateMatchResult(selectedMatch.id, resultForm);
-      toast.success('Resultado atualizado!');
+      // Validate scores
+      const homeScore = parseInt(resultForm.home_score, 10);
+      const awayScore = parseInt(resultForm.away_score, 10);
+      
+      if (isNaN(homeScore) || isNaN(awayScore) || homeScore < 0 || awayScore < 0) {
+        toast.error('Os resultados devem ser números positivos');
+        return;
+      }
+      
+      await championshipsApi.updateMatchResult(selectedMatch.id, {
+        ...resultForm,
+        home_score: homeScore,
+        away_score: awayScore
+      });
+      toast.success(t('championships.resultUpdated'));
       setResultDialogOpen(false);
       setSelectedMatch(null);
-      fetchData();
+      fetchData(); // Auto-refresh
     } catch (error) {
-      toast.error('Erro ao atualizar resultado');
+      toast.error(error.response?.data?.detail || t('common.error'));
     } finally {
       setCreating(false);
     }
@@ -364,6 +424,33 @@ export default function ChampionshipDetail() {
     }
   };
 
+  // Import matches from Excel/CSV
+  const handleImportMatches = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setImportingMatches(true);
+    setMatchImportResults(null);
+    
+    try {
+      const response = await championshipsApi.importMatches(championshipId, file);
+      setMatchImportResults(response.data);
+      
+      if (response.data.success > 0) {
+        toast.success(`${response.data.success} ${t('championships.importSuccess')}`);
+        fetchData(); // Auto-refresh
+      }
+      
+      if (response.data.errors?.length > 0) {
+        toast.error(`${response.data.errors.length} erros`);
+      }
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    } finally {
+      setImportingMatches(false);
+    }
+  };
+
   // Competition Team functions
   const handleCreateTeam = async (e) => {
     e.preventDefault();
@@ -371,12 +458,12 @@ export default function ChampionshipDetail() {
     
     try {
       await championshipsApi.createCompetitionTeam(championshipId, teamForm);
-      toast.success('Equipa adicionada!');
+      toast.success(t('championships.teamCreated'));
       setTeamDialogOpen(false);
       resetTeamForm();
-      fetchData();
+      fetchData(); // Auto-refresh
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Erro ao criar equipa');
+      toast.error(error.response?.data?.detail || t('common.error'));
     } finally {
       setCreating(false);
     }
@@ -389,13 +476,13 @@ export default function ChampionshipDetail() {
     
     try {
       await championshipsApi.updateCompetitionTeam(selectedTeam.id, teamForm);
-      toast.success('Equipa atualizada!');
+      toast.success(t('championships.teamUpdated'));
       setEditTeamDialogOpen(false);
       setSelectedTeam(null);
       resetTeamForm();
-      fetchData();
+      fetchData(); // Auto-refresh
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Erro ao atualizar equipa');
+      toast.error(error.response?.data?.detail || t('common.error'));
     } finally {
       setCreating(false);
     }
@@ -555,10 +642,21 @@ export default function ChampionshipDetail() {
         </div>
 
         {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
-          <Button onClick={() => setMatchDialogOpen(true)} data-testid="add-match-btn" className="w-full sm:w-auto">
-            <Plus className="w-4 h-4 mr-2" />
-            Adicionar Jogo
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => setMatchDialogOpen(true)} data-testid="add-match-btn" className="w-full sm:w-auto">
+              <Plus className="w-4 h-4 mr-2" />
+              {t('championships.addGame')}
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => setMatchImportDialogOpen(true)} 
+              data-testid="import-matches-btn" 
+              className="w-full sm:w-auto"
+            >
+              <Upload className="w-4 h-4 mr-2" />
+              {t('championships.importMatches')}
+            </Button>
+          </div>
         )}
       </div>
 
@@ -1327,6 +1425,91 @@ export default function ChampionshipDetail() {
                   Importar Dados
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Matches Dialog */}
+      <Dialog open={matchImportDialogOpen} onOpenChange={setMatchImportDialogOpen}>
+        <DialogContent className="bg-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+              <Upload className="w-5 h-5 text-primary" />
+              {t('championships.importMatches')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('championships.subtitle')}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="p-4 border-2 border-dashed border-border rounded-lg text-center">
+              <FileSpreadsheet className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground mb-2">
+                Arraste um ficheiro .xlsx ou .csv ou clique para selecionar
+              </p>
+              <Input 
+                type="file" 
+                accept=".xlsx,.csv"
+                onChange={handleImportMatches}
+                disabled={importingMatches}
+                data-testid="import-matches-file"
+                className="cursor-pointer"
+              />
+            </div>
+            
+            <div className="text-sm text-muted-foreground">
+              <p className="font-medium mb-1">{t('championships.expectedColumns')}:</p>
+              <code className="text-xs bg-muted px-2 py-1 rounded block">
+                {t('championships.homeTeam')}, {t('championships.opponent')}, {t('championships.date')}, {t('championships.time')}, {t('championships.venue')}, {t('championships.round')}
+              </code>
+              <p className="text-xs mt-2">
+                Os cabeçalhos podem estar em PT, ES, FR, IT ou EN
+              </p>
+            </div>
+
+            {importingMatches && (
+              <div className="flex items-center justify-center gap-2 text-primary">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                A importar...
+              </div>
+            )}
+
+            {matchImportResults && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Badge variant="default">{matchImportResults.success} importados</Badge>
+                  {matchImportResults.errors?.length > 0 && (
+                    <Badge variant="destructive">{matchImportResults.errors.length} erros</Badge>
+                  )}
+                </div>
+                {matchImportResults.imported?.length > 0 && (
+                  <div className="max-h-40 overflow-y-auto text-sm border rounded p-2">
+                    <p className="font-medium mb-1">Jogos importados:</p>
+                    {matchImportResults.imported.map((m, i) => (
+                      <p key={i} className="text-muted-foreground">
+                        {m.home_team || '?'} vs {m.opponent_team} - {m.match_date}
+                      </p>
+                    ))}
+                  </div>
+                )}
+                {matchImportResults.errors?.length > 0 && (
+                  <div className="max-h-32 overflow-y-auto text-sm text-destructive border border-destructive/20 rounded p-2">
+                    <p className="font-medium mb-1">Erros:</p>
+                    {matchImportResults.errors.map((e, i) => <p key={i}>{e}</p>)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => {
+              setMatchImportDialogOpen(false);
+              setMatchImportResults(null);
+            }}>
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>

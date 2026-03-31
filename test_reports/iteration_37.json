@@ -1,0 +1,182 @@
+{
+  "summary": "Tested Championships/Competitions module enhancements: competition team creation, match creation with home_team/opponent, Excel/CSV import with multilingual headers (PT, ES, FR, IT, EN), match sorting by date+time, result update, match_time field, and translation keys. All 16 backend tests passed. Frontend UI verified with screenshots.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "create_competition_team": {
+      "status": "PASS",
+      "description": "POST /api/championships/{id}/teams - Creates competition team without errors"
+    },
+    "create_competition_team_with_pavilion": {
+      "status": "PASS",
+      "description": "Competition team with pavilion_name and pavilion_address"
+    },
+    "duplicate_team_name_validation": {
+      "status": "PASS",
+      "description": "Duplicate team names are rejected with 400 error"
+    },
+    "create_match_success": {
+      "status": "PASS",
+      "description": "POST /api/championships/{id}/matches - Creates match with opponent_team, match_time, matchday"
+    },
+    "create_match_with_home_team": {
+      "status": "PASS",
+      "description": "External match with explicit home_team and opponent_team (is_club_match=false)"
+    },
+    "update_match_result": {
+      "status": "PASS",
+      "description": "PUT /api/championships/matches/{id}/result - Updates scores and marks is_completed=true"
+    },
+    "update_match_result_zero_scores": {
+      "status": "PASS",
+      "description": "0-0 results are accepted as valid"
+    },
+    "import_matches_csv_portuguese": {
+      "status": "PASS",
+      "description": "Import CSV with PT headers: Equipa Casa, Adversário, Data, Hora, Local, Jornada"
+    },
+    "import_matches_csv_spanish": {
+      "status": "PASS",
+      "description": "Import CSV with ES headers: Equipo Local, Rival, Fecha, Hora, Lugar, Jornada"
+    },
+    "import_matches_csv_french": {
+      "status": "PASS",
+      "description": "Import CSV with FR headers: Équipe Domicile, Adversaire, Date, Heure, Lieu, Journée"
+    },
+    "import_matches_csv_italian": {
+      "status": "PASS",
+      "description": "Import CSV with IT headers: Squadra Casa, Avversario, Data, Ora, Luogo, Giornata"
+    },
+    "import_matches_csv_english": {
+      "status": "PASS",
+      "description": "Import CSV with EN headers: Home Team, Opponent, Date, Time, Venue, Round"
+    },
+    "match_time_field": {
+      "status": "PASS",
+      "description": "match_time field is saved and returned in match data"
+    },
+    "championships_data_structure": {
+      "status": "PASS",
+      "description": "Championship endpoint returns proper data structure"
+    },
+    "get_competition_teams": {
+      "status": "PASS",
+      "description": "GET /api/championships/{id}/teams returns team list"
+    },
+    "get_standings": {
+      "status": "PASS",
+      "description": "GET /api/championships/{id}/standings returns standings"
+    }
+  },
+  "frontend_verification": {
+    "championships_list_page": {
+      "status": "PASS",
+      "description": "Shows competitions with Ver Detalhes and Eliminar buttons"
+    },
+    "championship_detail_page": {
+      "status": "PASS",
+      "description": "Shows matches grouped by Jornada (round), sorted by date and time"
+    },
+    "add_match_button": {
+      "status": "PASS",
+      "description": "data-testid='add-match-btn' present and clickable"
+    },
+    "add_match_dialog": {
+      "status": "PASS",
+      "description": "Has opponent input, date input, matchday input, location select"
+    },
+    "import_matches_button": {
+      "status": "PASS",
+      "description": "data-testid='import-matches-btn' present and clickable"
+    },
+    "import_matches_dialog": {
+      "status": "PASS",
+      "description": "Has file input for Excel/CSV import"
+    },
+    "teams_tab": {
+      "status": "PASS",
+      "description": "Shows competition teams with Adicionar Equipa and Importar Excel buttons"
+    },
+    "add_team_button": {
+      "status": "PASS",
+      "description": "data-testid='add-team-btn' present and clickable"
+    },
+    "add_team_dialog": {
+      "status": "PASS",
+      "description": "Has team name, pavilion name, pavilion address, kit colors fields"
+    },
+    "standings_tab": {
+      "status": "PASS",
+      "description": "Classificação tab accessible"
+    },
+    "match_display": {
+      "status": "PASS",
+      "description": "Matches show date, time, home team vs opponent, location badge, result"
+    },
+    "home_team_first": {
+      "status": "PASS",
+      "description": "Home team displayed first in match card (e.g., 'HC SINTRA vs UD VILAFRANQUENSE')"
+    }
+  },
+  "translation_keys_verified": {
+    "championships.sameTeamError": "Present in all 5 languages",
+    "championships.importMatches": "Present in all 5 languages",
+    "championships.teamCreated": "Present in all 5 languages",
+    "championships.matchCreated": "Present in all 5 languages",
+    "championships.resultUpdated": "Present in all 5 languages"
+  },
+  "backend_verification": {
+    "pytest_results": {
+      "total_tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "test_file": "/app/backend/tests/test_championships_competitions.py"
+    },
+    "endpoints_tested": [
+      "POST /api/championships/{id}/teams - Create competition team",
+      "GET /api/championships/{id}/teams - Get competition teams",
+      "POST /api/championships/{id}/matches - Create match",
+      "GET /api/championships/{id}/matches - Get matches",
+      "PUT /api/championships/matches/{id}/result - Update result",
+      "POST /api/championships/{id}/matches/import - Import matches from Excel/CSV",
+      "GET /api/championships/{id}/standings - Get standings"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_championships_competitions.py",
+    "/app/test_reports/pytest/championships_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "CompetitionTeamCreate model correctly has no required championship_id in body (passed via URL path)",
+    "Import matches endpoint supports 5 languages for all column headers",
+    "match_time field properly saved and returned in match data",
+    "matchesByRound sorting in frontend correctly sorts by date AND time",
+    "Home team displayed first in match card as expected",
+    "Auto-refresh (fetchData) called after create/edit operations"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_championships_competitions.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "100%"
+  },
+  "test_credentials": {
+    "admin": {"email": "admin@example.com", "password": "test123456"}
+  },
+  "seed_data_creation": "Test competition teams and matches created during testing (prefixed with TEST_)",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Championships/Competitions module fully tested. Competition team creation works without errors. Match creation with home_team and opponent works. Import matches from Excel/CSV supports 5 languages (PT, ES, FR, IT, EN). Match sorting by date+time works. Result update with score validation works. match_time field saved and displayed. Translation keys present in all 5 languages. All 16 pytest tests pass.",
+  "mocked_apis": {
+    "resend_email": "MOCKED - Resend email requires user API key"
+  }
+}

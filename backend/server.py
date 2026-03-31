@@ -561,7 +561,6 @@ class TeamKitColors(BaseModel):
     secondary_socks: Optional[str] = None
 
 class CompetitionTeamCreate(BaseModel):
-    championship_id: str
     name: str
     pavilion_name: Optional[str] = None
     pavilion_address: Optional[str] = None
@@ -623,6 +622,7 @@ class ChampionshipMatchCreate(BaseModel):
     home_team: Optional[str] = None  # Nome da equipa da casa (pode ser qualquer equipa)
     opponent_team: str  # Nome da equipa visitante
     match_date: datetime
+    match_time: Optional[str] = None  # Hora do jogo (HH:MM)
     location: MatchLocation
     venue: Optional[str] = None
     is_club_match: bool = True  # Se é jogo da equipa do clube ou jogo entre outras equipas
@@ -638,6 +638,7 @@ class ChampionshipMatch(BaseModel):
     home_team: Optional[str] = None
     opponent_team: str
     match_date: datetime
+    match_time: Optional[str] = None  # Hora do jogo (HH:MM)
     location: MatchLocation
     venue: Optional[str] = None
     home_score: Optional[int] = None
@@ -3515,6 +3516,7 @@ async def create_championship_match(championship_id: str, data: ChampionshipMatc
         home_team=data.home_team,
         opponent_team=data.opponent_team,
         match_date=data.match_date,
+        match_time=data.match_time,
         location=data.location,
         venue=data.venue,
         is_club_match=data.is_club_match,
@@ -3599,10 +3601,13 @@ async def update_match_result(match_id: str, result: MatchResultUpdate, current_
     return {"message": "Resultado atualizado"}
 
 class MatchUpdate(BaseModel):
+    home_team: Optional[str] = None
     opponent_team: Optional[str] = None
     match_date: Optional[datetime] = None
+    match_time: Optional[str] = None
     location: Optional[MatchLocation] = None
     venue: Optional[str] = None
+    matchday: Optional[int] = None
 
 @api_router.put("/championships/matches/{match_id}")
 async def update_match(match_id: str, updates: MatchUpdate, current_user: dict = Depends(get_current_user)):
@@ -3651,6 +3656,174 @@ async def delete_match(match_id: str, current_user: dict = Depends(get_current_u
     
     await db.championship_matches.delete_one({"id": match_id})
     return {"message": "Jogo eliminado"}
+
+@api_router.post("/championships/{championship_id}/matches/import")
+async def import_championship_matches(
+    championship_id: str, 
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Import matches from Excel/CSV file with multilingual header support"""
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_events:
+        raise HTTPException(status_code=403, detail="Sem permissão para importar jogos")
+    
+    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+    if not championship:
+        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+    
+    if not checker.is_admin and not checker.can_access_team(championship.get('team_id')):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta competição")
+    
+    # Read file
+    content = await file.read()
+    filename = file.filename.lower()
+    
+    rows = []
+    if filename.endswith('.csv'):
+        import csv
+        import io
+        decoded = content.decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(decoded))
+        rows = list(reader)
+    elif filename.endswith('.xlsx'):
+        from openpyxl import load_workbook
+        import io
+        wb = load_workbook(io.BytesIO(content), read_only=True)
+        ws = wb.active
+        headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if any(cell is not None for cell in row):
+                rows.append(dict(zip(headers, row)))
+    else:
+        raise HTTPException(status_code=400, detail="Formato não suportado. Use .csv ou .xlsx")
+    
+    results = {"success": 0, "errors": [], "imported": []}
+    
+    for row in rows:
+        try:
+            # Multilingual header mapping (PT, ES, FR, IT, EN)
+            home_team = (
+                row.get('Equipa Casa') or row.get('equipa_casa') or 
+                row.get('Equipo Local') or row.get('equipo_local') or
+                row.get('Équipe Domicile') or row.get('equipe_domicile') or
+                row.get('Squadra Casa') or row.get('squadra_casa') or
+                row.get('Home Team') or row.get('home_team') or ""
+            )
+            
+            opponent_team = (
+                row.get('Adversário') or row.get('adversario') or row.get('Equipa Visitante') or
+                row.get('Rival') or row.get('Equipo Visitante') or
+                row.get('Adversaire') or row.get('Équipe Extérieur') or
+                row.get('Avversario') or row.get('Squadra Ospite') or
+                row.get('Opponent') or row.get('Away Team') or row.get('opponent') or ""
+            )
+            
+            match_date_str = (
+                row.get('Data') or row.get('data') or
+                row.get('Fecha') or row.get('fecha') or
+                row.get('Date') or row.get('date') or ""
+            )
+            
+            match_time = (
+                row.get('Hora') or row.get('hora') or
+                row.get('Heure') or row.get('heure') or
+                row.get('Ora') or row.get('ora') or
+                row.get('Time') or row.get('time') or ""
+            )
+            
+            venue = (
+                row.get('Local') or row.get('local') or row.get('Pavilhão') or
+                row.get('Lugar') or row.get('Pabellón') or
+                row.get('Lieu') or row.get('Pavillon') or
+                row.get('Luogo') or row.get('Palazzetto') or
+                row.get('Venue') or row.get('venue') or row.get('Pavilion') or ""
+            )
+            
+            location_str = (
+                row.get('Localização') or row.get('localizacao') or
+                row.get('Ubicación') or row.get('ubicacion') or
+                row.get('Localisation') or row.get('localisation') or
+                row.get('Localizzazione') or row.get('localizzazione') or
+                row.get('Location') or row.get('location') or "casa"
+            )
+            
+            matchday_str = (
+                row.get('Jornada') or row.get('jornada') or
+                row.get('Journée') or row.get('journee') or
+                row.get('Giornata') or row.get('giornata') or
+                row.get('Round') or row.get('round') or row.get('Matchday') or ""
+            )
+            
+            if not opponent_team:
+                results["errors"].append(f"Linha sem adversário: {row}")
+                continue
+            
+            # Parse date
+            try:
+                if isinstance(match_date_str, datetime):
+                    match_date = match_date_str
+                elif match_date_str:
+                    from dateutil import parser
+                    match_date = parser.parse(str(match_date_str))
+                else:
+                    match_date = datetime.now(timezone.utc)
+            except:
+                match_date = datetime.now(timezone.utc)
+            
+            # Normalize location
+            location_map = {
+                'casa': 'casa', 'home': 'casa', 'domicile': 'casa', 'local': 'casa',
+                'fora': 'fora', 'away': 'fora', 'extérieur': 'fora', 'visitante': 'fora', 'trasferta': 'fora',
+                'neutral': 'neutro', 'neutro': 'neutro', 'neutre': 'neutro'
+            }
+            location = location_map.get(str(location_str).lower().strip(), 'casa')
+            
+            # Parse matchday
+            matchday = None
+            if matchday_str:
+                try:
+                    matchday = int(matchday_str)
+                except:
+                    pass
+            
+            # Determine if club match
+            team_name = championship.get('team_name', '')
+            is_club_match = home_team.lower() == team_name.lower() if team_name else True
+            
+            # Create match
+            match = ChampionshipMatch(
+                championship_id=championship_id,
+                team_id=championship['team_id'],
+                home_team=home_team if home_team else None,
+                opponent_team=opponent_team,
+                match_date=match_date,
+                match_time=str(match_time).strip() if match_time else None,
+                location=location,
+                venue=str(venue).strip() if venue else None,
+                is_club_match=is_club_match,
+                matchday=matchday
+            )
+            
+            match_dict = match.model_dump()
+            match_dict['match_date'] = match_dict['match_date'].isoformat()
+            match_dict['created_at'] = match_dict['created_at'].isoformat()
+            
+            await db.championship_matches.insert_one(match_dict)
+            match_dict.pop('_id', None)
+            
+            results["success"] += 1
+            results["imported"].append({
+                "home_team": home_team,
+                "opponent_team": opponent_team,
+                "match_date": str(match_date)[:10]
+            })
+            
+        except Exception as e:
+            results["errors"].append(f"Erro na linha: {str(e)}")
+    
+    return results
 
 class GameSheetImport(BaseModel):
     url: str
