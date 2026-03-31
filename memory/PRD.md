@@ -14,6 +14,51 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ## ÚLTIMAS ATUALIZAÇÕES
 
+### ✅ Calendário com Convocatórias - Estado de Jogadores (31 Mar 2026) - COMPLETO
+**Status:** 100% implementado e testado (iteration_39.json - 15/15 testes passaram)
+
+**Funcionalidades Implementadas:**
+1. **Endpoints de Estado de Convocatórias**
+   - `GET /api/events/{event_id}/convocation-status` - Obtém estado de todos os jogadores
+   - `PUT /api/events/{event_id}/convocation-status` - Atualiza estado de um jogador
+   - `POST /api/events/{event_id}/send-reminder` - Envia lembrete aos pendentes
+
+2. **UI de Estado de Convocatórias (Calendar.jsx)**
+   - Componente `PlayerStatusRow` para exibir/editar estado
+   - Diálogo de estado com 3 secções: Presentes, Ausentes, Pendentes
+   - Dropdown para alterar estado (Admin/Treinador)
+   - Botão de enviar lembrete para jogadores pendentes
+   - Badges coloridos por estado
+
+3. **Traduções Multilingue (5 idiomas)**
+   - `attendance.present/absent/pending`
+   - `attendance.presentPlayers/absentPlayers/pendingPlayers`
+   - `attendance.noPlayersInThisSection/sendReminder/reminderSent`
+
+**Testes:** `/app/test_reports/iteration_39.json`
+
+---
+
+### 🔧 Refatoração do Backend - Fase 1 (31 Mar 2026) - EM PROGRESSO
+**Status:** Estrutura criada, migração pendente
+
+**Trabalho Concluído:**
+1. **Módulo Core criado**
+   - `/app/backend/core/database.py` - Conexão MongoDB
+   - `/app/backend/core/security.py` - Utilitários JWT
+   - `/app/backend/core/config.py` - Configurações
+
+2. **Templates de Rotas**
+   - `/app/backend/routes/auth.py` - Documentado e preparado
+   - Guia de refatoração: `/app/backend/REFACTORING_GUIDE.md`
+
+**Próximos Passos:**
+- Migrar rotas de auth para módulo separado
+- Migrar rotas de teams, events, members
+- Reduzir server.py de 8036 linhas para < 500
+
+---
+
 ### ✅ Extração de Estatísticas de Fichas de Jogo (31 Mar 2026) - COMPLETO
 **Status:** 100% implementado e testado (16/16 testes passaram)
 
