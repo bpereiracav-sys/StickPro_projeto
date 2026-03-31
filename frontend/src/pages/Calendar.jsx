@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { usePermissions } from '../context/PermissionsContext';
+import { useLanguage } from '../context/LanguageContext';
 import { eventsApi, teamsApi, usersApi, unavailabilitiesApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -121,10 +122,72 @@ const VIEW_MODES = {
   month: { label: 'Mês', icon: LayoutGrid }
 };
 
+// Player Status Row component for convocation status dialog
+function PlayerStatusRow({ player, canEdit, onUpdateStatus, updating, t }) {
+  const statusOptions = [
+    { value: 'confirmado', label: t('attendance.present'), color: 'bg-green-100 text-green-700' },
+    { value: 'ausente', label: t('attendance.absent'), color: 'bg-red-100 text-red-700' },
+    { value: 'pendente', label: t('attendance.pending'), color: 'bg-amber-100 text-amber-700' }
+  ];
+
+  const currentStatus = statusOptions.find(s => s.value === player.status) || statusOptions[2];
+
+  return (
+    <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 border border-border">
+      <div className="flex items-center gap-3">
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={player.avatar_url} />
+          <AvatarFallback className="text-xs bg-primary/10">
+            {getInitials(player.name || 'NN')}
+          </AvatarFallback>
+        </Avatar>
+        <div>
+          <p className="font-medium text-sm">{player.name || 'Nome não disponível'}</p>
+          {player.jersey_number && (
+            <p className="text-xs text-muted-foreground">#{player.jersey_number}</p>
+          )}
+        </div>
+      </div>
+      
+      {canEdit ? (
+        <Select 
+          value={player.status} 
+          onValueChange={(value) => onUpdateStatus(player.id, value)}
+          disabled={updating}
+        >
+          <SelectTrigger className={`w-[130px] h-8 text-xs ${currentStatus.color}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {statusOptions.map(opt => (
+              <SelectItem key={opt.value} value={opt.value}>
+                <span className="flex items-center gap-2">
+                  {opt.value === 'confirmado' && <CheckCircle className="w-3 h-3 text-green-600" />}
+                  {opt.value === 'ausente' && <XCircle className="w-3 h-3 text-red-600" />}
+                  {opt.value === 'pendente' && <AlertCircle className="w-3 h-3 text-amber-600" />}
+                  {opt.label}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Badge variant="outline" className={currentStatus.color}>
+          {player.status === 'confirmado' && <CheckCircle className="w-3 h-3 mr-1" />}
+          {player.status === 'ausente' && <XCircle className="w-3 h-3 mr-1" />}
+          {player.status === 'pendente' && <AlertCircle className="w-3 h-3 mr-1" />}
+          {currentStatus.label}
+        </Badge>
+      )}
+    </div>
+  );
+}
+
 export default function CalendarPage() {
   const { user } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
-  const { canManageEvents, canCreateConvocations, canAccessTeam, isAdmin } = usePermissions();
+  const { canManageEvents, canCreateConvocations, canAccessTeam, isAdmin, isCoach } = usePermissions();
+  const { t } = useLanguage();
   const [events, setEvents] = useState([]);
   const [teams, setTeams] = useState([]);
   const [teamMembers, setTeamMembers] = useState([]);
@@ -143,7 +206,10 @@ export default function CalendarPage() {
   const [convocationVisible, setConvocationVisible] = useState(true);
   const [convocationMessage, setConvocationMessage] = useState('');
   const [convocationStatusDialogOpen, setConvocationStatusDialogOpen] = useState(false);
-  const [convocationStatus, setConvocationStatus] = useState({ attendances: [], summary: {} });
+  const [convocationStatus, setConvocationStatus] = useState({ present: [], absent: [], pending: [], total: 0, confirmed_count: 0, event_passed: false });
+  const [loadingStatus, setLoadingStatus] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [sendingReminder, setSendingReminder] = useState(false);
   
   // Unavailability state
   const [unavailabilities, setUnavailabilities] = useState([]);
@@ -492,17 +558,68 @@ export default function CalendarPage() {
 
   const openConvocationStatusDialog = async (event) => {
     setSelectedEvent(event);
+    setLoadingStatus(true);
     try {
-      const response = await eventsApi.getEventAttendance(event.id);
-      setConvocationStatus({
-        attendances: response.data?.attendances || [],
-        summary: response.data?.summary || { total: 0, confirmado: 0, ausente: 0, pendente: 0 }
-      });
+      const response = await eventsApi.getConvocationStatus(event.id);
+      setConvocationStatus(response.data);
       setConvocationStatusDialogOpen(true);
     } catch (error) {
       // No attendance records for this event
-      setConvocationStatus({ attendances: [], summary: { total: 0, confirmado: 0, ausente: 0, pendente: 0 } });
+      setConvocationStatus({ 
+        present: [], absent: [], pending: [], 
+        total: 0, confirmed_count: 0, event_passed: false 
+      });
       setConvocationStatusDialogOpen(true);
+    } finally {
+      setLoadingStatus(false);
+    }
+  };
+
+  // Update player convocation status
+  const handleUpdatePlayerStatus = async (playerId, newStatus) => {
+    if (!selectedEvent) return;
+    setUpdatingStatus(true);
+    try {
+      await eventsApi.updateConvocationStatus(selectedEvent.id, playerId, newStatus);
+      toast.success(t('attendance.statusUpdated'));
+      // Refresh status
+      const response = await eventsApi.getConvocationStatus(selectedEvent.id);
+      setConvocationStatus(response.data);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    } finally {
+      setUpdatingStatus(false);
+    }
+  };
+
+  // Send reminder to pending players
+  const handleSendReminder = async () => {
+    if (!selectedEvent) return;
+    setSendingReminder(true);
+    try {
+      const response = await eventsApi.sendReminder(selectedEvent.id);
+      toast.success(`${t('attendance.reminderSent')} (${response.data.sent_count})`);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    } finally {
+      setSendingReminder(false);
+    }
+  };
+
+  // Auto-mark pending as absent
+  const handleAutoMarkAbsent = async () => {
+    if (!selectedEvent) return;
+    setUpdatingStatus(true);
+    try {
+      const response = await eventsApi.autoMarkAbsent(selectedEvent.id);
+      toast.success(`${response.data.updated_count} ${t('attendance.autoMarkAbsent')}`);
+      // Refresh status
+      const refreshResponse = await eventsApi.getConvocationStatus(selectedEvent.id);
+      setConvocationStatus(refreshResponse.data);
+    } catch (error) {
+      toast.error(error.response?.data?.detail || t('common.error'));
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -1452,43 +1569,79 @@ export default function CalendarPage() {
 
       {/* Convocation Status Dialog */}
       <Dialog open={convocationStatusDialogOpen} onOpenChange={setConvocationStatusDialogOpen}>
-        <DialogContent className="bg-white max-w-lg">
+        <DialogContent className="bg-white max-w-2xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5 text-primary" />
-              ESTADO DA CONVOCATÓRIA
+              {t('attendance.statusTitle')}
             </DialogTitle>
             <DialogDescription>
               {selectedEvent?.title} - {selectedEvent?.start_time && format(parseISO(selectedEvent.start_time), "d 'de' MMMM", { locale: pt })}
+              {convocationStatus.event_passed && (
+                <Badge variant="outline" className="ml-2 bg-gray-100 text-gray-600">Evento passado</Badge>
+              )}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {/* Summary Cards */}
             <div className="grid grid-cols-3 gap-3">
-              <div className="bg-green-50 border border-green-200 rounded-sm p-3 text-center">
+              <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
                 <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-green-700">{convocationStatus.summary.confirmado || 0}</p>
-                <p className="text-xs text-green-600">Presentes</p>
+                <p className="text-2xl font-bold text-green-700">{convocationStatus.present?.length || 0}</p>
+                <p className="text-xs text-green-600">{t('attendance.presentPlayers')}</p>
               </div>
-              <div className="bg-red-50 border border-red-200 rounded-sm p-3 text-center">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
                 <XCircle className="w-5 h-5 text-red-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-red-700">{convocationStatus.summary.ausente || 0}</p>
-                <p className="text-xs text-red-600">Ausentes</p>
+                <p className="text-2xl font-bold text-red-700">{convocationStatus.absent?.length || 0}</p>
+                <p className="text-xs text-red-600">{t('attendance.absentPlayers')}</p>
               </div>
-              <div className="bg-amber-50 border border-amber-200 rounded-sm p-3 text-center">
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
                 <AlertCircle className="w-5 h-5 text-amber-600 mx-auto mb-1" />
-                <p className="text-2xl font-bold text-amber-700">{convocationStatus.summary.pendente || 0}</p>
-                <p className="text-xs text-amber-600">Pendentes</p>
+                <p className="text-2xl font-bold text-amber-700">{convocationStatus.pending?.length || 0}</p>
+                <p className="text-xs text-amber-600">{t('attendance.pendingPlayers')}</p>
               </div>
             </div>
 
-            {/* Player List */}
-            <ScrollArea className="h-[250px] border border-border rounded-sm">
-              {convocationStatus.attendances.length === 0 ? (
+            {/* Action buttons for pending players */}
+            {(isAdmin || isCoach) && convocationStatus.pending?.length > 0 && (
+              <div className="flex gap-2">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleSendReminder}
+                  disabled={sendingReminder}
+                  data-testid="send-reminder-btn"
+                >
+                  {sendingReminder ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Send className="w-4 h-4 mr-2" />}
+                  {t('attendance.sendReminder')}
+                </Button>
+                {convocationStatus.event_passed && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleAutoMarkAbsent}
+                    disabled={updatingStatus}
+                    className="text-amber-600 hover:text-amber-700"
+                    data-testid="auto-mark-absent-btn"
+                  >
+                    {updatingStatus ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <AlertTriangle className="w-4 h-4 mr-2" />}
+                    {t('attendance.autoMarkAbsent')}
+                  </Button>
+                )}
+              </div>
+            )}
+
+            {/* Player Lists by Status */}
+            <ScrollArea className="h-[300px] border border-border rounded-lg">
+              {loadingStatus ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="w-8 h-8 mx-auto animate-spin text-primary" />
+                </div>
+              ) : convocationStatus.total === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                  <p>Nenhuma convocatória criada para este evento</p>
+                  <p>{t('attendance.noPlayers')}</p>
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -1499,42 +1652,76 @@ export default function CalendarPage() {
                     }}
                   >
                     <Users className="w-4 h-4 mr-2" />
-                    Criar Convocatória
+                    {t('events.createConvocation')}
                   </Button>
                 </div>
               ) : (
-                <div className="divide-y divide-border">
-                  {convocationStatus.attendances.map((att, index) => (
-                    <div key={att.id || index} className="flex items-center justify-between p-3 hover:bg-muted/50">
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage src={att.player?.avatar_url} />
-                          <AvatarFallback className="text-xs">
-                            {getInitials(att.player?.name || 'NN')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-medium text-sm">{att.player?.name || 'Nome não disponível'}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {att.player?.jersey_number ? `#${att.player.jersey_number}` : ''}
-                          </p>
-                        </div>
+                <div className="p-3 space-y-4">
+                  {/* Present Players */}
+                  {convocationStatus.present?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-green-700 mb-2 flex items-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        {t('attendance.presentPlayers')} ({convocationStatus.present.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {convocationStatus.present.map((player) => (
+                          <PlayerStatusRow 
+                            key={player.id} 
+                            player={player} 
+                            canEdit={isAdmin || isCoach}
+                            onUpdateStatus={handleUpdatePlayerStatus}
+                            updating={updatingStatus}
+                            t={t}
+                          />
+                        ))}
                       </div>
-                      <Badge 
-                        variant="outline"
-                        className={`
-                          ${att.status === 'confirmado' ? 'bg-green-100 text-green-700 border-green-200' : ''}
-                          ${att.status === 'ausente' ? 'bg-red-100 text-red-700 border-red-200' : ''}
-                          ${att.status === 'pendente' ? 'bg-amber-100 text-amber-700 border-amber-200' : ''}
-                        `}
-                      >
-                        {att.status === 'confirmado' && <CheckCircle className="w-3 h-3 mr-1" />}
-                        {att.status === 'ausente' && <XCircle className="w-3 h-3 mr-1" />}
-                        {att.status === 'pendente' && <AlertCircle className="w-3 h-3 mr-1" />}
-                        {att.status === 'confirmado' ? 'Presente' : att.status === 'ausente' ? 'Ausente' : 'Pendente'}
-                      </Badge>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Absent Players */}
+                  {convocationStatus.absent?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-red-700 mb-2 flex items-center gap-2">
+                        <XCircle className="w-4 h-4" />
+                        {t('attendance.absentPlayers')} ({convocationStatus.absent.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {convocationStatus.absent.map((player) => (
+                          <PlayerStatusRow 
+                            key={player.id} 
+                            player={player} 
+                            canEdit={isAdmin || isCoach}
+                            onUpdateStatus={handleUpdatePlayerStatus}
+                            updating={updatingStatus}
+                            t={t}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Pending Players */}
+                  {convocationStatus.pending?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-medium text-amber-700 mb-2 flex items-center gap-2">
+                        <AlertCircle className="w-4 h-4" />
+                        {t('attendance.pendingPlayers')} ({convocationStatus.pending.length})
+                      </h4>
+                      <div className="space-y-2">
+                        {convocationStatus.pending.map((player) => (
+                          <PlayerStatusRow 
+                            key={player.id} 
+                            player={player} 
+                            canEdit={isAdmin || isCoach}
+                            onUpdateStatus={handleUpdatePlayerStatus}
+                            updating={updatingStatus}
+                            t={t}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </ScrollArea>
@@ -1542,7 +1729,7 @@ export default function CalendarPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setConvocationStatusDialogOpen(false)}>
-              Fechar
+              {t('common.close')}
             </Button>
           </DialogFooter>
         </DialogContent>

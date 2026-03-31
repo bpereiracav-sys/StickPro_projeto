@@ -101,7 +101,12 @@ export const eventsApi = {
   delete: (id) => api.delete(`/events/${id}`),
   getAttendance: (id) => api.get(`/events/${id}/attendance`),
   getEventAttendance: (id) => api.get(`/events/${id}/attendance`),
-  createConvocation: (eventId, data) => api.post('/convocations', { event_id: eventId, ...data })
+  createConvocation: (eventId, data) => api.post('/convocations', { event_id: eventId, ...data }),
+  // Convocation status
+  getConvocationStatus: (eventId) => api.get(`/events/${eventId}/convocation-status`),
+  updateConvocationStatus: (eventId, playerId, status) => api.put(`/events/${eventId}/convocation-status`, { player_id: playerId, status }),
+  sendReminder: (eventId) => api.post(`/events/${eventId}/send-reminder`),
+  autoMarkAbsent: (eventId) => api.post(`/events/${eventId}/auto-mark-absent`)
 };
 
 // Convocations API

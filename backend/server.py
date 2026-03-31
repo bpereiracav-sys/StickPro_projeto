@@ -5744,6 +5744,245 @@ async def get_event_attendance(event_id: str, current_user: dict = Depends(get_c
     
     return {"attendance": result, "summary": summary}
 
+# ==================== CONVOCATION STATUS ROUTES ====================
+
+class ConvocationStatusUpdate(BaseModel):
+    player_id: str
+    status: str  # 'confirmado', 'ausente', 'pendente'
+
+@api_router.get("/events/{event_id}/convocation-status")
+async def get_convocation_status(event_id: str, current_user: dict = Depends(get_current_user)):
+    """Get convocation status for an event - grouped by present/absent/pending"""
+    checker = get_permission_checker(current_user)
+    
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+    
+    team_id = event.get('team_id')
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a este evento")
+    
+    # Get all attendance records for this event
+    attendances = await db.attendance.find({"event_id": event_id}, {"_id": 0}).to_list(500)
+    
+    # Get player info
+    player_ids = [a['player_id'] for a in attendances]
+    players = await db.users.find({"id": {"$in": player_ids}}, {"_id": 0, "password": 0}).to_list(500)
+    players_map = {p['id']: p for p in players}
+    
+    # Group by status
+    present = []
+    absent = []
+    pending = []
+    
+    for att in attendances:
+        player = players_map.get(att['player_id'])
+        if not player:
+            continue
+        
+        player_data = {
+            "id": player['id'],
+            "name": player.get('name'),
+            "email": player.get('email'),
+            "avatar_url": player.get('avatar_url'),
+            "jersey_number": player.get('profile', {}).get('sports_info', {}).get('jersey_number'),
+            "status": att.get('status', 'pendente'),
+            "reason": att.get('reason'),
+            "attendance_id": att.get('id')
+        }
+        
+        status = att.get('status', 'pendente')
+        if status == 'confirmado':
+            present.append(player_data)
+        elif status == 'ausente' or status == 'faltou_sem_aviso':
+            absent.append(player_data)
+        else:
+            pending.append(player_data)
+    
+    # Check if event has passed
+    event_date = event.get('date') or event.get('start_date')
+    event_passed = False
+    if event_date:
+        try:
+            event_dt = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
+            event_passed = datetime.now(timezone.utc) > event_dt
+        except:
+            pass
+    
+    return {
+        "event_id": event_id,
+        "event_title": event.get('title'),
+        "event_date": event_date,
+        "event_passed": event_passed,
+        "present": sorted(present, key=lambda x: x['name'] or ''),
+        "absent": sorted(absent, key=lambda x: x['name'] or ''),
+        "pending": sorted(pending, key=lambda x: x['name'] or ''),
+        "total": len(present) + len(absent) + len(pending),
+        "confirmed_count": len(present)
+    }
+
+@api_router.put("/events/{event_id}/convocation-status")
+async def update_convocation_status(event_id: str, update: ConvocationStatusUpdate, current_user: dict = Depends(get_current_user)):
+    """Update a player's convocation status - Coach/Admin only"""
+    checker = get_permission_checker(current_user)
+    
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+    
+    team_id = event.get('team_id')
+    
+    # Only coach and admin can update status
+    if not checker.is_admin and not (checker.is_coach and checker.can_access_team(team_id)):
+        raise HTTPException(status_code=403, detail="Apenas treinadores e administradores podem atualizar o estado")
+    
+    # Validate status
+    valid_statuses = ['confirmado', 'ausente', 'pendente', 'faltou_sem_aviso']
+    if update.status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f"Estado inválido. Use: {', '.join(valid_statuses)}")
+    
+    # Find and update attendance
+    attendance = await db.attendance.find_one({
+        "event_id": event_id,
+        "player_id": update.player_id
+    })
+    
+    if not attendance:
+        raise HTTPException(status_code=404, detail="Registo de presença não encontrado")
+    
+    await db.attendance.update_one(
+        {"id": attendance['id']},
+        {"$set": {
+            "status": update.status,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_by": current_user['id']
+        }}
+    )
+    
+    return {"message": "Estado atualizado", "status": update.status}
+
+@api_router.post("/events/{event_id}/send-reminder")
+async def send_convocation_reminder(event_id: str, current_user: dict = Depends(get_current_user)):
+    """Send reminder to all pending players for an event"""
+    checker = get_permission_checker(current_user)
+    
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+    
+    team_id = event.get('team_id')
+    
+    # Only coach and admin can send reminders
+    if not checker.is_admin and not (checker.is_coach and checker.can_access_team(team_id)):
+        raise HTTPException(status_code=403, detail="Apenas treinadores e administradores podem enviar lembretes")
+    
+    # Get pending attendances
+    pending_attendances = await db.attendance.find({
+        "event_id": event_id,
+        "status": "pendente"
+    }, {"_id": 0}).to_list(200)
+    
+    if not pending_attendances:
+        return {"message": "Sem jogadores pendentes", "sent_count": 0}
+    
+    player_ids = [a['player_id'] for a in pending_attendances]
+    players = await db.users.find({"id": {"$in": player_ids}}, {"_id": 0, "id": 1, "email": 1, "name": 1}).to_list(200)
+    
+    sent_count = 0
+    errors = []
+    
+    # Try to send email reminders
+    resend_key = os.environ.get('RESEND_API_KEY')
+    
+    for player in players:
+        try:
+            # Create app notification
+            notification = {
+                "id": str(uuid.uuid4()),
+                "user_id": player['id'],
+                "type": "convocation_reminder",
+                "title": "Lembrete de Convocatória",
+                "message": f"Por favor confirma a tua presença no evento: {event.get('title')}",
+                "event_id": event_id,
+                "is_read": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.notifications.insert_one(notification)
+            
+            # Try email if available
+            if resend_key and player.get('email'):
+                try:
+                    import resend
+                    resend.api_key = resend_key
+                    resend.Emails.send({
+                        "from": "StickPro <noreply@stickpro.app>",
+                        "to": [player['email']],
+                        "subject": f"Lembrete: {event.get('title')}",
+                        "html": f"""
+                        <h2>Lembrete de Convocatória</h2>
+                        <p>Olá {player.get('name', 'Atleta')},</p>
+                        <p>Por favor confirma a tua presença no evento <strong>{event.get('title')}</strong>.</p>
+                        <p>Data: {event.get('date', event.get('start_date', 'N/A'))[:10]}</p>
+                        <p>Acede à app para confirmar ou indicar ausência.</p>
+                        """
+                    })
+                except Exception as e:
+                    logging.warning(f"Email send error: {e}")
+            
+            sent_count += 1
+        except Exception as e:
+            errors.append(f"{player.get('name')}: {str(e)}")
+    
+    return {
+        "message": "Lembretes enviados",
+        "sent_count": sent_count,
+        "errors": errors
+    }
+
+@api_router.post("/events/{event_id}/auto-mark-absent")
+async def auto_mark_absent(event_id: str, current_user: dict = Depends(get_current_user)):
+    """Auto-mark all pending players as absent for past events"""
+    checker = get_permission_checker(current_user)
+    
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+    
+    team_id = event.get('team_id')
+    
+    # Only coach and admin can auto-mark
+    if not checker.is_admin and not (checker.is_coach and checker.can_access_team(team_id)):
+        raise HTTPException(status_code=403, detail="Apenas treinadores e administradores podem marcar como ausente")
+    
+    # Check if event has passed
+    event_date = event.get('date') or event.get('start_date')
+    if event_date:
+        try:
+            event_dt = datetime.fromisoformat(event_date.replace('Z', '+00:00'))
+            if datetime.now(timezone.utc) <= event_dt:
+                raise HTTPException(status_code=400, detail="O evento ainda não passou")
+        except HTTPException:
+            raise
+        except:
+            pass
+    
+    # Update all pending to 'faltou_sem_aviso' (absent without notice)
+    result = await db.attendance.update_many(
+        {"event_id": event_id, "status": "pendente"},
+        {"$set": {
+            "status": "faltou_sem_aviso",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_by": current_user['id'],
+            "auto_marked": True
+        }}
+    )
+    
+    return {
+        "message": "Pendentes marcados como ausentes",
+        "updated_count": result.modified_count
+    }
+
 # ==================== STATISTICS ROUTES ====================
 
 @api_router.get("/teams/{team_id}/stats")
