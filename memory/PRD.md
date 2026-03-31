@@ -14,6 +14,46 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ## ÚLTIMAS ATUALIZAÇÕES
 
+### ✅ Módulo de Competições Melhorado (31 Mar 2026) - COMPLETO
+**Status:** 100% implementado e testado (16/16 testes passaram)
+
+**Funcionalidades Implementadas:**
+1. **Correção de Bug - Criação de Equipa**
+   - Corrigido modelo `CompetitionTeamCreate` (removido `championship_id` do body)
+   - Equipa criada é imediatamente disponível nos formulários de jogos
+
+2. **Importação de Jogos via Excel/CSV**
+   - Endpoint: `POST /api/championships/{id}/matches/import`
+   - Suporte a 5 idiomas nos headers: PT, ES, FR, IT, EN
+   - Campos: Equipa Casa, Adversário, Data, Hora, Local, Jornada
+
+3. **Campo match_time Adicionado**
+   - Novo campo para hora do jogo (HH:MM)
+   - Guardado e retornado na API
+   - Usado para ordenação mais precisa
+
+4. **Ordenação de Jogos**
+   - Jogos ordenados por data E hora dentro de cada jornada
+   - Auto-refresh após criar/editar/importar
+
+5. **Lógica Home vs Away**
+   - Home team sempre apresentado primeiro
+   - Formato: "Home Team vs Away Team"
+
+6. **Traduções Multilingue**
+   - Todas as mensagens em 5 idiomas
+   - Chaves: sameTeamError, importMatches, teamCreated, matchCreated, resultUpdated
+
+**Endpoints:**
+- `POST /api/championships/{id}/teams` - Criar equipa
+- `POST /api/championships/{id}/matches` - Criar jogo (com match_time)
+- `POST /api/championships/{id}/matches/import` - Importar jogos
+- `PUT /api/championships/matches/{id}/result` - Atualizar resultado
+
+**Testes:** `/app/test_reports/iteration_37.json`
+
+---
+
 ### ✅ Módulo de Membros Multilingue (31 Mar 2026) - COMPLETO
 **Status:** 100% implementado e testado (18/18 testes passaram)
 
