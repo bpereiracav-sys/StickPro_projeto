@@ -12,6 +12,49 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ---
 
+## ÚLTIMAS ATUALIZAÇÕES
+
+### ✅ Módulo de Membros Multilingue (31 Mar 2026) - COMPLETO
+**Status:** 100% implementado e testado (18/18 testes passaram)
+
+**Funcionalidades Implementadas:**
+1. **Eliminação Permanente de Membros**
+   - Endpoint: `DELETE /api/members/{member_id}`
+   - Apenas admin pode eliminar
+   - Remove todos os dados relacionados (presenças, estatísticas, pagamentos, etc.)
+   - Não permite eliminar própria conta ou outras contas admin
+   - Dialog de confirmação com aviso de ação irreversível
+
+2. **Suporte Multilingue Completo (5 idiomas)**
+   - PT, ES, FR, IT, EN suportados
+   - Headers de Excel/CSV aceites em qualquer idioma
+   - Roles traduzidos na UI
+
+3. **Agrupamento de Membros**
+   - Vista de equipa: Staff e Jogadores separados com cabeçalhos
+   - Vista admin/clube: Lista única ordenada por nome
+
+4. **Mapeamento de Roles Multilingue**
+   | Internal Key | PT | ES | FR | IT | EN |
+   |--------------|----|----|----|----|-----|
+   | admin | Administrador | Administrador | Administrateur | Amministratore | Administrator |
+   | sports_manager | Gestor Desportivo | Gestor Deportivo | Responsable Sportif | Responsabile Sportivo | Sports Manager |
+   | coach | Treinador | Entrenador | Entraîneur | Allenatore | Coach |
+   | assistant_coach | Treinador Adjunto | Entrenador Asistente | Entraîneur Adjoint | Allenatore in Seconda | Assistant Coach |
+   | delegate | Delegado | Delegado | Délégué | Delegato | Delegate |
+   | player | Jogador | Jugador | Joueur | Giocatore | Player |
+   | guardian | Responsável | Responsable | Responsable | Responsabile | Guardian |
+
+**Ficheiros Atualizados:**
+- `/app/backend/server.py` - Endpoint DELETE, mapeamento multilingue
+- `/app/frontend/src/pages/Members.jsx` - MemberRow, agrupamento, diálogo delete
+- `/app/frontend/src/i18n/translations.js` - Secções roles e groups em 5 idiomas
+- `/app/frontend/src/lib/utils.js` - ROLE_GROUPS, isStaffRole
+
+**Testes:** `/app/test_reports/iteration_36.json`
+
+---
+
 ## FUNCIONALIDADES IMPLEMENTADAS
 
 ### FASE 1 - Sistema de Permissões RBAC ✅ COMPLETO (27 Mar 2026)
