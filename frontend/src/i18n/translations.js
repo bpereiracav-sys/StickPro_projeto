@@ -262,6 +262,25 @@ export const translations = {
       noTeamsAvailable: 'Nenhuma equipa disponível. Adicione equipas primeiro.',
       teamName: 'Nome da Equipa',
       vs: 'vs',
+      // Statistics extraction
+      extractStats: 'Extrair Estatísticas',
+      extractStatsDescription: 'Extrair estatísticas de jogadores a partir de uma ficha de jogo',
+      gamesheetUrl: 'URL da Ficha de Jogo',
+      extracting: 'A extrair...',
+      statsExtracted: 'Estatísticas extraídas com sucesso',
+      playersFound: 'jogadores encontrados',
+      statHeaders: {
+        G: 'Golos',
+        AG: 'Assistências',
+        D: 'Defesas',
+        PM: 'Penáltis Marcados',
+        PF: 'Penáltis Falhados',
+        LDM: 'Livres Diretos Marcados',
+        LDF: 'Livres Diretos Falhados',
+        yellow: 'Amarelos',
+        blue: 'Azuis',
+        red: 'Vermelhos'
+      }
     },
     // Attendance
     attendance: {
@@ -718,6 +737,24 @@ export const translations = {
       noTeamsAvailable: 'No hay equipos disponibles. Añade equipos primero.',
       teamName: 'Nombre del Equipo',
       vs: 'vs',
+      extractStats: 'Extraer Estadísticas',
+      extractStatsDescription: 'Extraer estadísticas de jugadores de una hoja de partido',
+      gamesheetUrl: 'URL de la Hoja de Partido',
+      extracting: 'Extrayendo...',
+      statsExtracted: 'Estadísticas extraídas con éxito',
+      playersFound: 'jugadores encontrados',
+      statHeaders: {
+        G: 'Goles',
+        AG: 'Asistencias',
+        D: 'Paradas',
+        PM: 'Penaltis Marcados',
+        PF: 'Penaltis Fallados',
+        LDM: 'Libres Directos Marcados',
+        LDF: 'Libres Directos Fallados',
+        yellow: 'Amarillas',
+        blue: 'Azules',
+        red: 'Rojas'
+      }
     },
     // Attendance
     attendance: {
@@ -1171,6 +1208,24 @@ export const translations = {
       noTeamsAvailable: 'Aucune équipe disponible. Ajoutez des équipes d\'abord.',
       teamName: 'Nom de l\'Équipe',
       vs: 'vs',
+      extractStats: 'Extraire Statistiques',
+      extractStatsDescription: 'Extraire les statistiques des joueurs à partir d\'une feuille de match',
+      gamesheetUrl: 'URL de la Feuille de Match',
+      extracting: 'Extraction en cours...',
+      statsExtracted: 'Statistiques extraites avec succès',
+      playersFound: 'joueurs trouvés',
+      statHeaders: {
+        G: 'Buts',
+        AG: 'Passes décisives',
+        D: 'Arrêts',
+        PM: 'Pénalités Marqués',
+        PF: 'Pénalités Ratés',
+        LDM: 'Coups francs Marqués',
+        LDF: 'Coups francs Ratés',
+        yellow: 'Jaunes',
+        blue: 'Bleus',
+        red: 'Rouges'
+      }
     },
     // Attendance
     attendance: {
@@ -1624,6 +1679,24 @@ export const translations = {
       noTeamsAvailable: 'Nessuna squadra disponibile. Aggiungi squadre prima.',
       teamName: 'Nome della Squadra',
       vs: 'vs',
+      extractStats: 'Estrai Statistiche',
+      extractStatsDescription: 'Estrai le statistiche dei giocatori da un referto di partita',
+      gamesheetUrl: 'URL del Referto',
+      extracting: 'Estrazione in corso...',
+      statsExtracted: 'Statistiche estratte con successo',
+      playersFound: 'giocatori trovati',
+      statHeaders: {
+        G: 'Gol',
+        AG: 'Assist',
+        D: 'Parate',
+        PM: 'Rigori Segnati',
+        PF: 'Rigori Sbagliati',
+        LDM: 'Tiri Diretti Segnati',
+        LDF: 'Tiri Diretti Sbagliati',
+        yellow: 'Gialli',
+        blue: 'Blu',
+        red: 'Rossi'
+      }
     },
     // Attendance
     attendance: {
@@ -2077,6 +2150,24 @@ export const translations = {
       noTeamsAvailable: 'No teams available. Add teams first.',
       teamName: 'Team Name',
       vs: 'vs',
+      extractStats: 'Extract Statistics',
+      extractStatsDescription: 'Extract player statistics from a game sheet',
+      gamesheetUrl: 'Game Sheet URL',
+      extracting: 'Extracting...',
+      statsExtracted: 'Statistics extracted successfully',
+      playersFound: 'players found',
+      statHeaders: {
+        G: 'Goals',
+        AG: 'Assists',
+        D: 'Saves',
+        PM: 'Penalties Scored',
+        PF: 'Penalties Missed',
+        LDM: 'Direct Free Hits Scored',
+        LDF: 'Direct Free Hits Missed',
+        yellow: 'Yellow',
+        blue: 'Blue',
+        red: 'Red'
+      }
     },
     // Attendance
     attendance: {

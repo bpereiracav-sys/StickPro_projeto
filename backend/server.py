@@ -3945,21 +3945,29 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
                                 return 0
                             
                             def parse_fraction_stat(cell_index):
-                                """Parse a fraction stat like '1/2' returning the first number (scored)"""
+                                """Parse a fraction stat like '1/2' returning (scored, failed)
+                                Format: X/Y where X = scored, Y = total attempts
+                                Returns: (scored, failed) where failed = Y - X
+                                """
                                 if cell_index >= len(cells):
-                                    return 0
+                                    return (0, 0)
                                 text = cells[cell_index].get_text(strip=True)
                                 if '/' in text:
                                     parts = text.split('/')
-                                    if parts[0].isdigit():
-                                        return int(parts[0])
-                                return 0
+                                    try:
+                                        scored = int(parts[0]) if parts[0].isdigit() else 0
+                                        total = int(parts[1]) if len(parts) > 1 and parts[1].isdigit() else scored
+                                        failed = max(0, total - scored)
+                                        return (scored, failed)
+                                    except (ValueError, IndexError):
+                                        return (0, 0)
+                                return (0, 0)
                             
                             goals = parse_stat(4)       # G (Golos)
                             assists = parse_stat(5)     # AG (Assistências)
                             defenses = parse_stat(6)    # D (Defesas)
-                            penalties = parse_fraction_stat(7)   # Pe (Penáltis - X/Y format)
-                            free_kicks = parse_fraction_stat(8)  # LD (Livres Diretos - X/Y format)
+                            penalties_tuple = parse_fraction_stat(7)   # Pe (Penáltis - X/Y format)
+                            free_kicks_tuple = parse_fraction_stat(8)  # LD (Livres Diretos - X/Y format)
                             yellow_cards = parse_stat(9)   # Amarelo
                             blue_cards = parse_stat(10)    # Azul
                             red_cards = parse_stat(11)     # Vermelho
@@ -3969,11 +3977,22 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
                                     'team': current_team,
                                     'jersey_number': jersey,
                                     'name': name,
+                                    'G': goals,
+                                    'AG': assists,
+                                    'D': defenses,
+                                    'PM': penalties_tuple[0],      # Penáltis Marcados
+                                    'PF': penalties_tuple[1],      # Penáltis Falhados
+                                    'LDM': free_kicks_tuple[0],    # Livres Diretos Marcados
+                                    'LDF': free_kicks_tuple[1],    # Livres Diretos Falhados
+                                    'yellow': yellow_cards,
+                                    'blue': blue_cards,
+                                    'red': red_cards,
+                                    # Legacy fields for backwards compatibility
                                     'goals': goals,
                                     'assists': assists,
                                     'defenses': defenses,
-                                    'penalties_scored': penalties,
-                                    'free_kicks_scored': free_kicks,
+                                    'penalties_scored': penalties_tuple[0],
+                                    'free_kicks_scored': free_kicks_tuple[0],
                                     'yellow_cards': yellow_cards,
                                     'blue_cards': blue_cards,
                                     'red_cards': red_cards
@@ -4192,6 +4211,226 @@ async def get_match_gamesheet_stats(match_id: str, current_user: dict = Depends(
         "player_stats": match.get('gamesheet_player_stats', []),
         "raw_data": match.get('gamesheet_raw_data', {})
     }
+
+
+class GameSheetExtract(BaseModel):
+    url: str
+
+@api_router.post("/championships/extract-gamesheet-stats")
+async def extract_gamesheet_stats(data: GameSheetExtract, current_user: dict = Depends(get_current_user)):
+    """
+    Extract and transform player statistics from a game sheet URL.
+    Returns a structured list of players with all stats fields.
+    
+    Output schema per player:
+    - player_name: str
+    - team: str
+    - jersey_number: str
+    - G: int (goals)
+    - AG: int (assists)
+    - D: int (saves/defenses)
+    - PM: int (penalties scored)
+    - PF: int (penalties failed)
+    - LDM: int (direct free hits scored)
+    - LDF: int (direct free hits failed)
+    - yellow: int (yellow cards)
+    - blue: int (blue cards)
+    - red: int (red cards)
+    """
+    checker = get_permission_checker(current_user)
+    
+    if not checker.can_manage_stats:
+        raise HTTPException(status_code=403, detail="Sem permissão para extrair estatísticas")
+    
+    # Fetch the game sheet
+    try:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+            response = await client.get(data.url)
+            response.raise_for_status()
+            html = response.text
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erro ao aceder à ficha de jogo: {str(e)}")
+    
+    soup = BeautifulSoup(html, 'html.parser')
+    
+    # Detect language from headers (multilingual support)
+    def detect_language(soup):
+        """Detect language from common header patterns"""
+        text = soup.get_text().lower()
+        if 'golos' in text or 'assistências' in text:
+            return 'pt'
+        elif 'goles' in text or 'asistencias' in text:
+            return 'es'
+        elif 'buts' in text or 'passes décisives' in text:
+            return 'fr'
+        elif 'gol' in text or 'assist' in text:
+            return 'it'
+        return 'en'
+    
+    language = detect_language(soup)
+    
+    # Normalize player name (remove accents, lowercase, trim)
+    def normalize_player_name(name):
+        import unicodedata
+        # Remove captain marker
+        name = re.sub(r'\s*©\s*', '', name).strip()
+        # Normalize unicode characters
+        name = unicodedata.normalize('NFD', name)
+        name = ''.join(c for c in name if unicodedata.category(c) != 'Mn')
+        # Clean up spaces
+        name = re.sub(r'\s+', ' ', name).strip()
+        return name
+    
+    result = {
+        'home_score': None,
+        'away_score': None,
+        'teams': [],
+        'players': [],
+        'language_detected': language
+    }
+    
+    try:
+        # Find the final score
+        score_span = soup.find('span', style=lambda x: x and 'background-color:#000000' in x if x else False)
+        if score_span:
+            score_text = score_span.get_text(strip=True)
+            score_match = re.search(r'(\d+)\s*-\s*(\d+)', score_text)
+            if score_match:
+                result['home_score'] = int(score_match.group(1))
+                result['away_score'] = int(score_match.group(2))
+        
+        # Fallback score search
+        if result['home_score'] is None:
+            score_pattern = re.search(r'<b>(\d+)\s*-\s*(\d+)</b>', html)
+            if score_pattern:
+                result['home_score'] = int(score_pattern.group(1))
+                result['away_score'] = int(score_pattern.group(2))
+        
+        # Find all statistics divs
+        stats_divs = soup.find_all('div', class_='estadisticas')
+        current_team = None
+        
+        for stats_div in stats_divs:
+            tables = stats_div.find_all('table')
+            for table in tables:
+                rows = table.find_all('tr')
+                
+                for row in rows:
+                    cells = row.find_all('td')
+                    if not cells:
+                        continue
+                    
+                    # Check for team header
+                    first_cell = cells[0]
+                    if first_cell.get('class') and 'fondo1' in first_cell.get('class', []):
+                        team_name_span = first_cell.find('span')
+                        if team_name_span:
+                            current_team = team_name_span.get_text(strip=True)
+                            if current_team and current_team not in result['teams']:
+                                result['teams'].append(current_team)
+                        continue
+                    
+                    # Skip header rows and technical staff
+                    if first_cell.get('class') and 'fondo3' in first_cell.get('class', []):
+                        continue
+                    
+                    row_text = row.get_text()
+                    if 'Técnicos' in row_text or 'Total da equipa' in row_text:
+                        continue
+                    
+                    # Parse player row
+                    if len(cells) >= 12:
+                        try:
+                            jersey_text = cells[0].get_text(strip=True)
+                            
+                            # Skip staff roles
+                            if jersey_text in ['D', 'T', 'T2', 'MAS', 'MEC', '']:
+                                continue
+                            
+                            jersey = jersey_text.lstrip('0') or '0'
+                            
+                            # Get player name
+                            name_cell = cells[3]
+                            name = name_cell.get_text(strip=True)
+                            name = re.sub(r'\s*©\s*', '', name).strip()
+                            name = re.sub(r'\s+', ' ', name)
+                            
+                            if not name:
+                                continue
+                            
+                            # Parse stat functions
+                            def parse_stat(cell_index):
+                                if cell_index >= len(cells):
+                                    return 0
+                                text = cells[cell_index].get_text(strip=True)
+                                if text == '--' or text == '-':
+                                    return 0
+                                if text.isdigit():
+                                    return int(text)
+                                return 0
+                            
+                            def parse_fraction(cell_index):
+                                """Parse X/Y format, return (scored, failed)"""
+                                if cell_index >= len(cells):
+                                    return (0, 0)
+                                text = cells[cell_index].get_text(strip=True)
+                                if text == '--' or text == '-' or text == '':
+                                    return (0, 0)
+                                if '/' in text:
+                                    parts = text.split('/')
+                                    try:
+                                        scored = int(parts[0]) if parts[0].strip().isdigit() else 0
+                                        total = int(parts[1]) if len(parts) > 1 and parts[1].strip().isdigit() else scored
+                                        failed = max(0, total - scored)
+                                        return (scored, failed)
+                                    except (ValueError, IndexError):
+                                        return (0, 0)
+                                return (0, 0)
+                            
+                            # Extract all stats
+                            G = parse_stat(4)
+                            AG = parse_stat(5)
+                            D = parse_stat(6)
+                            Pe = parse_fraction(7)
+                            LD = parse_fraction(8)
+                            yellow = parse_stat(9)
+                            blue = parse_stat(10)
+                            red = parse_stat(11)
+                            
+                            player_data = {
+                                'player_name': name,
+                                'player_name_normalized': normalize_player_name(name).lower(),
+                                'team': current_team or 'Unknown',
+                                'jersey_number': jersey,
+                                'G': G,
+                                'AG': AG,
+                                'D': D,
+                                'PM': Pe[0],
+                                'PF': Pe[1],
+                                'LDM': LD[0],
+                                'LDF': LD[1],
+                                'yellow': yellow,
+                                'blue': blue,
+                                'red': red
+                            }
+                            
+                            # Validation
+                            assert player_data['PM'] >= 0, "PM must be >= 0"
+                            assert player_data['PF'] >= 0, "PF must be >= 0"
+                            assert player_data['LDM'] >= 0, "LDM must be >= 0"
+                            assert player_data['LDF'] >= 0, "LDF must be >= 0"
+                            
+                            result['players'].append(player_data)
+                            
+                        except Exception as e:
+                            logging.warning(f"Error parsing player row: {e}")
+                            continue
+        
+    except Exception as e:
+        logging.error(f"Error extracting gamesheet stats: {e}")
+        raise HTTPException(status_code=400, detail=f"Erro ao processar ficha de jogo: {str(e)}")
+    
+    return result
 
 
 class APLCalendarImport(BaseModel):

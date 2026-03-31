@@ -85,7 +85,11 @@ export const championshipsApi = {
     return api.post(`/championships/${championshipId}/matches/import`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
-  }
+  },
+  // Extract player stats from gamesheet URL
+  extractGamesheetStats: (url) => api.post('/championships/extract-gamesheet-stats', { url }),
+  // Get gamesheet stats for a match
+  getMatchGamesheetStats: (matchId) => api.get(`/championships/matches/${matchId}/gamesheet-stats`)
 };
 
 // Events API

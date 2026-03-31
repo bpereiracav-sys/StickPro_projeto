@@ -1,0 +1,132 @@
+{
+  "summary": "Tested POST /api/championships/extract-gamesheet-stats endpoint for extracting player statistics from gamesheet URL. All 16 backend tests passed. Features verified: score extraction, teams list, G/AG/D parsing, Penalties X/Y to PM/PF, Direct Free Hits X/Y to LDM/LDF, cards parsing, player name normalization (© removal), technical staff skipping, validation (PM/PF/LDM/LDF >= 0), and translation keys in 5 languages.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "features_tested": {
+    "extract_gamesheet_stats_endpoint": {
+      "status": "PASS",
+      "description": "POST /api/championships/extract-gamesheet-stats returns structured player stats"
+    },
+    "extract_home_away_score": {
+      "status": "PASS",
+      "description": "Extracts home_score=7 and away_score=2 from mock gamesheet"
+    },
+    "extract_teams_list": {
+      "status": "PASS",
+      "description": "Extracts teams: HC SINTRA, UD VILAFRANQUENSE"
+    },
+    "parse_goals_assists_defenses": {
+      "status": "PASS",
+      "description": "G, AG, D parsed as integers (João Silva: G=3, AG=1, D=10)"
+    },
+    "parse_penalties_xy_format": {
+      "status": "PASS",
+      "description": "Penalties X/Y parsed to PM (scored) and PF (failed). Salvador: 1/1 → PM=1, PF=0. Lourenço: 1/2 → PM=1, PF=1"
+    },
+    "parse_direct_free_hits_xy_format": {
+      "status": "PASS",
+      "description": "Direct Free Hits X/Y parsed to LDM (scored) and LDF (failed). Lourenço: 1/3 → LDM=1, LDF=2"
+    },
+    "parse_cards": {
+      "status": "PASS",
+      "description": "Yellow, blue, red cards parsed correctly (Lourenço: yellow=1, João: blue=1, Player2: red=1)"
+    },
+    "normalize_player_name_captain_marker": {
+      "status": "PASS",
+      "description": "Captain marker © removed from player names (Salvador Madaleno © → Salvador Madaleno)"
+    },
+    "skip_technical_staff": {
+      "status": "PASS",
+      "description": "Technical staff (T, T2, MAS, MEC, D) skipped - Coach Name not in players list"
+    },
+    "validation_non_negative": {
+      "status": "PASS",
+      "description": "PM >= 0, PF >= 0, LDM >= 0, LDF >= 0 validated for all players"
+    },
+    "player_data_structure": {
+      "status": "PASS",
+      "description": "All players have required fields: player_name, team, jersey_number, G, AG, D, PM, PF, LDM, LDF, yellow, blue, red"
+    },
+    "graceful_degradation_invalid_url": {
+      "status": "PASS",
+      "description": "Invalid/unreachable URL returns empty result (200 with null scores, empty teams/players)"
+    },
+    "unauthorized_access": {
+      "status": "PASS",
+      "description": "Unauthorized access returns 401/403"
+    },
+    "player_team_assignment": {
+      "status": "PASS",
+      "description": "Players correctly assigned to teams (Salvador → HC SINTRA, GR1 → UD VILAFRANQUENSE)"
+    },
+    "zero_zero_penalties": {
+      "status": "PASS",
+      "description": "0/0 penalties parsed correctly (PM=0, PF=0)"
+    },
+    "goalkeeper_defenses": {
+      "status": "PASS",
+      "description": "Goalkeeper defenses parsed correctly (GR1: D=15)"
+    }
+  },
+  "translation_keys_verified": {
+    "championships.statHeaders.G": "Present in all 5 languages (PT: Golos, ES: Goles, FR: Buts, IT: Gol, EN: Goals)",
+    "championships.statHeaders.AG": "Present in all 5 languages (PT: Assistências, ES: Asistencias, FR: Passes décisives, IT: Assist, EN: Assists)",
+    "championships.statHeaders.D": "Present in all 5 languages (PT: Defesas, ES: Paradas, FR: Arrêts, IT: Parate, EN: Saves)",
+    "championships.statHeaders.PM": "Present in all 5 languages (PT: Penáltis Marcados, ES: Penaltis Marcados, FR: Pénalités Marqués, IT: Rigori Segnati, EN: Penalties Scored)",
+    "championships.statHeaders.PF": "Present in all 5 languages (PT: Penáltis Falhados, ES: Penaltis Fallados, FR: Pénalités Ratés, IT: Rigori Sbagliati, EN: Penalties Missed)",
+    "championships.statHeaders.LDM": "Present in all 5 languages (PT: Livres Diretos Marcados, ES: Libres Directos Marcados, FR: Coups francs Marqués, IT: Tiri Diretti Segnati, EN: Direct Free Hits Scored)",
+    "championships.statHeaders.LDF": "Present in all 5 languages (PT: Livres Diretos Falhados, ES: Libres Directos Fallados, FR: Coups francs Ratés, IT: Tiri Diretti Sbagliati, EN: Direct Free Hits Missed)",
+    "championships.statHeaders.yellow": "Present in all 5 languages",
+    "championships.statHeaders.blue": "Present in all 5 languages",
+    "championships.statHeaders.red": "Present in all 5 languages"
+  },
+  "backend_verification": {
+    "pytest_results": {
+      "total_tests": 16,
+      "passed": 16,
+      "failed": 0,
+      "test_file": "/app/backend/tests/test_gamesheet_stats_extraction.py"
+    },
+    "endpoints_tested": [
+      "POST /api/championships/extract-gamesheet-stats - Extract player stats from gamesheet URL"
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_gamesheet_stats_extraction.py",
+    "/app/test_reports/pytest/gamesheet_stats_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Endpoint correctly parses APL-style gamesheet HTML table structure",
+    "X/Y format parsing correctly calculates scored (X) and failed (Y-X) values",
+    "Captain marker © removal works correctly",
+    "Technical staff filtering by jersey number (T, T2, MAS, MEC, D) works",
+    "Validation assertions ensure PM/PF/LDM/LDF are non-negative",
+    "Graceful degradation for invalid URLs returns empty result instead of error",
+    "All 5 language translations for statHeaders are complete"
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_gamesheet_stats_extraction.py"
+  ],
+  "success_rate": {
+    "backend": "100%",
+    "frontend": "N/A (backend only testing)"
+  },
+  "test_credentials": {
+    "admin": {"email": "admin@example.com", "password": "test123456"}
+  },
+  "seed_data_creation": "Used mock gamesheet HTML at http://localhost:9999/mock_gamesheet.html for testing",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Gamesheet stats extraction endpoint fully tested. All 16 tests pass. Mock gamesheet server running at localhost:9999. Endpoint parses APL-style HTML tables with multilingual header detection. X/Y format for penalties and direct free hits correctly parsed to scored/failed values. Translation keys for statHeaders present in all 5 languages (PT, ES, FR, IT, EN).",
+  "mocked_apis": {
+    "mock_gamesheet_html": "MOCKED - Mock gamesheet HTML server at http://localhost:9999/mock_gamesheet.html"
+  }
+}
