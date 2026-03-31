@@ -660,9 +660,11 @@ class MatchResultUpdate(BaseModel):
 class PlayerMatchStatsCreate(BaseModel):
     match_id: str
     player_id: str
-    position: PlayerPosition
+    position: Optional[PlayerPosition] = None  # Made optional for stats import
+    started_match: bool = False
     minutes_played: int = 0
     goals: int = 0
+    own_goals: int = 0
     assists: int = 0
     penalties_scored: int = 0
     penalties_missed: int = 0
@@ -672,6 +674,7 @@ class PlayerMatchStatsCreate(BaseModel):
     free_kicks_missed: int = 0
     free_kicks_saved: int = 0
     free_kicks_conceded: int = 0
+    direct_free_kicks: int = 0
     saves: int = 0
     blue_cards: int = 0
     yellow_cards: int = 0
@@ -685,9 +688,11 @@ class PlayerMatchStats(BaseModel):
     player_id: str
     team_id: str
     championship_id: str
-    position: PlayerPosition
+    position: Optional[PlayerPosition] = None
+    started_match: bool = False
     minutes_played: int = 0
     goals: int = 0
+    own_goals: int = 0
     assists: int = 0
     penalties_scored: int = 0
     penalties_missed: int = 0
@@ -697,6 +702,7 @@ class PlayerMatchStats(BaseModel):
     free_kicks_missed: int = 0
     free_kicks_saved: int = 0
     free_kicks_conceded: int = 0
+    direct_free_kicks: int = 0
     saves: int = 0
     blue_cards: int = 0
     yellow_cards: int = 0
@@ -4247,7 +4253,15 @@ async def extract_gamesheet_stats(data: GameSheetExtract, current_user: dict = D
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             response = await client.get(data.url)
             response.raise_for_status()
-            html = response.text
+            # Try to detect and fix encoding issues
+            # APL uses Windows-1252 encoding for Portuguese characters
+            try:
+                html = response.content.decode('windows-1252')
+            except:
+                try:
+                    html = response.content.decode('iso-8859-1')
+                except:
+                    html = response.text
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Erro ao aceder à ficha de jogo: {str(e)}")
     

@@ -14,6 +14,48 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ## ÚLTIMAS ATUALIZAÇÕES
 
+### ✅ Correção da Importação de Estatísticas de Fichas de Jogo (31 Mar 2026) - COMPLETO
+**Status:** 100% corrigido e funcional
+
+**Problema Reportado:**
+- Ao importar estatísticas do URL da APL (partido2.asp?id=8670), apenas 2 golos do António Pereira apareciam
+- Os restantes jogadores (Benedita Machado, Vasco Fraústo, André Faria, Lourenço Silva) não tinham estatísticas
+
+**Causas Identificadas:**
+1. **Encoding Incorreto**: O servidor da APL usa Windows-1252, mas o código estava a usar UTF-8 por defeito. Caracteres como `Ç`, `Ú`, `Ã` apareciam como `?`
+2. **API Endpoint em Falta**: `savePlayerMatchStats` não existia no api.js do frontend
+3. **Modelo Pydantic Rígido**: `PlayerMatchStatsCreate` exigia `position` obrigatório
+
+**Soluções Implementadas:**
+1. **Corrigido Encoding** em `server.py`:
+   ```python
+   html = response.content.decode('windows-1252')
+   ```
+2. **Adicionado Endpoint** em `api.js`:
+   ```javascript
+   savePlayerMatchStats: (matchId, playerId, data) => api.post(`/matches/${matchId}/player-stats`, {...})
+   ```
+3. **Tornados Campos Opcionais** nos modelos `PlayerMatchStatsCreate` e `PlayerMatchStats`:
+   - `position: Optional[PlayerPosition] = None`
+   - Adicionados campos: `started_match`, `own_goals`, `direct_free_kicks`
+
+4. **Adicionada Funcionalidade de Importação de URL** em `MatchStats.jsx`:
+   - Botão "Importar de URL" abre diálogo modal
+   - Extrai estatísticas automaticamente do URL da APL
+   - Associa jogadores extraídos aos membros da equipa por nome
+   - Mostra resumo de jogadores encontrados e não encontrados
+   - Preenche automaticamente a tabela de estatísticas
+
+**Resultado:**
+- ✅ Lourenço Silva: 1 golo
+- ✅ António Pereira: 2 golos
+- ✅ Vasco Fraústo: 3 golos
+- ✅ André Faria: 1 golo
+- ✅ Benedita Machado: 2 golos
+- **Total: 9 golos** (corresponde ao resultado 9-0)
+
+---
+
 ### ✅ Calendário com Convocatórias - Estado de Jogadores (31 Mar 2026) - COMPLETO
 **Status:** 100% implementado e testado (iteration_39.json - 15/15 testes passaram)
 

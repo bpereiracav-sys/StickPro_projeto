@@ -89,7 +89,15 @@ export const championshipsApi = {
   // Extract player stats from gamesheet URL
   extractGamesheetStats: (url) => api.post('/championships/extract-gamesheet-stats', { url }),
   // Get gamesheet stats for a match
-  getMatchGamesheetStats: (matchId) => api.get(`/championships/matches/${matchId}/gamesheet-stats`)
+  getMatchGamesheetStats: (matchId) => api.get(`/championships/matches/${matchId}/gamesheet-stats`),
+  // Save player match stats
+  savePlayerMatchStats: (matchId, playerId, data) => api.post(`/matches/${matchId}/player-stats`, {
+    match_id: matchId,
+    player_id: playerId,
+    ...data
+  }),
+  // Get player stats for a match
+  getMatchPlayerStats: (matchId) => api.get(`/matches/${matchId}/player-stats`)
 };
 
 // Events API

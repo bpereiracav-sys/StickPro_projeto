@@ -11,6 +11,14 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { Checkbox } from '../components/ui/checkbox';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../components/ui/dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -19,7 +27,7 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { toast } from 'sonner';
-import { ArrowLeft, Save, Loader2, User } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, User, Download, Link as LinkIcon, CheckCircle, AlertCircle } from 'lucide-react';
 import { getInitials, formatDate, formatTime } from '../lib/utils';
 
 export default function MatchStats() {
@@ -32,6 +40,10 @@ export default function MatchStats() {
   const [existingStats, setExistingStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -141,6 +153,134 @@ export default function MatchStats() {
     }
   };
 
+  // Normalize name for matching (remove accents, lowercase)
+  const normalizeName = (name) => {
+    if (!name) return '';
+    return name
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  // Import stats from external URL
+  const handleImportStats = async () => {
+    if (!importUrl.trim()) {
+      toast.error('Introduza o URL da ficha de jogo');
+      return;
+    }
+
+    setImporting(true);
+    setImportResult(null);
+    
+    try {
+      const response = await championshipsApi.extractGamesheetStats(importUrl);
+      const extractedData = response.data;
+      
+      if (!extractedData.players || extractedData.players.length === 0) {
+        toast.error('Não foram encontradas estatísticas na ficha de jogo');
+        setImporting(false);
+        return;
+      }
+
+      // Match extracted players with team members
+      const matchedPlayers = [];
+      const unmatchedExtracted = [];
+      
+      // Create normalized member names map
+      const membersByNormalizedName = {};
+      members.forEach(member => {
+        const fullName = member.profile?.first_name && member.profile?.surname 
+          ? `${member.profile.first_name} ${member.profile.surname}`
+          : member.name;
+        const normalized = normalizeName(fullName);
+        membersByNormalizedName[normalized] = member;
+        
+        // Also add just the surname for partial matching
+        if (member.profile?.surname) {
+          const surnameNorm = normalizeName(member.profile.surname);
+          if (!membersByNormalizedName[surnameNorm]) {
+            membersByNormalizedName[surnameNorm] = member;
+          }
+        }
+      });
+
+      // Match extracted stats to members
+      const newStats = { ...playerStats };
+      
+      extractedData.players.forEach(extracted => {
+        const extractedNormalized = normalizeName(extracted.player_name);
+        
+        // Try exact match first
+        let matchedMember = membersByNormalizedName[extractedNormalized];
+        
+        // Try partial match (surname only)
+        if (!matchedMember) {
+          const nameParts = extractedNormalized.split(' ');
+          for (const part of nameParts) {
+            if (membersByNormalizedName[part]) {
+              matchedMember = membersByNormalizedName[part];
+              break;
+            }
+          }
+        }
+        
+        // Try jersey number match as fallback
+        if (!matchedMember && extracted.jersey_number) {
+          matchedMember = members.find(m => 
+            m.profile?.jersey_number?.toString() === extracted.jersey_number.toString()
+          );
+        }
+        
+        if (matchedMember) {
+          matchedPlayers.push({
+            member: matchedMember,
+            extracted: extracted
+          });
+          
+          // Update stats
+          newStats[matchedMember.id] = {
+            ...newStats[matchedMember.id],
+            started_match: extracted.started_match || (extracted.G > 0 || extracted.AG > 0 || extracted.D > 0),
+            goals: extracted.G || 0,
+            own_goals: extracted.AG || 0,
+            saves: extracted.D || 0,
+            penalties_scored: extracted.PM || 0,
+            penalties_missed: extracted.PF || 0,
+            free_kicks_scored: extracted.LDM || 0,
+            free_kicks_missed: extracted.LDF || 0,
+            yellow_cards: extracted.yellow || 0,
+            blue_cards: extracted.blue || 0,
+            red_cards: extracted.red || 0
+          };
+        } else {
+          unmatchedExtracted.push(extracted);
+        }
+      });
+
+      setPlayerStats(newStats);
+      setImportResult({
+        matched: matchedPlayers,
+        unmatched: unmatchedExtracted,
+        teams: extractedData.teams,
+        score: { home: extractedData.home_score, away: extractedData.away_score }
+      });
+
+      if (matchedPlayers.length > 0) {
+        toast.success(`${matchedPlayers.length} jogadores encontrados e estatísticas importadas!`);
+      } else {
+        toast.warning('Nenhum jogador correspondente encontrado. Verifique os nomes.');
+      }
+
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Erro ao importar estatísticas: ' + (error.response?.data?.detail || error.message));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -234,10 +374,20 @@ export default function MatchStats() {
         </div>
 
         {canManageEvents && (
-          <Button onClick={handleSaveStats} disabled={saving} data-testid="save-stats-btn">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
-            Guardar Estatísticas
-          </Button>
+          <div className="flex gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setImportDialogOpen(true)} 
+              data-testid="import-stats-btn"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Importar de URL
+            </Button>
+            <Button onClick={handleSaveStats} disabled={saving} data-testid="save-stats-btn">
+              {saving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Save className="w-4 h-4 mr-2" />}
+              Guardar Estatísticas
+            </Button>
+          </div>
         )}
       </div>
 
@@ -425,6 +575,111 @@ export default function MatchStats() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent className="bg-white max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Importar Estatísticas de URL</DialogTitle>
+            <DialogDescription>
+              Cole o URL da ficha de jogo da APL para importar automaticamente as estatísticas dos jogadores.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="import-url">URL da Ficha de Jogo</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="import-url"
+                  placeholder="https://aplisboa.assyssoftware.es/intranet/web/partido2.asp?id=..."
+                  value={importUrl}
+                  onChange={(e) => setImportUrl(e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={handleImportStats} 
+                  disabled={importing}
+                  data-testid="extract-stats-btn"
+                >
+                  {importing ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Exemplo: https://aplisboa.assyssoftware.es/intranet/web/partido2.asp?id=8670
+              </p>
+            </div>
+
+            {/* Import Result */}
+            {importResult && (
+              <div className="space-y-4 border-t pt-4">
+                {/* Score */}
+                {importResult.score.home !== null && (
+                  <div className="flex items-center gap-2">
+                    <Badge className="bg-secondary text-primary-foreground">
+                      Resultado: {importResult.score.home} - {importResult.score.away}
+                    </Badge>
+                  </div>
+                )}
+
+                {/* Matched Players */}
+                {importResult.matched.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-green-700 mb-2 flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      Jogadores Encontrados ({importResult.matched.length})
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                      {importResult.matched.map(({ member, extracted }) => (
+                        <div key={member.id} className="text-xs p-2 bg-green-50 rounded border border-green-200">
+                          <span className="font-medium">{member.name}</span>
+                          <span className="text-muted-foreground"> ← {extracted.player_name}</span>
+                          {extracted.G > 0 && <Badge className="ml-1 text-xs py-0">G:{extracted.G}</Badge>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Unmatched Players */}
+                {importResult.unmatched.length > 0 && (
+                  <div>
+                    <h4 className="text-sm font-medium text-amber-700 mb-2 flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      Jogadores Não Encontrados ({importResult.unmatched.length})
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+                      {importResult.unmatched.map((player, idx) => (
+                        <div key={idx} className="text-xs p-2 bg-amber-50 rounded border border-amber-200">
+                          <span>{player.player_name}</span>
+                          <span className="text-muted-foreground"> (#{player.jersey_number})</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Estes jogadores não foram encontrados na equipa. Verifique se os nomes estão corretos.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setImportDialogOpen(false);
+              setImportResult(null);
+              setImportUrl('');
+            }}>
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
