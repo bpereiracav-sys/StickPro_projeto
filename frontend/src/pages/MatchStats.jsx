@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { championshipsApi, teamsApi } from '../services/api';
@@ -27,7 +27,7 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { toast } from 'sonner';
-import { ArrowLeft, Save, Loader2, User, Download, Link as LinkIcon, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, User, Download, Link as LinkIcon, CheckCircle, AlertCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { getInitials, formatDate, formatTime } from '../lib/utils';
 
 export default function MatchStats() {
@@ -114,6 +114,43 @@ export default function MatchStats() {
         [field]: field === 'started_match' ? value : (parseInt(value) || 0)
       }
     }));
+  };
+
+  // Calculate total goals from player stats
+  const totalPlayerGoals = useMemo(() => {
+    let goals = 0;
+    let ownGoals = 0;
+    Object.values(playerStats).forEach(stats => {
+      goals += (stats.goals || 0);
+      ownGoals += (stats.own_goals || 0);
+    });
+    return { goals, ownGoals };
+  }, [playerStats]);
+
+  // Check if there's an inconsistency between goals and result
+  const goalsInconsistency = useMemo(() => {
+    const resultHomeScore = parseInt(homeScore) || 0;
+    const resultAwayScore = parseInt(awayScore) || 0;
+    
+    // Our team's goals = player goals + opponent own goals (counted for us)
+    // Note: own_goals are goals our players scored against our team
+    const expectedHomeGoals = totalPlayerGoals.goals;
+    
+    if (resultHomeScore !== expectedHomeGoals) {
+      return {
+        hasInconsistency: true,
+        resultGoals: resultHomeScore,
+        playerGoals: expectedHomeGoals,
+        difference: expectedHomeGoals - resultHomeScore
+      };
+    }
+    return { hasInconsistency: false };
+  }, [homeScore, totalPlayerGoals]);
+
+  // Auto-sync result with player goals
+  const syncResultWithGoals = () => {
+    setHomeScore(totalPlayerGoals.goals.toString());
+    toast.success('Resultado atualizado automaticamente!');
   };
 
   const handleSaveStats = async () => {
@@ -435,6 +472,38 @@ export default function MatchStats() {
           </div>
         )}
       </div>
+
+      {/* Goals Inconsistency Alert */}
+      {canManageEvents && goalsInconsistency.hasInconsistency && (
+        <div className="border border-amber-500 bg-amber-50 rounded-lg p-4 mb-4" data-testid="goals-inconsistency-alert">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <h4 className="text-amber-800 font-semibold text-sm">Inconsistência de Golos</h4>
+              <p className="text-amber-700 text-sm mt-1">
+                O resultado indica <strong>{goalsInconsistency.resultGoals} golos</strong>, mas a soma dos golos dos jogadores é <strong>{goalsInconsistency.playerGoals} golos</strong>.
+                {goalsInconsistency.difference > 0 
+                  ? ` (${goalsInconsistency.difference} golo(s) a mais nas estatísticas)`
+                  : ` (${Math.abs(goalsInconsistency.difference)} golo(s) a menos nas estatísticas)`
+                }
+              </p>
+              <div className="flex flex-wrap gap-2 mt-3">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="bg-white border-amber-500 text-amber-700 hover:bg-amber-100"
+                  onClick={syncResultWithGoals}
+                  data-testid="sync-result-btn"
+                >
+                  <RefreshCw className="w-3 h-3 mr-1" />
+                  Atualizar resultado para {goalsInconsistency.playerGoals}-{awayScore || 0}
+                </Button>
+                <span className="text-xs text-amber-600 self-center">ou corrija manualmente as estatísticas/resultado</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Table - Formato Boletim APL */}
       <Card className="border border-border">
