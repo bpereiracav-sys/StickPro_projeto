@@ -44,6 +44,9 @@ export default function MatchStats() {
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [editingScore, setEditingScore] = useState(false);
+  const [homeScore, setHomeScore] = useState('');
+  const [awayScore, setAwayScore] = useState('');
 
   useEffect(() => {
     fetchData();
@@ -59,6 +62,8 @@ export default function MatchStats() {
       const currentMatch = matchesRes.data.find(m => m.id === matchId);
       if (currentMatch) {
         setMatch(currentMatch);
+        setHomeScore(currentMatch.home_score?.toString() || '');
+        setAwayScore(currentMatch.away_score?.toString() || '');
         
         const teamRes = await teamsApi.getOne(currentMatch.team_id);
         setTeam(teamRes.data);
@@ -114,6 +119,25 @@ export default function MatchStats() {
   const handleSaveStats = async () => {
     setSaving(true);
     try {
+      // Save match result if changed
+      const newHomeScore = parseInt(homeScore) || 0;
+      const newAwayScore = parseInt(awayScore) || 0;
+      if (newHomeScore !== match.home_score || newAwayScore !== match.away_score) {
+        await championshipsApi.updateMatchResult(matchId, {
+          home_score: newHomeScore,
+          away_score: newAwayScore,
+          is_completed: true
+        });
+        // Update local state
+        setMatch(prev => ({
+          ...prev,
+          home_score: newHomeScore,
+          away_score: newAwayScore,
+          is_completed: true
+        }));
+      }
+
+      // Save player stats
       for (const [playerId, stats] of Object.entries(playerStats)) {
         // Check if stats have any non-zero values
         const hasStats = stats.started_match || 
@@ -147,6 +171,7 @@ export default function MatchStats() {
       }
       toast.success('Estatísticas guardadas!');
     } catch (error) {
+      console.error('Save error:', error);
       toast.error('Erro ao guardar estatísticas');
     } finally {
       setSaving(false);
@@ -365,11 +390,31 @@ export default function MatchStats() {
           <div className="flex items-center gap-3 mt-2">
             <Badge variant="outline">{formatDate(match.match_date)}</Badge>
             <Badge variant="outline">{formatTime(match.match_date)}</Badge>
-            {match.is_completed && (
+            {canManageEvents ? (
+              <div className="flex items-center gap-1 bg-secondary text-primary-foreground px-3 py-1 rounded-md">
+                <Input
+                  type="number"
+                  min="0"
+                  className="h-7 w-12 text-center p-1 font-mono font-bold bg-white/20 border-0"
+                  value={homeScore}
+                  onChange={(e) => setHomeScore(e.target.value)}
+                  data-testid="home-score-input"
+                />
+                <span className="font-bold">-</span>
+                <Input
+                  type="number"
+                  min="0"
+                  className="h-7 w-12 text-center p-1 font-mono font-bold bg-white/20 border-0"
+                  value={awayScore}
+                  onChange={(e) => setAwayScore(e.target.value)}
+                  data-testid="away-score-input"
+                />
+              </div>
+            ) : match.is_completed ? (
               <Badge className="bg-secondary text-primary-foreground">
                 {match.home_score} - {match.away_score}
               </Badge>
-            )}
+            ) : null}
           </div>
         </div>
 

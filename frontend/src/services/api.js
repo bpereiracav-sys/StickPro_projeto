@@ -95,9 +95,7 @@ export const championshipsApi = {
     match_id: matchId,
     player_id: playerId,
     ...data
-  }),
-  // Get player stats for a match
-  getMatchPlayerStats: (matchId) => api.get(`/matches/${matchId}/player-stats`)
+  })
 };
 
 // Events API
