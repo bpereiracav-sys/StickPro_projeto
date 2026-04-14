@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { paymentsApi, membersApi } from '../services/api';
@@ -8,7 +9,6 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Textarea } from '../components/ui/textarea';
 import {
   Dialog,
@@ -34,12 +34,11 @@ import {
   TableRow,
 } from '../components/ui/table';
 import { toast } from 'sonner';
-import { 
-  CreditCard, 
-  Euro, 
-  Calendar, 
-  Check, 
-  X, 
+import {
+  CreditCard,
+  Euro,
+  Calendar,
+  Check,
   Clock,
   AlertCircle,
   Plus,
@@ -54,87 +53,127 @@ import {
   Receipt,
   TrendingUp,
   Search,
-  Filter
+  Filter,
+  ShieldAlert,
+  Eye,
 } from 'lucide-react';
 import { formatDate } from '../lib/utils';
 
+const PLAYER_ROLES = ['jogador', 'player'];
+const BLOCKED_FINANCE_ROLES = ['treinador', 'treinador_adjunto', 'delegado', 'coach', 'assistant_coach', 'delegate'];
+
+function getMonthOptions() {
+  return [
+    { value: '1', label: 'Jan' },
+    { value: '2', label: 'Fev' },
+    { value: '3', label: 'Mar' },
+    { value: '4', label: 'Abr' },
+    { value: '5', label: 'Mai' },
+    { value: '6', label: 'Jun' },
+    { value: '7', label: 'Jul' },
+    { value: '8', label: 'Ago' },
+    { value: '9', label: 'Set' },
+    { value: '10', label: 'Out' },
+    { value: '11', label: 'Nov' },
+    { value: '12', label: 'Dez' },
+  ];
+}
+
+function getMonthName(month) {
+  const found = getMonthOptions().find((m) => Number(m.value) === Number(month));
+  return found?.label || '';
+}
+
+function isPlayerMember(member) {
+  return PLAYER_ROLES.includes(String(member?.role || '').toLowerCase());
+}
+
 export default function Payments() {
-  const { user } = useAuth();
-  const { isAdmin } = usePermissions();
-  
+  const { user, effectiveRole } = useAuth();
+  const { isAdmin, isFamilyMember, isPlayer } = usePermissions();
+
+  const role = String(effectiveRole || user?.role || '').toLowerCase();
+  const canViewFinance = isAdmin || isPlayer || isFamilyMember;
+  const isFinanceBlockedRole = BLOCKED_FINANCE_ROLES.includes(role);
+
   const [payments, setPayments] = useState([]);
   const [summary, setSummary] = useState(null);
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState(isAdmin ? 'overview' : 'my-payments');
-  
-  // Filters
+
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [monthFilter, setMonthFilter] = useState('all');
+  const [memberFilter, setMemberFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [exporting, setExporting] = useState(false);
-  
-  // Dialogs
+
   const [showCreateFeeDialog, setShowCreateFeeDialog] = useState(false);
   const [showBulkFeeDialog, setShowBulkFeeDialog] = useState(false);
   const [showCustomPaymentDialog, setShowCustomPaymentDialog] = useState(false);
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [showProofDialog, setShowProofDialog] = useState(false);
+
   const [selectedPayment, setSelectedPayment] = useState(null);
-  
-  // Form states
+
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [uploadingProof, setUploadingProof] = useState(false);
   const [markingPaid, setMarkingPaid] = useState(null);
   const [deleting, setDeleting] = useState(null);
-  
-  // Monthly fee form
+
   const [feeForm, setFeeForm] = useState({
     user_id: '',
     amount: '',
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
     due_date: '',
-    notes: ''
+    notes: '',
   });
-  
-  // Bulk fee form
+
   const [bulkFeeForm, setBulkFeeForm] = useState({
     amount: '',
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
-    due_date: ''
+    due_date: '',
   });
-  
-  // Custom payment form
+
   const [customForm, setCustomForm] = useState({
     user_id: '',
     title: '',
     description: '',
     amount: '',
-    due_date: ''
+    due_date: '',
   });
 
   useEffect(() => {
+    if (!canViewFinance && isFinanceBlockedRole) {
+      setLoading(false);
+      return;
+    }
+
     fetchData();
-  }, [isAdmin]);
+  }, [canViewFinance, isFinanceBlockedRole, isAdmin]);
 
   const fetchData = async () => {
     setLoading(true);
+
     try {
       if (isAdmin) {
         const [paymentsRes, summaryRes, membersRes] = await Promise.all([
           paymentsApi.getAll(),
           paymentsApi.getSummary(),
-          membersApi.getAll({ limit: 500 })
+          membersApi.getAll({ limit: 500 }),
         ]);
+
         setPayments(paymentsRes.data || []);
-        setSummary(summaryRes.data);
+        setSummary(summaryRes.data || null);
         setMembers(membersRes.data?.users || []);
       } else {
         const paymentsRes = await paymentsApi.getMy();
         setPayments(paymentsRes.data || []);
+        setSummary(null);
+        setMembers([]);
       }
     } catch (error) {
       console.error('Error fetching payments:', error);
@@ -144,57 +183,88 @@ export default function Payments() {
     }
   };
 
-  // Filtered payments
+  const playerMembers = useMemo(() => {
+    return members.filter(isPlayerMember);
+  }, [members]);
+
   const filteredPayments = useMemo(() => {
     let filtered = [...payments];
-    
+
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(p => p.status === statusFilter);
+      filtered = filtered.filter((p) => p.status === statusFilter);
     }
-    
+
     if (typeFilter !== 'all') {
-      filtered = filtered.filter(p => p.type === typeFilter);
+      filtered = filtered.filter((p) => p.type === typeFilter);
     }
-    
+
+    if (monthFilter !== 'all') {
+      filtered = filtered.filter((p) => {
+        if (p.type === 'monthly_fee' && p.month) {
+          return String(p.month) === monthFilter;
+        }
+
+        if (p.due_date) {
+          const dueDate = new Date(p.due_date);
+          return String(dueDate.getMonth() + 1) === monthFilter;
+        }
+
+        return false;
+      });
+    }
+
+    if (memberFilter !== 'all') {
+      filtered = filtered.filter((p) => String(p.user_id) === String(memberFilter));
+    }
+
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.user_name?.toLowerCase().includes(query) ||
-        p.title?.toLowerCase().includes(query) ||
-        p.user_email?.toLowerCase().includes(query)
-      );
-    }
-    
-    return filtered;
-  }, [payments, statusFilter, typeFilter, searchQuery]);
+      filtered = filtered.filter((p) => {
+        const fields = [
+          p.user_name,
+          p.user_email,
+          p.title,
+          p.description,
+          p.notes,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
 
-  // Stats for overview
+        return fields.includes(query);
+      });
+    }
+
+    return filtered;
+  }, [payments, statusFilter, typeFilter, monthFilter, memberFilter, searchQuery]);
+
   const stats = useMemo(() => {
-    const paid = payments.filter(p => p.status === 'paid').length;
-    const pending = payments.filter(p => p.status === 'pending').length;
-    const overdue = payments.filter(p => p.status === 'overdue').length;
-    const total = payments.reduce((acc, p) => acc + (p.amount || 0), 0);
-    const collected = payments.filter(p => p.status === 'paid').reduce((acc, p) => acc + (p.amount || 0), 0);
-    
+    const paid = payments.filter((p) => p.status === 'paid').length;
+    const pending = payments.filter((p) => p.status === 'pending').length;
+    const overdue = payments.filter((p) => p.status === 'overdue').length;
+    const total = payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+    const collected = payments
+      .filter((p) => p.status === 'paid')
+      .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+
     return { paid, pending, overdue, total, collected };
   }, [payments]);
 
-  // Handlers
   const handleCreateFee = async (e) => {
     e.preventDefault();
     setCreating(true);
-    
+
     try {
       await paymentsApi.createMonthlyFee({
         user_id: feeForm.user_id,
         amount: parseFloat(feeForm.amount),
-        month: parseInt(feeForm.month),
-        year: parseInt(feeForm.year),
+        month: parseInt(feeForm.month, 10),
+        year: parseInt(feeForm.year, 10),
         due_date: new Date(feeForm.due_date).toISOString(),
-        notes: feeForm.notes || null
+        notes: feeForm.notes || null,
       });
-      
-      toast.success('Mensalidade criada!');
+
+      toast.success('Mensalidade criada');
       setShowCreateFeeDialog(false);
       resetFeeForm();
       fetchData();
@@ -208,16 +278,16 @@ export default function Payments() {
   const handleCreateBulkFees = async (e) => {
     e.preventDefault();
     setCreating(true);
-    
+
     try {
       const result = await paymentsApi.createBulkFees({
-        month: parseInt(bulkFeeForm.month),
-        year: parseInt(bulkFeeForm.year),
+        month: parseInt(bulkFeeForm.month, 10),
+        year: parseInt(bulkFeeForm.year, 10),
         amount: parseFloat(bulkFeeForm.amount),
-        due_date: new Date(bulkFeeForm.due_date).toISOString()
+        due_date: new Date(bulkFeeForm.due_date).toISOString(),
       });
-      
-      toast.success(result.data.message);
+
+      toast.success(result.data?.message || 'Mensalidades criadas');
       setShowBulkFeeDialog(false);
       resetBulkFeeForm();
       fetchData();
@@ -231,17 +301,17 @@ export default function Payments() {
   const handleCreateCustomPayment = async (e) => {
     e.preventDefault();
     setCreating(true);
-    
+
     try {
       await paymentsApi.createCustom({
         user_id: customForm.user_id,
         title: customForm.title,
         description: customForm.description || null,
         amount: parseFloat(customForm.amount),
-        due_date: new Date(customForm.due_date).toISOString()
+        due_date: new Date(customForm.due_date).toISOString(),
       });
-      
-      toast.success('Pagamento criado! O jogador foi notificado.');
+
+      toast.success('Pagamento criado');
       setShowCustomPaymentDialog(false);
       resetCustomForm();
       fetchData();
@@ -255,14 +325,17 @@ export default function Payments() {
   const handleImportFees = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
+
     setImporting(true);
+
     try {
       const result = await paymentsApi.importFees(file);
-      toast.success(result.data.message);
-      if (result.data.errors?.length > 0) {
-        result.data.errors.forEach(err => toast.warning(err));
+      toast.success(result.data?.message || 'Importação concluída');
+
+      if (result.data?.errors?.length > 0) {
+        result.data.errors.forEach((err) => toast.warning(err));
       }
+
       setShowImportDialog(false);
       fetchData();
     } catch (error) {
@@ -275,12 +348,13 @@ export default function Payments() {
 
   const handleMarkPaid = async (payment) => {
     setMarkingPaid(payment.id);
+
     try {
       await paymentsApi.markPaid(payment.type, payment.id);
-      toast.success('Pagamento marcado como pago!');
+      toast.success('Pagamento marcado como pago');
       fetchData();
     } catch (error) {
-      toast.error('Erro ao marcar pagamento');
+      toast.error(error.response?.data?.detail || 'Erro ao marcar pagamento');
     } finally {
       setMarkingPaid(null);
     }
@@ -289,11 +363,12 @@ export default function Payments() {
   const handleUploadProof = async (e) => {
     const file = e.target.files?.[0];
     if (!file || !selectedPayment) return;
-    
+
     setUploadingProof(true);
+
     try {
       await paymentsApi.uploadProof(selectedPayment.type, selectedPayment.id, file);
-      toast.success('Comprovativo carregado!');
+      toast.success('Comprovativo carregado');
       setShowProofDialog(false);
       setSelectedPayment(null);
       fetchData();
@@ -306,15 +381,17 @@ export default function Payments() {
   };
 
   const handleDelete = async (payment) => {
-    if (!confirm('Tem a certeza que quer eliminar este pagamento?')) return;
-    
+    const confirmed = window.confirm('Tem a certeza que quer eliminar este pagamento?');
+    if (!confirmed) return;
+
     setDeleting(payment.id);
+
     try {
       await paymentsApi.delete(payment.type, payment.id);
       toast.success('Pagamento eliminado');
       fetchData();
     } catch (error) {
-      toast.error('Erro ao eliminar pagamento');
+      toast.error(error.response?.data?.detail || 'Erro ao eliminar pagamento');
     } finally {
       setDeleting(null);
     }
@@ -322,32 +399,31 @@ export default function Payments() {
 
   const handleExportExcel = async () => {
     setExporting(true);
+
     try {
       const params = {};
-      if (statusFilter !== 'all') {
-        params.status = statusFilter;
-      }
-      if (typeFilter !== 'all') {
-        params.payment_type = typeFilter;
-      }
-      if (searchQuery) {
-        params.search = searchQuery;
-      }
-      
+
+      if (statusFilter !== 'all') params.status = statusFilter;
+      if (typeFilter !== 'all') params.payment_type = typeFilter;
+      if (monthFilter !== 'all') params.month = monthFilter;
+      if (memberFilter !== 'all') params.user_id = memberFilter;
+      if (searchQuery.trim()) params.search = searchQuery.trim();
+
       const response = await paymentsApi.exportExcel(params);
-      
-      // Create download link
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
+
       const timestamp = new Date().toISOString().split('T')[0];
       link.download = `pagamentos_${timestamp}.xlsx`;
+
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
-      toast.success('Exportação concluída!');
+
+      toast.success('Exportação concluída');
     } catch (error) {
       console.error('Error exporting:', error);
       toast.error('Erro ao exportar dados');
@@ -363,7 +439,7 @@ export default function Payments() {
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
       due_date: '',
-      notes: ''
+      notes: '',
     });
   };
 
@@ -372,7 +448,7 @@ export default function Payments() {
       amount: '',
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
-      due_date: ''
+      due_date: '',
     });
   };
 
@@ -382,11 +458,10 @@ export default function Payments() {
       title: '',
       description: '',
       amount: '',
-      due_date: ''
+      due_date: '',
     });
   };
 
-  // Get status badge
   const getStatusBadge = (status) => {
     switch (status) {
       case 'paid':
@@ -400,27 +475,52 @@ export default function Payments() {
     }
   };
 
-  // Get month name
-  const getMonthName = (month) => {
-    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-    return months[month - 1] || '';
-  };
-
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto p-4 sm:p-6 space-y-6">
         <Skeleton className="h-12 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24" />)}
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-24" />
+          ))}
         </div>
         <Skeleton className="h-96" />
       </div>
     );
   }
 
+  if (!canViewFinance && isFinanceBlockedRole) {
+    return (
+      <div className="max-w-4xl mx-auto space-y-6" data-testid="payments-blocked-page">
+        <div>
+          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl tracking-tight flex items-center gap-3">
+            <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+            Pagamentos
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Acesso condicionado por perfil
+          </p>
+        </div>
+
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="py-8">
+            <div className="flex items-start gap-4">
+              <ShieldAlert className="w-6 h-6 text-amber-600 mt-0.5" />
+              <div>
+                <p className="font-semibold text-amber-800">Sem acesso a pagamentos</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  O perfil atual não tem permissão para consultar ou gerir informação financeira.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto space-y-6" data-testid="payments-page">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl tracking-tight flex items-center gap-3">
@@ -431,28 +531,37 @@ export default function Payments() {
             {isAdmin ? 'Gestão de mensalidades e pagamentos' : 'Os meus pagamentos'}
           </p>
         </div>
-        
+
         {isAdmin && (
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={() => setShowImportDialog(true)}>
               <Upload className="w-4 h-4 mr-2" />
               Importar
             </Button>
+
             <Button variant="outline" size="sm" onClick={() => setShowBulkFeeDialog(true)}>
               <Users className="w-4 h-4 mr-2" />
               Em Massa
             </Button>
+
             <Button size="sm" onClick={() => setShowCreateFeeDialog(true)} data-testid="create-fee-btn">
               <Plus className="w-4 h-4 mr-2" />
               Mensalidade
             </Button>
-            <Button variant="secondary" size="sm" onClick={() => setShowCustomPaymentDialog(true)} data-testid="create-custom-btn">
+
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => setShowCustomPaymentDialog(true)}
+              data-testid="create-custom-btn"
+            >
               <CreditCard className="w-4 h-4 mr-2" />
               Pagamento
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleExportExcel}
               disabled={exporting || payments.length === 0}
               data-testid="export-payments-btn"
@@ -468,7 +577,6 @@ export default function Payments() {
         )}
       </div>
 
-      {/* Stats Cards - Admin only */}
       {isAdmin && summary && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <Card className="border border-green-200 bg-green-50/50 card-hover">
@@ -479,12 +587,14 @@ export default function Payments() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Cobrado (mês)</p>
-                  <p className="text-lg sm:text-xl font-bold text-green-700 font-mono">€{summary.collected_this_month?.toFixed(2)}</p>
+                  <p className="text-lg sm:text-xl font-bold text-green-700 font-mono">
+                    €{Number(summary.collected_this_month || 0).toFixed(2)}
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-yellow-200 bg-yellow-50/50 card-hover">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -493,13 +603,17 @@ export default function Payments() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Pendente</p>
-                  <p className="text-lg sm:text-xl font-bold text-yellow-700 font-mono">€{summary.total_pending?.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground">{summary.pending_count} pagamentos</p>
+                  <p className="text-lg sm:text-xl font-bold text-yellow-700 font-mono">
+                    €{Number(summary.total_pending || 0).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {summary.pending_count || 0} pagamentos
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-red-200 bg-red-50/50 card-hover">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -508,13 +622,17 @@ export default function Payments() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Em Atraso</p>
-                  <p className="text-lg sm:text-xl font-bold text-red-700 font-mono">€{summary.total_overdue?.toFixed(2)}</p>
-                  <p className="text-xs text-muted-foreground">{summary.overdue_count} pagamentos</p>
+                  <p className="text-lg sm:text-xl font-bold text-red-700 font-mono">
+                    €{Number(summary.total_overdue || 0).toFixed(2)}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {summary.overdue_count || 0} pagamentos
+                  </p>
                 </div>
               </div>
             </CardContent>
           </Card>
-          
+
           <Card className="border border-border card-hover">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -523,7 +641,9 @@ export default function Payments() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Pagos (mês)</p>
-                  <p className="text-lg sm:text-xl font-bold font-mono">{summary.paid_count_this_month}</p>
+                  <p className="text-lg sm:text-xl font-bold font-mono">
+                    {summary.paid_count_this_month || 0}
+                  </p>
                   <p className="text-xs text-muted-foreground">pagamentos</p>
                 </div>
               </div>
@@ -532,21 +652,21 @@ export default function Payments() {
         </div>
       )}
 
-      {/* Filters - Admin only */}
       {isAdmin && (
         <div className="flex flex-wrap gap-4">
-          <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <div className="relative flex-1 min-w-[240px] max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Pesquisar por nome ou email..."
+              placeholder="Pesquisar por nome, email ou descrição..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
               data-testid="payment-search"
             />
           </div>
+
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[180px]" data-testid="status-filter">
+            <SelectTrigger className="w-[170px]" data-testid="status-filter">
               <Filter className="w-4 h-4 mr-2" />
               <SelectValue placeholder="Estado" />
             </SelectTrigger>
@@ -557,10 +677,48 @@ export default function Payments() {
               <SelectItem value="overdue">Atrasados</SelectItem>
             </SelectContent>
           </Select>
+
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[170px]">
+              <SelectValue placeholder="Tipo" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="all">Todos os tipos</SelectItem>
+              <SelectItem value="monthly_fee">Mensalidades</SelectItem>
+              <SelectItem value="custom_payment">Pagamentos</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select value={monthFilter} onValueChange={setMonthFilter}>
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder="Mês" />
+            </SelectTrigger>
+            <SelectContent className="bg-white">
+              <SelectItem value="all">Todos os meses</SelectItem>
+              {getMonthOptions().map((month) => (
+                <SelectItem key={month.value} value={month.value}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Select value={memberFilter} onValueChange={setMemberFilter}>
+            <SelectTrigger className="w-[220px]">
+              <SelectValue placeholder="Membro" />
+            </SelectTrigger>
+            <SelectContent className="bg-white max-h-72">
+              <SelectItem value="all">Todos os membros</SelectItem>
+              {playerMembers.map((member) => (
+                <SelectItem key={member.id} value={member.id}>
+                  {member.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
       )}
 
-      {/* Payments List */}
       <Card className="border border-border">
         <CardHeader className="pb-3">
           <CardTitle className="font-heading text-lg sm:text-xl tracking-tight flex items-center gap-2">
@@ -571,13 +729,14 @@ export default function Payments() {
             {filteredPayments.length} pagamento{filteredPayments.length !== 1 ? 's' : ''}
           </CardDescription>
         </CardHeader>
+
         <CardContent>
           {filteredPayments.length > 0 ? (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    {isAdmin && <TableHead>Jogador</TableHead>}
+                    {isAdmin && <TableHead>Atleta</TableHead>}
                     <TableHead>Descrição</TableHead>
                     <TableHead className="text-center">Valor</TableHead>
                     <TableHead className="text-center">Vencimento</TableHead>
@@ -586,22 +745,35 @@ export default function Payments() {
                     <TableHead className="text-right">Ações</TableHead>
                   </TableRow>
                 </TableHeader>
+
                 <TableBody>
                   {filteredPayments.map((payment) => (
                     <TableRow key={payment.id} data-testid={`payment-${payment.id}`}>
                       {isAdmin && (
                         <TableCell>
                           <div>
-                            <p className="font-medium">{payment.user_name || 'N/A'}</p>
+                            {payment.user_id ? (
+                              <Link
+                                to={`/members/${payment.user_id}/profile`}
+                                className="font-medium text-primary hover:underline"
+                              >
+                                {payment.user_name || 'N/A'}
+                              </Link>
+                            ) : (
+                              <p className="font-medium">{payment.user_name || 'N/A'}</p>
+                            )}
                             <p className="text-xs text-muted-foreground">{payment.user_email}</p>
                           </div>
                         </TableCell>
                       )}
+
                       <TableCell>
                         {payment.type === 'monthly_fee' ? (
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
-                            <span>Mensalidade {getMonthName(payment.month)}/{payment.year}</span>
+                            <span>
+                              Mensalidade {getMonthName(payment.month)}/{payment.year}
+                            </span>
                           </div>
                         ) : (
                           <div>
@@ -612,29 +784,33 @@ export default function Payments() {
                           </div>
                         )}
                       </TableCell>
+
                       <TableCell className="text-center font-mono font-bold">
-                        €{payment.amount?.toFixed(2)}
+                        €{Number(payment.amount || 0).toFixed(2)}
                       </TableCell>
+
                       <TableCell className="text-center">
                         {formatDate(payment.due_date)}
                       </TableCell>
+
                       <TableCell className="text-center">
                         {getStatusBadge(payment.status)}
                       </TableCell>
+
                       <TableCell className="text-center">
                         {payment.proof_url ? (
-                          <a 
-                            href={payment.proof_url} 
-                            target="_blank" 
+                          <a
+                            href={payment.proof_url}
+                            target="_blank"
                             rel="noopener noreferrer"
                             className="inline-flex items-center gap-1 text-primary hover:underline"
                           >
-                            <FileText className="w-4 h-4" />
+                            <Eye className="w-4 h-4" />
                             <span className="text-xs">Ver</span>
                           </a>
                         ) : payment.status !== 'paid' ? (
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="sm"
                             onClick={() => {
                               setSelectedPayment(payment);
@@ -647,6 +823,7 @@ export default function Payments() {
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
                       </TableCell>
+
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
                           {isAdmin && payment.status !== 'paid' && (
@@ -665,6 +842,7 @@ export default function Payments() {
                               )}
                             </Button>
                           )}
+
                           {isAdmin && (
                             <Button
                               variant="ghost"
@@ -702,7 +880,6 @@ export default function Payments() {
         </CardContent>
       </Card>
 
-      {/* Player Payment Summary */}
       {!isAdmin && payments.length > 0 && (
         <Card className="border border-border">
           <CardHeader className="pb-3">
@@ -715,11 +892,13 @@ export default function Payments() {
                 <p className="text-2xl font-bold text-green-700">{stats.paid}</p>
                 <p className="text-xs text-muted-foreground">Pagos</p>
               </div>
+
               <div className="p-4 bg-yellow-50 rounded-lg">
                 <Clock className="w-6 h-6 text-yellow-600 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-yellow-700">{stats.pending}</p>
                 <p className="text-xs text-muted-foreground">Pendentes</p>
               </div>
+
               <div className="p-4 bg-red-50 rounded-lg">
                 <XCircle className="w-6 h-6 text-red-600 mx-auto mb-2" />
                 <p className="text-2xl font-bold text-red-700">{stats.overdue}</p>
@@ -730,26 +909,30 @@ export default function Payments() {
         </Card>
       )}
 
-      {/* Create Monthly Fee Dialog */}
       <Dialog open={showCreateFeeDialog} onOpenChange={setShowCreateFeeDialog}>
         <DialogContent className="bg-white" data-testid="create-fee-dialog">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-tight">Criar Mensalidade</DialogTitle>
-            <DialogDescription>Criar uma nova mensalidade para um jogador</DialogDescription>
+            <DialogTitle className="font-heading text-xl tracking-tight">
+              Criar Mensalidade
+            </DialogTitle>
+            <DialogDescription>
+              Criar uma nova mensalidade para um jogador
+            </DialogDescription>
           </DialogHeader>
+
           <form onSubmit={handleCreateFee}>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Jogador *</Label>
-                <Select 
-                  value={feeForm.user_id} 
-                  onValueChange={(v) => setFeeForm(prev => ({ ...prev, user_id: v }))}
+                <Select
+                  value={feeForm.user_id}
+                  onValueChange={(v) => setFeeForm((prev) => ({ ...prev, user_id: v }))}
                 >
                   <SelectTrigger data-testid="select-player">
                     <SelectValue placeholder="Selecionar jogador" />
                   </SelectTrigger>
                   <SelectContent className="bg-white max-h-60">
-                    {members.filter(m => m.role === 'jogador').map(member => (
+                    {playerMembers.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
                         {member.name}
                       </SelectItem>
@@ -757,42 +940,47 @@ export default function Payments() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Mês *</Label>
-                  <Select 
-                    value={String(feeForm.month)} 
-                    onValueChange={(v) => setFeeForm(prev => ({ ...prev, month: parseInt(v) }))}
+                  <Select
+                    value={String(feeForm.month)}
+                    onValueChange={(v) => setFeeForm((prev) => ({ ...prev, month: parseInt(v, 10) }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
-                        <SelectItem key={m} value={String(m)}>{getMonthName(m)}</SelectItem>
+                      {getMonthOptions().map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          {m.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Ano *</Label>
-                  <Select 
-                    value={String(feeForm.year)} 
-                    onValueChange={(v) => setFeeForm(prev => ({ ...prev, year: parseInt(v) }))}
+                  <Select
+                    value={String(feeForm.year)}
+                    onValueChange={(v) => setFeeForm((prev) => ({ ...prev, year: parseInt(v, 10) }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      {[2024, 2025, 2026, 2027].map(y => (
-                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      {[2024, 2025, 2026, 2027].map((y) => (
+                        <SelectItem key={y} value={String(y)}>
+                          {y}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Valor (€) *</Label>
@@ -800,34 +988,36 @@ export default function Payments() {
                     type="number"
                     step="0.01"
                     value={feeForm.amount}
-                    onChange={(e) => setFeeForm(prev => ({ ...prev, amount: e.target.value }))}
+                    onChange={(e) => setFeeForm((prev) => ({ ...prev, amount: e.target.value }))}
                     placeholder="0.00"
                     required
                     data-testid="fee-amount"
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label>Vencimento *</Label>
                   <Input
                     type="date"
                     value={feeForm.due_date}
-                    onChange={(e) => setFeeForm(prev => ({ ...prev, due_date: e.target.value }))}
+                    onChange={(e) => setFeeForm((prev) => ({ ...prev, due_date: e.target.value }))}
                     required
                     data-testid="fee-due-date"
                   />
                 </div>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Notas (opcional)</Label>
                 <Textarea
                   value={feeForm.notes}
-                  onChange={(e) => setFeeForm(prev => ({ ...prev, notes: e.target.value }))}
+                  onChange={(e) => setFeeForm((prev) => ({ ...prev, notes: e.target.value }))}
                   placeholder="Notas adicionais..."
                   rows={2}
                 />
               </div>
             </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowCreateFeeDialog(false)}>
                 Cancelar
@@ -840,7 +1030,6 @@ export default function Payments() {
         </DialogContent>
       </Dialog>
 
-      {/* Bulk Monthly Fees Dialog */}
       <Dialog open={showBulkFeeDialog} onOpenChange={setShowBulkFeeDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
@@ -852,43 +1041,53 @@ export default function Payments() {
               Criar mensalidades para todos os jogadores ativos
             </DialogDescription>
           </DialogHeader>
+
           <form onSubmit={handleCreateBulkFees}>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Mês *</Label>
-                  <Select 
-                    value={String(bulkFeeForm.month)} 
-                    onValueChange={(v) => setBulkFeeForm(prev => ({ ...prev, month: parseInt(v) }))}
+                  <Select
+                    value={String(bulkFeeForm.month)}
+                    onValueChange={(v) =>
+                      setBulkFeeForm((prev) => ({ ...prev, month: parseInt(v, 10) }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      {[1,2,3,4,5,6,7,8,9,10,11,12].map(m => (
-                        <SelectItem key={m} value={String(m)}>{getMonthName(m)}</SelectItem>
+                      {getMonthOptions().map((m) => (
+                        <SelectItem key={m.value} value={m.value}>
+                          {m.label}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Ano *</Label>
-                  <Select 
-                    value={String(bulkFeeForm.year)} 
-                    onValueChange={(v) => setBulkFeeForm(prev => ({ ...prev, year: parseInt(v) }))}
+                  <Select
+                    value={String(bulkFeeForm.year)}
+                    onValueChange={(v) =>
+                      setBulkFeeForm((prev) => ({ ...prev, year: parseInt(v, 10) }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      {[2024, 2025, 2026, 2027].map(y => (
-                        <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                      {[2024, 2025, 2026, 2027].map((y) => (
+                        <SelectItem key={y} value={String(y)}>
+                          {y}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Valor (€) *</Label>
@@ -896,27 +1095,34 @@ export default function Payments() {
                     type="number"
                     step="0.01"
                     value={bulkFeeForm.amount}
-                    onChange={(e) => setBulkFeeForm(prev => ({ ...prev, amount: e.target.value }))}
+                    onChange={(e) =>
+                      setBulkFeeForm((prev) => ({ ...prev, amount: e.target.value }))
+                    }
                     placeholder="0.00"
                     required
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label>Vencimento *</Label>
                   <Input
                     type="date"
                     value={bulkFeeForm.due_date}
-                    onChange={(e) => setBulkFeeForm(prev => ({ ...prev, due_date: e.target.value }))}
+                    onChange={(e) =>
+                      setBulkFeeForm((prev) => ({ ...prev, due_date: e.target.value }))
+                    }
                     required
                   />
                 </div>
               </div>
-              
+
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-sm text-sm text-blue-800">
                 <AlertCircle className="w-4 h-4 inline mr-2" />
-                Serão criadas mensalidades para todos os jogadores ativos que não tenham pagamentos desativados.
+                Serão criadas mensalidades para todos os jogadores ativos que não tenham
+                pagamentos desativados.
               </div>
             </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setShowBulkFeeDialog(false)}>
                 Cancelar
@@ -929,26 +1135,30 @@ export default function Payments() {
         </DialogContent>
       </Dialog>
 
-      {/* Custom Payment Dialog */}
       <Dialog open={showCustomPaymentDialog} onOpenChange={setShowCustomPaymentDialog}>
         <DialogContent className="bg-white" data-testid="create-custom-dialog">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-tight">Criar Pagamento</DialogTitle>
-            <DialogDescription>Criar um pagamento personalizado para um jogador</DialogDescription>
+            <DialogTitle className="font-heading text-xl tracking-tight">
+              Criar Pagamento
+            </DialogTitle>
+            <DialogDescription>
+              Criar um pagamento personalizado para um jogador
+            </DialogDescription>
           </DialogHeader>
+
           <form onSubmit={handleCreateCustomPayment}>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label>Jogador *</Label>
-                <Select 
-                  value={customForm.user_id} 
-                  onValueChange={(v) => setCustomForm(prev => ({ ...prev, user_id: v }))}
+                <Select
+                  value={customForm.user_id}
+                  onValueChange={(v) => setCustomForm((prev) => ({ ...prev, user_id: v }))}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecionar jogador" />
                   </SelectTrigger>
                   <SelectContent className="bg-white max-h-60">
-                    {members.filter(m => m.role === 'jogador').map(member => (
+                    {playerMembers.map((member) => (
                       <SelectItem key={member.id} value={member.id}>
                         {member.name}
                       </SelectItem>
@@ -956,28 +1166,30 @@ export default function Payments() {
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Título *</Label>
                 <Input
                   value={customForm.title}
-                  onChange={(e) => setCustomForm(prev => ({ ...prev, title: e.target.value }))}
-                  placeholder="Ex: Equipamento, Inscrição torneio..."
+                  onChange={(e) => setCustomForm((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="Ex: Equipamento, inscrição torneio..."
                   required
                   data-testid="custom-title"
                 />
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Descrição (opcional)</Label>
                 <Textarea
                   value={customForm.description}
-                  onChange={(e) => setCustomForm(prev => ({ ...prev, description: e.target.value }))}
+                  onChange={(e) =>
+                    setCustomForm((prev) => ({ ...prev, description: e.target.value }))
+                  }
                   placeholder="Detalhes adicionais..."
                   rows={2}
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Valor (€) *</Label>
@@ -985,26 +1197,34 @@ export default function Payments() {
                     type="number"
                     step="0.01"
                     value={customForm.amount}
-                    onChange={(e) => setCustomForm(prev => ({ ...prev, amount: e.target.value }))}
+                    onChange={(e) => setCustomForm((prev) => ({ ...prev, amount: e.target.value }))}
                     placeholder="0.00"
                     required
                     data-testid="custom-amount"
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label>Vencimento *</Label>
                   <Input
                     type="date"
                     value={customForm.due_date}
-                    onChange={(e) => setCustomForm(prev => ({ ...prev, due_date: e.target.value }))}
+                    onChange={(e) =>
+                      setCustomForm((prev) => ({ ...prev, due_date: e.target.value }))
+                    }
                     required
                     data-testid="custom-due-date"
                   />
                 </div>
               </div>
             </div>
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setShowCustomPaymentDialog(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShowCustomPaymentDialog(false)}
+              >
                 Cancelar
               </Button>
               <Button type="submit" disabled={creating} data-testid="submit-custom">
@@ -1015,7 +1235,6 @@ export default function Payments() {
         </DialogContent>
       </Dialog>
 
-      {/* Import Dialog */}
       <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
@@ -1027,21 +1246,31 @@ export default function Payments() {
               Importar mensalidades a partir de um ficheiro Excel
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="p-4 bg-muted/30 rounded-sm">
               <p className="text-sm font-medium mb-2">Colunas esperadas:</p>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• <strong>Email</strong> - Email do jogador (obrigatório)</li>
-                <li>• <strong>Valor</strong> ou <strong>Amount</strong> - Valor da mensalidade</li>
-                <li>• <strong>Mês</strong> - Número do mês (1-12)</li>
-                <li>• <strong>Ano</strong> - Ano (ex: 2026)</li>
-                <li>• <strong>Vencimento</strong> - Data limite (opcional)</li>
+                <li>
+                  • <strong>Email</strong> - Email do jogador
+                </li>
+                <li>
+                  • <strong>Valor</strong> ou <strong>Amount</strong> - Valor
+                </li>
+                <li>
+                  • <strong>Mês</strong> - Número do mês (1-12)
+                </li>
+                <li>
+                  • <strong>Ano</strong> - Ano (ex: 2026)
+                </li>
+                <li>
+                  • <strong>Vencimento</strong> - Data limite (opcional)
+                </li>
               </ul>
             </div>
-            
+
             <div className="space-y-2">
-              <Label>Selecionar Ficheiro</Label>
+              <Label>Selecionar ficheiro</Label>
               <Input
                 type="file"
                 accept=".xlsx,.xls,.csv"
@@ -1050,15 +1279,14 @@ export default function Payments() {
                 className="cursor-pointer"
               />
             </div>
-            
+
             {importing && (
               <div className="flex items-center gap-2 text-primary">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                A importar...
+                <Loader2 className="w-4 h-4 animate-spin" />A importar...
               </div>
             )}
           </div>
-          
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowImportDialog(false)}>
               Fechar
@@ -1067,7 +1295,6 @@ export default function Payments() {
         </DialogContent>
       </Dialog>
 
-      {/* Upload Proof Dialog */}
       <Dialog open={showProofDialog} onOpenChange={setShowProofDialog}>
         <DialogContent className="bg-white">
           <DialogHeader>
@@ -1079,20 +1306,19 @@ export default function Payments() {
               Anexar comprovativo de pagamento
             </DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             {selectedPayment && (
               <div className="p-3 bg-muted/30 rounded-sm">
                 <p className="text-sm">
-                  {selectedPayment.type === 'monthly_fee' 
+                  {selectedPayment.type === 'monthly_fee'
                     ? `Mensalidade ${getMonthName(selectedPayment.month)}/${selectedPayment.year}`
-                    : selectedPayment.title
-                  }
+                    : selectedPayment.title}
                 </p>
-                <p className="text-lg font-bold">€{selectedPayment.amount?.toFixed(2)}</p>
+                <p className="text-lg font-bold">€{Number(selectedPayment.amount || 0).toFixed(2)}</p>
               </div>
             )}
-            
+
             <div className="space-y-2">
               <Label>Ficheiro (PDF, JPG, PNG)</Label>
               <Input
@@ -1104,20 +1330,22 @@ export default function Payments() {
                 data-testid="proof-file-input"
               />
             </div>
-            
+
             {uploadingProof && (
               <div className="flex items-center gap-2 text-primary">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                A carregar...
+                <Loader2 className="w-4 h-4 animate-spin" />A carregar...
               </div>
             )}
           </div>
-          
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShowProofDialog(false);
-              setSelectedPayment(null);
-            }}>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowProofDialog(false);
+                setSelectedPayment(null);
+              }}
+            >
               Cancelar
             </Button>
           </DialogFooter>
