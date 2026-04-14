@@ -3,13 +3,11 @@ import { Calendar, MessageSquare, Users, BarChart3, User } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { useLanguage } from '../../context/LanguageContext';
 import { usePermissions } from '../../context/PermissionsContext';
-import { useAuth } from '../../context/AuthContext';
 
 export function BottomNav() {
   const location = useLocation();
   const { t } = useLanguage();
   const permissions = usePermissions();
-  const { effectiveRole } = useAuth();
 
   const navItems = [
     {
