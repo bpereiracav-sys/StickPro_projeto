@@ -1,15 +1,17 @@
 import "@/App.css";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { useEffect } from "react";
+
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { TeamProvider } from "./context/TeamContext";
 import { ThemeProvider } from "./context/ThemeContext";
-import { PermissionsProvider } from "./context/PermissionsContext";
+import { PermissionsProvider, usePermissions } from "./context/PermissionsContext";
+
 import { Toaster } from "./components/ui/sonner";
 import { AppLayout } from "./components/layout/AppLayout";
 import { PWAInstallPrompt, registerServiceWorker } from "./components/PWAInstallPrompt";
 import { AIAssistant } from "./components/AIAssistant";
-import { useEffect } from "react";
 
 // Pages
 import Landing from "./pages/Landing";
@@ -39,15 +41,19 @@ import LibraryPage from "./pages/LibraryPage";
 import Payments from "./pages/Payments";
 import SubscriptionPage from "./pages/SubscriptionPage";
 
+function FullScreenLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <FullScreenLoader />;
   }
 
   if (!isAuthenticated) {
@@ -57,15 +63,41 @@ function ProtectedRoute({ children }) {
   return <AppLayout>{children}</AppLayout>;
 }
 
+function PermissionRoute({
+  children,
+  allowedRoles = [],
+  requiredPermission = null,
+  redirectTo = "/dashboard",
+}) {
+  const { isAuthenticated, loading } = useAuth();
+  const permissions = usePermissions();
+
+  if (loading) {
+    return <FullScreenLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  const hasAllowedRole =
+    allowedRoles.length === 0 || allowedRoles.includes(permissions.role);
+
+  const hasRequiredPermission =
+    !requiredPermission || permissions.hasPermission(requiredPermission);
+
+  if (!hasAllowedRole || !hasRequiredPermission) {
+    return <Navigate to={redirectTo} replace />;
+  }
+
+  return <AppLayout>{children}</AppLayout>;
+}
+
 function PublicRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <FullScreenLoader />;
   }
 
   if (isAuthenticated) {
@@ -78,6 +110,7 @@ function PublicRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
+      {/* Public */}
       <Route
         path="/"
         element={
@@ -96,51 +129,12 @@ function AppRoutes() {
         }
       />
 
+      {/* Authenticated - general */}
       <Route
         path="/dashboard"
         element={
           <ProtectedRoute>
             <Dashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/teams"
-        element={
-          <ProtectedRoute>
-            <TeamsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/teams-management"
-        element={
-          <ProtectedRoute>
-            <Teams />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/teams/:teamId"
-        element={
-          <ProtectedRoute>
-            <TeamDetail />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/players/:playerId"
-        element={
-          <ProtectedRoute>
-            <PlayerProfile />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/members/:memberId/profile"
-        element={
-          <ProtectedRoute>
-            <MemberProfilePage />
           </ProtectedRoute>
         }
       />
@@ -169,90 +163,10 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/stats"
-        element={
-          <ProtectedRoute>
-            <Stats />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/members"
-        element={
-          <ProtectedRoute>
-            <Members />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/championships"
-        element={
-          <ProtectedRoute>
-            <Championships />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/championships/:championshipId"
-        element={
-          <ProtectedRoute>
-            <ChampionshipDetail />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/championships/:championshipId/matches/:matchId/stats"
-        element={
-          <ProtectedRoute>
-            <MatchStats />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/attendance"
-        element={
-          <ProtectedRoute>
-            <Attendance />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/payments"
-        element={
-          <ProtectedRoute>
-            <Payments />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/messages"
         element={
           <ProtectedRoute>
             <Chat />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/club"
-        element={
-          <ProtectedRoute>
-            <ClubPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/subscription"
-        element={
-          <ProtectedRoute>
-            <SubscriptionPage />
           </ProtectedRoute>
         }
       />
@@ -289,6 +203,160 @@ function AppRoutes() {
         }
       />
 
+      {/* Team management / members */}
+      <Route
+        path="/teams"
+        element={
+          <PermissionRoute
+            allowedRoles={["admin", "gestor_desportivo", "treinador"]}
+          >
+            <TeamsPage />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/teams-management"
+        element={
+          <Navigate to="/teams" replace />
+        }
+      />
+      <Route
+        path="/teams/:teamId"
+        element={
+          <ProtectedRoute>
+            <TeamDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/members"
+        element={
+          <PermissionRoute
+            allowedRoles={[
+              "admin",
+              "gestor_desportivo",
+              "treinador",
+              "treinador_adjunto",
+              "delegado",
+            ]}
+            requiredPermission="view_team_members"
+          >
+            <Members />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/members/:memberId/profile"
+        element={
+          <PermissionRoute
+            allowedRoles={[
+              "admin",
+              "gestor_desportivo",
+              "treinador",
+              "treinador_adjunto",
+              "delegado",
+            ]}
+            requiredPermission="view_team_members"
+          >
+            <MemberProfilePage />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/players/:playerId"
+        element={
+          <ProtectedRoute>
+            <PlayerProfile />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Competitions / attendance / stats */}
+      <Route
+        path="/championships"
+        element={
+          <ProtectedRoute>
+            <Championships />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/championships/:championshipId"
+        element={
+          <ProtectedRoute>
+            <ChampionshipDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/championships/:championshipId/matches/:matchId/stats"
+        element={
+          <ProtectedRoute>
+            <MatchStats />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/attendance"
+        element={
+          <PermissionRoute requiredPermission="view_team_attendance">
+            <Attendance />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/stats"
+        element={
+          <ProtectedRoute>
+            <Stats />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Admin / management */}
+      <Route
+        path="/payments"
+        element={
+          <PermissionRoute
+            allowedRoles={["admin", "gestor_desportivo", "jogador", "responsavel"]}
+          >
+            <Payments />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/club"
+        element={
+          <PermissionRoute
+            allowedRoles={["admin", "gestor_desportivo"]}
+            requiredPermission="view_club_settings"
+          >
+            <ClubPage />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PermissionRoute
+            allowedRoles={["admin", "gestor_desportivo"]}
+          >
+            <Settings />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/subscription"
+        element={
+          <PermissionRoute
+            allowedRoles={["admin", "gestor_desportivo"]}
+          >
+            <SubscriptionPage />
+          </PermissionRoute>
+        }
+      />
+
+      {/* Fallback */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
