@@ -3,10 +3,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTeam } from '../../context/TeamContext';
 import { useTheme } from '../../context/ThemeContext';
+import { usePermissions } from '../../context/PermissionsContext';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { ScrollArea } from '../ui/scroll-area';
-import { Badge } from '../ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,10 +15,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import { 
-  Calendar, 
-  Users, 
-  MessageSquare, 
+import {
+  Calendar,
+  Users,
+  MessageSquare,
   Settings,
   LogOut,
   Menu,
@@ -27,68 +27,70 @@ import {
   Home,
   ChevronDown,
   Bell,
-  User,
   Trophy,
   ClipboardCheck,
   RefreshCw,
   Shield,
   BookOpen,
   Building2,
-  CreditCard
+  CreditCard,
 } from 'lucide-react';
-import { useState, useEffect } from 'react';
-import { getInitials, getRoleName } from '../../lib/utils';
+import { useState, useEffect, useMemo } from 'react';
+import { getInitials, getRoleName, normalizeRole } from '../../lib/utils';
 import { toast } from 'sonner';
 import { dashboardApi } from '../../services/api';
 
-// Custom Logo URL - Green transparent logo that adapts to themes
-const CUSTOM_LOGO_URL = "https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/e8f8q5qy_logoBranco2.png";
+// Custom Logo URL
+const CUSTOM_LOGO_URL =
+  'https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/e8f8q5qy_logoBranco2.png';
 
-// Theme-aware Logo Component - new white logo on black background
-const StickProLogo = ({ size = 'md', isDark = false }) => {
+const StickProLogo = ({ size = 'md' }) => {
   const sizes = {
     sm: { box: 'w-16 h-16' },
     md: { box: 'w-20 h-20' },
-    lg: { box: 'w-24 h-24' }
+    lg: { box: 'w-24 h-24' },
   };
+
   const s = sizes[size] || sizes.md;
-  
+
   return (
-    <img 
-      src={CUSTOM_LOGO_URL} 
-      alt="Logo" 
+    <img
+      src={CUSTOM_LOGO_URL}
+      alt="Logo"
       className={`${s.box} object-contain transition-all duration-300`}
       data-testid="stick-pro-logo"
     />
   );
 };
 
-export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
-  const { 
-    user, 
-    logout, 
-    isAuthenticated, 
-    availableProfiles, 
-    activeProfile, 
+export function Sidebar() {
+  const {
+    user,
+    logout,
+    isAuthenticated,
+    availableProfiles,
+    activeProfile,
     viewingAs,
     isViewingAsAssociated,
     switchProfile,
-    effectiveRole
+    effectiveRole,
   } = useAuth();
-  const { t } = useLanguage();
-  const { selectedTeam: contextSelectedTeam, isAllTeamsSelected } = useTeam();
+
+  const { t, language } = useLanguage();
+  const { selectedTeam, isAllTeamsSelected } = useTeam();
   const { theme } = useTheme();
-  const isDarkTheme = theme?.mode === 'dark';
+  const permissions = usePermissions();
+
   const location = useLocation();
   const navigate = useNavigate();
+
   const [menuOpen, setMenuOpen] = useState(false);
   const [switchingProfile, setSwitchingProfile] = useState(false);
   const [pendingNotifications, setPendingNotifications] = useState(0);
 
-  // Use context selected team if available
-  const activeTeam = contextSelectedTeam || selectedTeam;
+  const isDarkTheme = theme?.mode === 'dark';
+  const normalizedEffectiveRole = normalizeRole(effectiveRole);
 
-  // Fetch pending notifications count
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
@@ -99,30 +101,13 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
         console.error('Error fetching notifications:', error);
       }
     };
-    
+
     if (isAuthenticated) {
       fetchNotifications();
-      // Refresh notifications every 60 seconds
       const interval = setInterval(fetchNotifications, 60000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated]);
-
-  // Menu items based on selected team context - with translations
-  const navLinks = [
-    { href: '/dashboard', label: t('nav.home'), icon: Home, notificationCount: pendingNotifications },
-    { href: '/calendar', label: t('nav.calendar'), icon: Calendar },
-    { href: '/members', label: t('nav.members'), icon: Users },
-    { href: '/championships', label: t('nav.championships'), icon: Trophy },
-    { href: '/attendance', label: t('nav.attendance'), icon: ClipboardCheck },
-    { href: '/stats', label: t('nav.stats'), icon: BarChart3 },
-    { href: '/payments', label: 'Pagamentos', icon: CreditCard },
-    { href: '/library', label: 'Biblioteca', icon: BookOpen },
-    { href: '/messages', label: t('nav.messages'), icon: MessageSquare },
-    { href: '/club', label: t('nav.club') || 'Clube', icon: Building2, adminOnly: true },
-    { href: '/subscription', label: t('nav.subscription') || 'Subscrição', icon: CreditCard, adminOnly: true },
-    { href: '/settings', label: t('nav.settings'), icon: Settings },
-  ];
 
   const handleLogout = () => {
     logout();
@@ -135,6 +120,7 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
       await switchProfile(profile);
       toast.success(`Perfil alterado: ${profile.label || profile.user_name}`);
       navigate('/dashboard');
+      setMenuOpen(false);
     } catch (error) {
       toast.error('Erro ao mudar de perfil');
     } finally {
@@ -143,57 +129,169 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
   };
 
   const handleSwitchToSelf = async () => {
-    const selfProfile = availableProfiles.find(p => p.type === 'self' && p.user_id === user?.id);
+    const selfProfile = availableProfiles.find(
+      (p) => p.type === 'self' && p.user_id === user?.id
+    );
+
     if (selfProfile) {
       await handleSwitchProfile(selfProfile);
     }
   };
 
-  if (!isAuthenticated) return null;
+  const otherProfiles = useMemo(() => {
+    return availableProfiles.filter((p) => {
+      if (activeProfile?.type === 'self' && p.type === 'self' && p.user_id === user?.id) {
+        return false;
+      }
 
-  // Display name - show viewed user if viewing as associated
+      if (
+        activeProfile?.type === 'associated' &&
+        p.type === 'associated' &&
+        p.user_id === activeProfile?.user_id
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [availableProfiles, activeProfile, user?.id]);
+
   const displayName = viewingAs?.name || user?.name;
   const displayRole = viewingAs?.role || user?.role;
 
-  // Filter profiles for switching (exclude current)
-  const otherProfiles = availableProfiles.filter(p => {
-    if (activeProfile?.type === 'self' && p.type === 'self' && p.user_id === user?.id) return false;
-    if (activeProfile?.type === 'associated' && p.type === 'associated' && p.user_id === activeProfile?.user_id) return false;
-    return true;
-  });
+  const navLinks = useMemo(() => {
+    const links = [
+      {
+        href: '/dashboard',
+        label: t('nav.home'),
+        icon: Home,
+        visible: true,
+        notificationCount: pendingNotifications,
+      },
+      {
+        href: '/calendar',
+        label: t('nav.calendar'),
+        icon: Calendar,
+        visible: true,
+      },
+      {
+        href: '/my-teams',
+        label: t('nav.myTeams'),
+        icon: Users,
+        visible: true,
+      },
+      {
+        href: '/teams',
+        label: t('nav.teams') || 'Equipas',
+        icon: Users,
+        visible: permissions.canManageTeam,
+      },
+      {
+        href: '/members',
+        label: t('nav.members'),
+        icon: Users,
+        visible: permissions.hasPermission('view_team_members'),
+      },
+      {
+        href: '/championships',
+        label: t('nav.championships'),
+        icon: Trophy,
+        visible: true,
+      },
+      {
+        href: '/attendance',
+        label: t('nav.attendance'),
+        icon: ClipboardCheck,
+        visible: permissions.hasPermission('view_team_attendance'),
+      },
+      {
+        href: '/stats',
+        label: t('nav.stats'),
+        icon: BarChart3,
+        visible: true,
+      },
+      {
+        href: '/payments',
+        label: t('nav.payments') || 'Pagamentos',
+        icon: CreditCard,
+        visible: ['admin', 'gestor_desportivo', 'jogador', 'responsavel'].includes(
+          normalizedEffectiveRole
+        ),
+      },
+      {
+        href: '/library',
+        label: t('nav.library') || 'Biblioteca',
+        icon: BookOpen,
+        visible: true,
+      },
+      {
+        href: '/messages',
+        label: t('nav.messages'),
+        icon: MessageSquare,
+        visible: true,
+      },
+      {
+        href: '/club',
+        label: t('nav.club') || 'Clube',
+        icon: Building2,
+        visible: permissions.isAdmin,
+      },
+      {
+        href: '/subscription',
+        label: t('nav.subscription') || 'Subscrição',
+        icon: CreditCard,
+        visible: permissions.isAdmin,
+      },
+      {
+        href: '/settings',
+        label: t('nav.settings'),
+        icon: Settings,
+        visible: permissions.isAdmin,
+      },
+    ];
+
+    return links.filter((link) => link.visible);
+  }, [t, permissions, pendingNotifications, normalizedEffectiveRole]);
+
+  if (!isAuthenticated) return null;
 
   return (
     <>
       {/* Mobile Header */}
-      <header 
+      <header
         className="lg:hidden fixed top-0 left-0 right-0 h-14 z-40 flex items-center justify-between px-4"
-        style={{ 
+        style={{
           backgroundColor: 'hsl(var(--sidebar-bg))',
-          borderBottom: '1px solid hsl(var(--sidebar-border))'
+          borderBottom: '1px solid hsl(var(--sidebar-border))',
         }}
       >
         <div className="flex items-center gap-2 ml-2">
-          <img 
-            src={CUSTOM_LOGO_URL} 
-            alt="Logo" 
+          <img
+            src={CUSTOM_LOGO_URL}
+            alt="Logo"
             className="w-10 h-10 object-contain flex-shrink-0"
             data-testid="mobile-header-logo"
           />
-          <span className="font-heading text-base tracking-tight" style={{ color: 'var(--sidebar-text)' }}>
+          <span
+            className="font-heading text-base tracking-tight"
+            style={{ color: 'var(--sidebar-text)' }}
+          >
             Stick<span style={{ color: 'var(--sidebar-active-text)' }}>Pro</span>
           </span>
         </div>
+
         <div className="flex items-center gap-1">
-          <Button 
-            variant="ghost" 
-            size="icon" 
+          <Button
+            variant="ghost"
+            size="icon"
             className="relative h-9 w-9"
             style={{ color: 'var(--sidebar-text)' }}
           >
             <Bell className="w-5 h-5" />
           </Button>
-          <Button 
-            variant="ghost" 
+
+          <Button
+            variant="ghost"
             size="icon"
             className="h-9 w-9"
             style={{ color: 'var(--sidebar-text)' }}
@@ -204,40 +302,48 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
         </div>
       </header>
 
-      {/* Mobile Menu Overlay */}
+      {/* Mobile Overlay */}
       {menuOpen && (
-        <div 
+        <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
           onClick={() => setMenuOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <aside 
+      <aside
         className={`
           fixed top-0 left-0 h-full z-50
           transition-transform duration-300 ease-in-out
           w-64 lg:translate-x-0
           ${menuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
-        style={{ 
+        style={{
           backgroundColor: 'hsl(var(--sidebar-bg))',
           borderRight: '1px solid hsl(var(--sidebar-border))',
-          color: 'var(--sidebar-text)'
+          color: 'var(--sidebar-text)',
         }}
       >
         <div className="flex flex-col h-full">
           {/* Logo */}
-          <div 
+          <div
             className="h-16 flex items-center gap-3 px-4"
             style={{ borderBottom: '1px solid hsl(var(--sidebar-border))' }}
           >
             <StickProLogo size="md" isDark={isDarkTheme} />
             <div>
-              <span className="font-heading text-lg tracking-tight block leading-tight" style={{ color: 'var(--sidebar-text)' }}>
+              <span
+                className="font-heading text-lg tracking-tight block leading-tight"
+                style={{ color: 'var(--sidebar-text)' }}
+              >
                 Stick<span style={{ color: 'var(--sidebar-active-text)' }}>Pro</span>
               </span>
-              <span className="text-xs" style={{ color: 'hsl(var(--sidebar-muted))' }}>Gestão Desportiva</span>
+              <span
+                className="text-xs"
+                style={{ color: 'hsl(var(--sidebar-muted))' }}
+              >
+                {t('sidebar.tagline') || 'Gestão Desportiva'}
+              </span>
             </div>
           </div>
 
@@ -263,61 +369,109 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                   Voltar
                 </Button>
               </div>
-              <p className="text-sm font-semibold text-amber-100 mt-1">{viewingAs.name}</p>
+              <p className="text-sm font-semibold text-amber-100 mt-1">
+                {viewingAs.name}
+              </p>
             </div>
           )}
 
-          {/* Team Selector - Only show when a specific team is selected (not "My Club" mode) */}
-          {activeTeam && !isAllTeamsSelected && (
-            <div className="px-3 py-4" style={{ borderBottom: '1px solid hsl(var(--sidebar-border))' }}>
+          {/* Team/Club Context */}
+          <div
+            className="px-3 py-4"
+            style={{ borderBottom: '1px solid hsl(var(--sidebar-border))' }}
+          >
+            {selectedTeam && !isAllTeamsSelected ? (
               <div className="flex items-center gap-3 px-2 py-2">
-                <div 
+                <div
                   className="w-10 h-10 rounded-lg flex items-center justify-center"
                   style={{ backgroundColor: 'hsla(var(--sidebar-accent), 0.2)' }}
                 >
-                  {activeTeam.photo_url ? (
-                    <img src={activeTeam.photo_url} alt="" className="w-10 h-10 rounded-lg object-cover" />
+                  {selectedTeam.photo_url ? (
+                    <img
+                      src={selectedTeam.photo_url}
+                      alt=""
+                      className="w-10 h-10 rounded-lg object-cover"
+                    />
                   ) : (
-                    <Users className="w-5 h-5" style={{ color: 'var(--sidebar-active-text)' }} />
+                    <Users
+                      className="w-5 h-5"
+                      style={{ color: 'var(--sidebar-active-text)' }}
+                    />
                   )}
                 </div>
                 <div className="text-left flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate" style={{ color: 'var(--sidebar-text)' }}>
-                    {activeTeam.name}
+                  <p
+                    className="font-semibold text-sm truncate"
+                    style={{ color: 'var(--sidebar-text)' }}
+                  >
+                    {selectedTeam.name}
                   </p>
-                  <p className="text-xs" style={{ color: 'hsl(var(--sidebar-muted))' }}>
-                    {activeTeam.category} • {activeTeam.season}
+                  <p
+                    className="text-xs"
+                    style={{ color: 'hsl(var(--sidebar-muted))' }}
+                  >
+                    {selectedTeam.category} • {selectedTeam.season}
                   </p>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="flex items-center gap-3 px-2 py-2">
+                <div
+                  className="w-10 h-10 rounded-lg flex items-center justify-center"
+                  style={{ backgroundColor: 'hsla(var(--sidebar-accent), 0.2)' }}
+                >
+                  <Building2
+                    className="w-5 h-5"
+                    style={{ color: 'var(--sidebar-active-text)' }}
+                  />
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p
+                    className="font-semibold text-sm truncate"
+                    style={{ color: 'var(--sidebar-text)' }}
+                  >
+                    {t('nav.myClub') || 'Meu Clube'}
+                  </p>
+                  <p
+                    className="text-xs"
+                    style={{ color: 'hsl(var(--sidebar-muted))' }}
+                  >
+                    Vista agregada do clube
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Navigation */}
           <ScrollArea className="flex-1 py-4">
             <nav className="px-3 space-y-1">
               {navLinks.map((link) => {
-                // Skip admin-only links for non-admin users
-                if (link.adminOnly && !['admin', 'gestor_desportivo'].includes(effectiveRole)) {
-                  return null;
-                }
                 const Icon = link.icon;
-                const isActive = location.pathname === link.href || location.pathname.startsWith(link.href + '/');
-                const testId = `nav-${link.href.replace('/', '')}`;
+                const isActive =
+                  location.pathname === link.href ||
+                  location.pathname.startsWith(link.href + '/');
+
+                const testId = `nav-${link.href.replace(/\//g, '') || 'root'}`;
+
                 return (
                   <Link
                     key={link.href}
                     to={link.href}
                     onClick={() => setMenuOpen(false)}
                     className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-200 relative sidebar-nav-link border-l-2 pl-[10px]"
-                    style={isActive ? { 
-                      color: 'var(--sidebar-active-text, #22d3ee)',
-                      borderLeftColor: 'var(--sidebar-active-text, #22d3ee)',
-                      backgroundColor: 'hsla(var(--sidebar-accent), 0.1)'
-                    } : {
-                      color: 'hsl(var(--sidebar-muted))',
-                      borderLeftColor: 'transparent'
-                    }}
+                    style={
+                      isActive
+                        ? {
+                            color: 'var(--sidebar-active-text, #22d3ee)',
+                            borderLeftColor: 'var(--sidebar-active-text, #22d3ee)',
+                            backgroundColor: 'hsla(var(--sidebar-accent), 0.1)',
+                          }
+                        : {
+                            color: 'hsl(var(--sidebar-muted))',
+                            borderLeftColor: 'transparent',
+                          }
+                    }
                     onMouseEnter={(e) => {
                       if (!isActive) {
                         e.currentTarget.style.backgroundColor = 'hsl(var(--sidebar-hover))';
@@ -332,11 +486,18 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                     }}
                     data-testid={testId}
                   >
-                    <Icon className="w-5 h-5" style={isActive ? { color: 'var(--sidebar-active-text, #22d3ee)' } : {}} />
+                    <Icon
+                      className="w-5 h-5"
+                      style={
+                        isActive
+                          ? { color: 'var(--sidebar-active-text, #22d3ee)' }
+                          : {}
+                      }
+                    />
                     <span className="font-medium text-sm">{link.label}</span>
-                    {/* Notification Badge */}
+
                     {link.notificationCount > 0 && (
-                      <span 
+                      <span
                         className="absolute right-3 top-1/2 -translate-y-1/2 min-w-[20px] h-5 px-1.5 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full"
                         data-testid="notification-badge"
                       >
@@ -350,46 +511,78 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
           </ScrollArea>
 
           {/* User Menu */}
-          <div className="p-3" style={{ borderTop: '1px solid hsl(var(--sidebar-border))' }}>
+          <div
+            className="p-3"
+            style={{ borderTop: '1px solid hsl(var(--sidebar-border))' }}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
+                <Button
+                  variant="ghost"
                   className="w-full justify-start h-auto py-3 rounded-lg"
                   style={{ color: 'var(--sidebar-text)' }}
                   data-testid="user-menu-sidebar"
                 >
-                  <Avatar className={`h-9 w-9 mr-3 ${isViewingAsAssociated ? 'ring-2 ring-amber-400' : ''}`}>
+                  <Avatar
+                    className={`h-9 w-9 mr-3 ${
+                      isViewingAsAssociated ? 'ring-2 ring-amber-400' : ''
+                    }`}
+                  >
                     <AvatarImage src={user?.avatar_url} alt={displayName} />
-                    <AvatarFallback 
+                    <AvatarFallback
                       className="text-sm font-semibold"
-                      style={{ 
-                        backgroundColor: isViewingAsAssociated ? '#f59e0b' : 'hsl(var(--sidebar-accent))',
-                        color: 'var(--sidebar-text)'
+                      style={{
+                        backgroundColor: isViewingAsAssociated
+                          ? '#f59e0b'
+                          : 'hsl(var(--sidebar-accent))',
+                        color: 'var(--sidebar-text)',
                       }}
                     >
                       {getInitials(displayName)}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="text-left flex-1">
-                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--sidebar-text)' }}>{displayName}</p>
-                    <p className="text-xs" style={{ color: 'hsl(var(--sidebar-muted))' }}>{getRoleName(displayRole)}</p>
+
+                  <div className="text-left flex-1 min-w-0">
+                    <p
+                      className="font-semibold text-sm truncate"
+                      style={{ color: 'var(--sidebar-text)' }}
+                    >
+                      {displayName}
+                    </p>
+                    <p
+                      className="text-xs"
+                      style={{ color: 'hsl(var(--sidebar-muted))' }}
+                    >
+                      {getRoleName(displayRole)}
+                    </p>
                   </div>
-                  <ChevronDown className="w-4 h-4" style={{ color: 'hsl(var(--sidebar-muted))' }} />
+
+                  <ChevronDown
+                    className="w-4 h-4"
+                    style={{ color: 'hsl(var(--sidebar-muted))' }}
+                  />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-64 bg-slate-800 border-slate-700" align="end">
-                {/* Profile switching section */}
+
+              <DropdownMenuContent
+                className="w-64 bg-slate-800 border-slate-700"
+                align="end"
+              >
                 {otherProfiles.length > 0 && (
                   <>
                     <DropdownMenuLabel className="text-slate-400 flex items-center gap-1">
                       <RefreshCw className="w-3 h-3" />
                       Mudar Perfil
                     </DropdownMenuLabel>
+
                     {otherProfiles.map((profile, idx) => (
-                      <DropdownMenuItem 
+                      <DropdownMenuItem
                         key={`profile-${idx}`}
-                        className={`cursor-pointer ${profile.type === 'associated' ? 'text-amber-300 hover:bg-amber-500/20' : 'text-white hover:bg-slate-700'}`}
+                        className={`cursor-pointer ${
+                          profile.type === 'associated'
+                            ? 'text-amber-300 hover:bg-amber-500/20'
+                            : 'text-white hover:bg-slate-700'
+                        }`}
                         onClick={() => handleSwitchProfile(profile)}
                         disabled={switchingProfile}
                         data-testid={`switch-profile-${profile.user_id}`}
@@ -397,39 +590,29 @@ export function Sidebar({ teams = [], selectedTeam, onSelectTeam }) {
                         {profile.type === 'associated' ? (
                           <Shield className="w-4 h-4 mr-2" />
                         ) : (
-                          <User className="w-4 h-4 mr-2" />
+                          <Users className="w-4 h-4 mr-2" />
                         )}
                         <div>
-                          <p className="font-medium text-sm">{profile.label || profile.user_name}</p>
+                          <p className="font-medium text-sm">
+                            {profile.label || profile.user_name}
+                          </p>
                           {profile.type === 'associated' && (
                             <p className="text-xs opacity-70">Como responsável</p>
                           )}
                         </div>
                       </DropdownMenuItem>
                     ))}
+
                     <DropdownMenuSeparator className="bg-slate-700" />
                   </>
                 )}
-                
-                <DropdownMenuItem asChild>
-                  <Link to={`/players/${user?.id}`} className="text-white hover:bg-slate-700 cursor-pointer">
-                    <User className="w-4 h-4 mr-2" />
-                    O Meu Perfil
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="text-white hover:bg-slate-700 cursor-pointer">
-                    <Settings className="w-4 h-4 mr-2" />
-                    Definições
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator className="bg-slate-700" />
-                <DropdownMenuItem 
+
+                <DropdownMenuItem
                   className="text-red-400 hover:bg-slate-700 cursor-pointer"
                   onClick={handleLogout}
                 >
                   <LogOut className="w-4 h-4 mr-2" />
-                  Sair
+                  {t('auth.logout') || 'Sair'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
