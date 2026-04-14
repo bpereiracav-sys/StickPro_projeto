@@ -41,7 +41,7 @@ export function getInitials(name) {
 
 /**
  * Canonical role keys used by the app.
- * We keep support for legacy/internal English values for backwards compatibility.
+ * The app should prefer these Portuguese keys internally.
  */
 export const ROLE_CANONICAL_KEYS = {
   admin: 'admin',
@@ -54,7 +54,8 @@ export const ROLE_CANONICAL_KEYS = {
 };
 
 /**
- * Legacy/internal role aliases -> canonical role keys
+ * Legacy/internal aliases mapped to canonical keys.
+ * Keeps backwards compatibility with older DB/API values.
  */
 export const ROLE_ALIASES = {
   admin: 'admin',
@@ -77,9 +78,6 @@ export const ROLE_ALIASES = {
   guardian: 'responsavel',
 };
 
-/**
- * Role groups based on canonical keys
- */
 export const ROLE_GROUPS = {
   players: ['jogador'],
   staff: [
@@ -105,10 +103,6 @@ export function isPlayerRole(role) {
   return ROLE_GROUPS.players.includes(normalizeRole(role));
 }
 
-/**
- * Get translated role name when translations are provided.
- * Falls back to Portuguese labels.
- */
 export function getRoleName(role, translations = null) {
   const normalizedRole = normalizeRole(role);
 
