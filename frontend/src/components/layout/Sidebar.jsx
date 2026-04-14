@@ -2,7 +2,6 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTeam } from '../../context/TeamContext';
-import { useTheme } from '../../context/ThemeContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -40,7 +39,6 @@ import { getInitials, getRoleName, normalizeRole } from '../../lib/utils';
 import { toast } from 'sonner';
 import { dashboardApi } from '../../services/api';
 
-// Custom Logo URL
 const CUSTOM_LOGO_URL =
   'https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/e8f8q5qy_logoBranco2.png';
 
@@ -76,9 +74,8 @@ export function Sidebar() {
     effectiveRole,
   } = useAuth();
 
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { selectedTeam, isAllTeamsSelected } = useTeam();
-  const { theme } = useTheme();
   const permissions = usePermissions();
 
   const location = useLocation();
@@ -88,7 +85,6 @@ export function Sidebar() {
   const [switchingProfile, setSwitchingProfile] = useState(false);
   const [pendingNotifications, setPendingNotifications] = useState(0);
 
-  const isDarkTheme = theme?.mode === 'dark';
   const normalizedEffectiveRole = normalizeRole(effectiveRole);
 
   useEffect(() => {
@@ -130,7 +126,7 @@ export function Sidebar() {
 
   const handleSwitchToSelf = async () => {
     const selfProfile = availableProfiles.find(
-      (p) => p.type === 'self' && p.user_id === user?.id
+      (profile) => profile.type === 'self' && profile.user_id === user?.id
     );
 
     if (selfProfile) {
@@ -139,15 +135,19 @@ export function Sidebar() {
   };
 
   const otherProfiles = useMemo(() => {
-    return availableProfiles.filter((p) => {
-      if (activeProfile?.type === 'self' && p.type === 'self' && p.user_id === user?.id) {
+    return availableProfiles.filter((profile) => {
+      if (
+        activeProfile?.type === 'self' &&
+        profile.type === 'self' &&
+        profile.user_id === user?.id
+      ) {
         return false;
       }
 
       if (
         activeProfile?.type === 'associated' &&
-        p.type === 'associated' &&
-        p.user_id === activeProfile?.user_id
+        profile.type === 'associated' &&
+        profile.user_id === activeProfile?.user_id
       ) {
         return false;
       }
@@ -160,6 +160,15 @@ export function Sidebar() {
   const displayRole = viewingAs?.role || user?.role;
 
   const navLinks = useMemo(() => {
+    const paymentsLabel =
+      t('nav.payments') !== 'nav.payments' ? t('nav.payments') : 'Pagamentos';
+
+    const libraryLabel =
+      t('nav.library') !== 'nav.library' ? t('nav.library') : 'Biblioteca';
+
+    const teamsLabel =
+      t('nav.teams') !== 'nav.teams' ? t('nav.teams') : 'Equipas';
+
     const links = [
       {
         href: '/dashboard',
@@ -182,7 +191,7 @@ export function Sidebar() {
       },
       {
         href: '/teams',
-        label: t('nav.teams') || 'Equipas',
+        label: teamsLabel,
         icon: Users,
         visible: permissions.canManageTeam,
       },
@@ -212,15 +221,17 @@ export function Sidebar() {
       },
       {
         href: '/payments',
-        label: t('nav.payments') || 'Pagamentos',
+        label: paymentsLabel,
         icon: CreditCard,
-        visible: ['admin', 'gestor_desportivo', 'jogador', 'responsavel'].includes(
-          normalizedEffectiveRole
-        ),
+        visible:
+          permissions.isAdmin ||
+          permissions.isPlayer ||
+          permissions.isFamilyMember ||
+          normalizedEffectiveRole === 'guardian',
       },
       {
         href: '/library',
-        label: t('nav.library') || 'Biblioteca',
+        label: libraryLabel,
         icon: BookOpen,
         visible: true,
       },
@@ -246,7 +257,7 @@ export function Sidebar() {
         href: '/settings',
         label: t('nav.settings'),
         icon: Settings,
-        visible: permissions.isAdmin,
+        visible: true,
       },
     ];
 
@@ -257,7 +268,6 @@ export function Sidebar() {
 
   return (
     <>
-      {/* Mobile Header */}
       <header
         className="lg:hidden fixed top-0 left-0 right-0 h-14 z-40 flex items-center justify-between px-4"
         style={{
@@ -295,14 +305,13 @@ export function Sidebar() {
             size="icon"
             className="h-9 w-9"
             style={{ color: 'var(--sidebar-text)' }}
-            onClick={() => setMenuOpen(!menuOpen)}
+            onClick={() => setMenuOpen((prev) => !prev)}
           >
             {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </Button>
         </div>
       </header>
 
-      {/* Mobile Overlay */}
       {menuOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
@@ -310,7 +319,6 @@ export function Sidebar() {
         />
       )}
 
-      {/* Sidebar */}
       <aside
         className={`
           fixed top-0 left-0 h-full z-50
@@ -325,12 +333,11 @@ export function Sidebar() {
         }}
       >
         <div className="flex flex-col h-full">
-          {/* Logo */}
           <div
             className="h-16 flex items-center gap-3 px-4"
             style={{ borderBottom: '1px solid hsl(var(--sidebar-border))' }}
           >
-            <StickProLogo size="md" isDark={isDarkTheme} />
+            <StickProLogo size="md" />
             <div>
               <span
                 className="font-heading text-lg tracking-tight block leading-tight"
@@ -342,12 +349,13 @@ export function Sidebar() {
                 className="text-xs"
                 style={{ color: 'hsl(var(--sidebar-muted))' }}
               >
-                {t('sidebar.tagline') || 'Gestão Desportiva'}
+                {t('sidebar.tagline') !== 'sidebar.tagline'
+                  ? t('sidebar.tagline')
+                  : 'Gestão Desportiva'}
               </span>
             </div>
           </div>
 
-          {/* Viewing As Banner */}
           {isViewingAsAssociated && viewingAs && (
             <div className="px-3 py-2 bg-amber-500/20 border-b border-amber-500/30">
               <div className="flex items-center justify-between">
@@ -375,7 +383,6 @@ export function Sidebar() {
             </div>
           )}
 
-          {/* Team/Club Context */}
           <div
             className="px-3 py-4"
             style={{ borderBottom: '1px solid hsl(var(--sidebar-border))' }}
@@ -443,14 +450,13 @@ export function Sidebar() {
             )}
           </div>
 
-          {/* Navigation */}
           <ScrollArea className="flex-1 py-4">
             <nav className="px-3 space-y-1">
               {navLinks.map((link) => {
                 const Icon = link.icon;
                 const isActive =
                   location.pathname === link.href ||
-                  location.pathname.startsWith(link.href + '/');
+                  location.pathname.startsWith(`${link.href}/`);
 
                 const testId = `nav-${link.href.replace(/\//g, '') || 'root'}`;
 
@@ -488,11 +494,7 @@ export function Sidebar() {
                   >
                     <Icon
                       className="w-5 h-5"
-                      style={
-                        isActive
-                          ? { color: 'var(--sidebar-active-text, #22d3ee)' }
-                          : {}
-                      }
+                      style={isActive ? { color: 'var(--sidebar-active-text, #22d3ee)' } : {}}
                     />
                     <span className="font-medium text-sm">{link.label}</span>
 
@@ -510,7 +512,6 @@ export function Sidebar() {
             </nav>
           </ScrollArea>
 
-          {/* User Menu */}
           <div
             className="p-3"
             style={{ borderTop: '1px solid hsl(var(--sidebar-border))' }}
