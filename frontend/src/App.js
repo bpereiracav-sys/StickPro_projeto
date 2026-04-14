@@ -39,7 +39,6 @@ import LibraryPage from "./pages/LibraryPage";
 import Payments from "./pages/Payments";
 import SubscriptionPage from "./pages/SubscriptionPage";
 
-// Protected Route Component
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
@@ -58,7 +57,6 @@ function ProtectedRoute({ children }) {
   return <AppLayout>{children}</AppLayout>;
 }
 
-// Public Route Component (redirects to dashboard if logged in)
 function PublicRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
 
@@ -80,7 +78,6 @@ function PublicRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
-      {/* Public Routes */}
       <Route
         path="/"
         element={
@@ -89,10 +86,7 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
-      <Route
-        path="/login"
-        element={<Login />}
-      />
+      <Route path="/login" element={<Login />} />
       <Route
         path="/register"
         element={
@@ -102,7 +96,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Protected Routes */}
       <Route
         path="/dashboard"
         element={
@@ -113,6 +106,14 @@ function AppRoutes() {
       />
       <Route
         path="/teams"
+        element={
+          <ProtectedRoute>
+            <TeamsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/teams-management"
         element={
           <ProtectedRoute>
             <Teams />
@@ -264,14 +265,6 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/teams-management"
-        element={
-          <ProtectedRoute>
-            <TeamsPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
         path="/my-teams"
         element={
           <ProtectedRoute>
@@ -296,7 +289,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Catch all - redirect to landing */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
