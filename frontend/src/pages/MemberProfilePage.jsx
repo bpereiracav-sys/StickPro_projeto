@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useParams, useNavigate } from 'react-router-dom';
 import { usePermissions } from '../context/PermissionsContext';
-import { usersApi, unavailabilitiesApi } from '../services/api';
+import { usersApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -12,7 +11,6 @@ import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Separator } from '../components/ui/separator';
 import { Skeleton } from '../components/ui/skeleton';
-import { Textarea } from '../components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -29,7 +27,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import { toast } from 'sonner';
-import { 
+import {
   User,
   Users,
   Scale,
@@ -40,48 +38,34 @@ import {
   Plus,
   Trash2,
   ArrowLeft,
-  Mail,
   Phone,
-  Calendar,
-  Hash,
-  Ruler,
-  CalendarOff,
-  Edit,
-  Briefcase,
-  GraduationCap,
-  Stethoscope,
-  Palmtree,
-  AlertCircle,
-  BarChart3
+  BarChart3,
 } from 'lucide-react';
-import { getInitials, getRoleName, formatDate } from '../lib/utils';
+import { getInitials, getRoleName } from '../lib/utils';
 import { ImageUpload } from '../components/ImageUpload';
 
 export default function MemberProfilePage() {
   const { memberId } = useParams();
-  const { user: currentUser } = useAuth();
   const { isAdmin, canManageTeam } = usePermissions();
   const navigate = useNavigate();
-  
+
   const [member, setMember] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('identity');
   const [showAddFamilyModal, setShowAddFamilyModal] = useState(false);
+
   const [newFamilyMember, setNewFamilyMember] = useState({
     first_name: '',
     surname: '',
     email: '',
     phone: '',
-    relationship: 'pai'
+    relationship: 'pai',
   });
 
-  // Check if current user can edit this member
   const canEdit = isAdmin || canManageTeam;
 
-  // Form state
   const [formData, setFormData] = useState({
-    // Identity
     photo_url: '',
     first_name: '',
     surname: '',
@@ -90,27 +74,19 @@ export default function MemberProfilePage() {
     gender: '',
     nationality: '',
     fpp_license: '',
-    
-    // Family
     family_members: [],
-    
-    // Biometric
     weight: '',
     height: '',
     shoe_size: '',
-    
-    // Sports info
     year_joined_club: '',
     fpp_number: '',
     function: 'jogador',
     position: '',
     jersey_number: '',
-    
-    // Equipment
     training_kit_size: '',
     tracksuit_size: '',
     polo_size: '',
-    training_sock_size: ''
+    training_sock_size: '',
   });
 
   useEffect(() => {
@@ -118,13 +94,13 @@ export default function MemberProfilePage() {
   }, [memberId]);
 
   const fetchMemberData = async () => {
+    setLoading(true);
     try {
       const response = await usersApi.getOne(memberId);
       const memberData = response.data;
-      setMember(memberData);
-      
-      // Populate form with member's profile data
       const profile = memberData.profile || {};
+
+      setMember(memberData);
       setFormData({
         photo_url: profile.photo_url || memberData.avatar_url || '',
         first_name: profile.first_name || memberData.name?.split(' ')[0] || '',
@@ -146,7 +122,7 @@ export default function MemberProfilePage() {
         training_kit_size: profile.training_kit_size || profile.equipment?.training_kit_size || '',
         tracksuit_size: profile.tracksuit_size || profile.equipment?.tracksuit_size || '',
         polo_size: profile.polo_size || profile.equipment?.polo_size || '',
-        training_sock_size: profile.training_sock_size || profile.equipment?.training_sock_size || ''
+        training_sock_size: profile.training_sock_size || profile.equipment?.training_sock_size || '',
       });
     } catch (error) {
       console.error('Error fetching member:', error);
@@ -157,7 +133,7 @@ export default function MemberProfilePage() {
   };
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
@@ -165,12 +141,12 @@ export default function MemberProfilePage() {
       toast.error('Sem permissão para editar este perfil');
       return;
     }
-    
+
     setSaving(true);
     try {
       await usersApi.updateProfile(memberId, formData);
-      toast.success('Perfil atualizado com sucesso!');
-      fetchMemberData(); // Refresh data
+      toast.success('Perfil atualizado com sucesso');
+      await fetchMemberData();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erro ao atualizar perfil');
     } finally {
@@ -184,14 +160,14 @@ export default function MemberProfilePage() {
       return;
     }
 
-    const newMember = {
+    const familyMember = {
       id: Date.now().toString(),
-      ...newFamilyMember
+      ...newFamilyMember,
     };
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      family_members: [...prev.family_members, newMember]
+      family_members: [...prev.family_members, familyMember],
     }));
 
     setNewFamilyMember({
@@ -199,27 +175,28 @@ export default function MemberProfilePage() {
       surname: '',
       email: '',
       phone: '',
-      relationship: 'pai'
+      relationship: 'pai',
     });
     setShowAddFamilyModal(false);
     toast.success('Familiar adicionado');
   };
 
   const handleRemoveFamilyMember = (familyMemberId) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      family_members: prev.family_members.filter(m => m.id !== familyMemberId)
+      family_members: prev.family_members.filter((m) => m.id !== familyMemberId),
     }));
     toast.success('Familiar removido');
   };
 
-  const getRelationshipLabel = (rel) => {
+  const getRelationshipLabel = (relationship) => {
     const labels = {
-      'pai': 'Pai',
-      'mae': 'Mãe',
-      'outro': 'Outro Familiar'
+      pai: 'Pai',
+      mae: 'Mãe',
+      outro: 'Outro Familiar',
     };
-    return labels[rel] || rel;
+
+    return labels[relationship] || relationship;
   };
 
   if (loading) {
@@ -236,7 +213,9 @@ export default function MemberProfilePage() {
       <div className="max-w-4xl mx-auto text-center py-12">
         <User className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
         <h2 className="text-xl font-semibold">Membro não encontrado</h2>
-        <p className="text-muted-foreground mt-2">O membro solicitado não existe ou foi removido.</p>
+        <p className="text-muted-foreground mt-2">
+          O membro solicitado não existe ou foi removido.
+        </p>
         <Button onClick={() => navigate('/members')} className="mt-4">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Voltar aos Membros
@@ -247,9 +226,8 @@ export default function MemberProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 px-2 sm:px-0" data-testid="member-profile-page">
-      {/* Back Button */}
-      <Button 
-        variant="ghost" 
+      <Button
+        variant="ghost"
         onClick={() => navigate('/members')}
         className="mb-2"
         data-testid="back-to-members-btn"
@@ -258,7 +236,6 @@ export default function MemberProfilePage() {
         Voltar aos Membros
       </Button>
 
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <Avatar className="w-14 h-14 sm:w-20 sm:h-20 border-4 border-primary flex-shrink-0">
@@ -267,6 +244,7 @@ export default function MemberProfilePage() {
               {getInitials(formData.first_name || member?.name)}
             </AvatarFallback>
           </Avatar>
+
           <div className="min-w-0 flex-1">
             <h1 className="font-heading text-xl sm:text-2xl lg:text-3xl text-foreground tracking-tight">
               {member?.name}
@@ -276,15 +254,17 @@ export default function MemberProfilePage() {
             </p>
           </div>
         </div>
+
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => navigate(`/players/${memberId}`)}
             data-testid="view-stats-btn"
           >
             <BarChart3 className="w-4 h-4 mr-2" />
             Ver Estatísticas
           </Button>
+
           {canEdit && (
             <Button onClick={handleSave} disabled={saving} data-testid="save-member-profile-btn">
               {saving ? (
@@ -313,7 +293,6 @@ export default function MemberProfilePage() {
         </Card>
       )}
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="flex flex-wrap h-auto gap-1 p-1 w-full">
           <TabsTrigger value="identity" className="flex-1 min-w-[60px] flex-col sm:flex-row items-center gap-0.5 sm:gap-1 py-1.5 sm:py-2 px-1.5 sm:px-3">
@@ -338,7 +317,6 @@ export default function MemberProfilePage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Identity Tab */}
         <TabsContent value="identity">
           <Card className="border border-border">
             <CardHeader>
@@ -348,6 +326,7 @@ export default function MemberProfilePage() {
               </CardTitle>
               <CardDescription>Informações pessoais</CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-6">
               {canEdit && (
                 <>
@@ -361,10 +340,12 @@ export default function MemberProfilePage() {
                     />
                     <div className="flex-1">
                       <p className="text-sm text-muted-foreground">
-                        Carregue uma foto de perfil. Formatos aceites: JPEG, PNG, GIF, WebP. Tamanho máximo: 5MB.
+                        Carregue uma foto de perfil. Formatos aceites: JPEG, PNG, GIF, WebP.
+                        Tamanho máximo: 5MB.
                       </p>
                     </div>
                   </div>
+
                   <Separator />
                 </>
               )}
@@ -417,9 +398,9 @@ export default function MemberProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Género</Label>
-                  <Select 
-                    value={formData.gender} 
-                    onValueChange={(v) => handleChange('gender', v)}
+                  <Select
+                    value={formData.gender}
+                    onValueChange={(value) => handleChange('gender', value)}
                     disabled={!canEdit}
                   >
                     <SelectTrigger>
@@ -431,6 +412,7 @@ export default function MemberProfilePage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Nacionalidade</Label>
                   <Input
@@ -456,7 +438,6 @@ export default function MemberProfilePage() {
           </Card>
         </TabsContent>
 
-        {/* Family Tab */}
         <TabsContent value="family">
           <Card className="border border-border">
             <CardHeader>
@@ -468,10 +449,11 @@ export default function MemberProfilePage() {
                   </CardTitle>
                   <CardDescription>Contactos de familiares/responsáveis</CardDescription>
                 </div>
+
                 {canEdit && (
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => setShowAddFamilyModal(true)}
                     data-testid="add-family-member-btn"
                   >
@@ -481,6 +463,7 @@ export default function MemberProfilePage() {
                 )}
               </div>
             </CardHeader>
+
             <CardContent>
               {formData.family_members.length === 0 ? (
                 <div className="text-center py-8 bg-muted/30 rounded-lg">
@@ -489,38 +472,42 @@ export default function MemberProfilePage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {formData.family_members.map((fm, index) => (
-                    <div 
-                      key={fm.id || index}
+                  {formData.family_members.map((familyMember, index) => (
+                    <div
+                      key={familyMember.id || index}
                       className="flex items-center justify-between p-4 border border-border rounded-lg"
                     >
                       <div className="flex items-center gap-3">
                         <Avatar>
                           <AvatarFallback className="bg-secondary text-secondary-foreground">
-                            {getInitials(`${fm.first_name} ${fm.surname}`)}
+                            {getInitials(`${familyMember.first_name} ${familyMember.surname}`)}
                           </AvatarFallback>
                         </Avatar>
+
                         <div>
-                          <p className="font-medium">{fm.first_name} {fm.surname}</p>
+                          <p className="font-medium">
+                            {familyMember.first_name} {familyMember.surname}
+                          </p>
                           <div className="flex items-center gap-2 text-sm text-muted-foreground">
                             <Badge variant="outline" className="text-xs">
-                              {getRelationshipLabel(fm.relationship)}
+                              {getRelationshipLabel(familyMember.relationship)}
                             </Badge>
-                            {fm.phone && (
+                            {familyMember.phone && (
                               <span className="flex items-center gap-1">
                                 <Phone className="w-3 h-3" />
-                                {fm.phone}
+                                {familyMember.phone}
                               </span>
                             )}
                           </div>
                         </div>
                       </div>
+
                       {canEdit && (
                         <Button
                           variant="ghost"
                           size="icon"
                           className="text-destructive hover:bg-destructive/10"
-                          onClick={() => handleRemoveFamilyMember(fm.id)}
+                          onClick={() => handleRemoveFamilyMember(familyMember.id)}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -533,7 +520,6 @@ export default function MemberProfilePage() {
           </Card>
         </TabsContent>
 
-        {/* Biometric Tab */}
         <TabsContent value="biometric">
           <Card className="border border-border">
             <CardHeader>
@@ -543,6 +529,7 @@ export default function MemberProfilePage() {
               </CardTitle>
               <CardDescription>Informações físicas</CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
@@ -581,7 +568,6 @@ export default function MemberProfilePage() {
           </Card>
         </TabsContent>
 
-        {/* Sports Tab */}
         <TabsContent value="sports">
           <Card className="border border-border">
             <CardHeader>
@@ -591,6 +577,7 @@ export default function MemberProfilePage() {
               </CardTitle>
               <CardDescription>Dados do jogador/atleta</CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -617,9 +604,9 @@ export default function MemberProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label>Função</Label>
-                  <Select 
-                    value={formData.function} 
-                    onValueChange={(v) => handleChange('function', v)}
+                  <Select
+                    value={formData.function}
+                    onValueChange={(value) => handleChange('function', value)}
                     disabled={!canEdit}
                   >
                     <SelectTrigger>
@@ -633,11 +620,12 @@ export default function MemberProfilePage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Posição</Label>
-                  <Select 
-                    value={formData.position} 
-                    onValueChange={(v) => handleChange('position', v)}
+                  <Select
+                    value={formData.position}
+                    onValueChange={(value) => handleChange('position', value)}
                     disabled={!canEdit}
                   >
                     <SelectTrigger>
@@ -649,6 +637,7 @@ export default function MemberProfilePage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Número da Camisola</Label>
                   <Input
@@ -664,7 +653,6 @@ export default function MemberProfilePage() {
           </Card>
         </TabsContent>
 
-        {/* Equipment Tab */}
         <TabsContent value="equipment">
           <Card className="border border-border">
             <CardHeader>
@@ -674,13 +662,14 @@ export default function MemberProfilePage() {
               </CardTitle>
               <CardDescription>Tamanhos de equipamento</CardDescription>
             </CardHeader>
+
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tamanho Kit Treino</Label>
-                  <Select 
-                    value={formData.training_kit_size} 
-                    onValueChange={(v) => handleChange('training_kit_size', v)}
+                  <Select
+                    value={formData.training_kit_size}
+                    onValueChange={(value) => handleChange('training_kit_size', value)}
                     disabled={!canEdit}
                   >
                     <SelectTrigger>
@@ -696,11 +685,12 @@ export default function MemberProfilePage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Tamanho Fato Treino</Label>
-                  <Select 
-                    value={formData.tracksuit_size} 
-                    onValueChange={(v) => handleChange('tracksuit_size', v)}
+                  <Select
+                    value={formData.tracksuit_size}
+                    onValueChange={(value) => handleChange('tracksuit_size', value)}
                     disabled={!canEdit}
                   >
                     <SelectTrigger>
@@ -721,9 +711,9 @@ export default function MemberProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Tamanho Polo</Label>
-                  <Select 
-                    value={formData.polo_size} 
-                    onValueChange={(v) => handleChange('polo_size', v)}
+                  <Select
+                    value={formData.polo_size}
+                    onValueChange={(value) => handleChange('polo_size', value)}
                     disabled={!canEdit}
                   >
                     <SelectTrigger>
@@ -739,11 +729,12 @@ export default function MemberProfilePage() {
                     </SelectContent>
                   </Select>
                 </div>
+
                 <div className="space-y-2">
                   <Label>Tamanho Meias Treino</Label>
-                  <Select 
-                    value={formData.training_sock_size} 
-                    onValueChange={(v) => handleChange('training_sock_size', v)}
+                  <Select
+                    value={formData.training_sock_size}
+                    onValueChange={(value) => handleChange('training_sock_size', value)}
                     disabled={!canEdit}
                   >
                     <SelectTrigger>
@@ -762,20 +753,24 @@ export default function MemberProfilePage() {
         </TabsContent>
       </Tabs>
 
-      {/* Add Family Member Modal */}
       <Dialog open={showAddFamilyModal} onOpenChange={setShowAddFamilyModal}>
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">Adicionar Familiar</DialogTitle>
-            <DialogDescription>Adicionar contacto de familiar ou responsável</DialogDescription>
+            <DialogDescription>
+              Adicionar contacto de familiar ou responsável
+            </DialogDescription>
           </DialogHeader>
+
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Nome *</Label>
                 <Input
                   value={newFamilyMember.first_name}
-                  onChange={(e) => setNewFamilyMember({ ...newFamilyMember, first_name: e.target.value })}
+                  onChange={(e) =>
+                    setNewFamilyMember((prev) => ({ ...prev, first_name: e.target.value }))
+                  }
                   placeholder="Maria"
                 />
               </div>
@@ -783,16 +778,21 @@ export default function MemberProfilePage() {
                 <Label>Apelido *</Label>
                 <Input
                   value={newFamilyMember.surname}
-                  onChange={(e) => setNewFamilyMember({ ...newFamilyMember, surname: e.target.value })}
+                  onChange={(e) =>
+                    setNewFamilyMember((prev) => ({ ...prev, surname: e.target.value }))
+                  }
                   placeholder="Silva"
                 />
               </div>
             </div>
+
             <div className="space-y-2">
               <Label>Parentesco</Label>
-              <Select 
-                value={newFamilyMember.relationship} 
-                onValueChange={(v) => setNewFamilyMember({ ...newFamilyMember, relationship: v })}
+              <Select
+                value={newFamilyMember.relationship}
+                onValueChange={(value) =>
+                  setNewFamilyMember((prev) => ({ ...prev, relationship: value }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -804,13 +804,16 @@ export default function MemberProfilePage() {
                 </SelectContent>
               </Select>
             </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Email</Label>
                 <Input
                   type="email"
                   value={newFamilyMember.email}
-                  onChange={(e) => setNewFamilyMember({ ...newFamilyMember, email: e.target.value })}
+                  onChange={(e) =>
+                    setNewFamilyMember((prev) => ({ ...prev, email: e.target.value }))
+                  }
                   placeholder="email@exemplo.com"
                 />
               </div>
@@ -818,14 +821,19 @@ export default function MemberProfilePage() {
                 <Label>Telefone</Label>
                 <Input
                   value={newFamilyMember.phone}
-                  onChange={(e) => setNewFamilyMember({ ...newFamilyMember, phone: e.target.value })}
+                  onChange={(e) =>
+                    setNewFamilyMember((prev) => ({ ...prev, phone: e.target.value }))
+                  }
                   placeholder="+351 912 345 678"
                 />
               </div>
             </div>
           </div>
+
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowAddFamilyModal(false)}>Cancelar</Button>
+            <Button variant="outline" onClick={() => setShowAddFamilyModal(false)}>
+              Cancelar
+            </Button>
             <Button onClick={handleAddFamilyMember}>Adicionar</Button>
           </DialogFooter>
         </DialogContent>
