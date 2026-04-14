@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useTheme, THEME_PRESETS } from '../context/ThemeContext';
+import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import { clubApi, seasonsApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -36,11 +36,11 @@ import {
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
 import { toast } from 'sonner';
-import { 
-  Building2, 
-  MapPin, 
-  Globe, 
-  Mail, 
+import {
+  Building2,
+  MapPin,
+  Globe,
+  Mail,
   Phone,
   Calendar,
   Edit,
@@ -55,11 +55,10 @@ import {
   Star,
   CalendarDays,
   Home,
-  Users
+  Users,
 } from 'lucide-react';
 import { LogoUpload } from '../components/ImageUpload';
 
-// Predefined color palettes
 const COLOR_PALETTES = [
   { name: 'Verde Clássico', primary: '#006D5B', secondary: '#FFD700', accent: '#1a1a2e', mode: 'light' },
   { name: 'Azul Real', primary: '#1e40af', secondary: '#fbbf24', accent: '#0f172a', mode: 'light' },
@@ -72,7 +71,6 @@ const COLOR_PALETTES = [
   { name: 'Neon Dark', primary: '#39ff14', secondary: '#00ff88', accent: '#111111', mode: 'dark' },
 ];
 
-// Common timezones
 const TIMEZONES = [
   { value: 'Europe/Lisbon', label: 'Lisboa (GMT+0/+1)' },
   { value: 'Europe/Madrid', label: 'Madrid (GMT+1/+2)' },
@@ -90,7 +88,6 @@ const TIMEZONES = [
   { value: 'UTC', label: 'UTC (GMT+0)' },
 ];
 
-// 20 Predefined sidebar active text colors
 const SIDEBAR_ACCENT_COLORS = [
   { name: 'Ciano', hex: '#22d3ee' },
   { name: 'Azul Claro', hex: '#60a5fa' },
@@ -114,120 +111,155 @@ const SIDEBAR_ACCENT_COLORS = [
   { name: 'Dourado', hex: '#ffd700' },
 ];
 
+const DEFAULT_FORM = {
+  name: '',
+  logo_url: '',
+  address: '',
+  city: '',
+  country: 'Portugal',
+  founded_year: '',
+  website: '',
+  email: '',
+  phone: '',
+  venue_name: '',
+  venue_location: '',
+  primary_color: '#006D5B',
+  secondary_color: '#FFD700',
+  accent_color: '#1a1a2e',
+  theme_mode: 'light',
+  timezone: 'Europe/Lisbon',
+};
+
+function mapClubToForm(clubData) {
+  return {
+    name: clubData?.name || '',
+    logo_url: clubData?.logo_url || '',
+    address: clubData?.address || '',
+    city: clubData?.city || '',
+    country: clubData?.country || 'Portugal',
+    founded_year: clubData?.founded_year || '',
+    website: clubData?.website || '',
+    email: clubData?.email || '',
+    phone: clubData?.phone || '',
+    venue_name: clubData?.venue_name || '',
+    venue_location: clubData?.venue_location || '',
+    primary_color: clubData?.primary_color || '#006D5B',
+    secondary_color: clubData?.secondary_color || '#FFD700',
+    accent_color: clubData?.accent_color || '#1a1a2e',
+    theme_mode: clubData?.theme_mode || 'light',
+    timezone: clubData?.timezone || 'Europe/Lisbon',
+  };
+}
+
 export default function ClubPage() {
   const { user } = useAuth();
-  const { refreshTheme, setSidebarAccentColor, theme } = useTheme();
+  const { refreshTheme, setSidebarAccentColor } = useTheme();
   const { t } = useLanguage();
+
   const [club, setClub] = useState(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [selectedPalette, setSelectedPalette] = useState(null);
   const [activeTab, setActiveTab] = useState('info');
-  const [savingSidebarColor, setSavingSidebarColor] = useState(false);
+
   const [selectedSidebarColor, setSelectedSidebarColor] = useState('#22d3ee');
-  
-  // Seasons state
+  const [savingSidebarColor, setSavingSidebarColor] = useState(false);
+
   const [seasons, setSeasons] = useState([]);
   const [loadingSeasons, setLoadingSeasons] = useState(false);
   const [showSeasonModal, setShowSeasonModal] = useState(false);
   const [editingSeason, setEditingSeason] = useState(null);
   const [savingSeason, setSavingSeason] = useState(false);
   const [seasonToDelete, setSeasonToDelete] = useState(null);
+
   const [seasonForm, setSeasonForm] = useState({
     name: '',
     start_date: '',
     end_date: '',
-    is_active: false
+    is_active: false,
   });
 
-  const [formData, setFormData] = useState({
-    name: '',
-    logo_url: '',
-    address: '',
-    city: '',
-    country: 'Portugal',
-    founded_year: '',
-    website: '',
-    email: '',
-    phone: '',
-    venue_name: '',
-    venue_location: '',
-    primary_color: '#006D5B',
-    secondary_color: '#FFD700',
-    accent_color: '#1a1a2e',
-    theme_mode: 'light',
-    timezone: 'Europe/Lisbon'
-  });
+  const [formData, setFormData] = useState(DEFAULT_FORM);
 
   const isAdmin = ['admin', 'gestor_desportivo'].includes(user?.role);
 
+  const fetchClub = useCallback(async () => {
+    try {
+      const response = await clubApi.getAll();
+      const clubData = response.data?.[0] || null;
+
+      setClub(clubData);
+
+      if (clubData) {
+        setFormData(mapClubToForm(clubData));
+        setSelectedSidebarColor(clubData.sidebar_accent_color || '#22d3ee');
+      } else {
+        setFormData(DEFAULT_FORM);
+        setSelectedSidebarColor('#22d3ee');
+      }
+    } catch (error) {
+      console.error('Error fetching club:', error);
+      toast.error(t('common.error'));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  const fetchSeasons = useCallback(async () => {
+    if (!club?.id) return;
+
+    setLoadingSeasons(true);
+    try {
+      const response = await seasonsApi.getAll(club.id);
+      setSeasons(response.data || []);
+    } catch (error) {
+      console.error('Error fetching seasons:', error);
+      toast.error(t('common.error'));
+    } finally {
+      setLoadingSeasons(false);
+    }
+  }, [club?.id, t]);
+
   useEffect(() => {
     fetchClub();
-  }, []);
+  }, [fetchClub]);
 
   useEffect(() => {
     if (club?.id) {
       fetchSeasons();
     }
-  }, [club?.id]);
+  }, [club?.id, fetchSeasons]);
 
-  const fetchClub = async () => {
-    try {
-      const response = await clubApi.getAll();
-      if (response.data.length > 0) {
-        const clubData = response.data[0];
-        setClub(clubData);
-        setSelectedSidebarColor(clubData.sidebar_accent_color || '#22d3ee');
-        setFormData({
-          name: clubData.name || '',
-          logo_url: clubData.logo_url || '',
-          address: clubData.address || '',
-          city: clubData.city || '',
-          country: clubData.country || 'Portugal',
-          founded_year: clubData.founded_year || '',
-          website: clubData.website || '',
-          email: clubData.email || '',
-          phone: clubData.phone || '',
-          venue_name: clubData.venue_name || '',
-          venue_location: clubData.venue_location || '',
-          primary_color: clubData.primary_color || '#006D5B',
-          secondary_color: clubData.secondary_color || '#FFD700',
-          accent_color: clubData.accent_color || '#1a1a2e',
-          theme_mode: clubData.theme_mode || 'light',
-          timezone: clubData.timezone || 'Europe/Lisbon'
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching club:', error);
-    } finally {
-      setLoading(false);
-    }
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  const fetchSeasons = async () => {
-    if (!club?.id) return;
-    setLoadingSeasons(true);
-    try {
-      const response = await seasonsApi.getAll(club.id);
-      setSeasons(response.data);
-    } catch (error) {
-      console.error('Error fetching seasons:', error);
-    } finally {
-      setLoadingSeasons(false);
-    }
+  const handlePaletteSelect = (palette) => {
+    setSelectedPalette(palette.name);
+    setFormData((prev) => ({
+      ...prev,
+      primary_color: palette.primary,
+      secondary_color: palette.secondary,
+      accent_color: palette.accent,
+      theme_mode: palette.mode || 'light',
+    }));
   };
 
   const handleCreateClub = async () => {
     setSaving(true);
     try {
       const response = await clubApi.create(formData);
-      setClub(response.data);
-      toast.success(t('club.createClub') + ' - ' + t('common.success'));
+      const createdClub = response.data;
+      setClub(createdClub);
+      setFormData(mapClubToForm(createdClub));
+      setSelectedSidebarColor(createdClub.sidebar_accent_color || '#22d3ee');
+      toast.success(`${t('club.createClub')} - ${t('common.success')}`);
     } catch (error) {
-      const message = typeof error.response?.data?.detail === 'string' 
-        ? error.response.data.detail 
-        : t('common.error');
+      const message =
+        typeof error.response?.data?.detail === 'string'
+          ? error.response.data.detail
+          : t('common.error');
       toast.error(message);
     } finally {
       setSaving(false);
@@ -235,69 +267,81 @@ export default function ClubPage() {
   };
 
   const handleUpdateClub = async () => {
+    if (!club?.id) return;
+
     setSaving(true);
     try {
       await clubApi.update(club.id, formData);
-      setClub({ ...club, ...formData });
+      const updatedClub = { ...club, ...formData };
+      setClub(updatedClub);
+      setFormData(mapClubToForm(updatedClub));
       setEditing(false);
       refreshTheme();
       toast.success(t('common.success'));
     } catch (error) {
-      const message = typeof error.response?.data?.detail === 'string' 
-        ? error.response.data.detail 
-        : t('common.error');
+      const message =
+        typeof error.response?.data?.detail === 'string'
+          ? error.response.data.detail
+          : t('common.error');
       toast.error(message);
     } finally {
       setSaving(false);
     }
   };
 
-  const handlePaletteSelect = (palette) => {
-    setSelectedPalette(palette.name);
-    setFormData(prev => ({
-      ...prev,
-      primary_color: palette.primary,
-      secondary_color: palette.secondary,
-      accent_color: palette.accent,
-      theme_mode: palette.mode || 'light'
-    }));
+  const handleCancelEdit = () => {
+    setEditing(false);
+    setSelectedPalette(null);
+    setFormData(club ? mapClubToForm(club) : DEFAULT_FORM);
   };
 
-  const handleChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleTimezoneChange = async (timezone) => {
+    if (!club?.id || !isAdmin) return;
+
+    const previous = formData.timezone;
+    setFormData((prev) => ({ ...prev, timezone }));
+
+    try {
+      await clubApi.update(club.id, { ...formData, timezone });
+      const updatedClub = { ...club, timezone };
+      setClub(updatedClub);
+      toast.success(t('common.success'));
+    } catch (error) {
+      setFormData((prev) => ({ ...prev, timezone: previous }));
+      toast.error(t('common.error'));
+    }
   };
 
-  // Handler for sidebar accent color change - auto-save
   const handleSidebarColorChange = async (color) => {
     if (!club?.id || !isAdmin) return;
-    
+
+    const previousColor = club.sidebar_accent_color || '#22d3ee';
+
     setSelectedSidebarColor(color);
-    setSidebarAccentColor(color); // Apply immediately to UI
+    setSidebarAccentColor(color);
     setSavingSidebarColor(true);
-    
+
     try {
       await clubApi.update(club.id, { sidebar_accent_color: color });
-      setClub({ ...club, sidebar_accent_color: color });
+      setClub((prev) => ({ ...prev, sidebar_accent_color: color }));
       toast.success(t('club.sidebarColorUpdated') || 'Cor atualizada com sucesso');
     } catch (error) {
+      setSelectedSidebarColor(previousColor);
+      setSidebarAccentColor(previousColor);
       toast.error(t('common.error'));
-      // Revert on error
-      setSelectedSidebarColor(club.sidebar_accent_color || '#22d3ee');
-      setSidebarAccentColor(club.sidebar_accent_color || '#22d3ee');
     } finally {
       setSavingSidebarColor(false);
     }
   };
 
-  // Season handlers
   const openSeasonModal = (season = null) => {
     if (season) {
       setEditingSeason(season);
       setSeasonForm({
-        name: season.name,
-        start_date: season.start_date,
-        end_date: season.end_date,
-        is_active: season.is_active
+        name: season.name || '',
+        start_date: season.start_date || '',
+        end_date: season.end_date || '',
+        is_active: !!season.is_active,
       });
     } else {
       setEditingSeason(null);
@@ -305,13 +349,16 @@ export default function ClubPage() {
         name: '',
         start_date: '',
         end_date: '',
-        is_active: false
+        is_active: false,
       });
     }
+
     setShowSeasonModal(true);
   };
 
   const handleSaveSeason = async () => {
+    if (!club?.id) return;
+
     if (!seasonForm.name || !seasonForm.start_date || !seasonForm.end_date) {
       toast.error(t('common.required'));
       return;
@@ -326,8 +373,10 @@ export default function ClubPage() {
         await seasonsApi.create(club.id, seasonForm);
         toast.success(t('club.seasonCreated'));
       }
+
       setShowSeasonModal(false);
-      fetchSeasons();
+      setEditingSeason(null);
+      await fetchSeasons();
     } catch (error) {
       toast.error(error.response?.data?.detail || t('common.error'));
     } finally {
@@ -336,22 +385,25 @@ export default function ClubPage() {
   };
 
   const handleActivateSeason = async (seasonId) => {
+    if (!club?.id) return;
+
     try {
       await seasonsApi.activate(club.id, seasonId);
       toast.success(t('club.seasonActivated'));
-      fetchSeasons();
+      await fetchSeasons();
     } catch (error) {
       toast.error(error.response?.data?.detail || t('common.error'));
     }
   };
 
   const handleDeleteSeason = async () => {
-    if (!seasonToDelete) return;
+    if (!club?.id || !seasonToDelete) return;
+
     try {
       await seasonsApi.delete(club.id, seasonToDelete.id);
       toast.success(t('club.seasonDeleted'));
       setSeasonToDelete(null);
-      fetchSeasons();
+      await fetchSeasons();
     } catch (error) {
       toast.error(error.response?.data?.detail || t('common.error'));
     }
@@ -372,7 +424,6 @@ export default function ClubPage() {
     );
   }
 
-  // No club exists - show create form for admins
   if (!club && isAdmin) {
     return (
       <div className="max-w-2xl mx-auto space-y-6" data-testid="club-create-page">
@@ -380,9 +431,7 @@ export default function ClubPage() {
           <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
             {t('club.createClub').toUpperCase()}
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Configure as informações do seu clube
-          </p>
+          <p className="text-muted-foreground mt-1">Configure as informações do seu clube</p>
         </div>
 
         <Card className="border border-border">
@@ -431,20 +480,20 @@ export default function ClubPage() {
                 <Input
                   type="number"
                   value={formData.founded_year}
-                  onChange={(e) => handleChange('founded_year', parseInt(e.target.value) || '')}
+                  onChange={(e) => handleChange('founded_year', parseInt(e.target.value, 10) || '')}
                   placeholder="1906"
                 />
               </div>
               <div className="space-y-2">
                 <Label>{t('club.timezone')}</Label>
-                <Select value={formData.timezone} onValueChange={(v) => handleChange('timezone', v)}>
+                <Select value={formData.timezone} onValueChange={(value) => handleChange('timezone', value)}>
                   <SelectTrigger data-testid="timezone-select">
                     <SelectValue placeholder={t('club.selectTimezone')} />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {TIMEZONES.map(tz => (
-                      <SelectItem key={tz.value} value={tz.value}>
-                        {tz.label}
+                    {TIMEZONES.map((timezone) => (
+                      <SelectItem key={timezone.value} value={timezone.value}>
+                        {timezone.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -472,8 +521,8 @@ export default function ClubPage() {
               </div>
             </div>
 
-            <Button 
-              onClick={handleCreateClub} 
+            <Button
+              onClick={handleCreateClub}
               disabled={saving || !formData.name}
               className="w-full mt-4"
               data-testid="create-club-btn"
@@ -496,7 +545,6 @@ export default function ClubPage() {
     );
   }
 
-  // No club and not admin
   if (!club) {
     return (
       <div className="max-w-2xl mx-auto text-center py-16">
@@ -509,15 +557,13 @@ export default function ClubPage() {
     );
   }
 
-  // Show club info with tabs
   return (
     <div className="max-w-4xl mx-auto space-y-6" data-testid="club-page">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
           {club.logo_url ? (
-            <img 
-              src={club.logo_url} 
+            <img
+              src={club.logo_url}
               alt={club.name}
               className="w-20 h-20 object-contain rounded-lg border border-border"
               data-testid="club-logo-display"
@@ -527,6 +573,7 @@ export default function ClubPage() {
               <Building2 className="w-10 h-10 text-primary" />
             </div>
           )}
+
           <div>
             <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
               {club.name}
@@ -539,7 +586,7 @@ export default function ClubPage() {
             )}
           </div>
         </div>
-        
+
         {isAdmin && !editing && (
           <Button variant="outline" onClick={() => setEditing(true)} data-testid="edit-club-btn">
             <Edit className="w-4 h-4 mr-2" />
@@ -548,7 +595,6 @@ export default function ClubPage() {
         )}
       </div>
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-flex">
           <TabsTrigger value="info" className="gap-2" data-testid="tab-info">
@@ -565,22 +611,18 @@ export default function ClubPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* Info Tab */}
         <TabsContent value="info">
           {editing ? (
-            /* Edit Form */
             <Card className="border border-border">
               <CardHeader>
                 <CardTitle>{t('club.editClub')}</CardTitle>
               </CardHeader>
+
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>{t('club.clubName')}</Label>
-                    <Input
-                      value={formData.name}
-                      onChange={(e) => handleChange('name', e.target.value)}
-                    />
+                    <Input value={formData.name} onChange={(e) => handleChange('name', e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>{t('club.logo')}</Label>
@@ -594,17 +636,11 @@ export default function ClubPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>{t('club.address')}</Label>
-                    <Input
-                      value={formData.address}
-                      onChange={(e) => handleChange('address', e.target.value)}
-                    />
+                    <Input value={formData.address} onChange={(e) => handleChange('address', e.target.value)} />
                   </div>
                   <div className="space-y-2">
                     <Label>{t('club.city')}</Label>
-                    <Input
-                      value={formData.city}
-                      onChange={(e) => handleChange('city', e.target.value)}
-                    />
+                    <Input value={formData.city} onChange={(e) => handleChange('city', e.target.value)} />
                   </div>
                 </div>
 
@@ -614,15 +650,12 @@ export default function ClubPage() {
                     <Input
                       type="number"
                       value={formData.founded_year}
-                      onChange={(e) => handleChange('founded_year', parseInt(e.target.value) || '')}
+                      onChange={(e) => handleChange('founded_year', parseInt(e.target.value, 10) || '')}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>{t('club.website')}</Label>
-                    <Input
-                      value={formData.website}
-                      onChange={(e) => handleChange('website', e.target.value)}
-                    />
+                    <Input value={formData.website} onChange={(e) => handleChange('website', e.target.value)} />
                   </div>
                 </div>
 
@@ -637,14 +670,10 @@ export default function ClubPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>{t('club.phone')}</Label>
-                    <Input
-                      value={formData.phone}
-                      onChange={(e) => handleChange('phone', e.target.value)}
-                    />
+                    <Input value={formData.phone} onChange={(e) => handleChange('phone', e.target.value)} />
                   </div>
                 </div>
 
-                {/* Pavilhão do Clube */}
                 <div className="space-y-4 pt-4 border-t border-border">
                   <div className="flex items-center gap-2">
                     <Building2 className="w-5 h-5 text-primary" />
@@ -670,27 +699,28 @@ export default function ClubPage() {
                   </div>
                 </div>
 
-                {/* Theme Color Selection */}
                 <div className="space-y-4 pt-4 border-t border-border">
                   <div className="flex items-center gap-2">
                     <Palette className="w-5 h-5 text-primary" />
                     <Label className="text-base font-medium">{t('club.themeColors')}</Label>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {COLOR_PALETTES.map((palette) => {
-                      const isSelected = selectedPalette === palette.name || 
-                        (formData.primary_color === palette.primary && 
-                         formData.secondary_color === palette.secondary);
-                      
+                      const isSelected =
+                        selectedPalette === palette.name ||
+                        (formData.primary_color === palette.primary &&
+                          formData.secondary_color === palette.secondary &&
+                          formData.accent_color === palette.accent);
+
                       return (
                         <button
                           key={palette.name}
                           type="button"
                           onClick={() => handlePaletteSelect(palette)}
                           className={`relative p-3 rounded-lg border-2 transition-all hover:scale-105 ${
-                            isSelected 
-                              ? 'border-primary ring-2 ring-primary/20' 
+                            isSelected
+                              ? 'border-primary ring-2 ring-primary/20'
                               : 'border-border hover:border-primary/50'
                           }`}
                         >
@@ -699,39 +729,40 @@ export default function ClubPage() {
                               <Check className="w-3 h-3 text-primary-foreground" />
                             </div>
                           )}
+
                           <div className="flex gap-1 mb-2">
-                            <div 
+                            <div
                               className="w-6 h-6 rounded-full border border-border"
                               style={{ backgroundColor: palette.primary }}
                             />
-                            <div 
+                            <div
                               className="w-6 h-6 rounded-full border border-border"
                               style={{ backgroundColor: palette.secondary }}
                             />
-                            <div 
+                            <div
                               className="w-6 h-6 rounded-full border border-border"
                               style={{ backgroundColor: palette.accent }}
                             />
                           </div>
+
                           <p className="text-xs font-medium truncate">{palette.name}</p>
                         </button>
                       );
                     })}
                   </div>
 
-                  {/* Current colors preview */}
                   <div className="flex items-center gap-4 p-3 bg-muted/50 rounded-lg">
                     <span className="text-sm text-muted-foreground">{t('club.currentColors')}:</span>
                     <div className="flex items-center gap-2">
-                      <div 
+                      <div
                         className="w-8 h-8 rounded-full border-2 border-border shadow-sm"
                         style={{ backgroundColor: formData.primary_color }}
                       />
-                      <div 
+                      <div
                         className="w-8 h-8 rounded-full border-2 border-border shadow-sm"
                         style={{ backgroundColor: formData.secondary_color }}
                       />
-                      <div 
+                      <div
                         className="w-8 h-8 rounded-full border-2 border-border shadow-sm"
                         style={{ backgroundColor: formData.accent_color }}
                       />
@@ -753,7 +784,7 @@ export default function ClubPage() {
                       </>
                     )}
                   </Button>
-                  <Button variant="outline" onClick={() => setEditing(false)}>
+                  <Button variant="outline" onClick={handleCancelEdit}>
                     <X className="w-4 h-4 mr-2" />
                     {t('common.cancel')}
                   </Button>
@@ -761,7 +792,6 @@ export default function ClubPage() {
               </CardContent>
             </Card>
           ) : (
-            /* Display Info */
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card className="border border-border">
                 <CardHeader>
@@ -773,7 +803,8 @@ export default function ClubPage() {
                 <CardContent className="space-y-3">
                   {club.address && <p className="text-foreground">{club.address}</p>}
                   <p className="text-muted-foreground">
-                    {club.city && `${club.city}, `}{club.country}
+                    {club.city && `${club.city}, `}
+                    {club.country}
                   </p>
                 </CardContent>
               </Card>
@@ -857,9 +888,9 @@ export default function ClubPage() {
                 </CardHeader>
                 <CardContent>
                   {club.website ? (
-                    <a 
-                      href={club.website} 
-                      target="_blank" 
+                    <a
+                      href={club.website}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:underline"
                     >
@@ -874,59 +905,46 @@ export default function ClubPage() {
           )}
         </TabsContent>
 
-        {/* Settings Tab (Timezone + Sidebar Color) */}
         <TabsContent value="settings">
-          {/* Timezone Card */}
           <Card className="border border-border mb-6">
             <CardHeader>
               <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
                 <Clock className="w-5 h-5 text-primary" />
                 {t('club.timezone').toUpperCase()}
               </CardTitle>
-              <CardDescription>
-                {t('club.timezoneDescription')}
-              </CardDescription>
+              <CardDescription>{t('club.timezoneDescription')}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="max-w-md space-y-2">
                 <Label>{t('club.selectTimezone')}</Label>
-                <Select 
-                  value={formData.timezone} 
-                  onValueChange={(v) => {
-                    handleChange('timezone', v);
-                    // Auto-save timezone
-                    clubApi.update(club.id, { ...formData, timezone: v })
-                      .then(() => {
-                        setClub({ ...club, timezone: v });
-                        toast.success(t('common.success'));
-                      })
-                      .catch(() => toast.error(t('common.error')));
-                  }}
+                <Select
+                  value={formData.timezone}
+                  onValueChange={handleTimezoneChange}
                   disabled={!isAdmin}
                 >
                   <SelectTrigger data-testid="timezone-select">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    {TIMEZONES.map(tz => (
-                      <SelectItem key={tz.value} value={tz.value}>
-                        {tz.label}
+                    {TIMEZONES.map((timezone) => (
+                      <SelectItem key={timezone.value} value={timezone.value}>
+                        {timezone.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="text-sm text-muted-foreground">
                   <Clock className="w-4 h-4 inline mr-1" />
-                  {t('club.timezone')}: <span className="font-medium text-foreground">{club.timezone || 'Europe/Lisbon'}</span>
+                  {t('club.timezone')}:{' '}
+                  <span className="font-medium text-foreground">{club.timezone || 'Europe/Lisbon'}</span>
                 </p>
               </div>
             </CardContent>
           </Card>
 
-          {/* Sidebar Active Color Card */}
           <Card className="border border-border">
             <CardHeader>
               <CardTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
@@ -934,14 +952,16 @@ export default function ClubPage() {
                 {t('club.sidebarActiveColor') || 'COR DO MENU ATIVO'}
               </CardTitle>
               <CardDescription>
-                {t('club.sidebarActiveColorDesc') || 'Escolha a cor do texto do item de menu ativo na barra lateral'}
+                {t('club.sidebarActiveColorDesc') ||
+                  'Escolha a cor do texto do item de menu ativo na barra lateral'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Color Grid */}
               <div className="grid grid-cols-5 sm:grid-cols-10 gap-3" data-testid="sidebar-color-picker">
                 {SIDEBAR_ACCENT_COLORS.map((color) => {
-                  const isSelected = selectedSidebarColor?.toLowerCase() === color.hex.toLowerCase();
+                  const isSelected =
+                    selectedSidebarColor?.toLowerCase() === color.hex.toLowerCase();
+
                   return (
                     <button
                       key={color.hex}
@@ -949,11 +969,13 @@ export default function ClubPage() {
                       onClick={() => handleSidebarColorChange(color.hex)}
                       disabled={!isAdmin || savingSidebarColor}
                       className={`
-                        relative w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all duration-200 
+                        relative w-10 h-10 sm:w-12 sm:h-12 rounded-full transition-all duration-200
                         border-2 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary
-                        ${isSelected 
-                          ? 'ring-2 ring-offset-2 ring-primary border-primary scale-110' 
-                          : 'border-border hover:border-primary/50'}
+                        ${
+                          isSelected
+                            ? 'ring-2 ring-offset-2 ring-primary border-primary scale-110'
+                            : 'border-border hover:border-primary/50'
+                        }
                         ${!isAdmin ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
                       `}
                       style={{ backgroundColor: color.hex }}
@@ -962,13 +984,15 @@ export default function ClubPage() {
                     >
                       {isSelected && (
                         <div className="absolute inset-0 flex items-center justify-center">
-                          <Check 
-                            className="w-5 h-5" 
-                            style={{ 
-                              color: ['#ffffff', '#ffd700', '#facc15', '#fbbf24', '#d1d5db', '#a3e635'].includes(color.hex.toLowerCase()) 
-                                ? '#1f2937' 
-                                : '#ffffff' 
-                            }} 
+                          <Check
+                            className="w-5 h-5"
+                            style={{
+                              color: ['#ffffff', '#ffd700', '#facc15', '#fbbf24', '#d1d5db', '#a3e635'].includes(
+                                color.hex.toLowerCase()
+                              )
+                                ? '#1f2937'
+                                : '#ffffff',
+                            }}
                           />
                         </div>
                       )}
@@ -977,15 +1001,16 @@ export default function ClubPage() {
                 })}
               </div>
 
-              {/* Current Color Preview */}
               <div className="flex items-center gap-4 p-4 bg-slate-900 rounded-lg">
                 <div className="flex items-center gap-3 flex-1">
-                  <div 
+                  <div
                     className="w-8 h-8 rounded-full border-2 border-white/20"
                     style={{ backgroundColor: selectedSidebarColor }}
                   />
                   <div>
-                    <p className="text-sm text-slate-400">{t('club.currentSidebarColor') || 'Cor atual do menu ativo'}</p>
+                    <p className="text-sm text-slate-400">
+                      {t('club.currentSidebarColor') || 'Cor atual do menu ativo'}
+                    </p>
                     <p className="font-mono text-sm" style={{ color: selectedSidebarColor }}>
                       {selectedSidebarColor?.toUpperCase()}
                     </p>
@@ -996,23 +1021,26 @@ export default function ClubPage() {
                 )}
               </div>
 
-              {/* Preview Example */}
               <div className="p-4 bg-slate-900 rounded-lg">
-                <p className="text-xs text-slate-500 mb-3 uppercase tracking-wide">{t('club.preview') || 'Pré-visualização'}</p>
+                <p className="text-xs text-slate-500 mb-3 uppercase tracking-wide">
+                  {t('club.preview') || 'Pré-visualização'}
+                </p>
                 <div className="space-y-1">
                   <div className="flex items-center gap-3 px-3 py-2 text-slate-400">
                     <Home className="w-4 h-4" />
                     <span className="text-sm">Dashboard</span>
                   </div>
-                  <div 
+                  <div
                     className="flex items-center gap-3 px-3 py-2 rounded-lg bg-white/5 border-l-2"
-                    style={{ 
+                    style={{
                       color: selectedSidebarColor,
-                      borderLeftColor: selectedSidebarColor 
+                      borderLeftColor: selectedSidebarColor,
                     }}
                   >
                     <Calendar className="w-4 h-4" />
-                    <span className="text-sm font-medium">{t('nav.calendar') || 'Calendário'} (Ativo)</span>
+                    <span className="text-sm font-medium">
+                      {t('nav.calendar') || 'Calendário'} (Ativo)
+                    </span>
                   </div>
                   <div className="flex items-center gap-3 px-3 py-2 text-slate-400">
                     <Users className="w-4 h-4" />
@@ -1024,7 +1052,6 @@ export default function ClubPage() {
           </Card>
         </TabsContent>
 
-        {/* Seasons Tab */}
         <TabsContent value="seasons">
           <Card className="border border-border">
             <CardHeader>
@@ -1034,9 +1061,7 @@ export default function ClubPage() {
                     <CalendarDays className="w-5 h-5 text-primary" />
                     {t('club.seasons').toUpperCase()}
                   </CardTitle>
-                  <CardDescription>
-                    {t('club.seasonsDescription')}
-                  </CardDescription>
+                  <CardDescription>{t('club.seasonsDescription')}</CardDescription>
                 </div>
                 {isAdmin && (
                   <Button onClick={() => openSeasonModal()} data-testid="create-season-btn">
@@ -1046,6 +1071,7 @@ export default function ClubPage() {
                 )}
               </div>
             </CardHeader>
+
             <CardContent>
               {loadingSeasons ? (
                 <div className="space-y-3">
@@ -1060,12 +1086,12 @@ export default function ClubPage() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {seasons.map(season => (
-                    <div 
+                  {seasons.map((season) => (
+                    <div
                       key={season.id}
                       className={`flex items-center justify-between p-4 border rounded-lg transition-colors ${
-                        season.is_active 
-                          ? 'border-primary bg-primary/5' 
+                        season.is_active
+                          ? 'border-primary bg-primary/5'
                           : 'border-border hover:border-primary/50'
                       }`}
                       data-testid={`season-${season.id}`}
@@ -1088,12 +1114,12 @@ export default function ClubPage() {
                           </p>
                         </div>
                       </div>
-                      
+
                       {isAdmin && (
                         <div className="flex items-center gap-2">
                           {!season.is_active && (
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               size="sm"
                               onClick={() => handleActivateSeason(season.id)}
                               data-testid={`activate-season-${season.id}`}
@@ -1102,15 +1128,11 @@ export default function ClubPage() {
                               {t('club.setAsActive')}
                             </Button>
                           )}
-                          <Button 
-                            variant="ghost" 
-                            size="icon"
-                            onClick={() => openSeasonModal(season)}
-                          >
+                          <Button variant="ghost" size="icon" onClick={() => openSeasonModal(season)}>
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button 
-                            variant="ghost" 
+                          <Button
+                            variant="ghost"
                             size="icon"
                             className="text-destructive hover:bg-destructive/10"
                             onClick={() => setSeasonToDelete(season)}
@@ -1128,36 +1150,33 @@ export default function ClubPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Season Modal */}
       <Dialog open={showSeasonModal} onOpenChange={setShowSeasonModal}>
         <DialogContent className="bg-white" data-testid="season-modal">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">
               {editingSeason ? t('club.editSeason') : t('club.createSeason')}
             </DialogTitle>
-            <DialogDescription>
-              {t('club.seasonsDescription')}
-            </DialogDescription>
+            <DialogDescription>{t('club.seasonsDescription')}</DialogDescription>
           </DialogHeader>
-          
+
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{t('club.seasonName')} *</Label>
               <Input
                 value={seasonForm.name}
-                onChange={(e) => setSeasonForm({ ...seasonForm, name: e.target.value })}
+                onChange={(e) => setSeasonForm((prev) => ({ ...prev, name: e.target.value }))}
                 placeholder={t('club.seasonNamePlaceholder')}
                 data-testid="season-name-input"
               />
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('club.startDate')} *</Label>
                 <Input
                   type="date"
                   value={seasonForm.start_date}
-                  onChange={(e) => setSeasonForm({ ...seasonForm, start_date: e.target.value })}
+                  onChange={(e) => setSeasonForm((prev) => ({ ...prev, start_date: e.target.value }))}
                   data-testid="season-start-date"
                 />
               </div>
@@ -1166,7 +1185,7 @@ export default function ClubPage() {
                 <Input
                   type="date"
                   value={seasonForm.end_date}
-                  onChange={(e) => setSeasonForm({ ...seasonForm, end_date: e.target.value })}
+                  onChange={(e) => setSeasonForm((prev) => ({ ...prev, end_date: e.target.value }))}
                   data-testid="season-end-date"
                 />
               </div>
@@ -1177,7 +1196,7 @@ export default function ClubPage() {
                 type="checkbox"
                 id="is_active"
                 checked={seasonForm.is_active}
-                onChange={(e) => setSeasonForm({ ...seasonForm, is_active: e.target.checked })}
+                onChange={(e) => setSeasonForm((prev) => ({ ...prev, is_active: e.target.checked }))}
                 className="w-4 h-4 rounded border-gray-300"
               />
               <Label htmlFor="is_active">{t('club.setAsActive')}</Label>
@@ -1205,7 +1224,6 @@ export default function ClubPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Season Confirmation */}
       <AlertDialog open={!!seasonToDelete} onOpenChange={() => setSeasonToDelete(null)}>
         <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
