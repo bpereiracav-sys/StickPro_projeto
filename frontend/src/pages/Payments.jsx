@@ -57,10 +57,17 @@ import {
   ShieldAlert,
   Eye,
 } from 'lucide-react';
-import { formatDate } from '../lib/utils';
+import { formatDate, normalizeRole } from '../lib/utils';
 
 const PLAYER_ROLES = ['jogador', 'player'];
-const BLOCKED_FINANCE_ROLES = ['treinador', 'treinador_adjunto', 'delegado', 'coach', 'assistant_coach', 'delegate'];
+const BLOCKED_FINANCE_ROLES = [
+  'treinador',
+  'treinador_adjunto',
+  'delegado',
+  'coach',
+  'assistant_coach',
+  'delegate',
+];
 
 function getMonthOptions() {
   return [
@@ -92,7 +99,7 @@ export default function Payments() {
   const { user, effectiveRole } = useAuth();
   const { isAdmin, isFamilyMember, isPlayer } = usePermissions();
 
-  const role = String(effectiveRole || user?.role || '').toLowerCase();
+  const role = normalizeRole(effectiveRole || user?.role || '');
   const canViewFinance = isAdmin || isPlayer || isFamilyMember;
   const isFinanceBlockedRole = BLOCKED_FINANCE_ROLES.includes(role);
 
@@ -166,12 +173,17 @@ export default function Payments() {
           membersApi.getAll({ limit: 500 }),
         ]);
 
-        setPayments(paymentsRes.data || []);
-        setSummary(summaryRes.data || null);
-        setMembers(membersRes.data?.users || []);
+        const membersData = membersRes?.data;
+        const resolvedMembers = Array.isArray(membersData)
+          ? membersData
+          : membersData?.users || membersData?.members || [];
+
+        setPayments(paymentsRes?.data || []);
+        setSummary(summaryRes?.data || null);
+        setMembers(resolvedMembers);
       } else {
         const paymentsRes = await paymentsApi.getMy();
-        setPayments(paymentsRes.data || []);
+        setPayments(paymentsRes?.data || []);
         setSummary(null);
         setMembers([]);
       }
@@ -184,7 +196,7 @@ export default function Payments() {
   };
 
   const playerMembers = useMemo(() => {
-    return members.filter(isPlayerMember);
+    return members.filter(isPlayerMember).sort((a, b) => a.name.localeCompare(b.name));
   }, [members]);
 
   const filteredPayments = useMemo(() => {
@@ -220,7 +232,7 @@ export default function Payments() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter((p) => {
-        const fields = [
+        const haystack = [
           p.user_name,
           p.user_email,
           p.title,
@@ -231,7 +243,7 @@ export default function Payments() {
           .join(' ')
           .toLowerCase();
 
-        return fields.includes(query);
+        return haystack.includes(query);
       });
     }
 
@@ -287,7 +299,7 @@ export default function Payments() {
         due_date: new Date(bulkFeeForm.due_date).toISOString(),
       });
 
-      toast.success(result.data?.message || 'Mensalidades criadas');
+      toast.success(result?.data?.message || 'Mensalidades criadas');
       setShowBulkFeeDialog(false);
       resetBulkFeeForm();
       fetchData();
@@ -330,9 +342,9 @@ export default function Payments() {
 
     try {
       const result = await paymentsApi.importFees(file);
-      toast.success(result.data?.message || 'Importação concluída');
+      toast.success(result?.data?.message || 'Importação concluída');
 
-      if (result.data?.errors?.length > 0) {
+      if (result?.data?.errors?.length > 0) {
         result.data.errors.forEach((err) => toast.warning(err));
       }
 
@@ -1251,21 +1263,11 @@ export default function Payments() {
             <div className="p-4 bg-muted/30 rounded-sm">
               <p className="text-sm font-medium mb-2">Colunas esperadas:</p>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>
-                  • <strong>Email</strong> - Email do jogador
-                </li>
-                <li>
-                  • <strong>Valor</strong> ou <strong>Amount</strong> - Valor
-                </li>
-                <li>
-                  • <strong>Mês</strong> - Número do mês (1-12)
-                </li>
-                <li>
-                  • <strong>Ano</strong> - Ano (ex: 2026)
-                </li>
-                <li>
-                  • <strong>Vencimento</strong> - Data limite (opcional)
-                </li>
+                <li>• <strong>Email</strong> - Email do jogador</li>
+                <li>• <strong>Valor</strong> ou <strong>Amount</strong> - Valor</li>
+                <li>• <strong>Mês</strong> - Número do mês (1-12)</li>
+                <li>• <strong>Ano</strong> - Ano (ex: 2026)</li>
+                <li>• <strong>Vencimento</strong> - Data limite (opcional)</li>
               </ul>
             </div>
 
@@ -1282,7 +1284,8 @@ export default function Payments() {
 
             {importing && (
               <div className="flex items-center gap-2 text-primary">
-                <Loader2 className="w-4 h-4 animate-spin" />A importar...
+                <Loader2 className="w-4 h-4 animate-spin" />
+                A importar...
               </div>
             )}
           </div>
@@ -1315,7 +1318,9 @@ export default function Payments() {
                     ? `Mensalidade ${getMonthName(selectedPayment.month)}/${selectedPayment.year}`
                     : selectedPayment.title}
                 </p>
-                <p className="text-lg font-bold">€{Number(selectedPayment.amount || 0).toFixed(2)}</p>
+                <p className="text-lg font-bold">
+                  €{Number(selectedPayment.amount || 0).toFixed(2)}
+                </p>
               </div>
             )}
 
@@ -1333,7 +1338,8 @@ export default function Payments() {
 
             {uploadingProof && (
               <div className="flex items-center gap-2 text-primary">
-                <Loader2 className="w-4 h-4 animate-spin" />A carregar...
+                <Loader2 className="w-4 h-4 animate-spin" />
+                A carregar...
               </div>
             )}
           </div>
