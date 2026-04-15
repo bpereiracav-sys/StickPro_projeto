@@ -1,62 +1,77 @@
-import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
-import { teamsApi, clubApi, guardianApi } from '../services/api';
+import { clubApi, guardianApi } from '../services/api';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
 import { Skeleton } from '../components/ui/skeleton';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
-import { toast } from 'sonner';
-import { 
-  Users, 
-  Building2,
-  MessageCircle,
-  MoreVertical,
-  UserCircle
-} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
+import {
+  Users,
+  Building2,
+  MessageCircle,
+  MoreVertical,
+  UserCircle,
+  Calendar,
+  Eye,
+} from 'lucide-react';
 
-// Role display names
 const ROLE_NAMES = {
   jogador: 'Jogador',
+  player: 'Jogador',
   treinador: 'Treinador',
+  coach: 'Treinador',
   treinador_adjunto: 'Treinador Adjunto',
+  assistant_coach: 'Treinador Adjunto',
   delegado: 'Delegado',
+  delegate: 'Delegado',
   admin: 'Administrador',
   gestor_desportivo: 'Gestor Desportivo',
-  responsavel: 'Responsável'
+  sports_manager: 'Gestor Desportivo',
+  responsavel: 'Responsável',
+  guardian: 'Responsável',
 };
 
 export default function MyTeamsPage() {
-  const { user } = useAuth();
+  const { user, effectiveRole } = useAuth();
   const { teams: userTeams, loading: teamsLoading } = useTeam();
   const [searchParams] = useSearchParams();
+
   const initialTab = searchParams.get('tab') || 'teams';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [loading, setLoading] = useState(true);
   const [club, setClub] = useState(null);
-  
-  // Children state (for guardians)
+
   const [children, setChildren] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
   const [childTeams, setChildTeams] = useState([]);
   const [loadingChildren, setLoadingChildren] = useState(false);
   const [loadingChildTeams, setLoadingChildTeams] = useState(false);
 
-  const isGuardian = user?.role === 'responsavel';
+  const isGuardian =
+    String(effectiveRole || user?.role || '').toLowerCase() === 'responsavel' ||
+    String(effectiveRole || user?.role || '').toLowerCase() === 'guardian';
 
   useEffect(() => {
     fetchClub();
+  }, []);
+
+  useEffect(() => {
     if (isGuardian) {
       fetchChildren();
+    } else {
+      setChildren([]);
+      setSelectedChild(null);
+      setChildTeams([]);
     }
   }, [isGuardian]);
 
@@ -65,43 +80,61 @@ export default function MyTeamsPage() {
   }, [teamsLoading]);
 
   useEffect(() => {
-    if (selectedChild) {
+    if (selectedChild?.id) {
       fetchChildTeams(selectedChild.id);
+    } else {
+      setChildTeams([]);
     }
   }, [selectedChild]);
 
   const fetchClub = async () => {
     try {
       const response = await clubApi.getAll();
-      if (response.data.length > 0) {
-        setClub(response.data[0]);
-      }
+      const clubs = Array.isArray(response?.data) ? response.data : [];
+      setClub(clubs.length > 0 ? clubs[0] : null);
     } catch (error) {
       console.error('Error fetching club:', error);
+      setClub(null);
     }
   };
 
   const fetchChildren = async () => {
     setLoadingChildren(true);
+
     try {
       const response = await guardianApi.getChildren();
-      setChildren(response.data);
-      // Select first child by default
-      if (response.data.length > 0) {
-        setSelectedChild(response.data[0]);
+      const childrenData = Array.isArray(response?.data) ? response.data : [];
+
+      setChildren(childrenData);
+
+      if (childrenData.length > 0) {
+        setSelectedChild((prev) => {
+          if (prev) {
+            const stillExists = childrenData.find((child) => child.id === prev.id);
+            if (stillExists) return stillExists;
+          }
+          return childrenData[0];
+        });
+      } else {
+        setSelectedChild(null);
       }
     } catch (error) {
       console.error('Error fetching children:', error);
+      setChildren([]);
+      setSelectedChild(null);
     } finally {
       setLoadingChildren(false);
     }
   };
 
   const fetchChildTeams = async (childId) => {
+    if (!childId) return;
+
     setLoadingChildTeams(true);
+
     try {
       const response = await guardianApi.getChildTeams(childId);
-      setChildTeams(response.data.teams || []);
+      setChildTeams(Array.isArray(response?.data?.teams) ? response.data.teams : []);
     } catch (error) {
       console.error('Error fetching child teams:', error);
       setChildTeams([]);
@@ -111,38 +144,50 @@ export default function MyTeamsPage() {
   };
 
   const getUserRoleInTeam = (team) => {
-    if (!user) return 'jogador';
+    if (!user || !team) return 'jogador';
+
     if (team.coach_ids?.includes(user.id)) return 'treinador';
     if (team.assistant_coach_ids?.includes(user.id)) return 'treinador_adjunto';
     if (team.delegate_ids?.includes(user.id)) return 'delegado';
+    if (team.admin_ids?.includes?.(user.id)) return 'admin';
+
     return 'jogador';
   };
 
   const getInitials = (name) => {
     if (!name) return 'A';
-    return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+    return String(name)
+      .split(' ')
+      .filter(Boolean)
+      .map((n) => n[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
   };
 
-  // Team Card Component (reused for both user teams and child teams)
+  const safeUserTeams = useMemo(() => {
+    return Array.isArray(userTeams) ? userTeams : [];
+  }, [userTeams]);
+
   const TeamCard = ({ team, isChildTeam = false, childName = null }) => {
-    const role = isChildTeam ? (team.child_role || 'jogador') : getUserRoleInTeam(team);
-    const displayName = isChildTeam && childName 
-      ? `${team.name} (${childName})`
-      : team.name;
+    const role = isChildTeam ? team?.child_role || 'jogador' : getUserRoleInTeam(team);
+
+    const displayName =
+      isChildTeam && childName ? `${team?.name} (${childName})` : team?.name || 'Equipa';
 
     return (
-      <Card 
-        className="border border-border hover:border-primary/50 transition-colors cursor-pointer"
-        data-testid={`team-card-${team.id}`}
+      <Card
+        className="border border-border hover:border-primary/50 hover:bg-accent/20 transition-all duration-200"
+        data-testid={`team-card-${team?.id}`}
       >
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
-            {/* Team/Club Logo */}
-            <div className="relative">
-              {team.photo_url || club?.logo_url ? (
-                <img 
-                  src={team.photo_url || club?.logo_url} 
-                  alt={team.name}
+            <div className="relative shrink-0">
+              {team?.photo_url || club?.logo_url ? (
+                <img
+                  src={team?.photo_url || club?.logo_url}
+                  alt={team?.name || 'Equipa'}
                   className="w-14 h-14 object-cover rounded-lg border border-border"
                 />
               ) : (
@@ -152,34 +197,51 @@ export default function MyTeamsPage() {
               )}
             </div>
 
-            {/* Team Info */}
             <div className="flex-1 min-w-0">
               <Badge variant="secondary" className="text-xs mb-1">
                 EQUIPA DO CLUBE
               </Badge>
+
               <h3 className="font-heading text-base truncate">{displayName}</h3>
+
               <p className="text-xs text-muted-foreground mt-0.5">
-                Hóquei em patins
+                {team?.category || 'Hóquei em patins'}
+                {team?.season ? ` • ${team.season}` : ''}
               </p>
+
               <p className="text-xs text-primary font-medium mt-1">
                 {ROLE_NAMES[role] || role}
               </p>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MessageCircle className="w-4 h-4" />
+            <div className="flex items-center gap-1 shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                <Link to="/messages">
+                  <MessageCircle className="w-4 h-4" />
+                </Link>
               </Button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <MoreVertical className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
-                  <DropdownMenuItem>Calendário</DropdownMenuItem>
+
+                <DropdownMenuContent align="end" className="bg-white">
+                  <DropdownMenuItem asChild>
+                    <Link to={`/teams/${team?.id}`}>
+                      <Eye className="w-4 h-4 mr-2" />
+                      Ver detalhes
+                    </Link>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem asChild>
+                    <Link to="/calendar">
+                      <Calendar className="w-4 h-4 mr-2" />
+                      Calendário
+                    </Link>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -189,22 +251,20 @@ export default function MyTeamsPage() {
     );
   };
 
-  // Club Card Component
   const ClubCard = () => {
     if (!club) return null;
-    
+
     return (
-      <Card 
-        className="border border-border hover:border-primary/50 transition-colors cursor-pointer"
+      <Card
+        className="border border-border hover:border-primary/50 hover:bg-accent/20 transition-all duration-200"
         data-testid="club-card"
       >
         <CardContent className="p-4">
           <div className="flex items-start gap-4">
-            {/* Club Logo */}
-            <div className="relative">
+            <div className="relative shrink-0">
               {club.logo_url ? (
-                <img 
-                  src={club.logo_url} 
+                <img
+                  src={club.logo_url}
                   alt={club.name}
                   className="w-14 h-14 object-cover rounded-lg border border-border"
                 />
@@ -215,33 +275,44 @@ export default function MyTeamsPage() {
               )}
             </div>
 
-            {/* Club Info */}
             <div className="flex-1 min-w-0">
-              <Badge variant="outline" className="text-xs mb-1 bg-yellow-500/10 text-yellow-600 border-yellow-500/30">
+              <Badge
+                variant="outline"
+                className="text-xs mb-1 bg-yellow-500/10 text-yellow-700 border-yellow-500/30"
+              >
                 CLUBE
               </Badge>
+
               <h3 className="font-heading text-base truncate">{club.name}</h3>
+
               <p className="text-xs text-muted-foreground mt-0.5">
                 Hóquei em patins
               </p>
-              <p className="text-xs text-primary font-medium mt-1">
-                Membro
-              </p>
+
+              <p className="text-xs text-primary font-medium mt-1">Membro</p>
             </div>
 
-            {/* Actions */}
-            <div className="flex items-center gap-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MessageCircle className="w-4 h-4" />
+            <div className="flex items-center gap-1 shrink-0">
+              <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
+                <Link to="/messages">
+                  <MessageCircle className="w-4 h-4" />
+                </Link>
               </Button>
+
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" size="icon" className="h-8 w-8">
                     <MoreVertical className="w-4 h-4" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem>Ver detalhes</DropdownMenuItem>
+
+                <DropdownMenuContent align="end" className="bg-white">
+                  <DropdownMenuItem asChild>
+                    <Link to="/club">
+                      <Eye className="w-4 h-4 mr-2" />
+                      Ver detalhes
+                    </Link>
+                  </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
             </div>
@@ -251,12 +322,11 @@ export default function MyTeamsPage() {
     );
   };
 
-  // Child Selector Component
   const ChildSelector = () => {
     if (loadingChildren) {
       return (
         <div className="flex gap-3 mb-6">
-          {[1, 2].map(i => (
+          {[1, 2].map((i) => (
             <Skeleton key={i} className="h-12 w-32 rounded-full" />
           ))}
         </div>
@@ -269,30 +339,36 @@ export default function MyTeamsPage() {
 
     return (
       <div className="flex flex-wrap gap-3 mb-6" data-testid="children-selector">
-        {children.map(child => {
+        {children.map((child) => {
           const isSelected = selectedChild?.id === child.id;
-          const firstName = child.name?.split(' ')[0] || 'Atleta';
-          
+          const firstName = child?.name?.split(' ')[0] || 'Atleta';
+
           return (
             <button
               key={child.id}
+              type="button"
               onClick={() => setSelectedChild(child)}
               className={`
                 flex items-center gap-2 px-4 py-2 rounded-full transition-all
-                ${isSelected 
-                  ? 'bg-primary text-primary-foreground shadow-md' 
-                  : 'bg-muted hover:bg-muted/80 text-foreground'}
+                ${
+                  isSelected
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted hover:bg-muted/80 text-foreground'
+                }
               `}
               data-testid={`child-selector-${child.id}`}
             >
               <Avatar className="h-7 w-7">
                 <AvatarImage src={child.avatar_url} />
-                <AvatarFallback className={isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : ''}>
+                <AvatarFallback
+                  className={isSelected ? 'bg-primary-foreground/20 text-primary-foreground' : ''}
+                >
                   {getInitials(child.name)}
                 </AvatarFallback>
               </Avatar>
+
               <span className="font-medium text-sm">
-                {firstName} ({child.teams_count})
+                {firstName} ({child.teams_count || 0})
               </span>
             </button>
           );
@@ -301,7 +377,6 @@ export default function MyTeamsPage() {
     );
   };
 
-  // Empty state for no children
   const EmptyChildrenState = () => (
     <Card className="border border-dashed border-border">
       <CardContent className="py-16 text-center">
@@ -317,7 +392,6 @@ export default function MyTeamsPage() {
     </Card>
   );
 
-  // Empty state for child with no teams
   const EmptyChildTeamsState = () => (
     <Card className="border border-dashed border-border">
       <CardContent className="py-16 text-center">
@@ -335,7 +409,7 @@ export default function MyTeamsPage() {
       <div className="max-w-5xl mx-auto space-y-6">
         <Skeleton className="h-10 w-64" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map(i => (
+          {[1, 2, 3, 4].map((i) => (
             <Skeleton key={i} className="h-24" />
           ))}
         </div>
@@ -345,32 +419,32 @@ export default function MyTeamsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6" data-testid="my-teams-page">
-      {/* Header */}
       <div>
         <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight">
           AS MINHAS EQUIPAS E OS MEUS CLUBES
         </h1>
       </div>
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="w-full justify-start border-b rounded-none bg-transparent h-auto p-0 mb-6">
-          <TabsTrigger 
+          <TabsTrigger
             value="teams"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3"
             data-testid="tab-my-teams"
           >
             As minhas equipas
           </TabsTrigger>
-          <TabsTrigger 
+
+          <TabsTrigger
             value="clubs"
             className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3"
             data-testid="tab-my-clubs"
           >
             Os meus clubes
           </TabsTrigger>
+
           {isGuardian && (
-            <TabsTrigger 
+            <TabsTrigger
               value="children"
               className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none px-4 py-3"
               data-testid="tab-my-children"
@@ -380,11 +454,10 @@ export default function MyTeamsPage() {
           )}
         </TabsList>
 
-        {/* My Teams Tab */}
         <TabsContent value="teams" className="mt-0">
-          {userTeams.length > 0 ? (
+          {safeUserTeams.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {userTeams.map(team => (
+              {safeUserTeams.map((team) => (
                 <TeamCard key={team.id} team={team} />
               ))}
             </div>
@@ -401,7 +474,6 @@ export default function MyTeamsPage() {
           )}
         </TabsContent>
 
-        {/* My Clubs Tab */}
         <TabsContent value="clubs" className="mt-0">
           {club ? (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -420,35 +492,32 @@ export default function MyTeamsPage() {
           )}
         </TabsContent>
 
-        {/* My Children Tab (only for guardians) */}
         {isGuardian && (
           <TabsContent value="children" className="mt-0">
             {children.length === 0 && !loadingChildren ? (
               <EmptyChildrenState />
             ) : (
               <>
-                {/* Child Selector */}
                 <ChildSelector />
 
-                {/* Child's Teams */}
                 {loadingChildTeams ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {[1, 2].map(i => (
+                    {[1, 2].map((i) => (
                       <Skeleton key={i} className="h-24" />
                     ))}
                   </div>
                 ) : childTeams.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {childTeams.map(team => (
-                      <TeamCard 
-                        key={team.id} 
-                        team={team} 
-                        isChildTeam={true}
+                    {childTeams.map((team) => (
+                      <TeamCard
+                        key={team.id}
+                        team={team}
+                        isChildTeam
                         childName={selectedChild?.name?.split(' ')[0]}
                       />
                     ))}
-                    {/* Also show club card */}
-                    <ClubCard />
+
+                    {club && <ClubCard />}
                   </div>
                 ) : (
                   <EmptyChildTeamsState />
