@@ -35,7 +35,7 @@ import {
   CreditCard,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
-import { getInitials, getRoleName, normalizeRole } from '../../lib/utils';
+import { getInitials, getRoleName } from '../../lib/utils';
 import { toast } from 'sonner';
 import { dashboardApi } from '../../services/api';
 
@@ -71,7 +71,6 @@ export function Sidebar() {
     viewingAs,
     isViewingAsAssociated,
     switchProfile,
-    effectiveRole,
   } = useAuth();
 
   const { t } = useLanguage();
@@ -84,8 +83,6 @@ export function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [switchingProfile, setSwitchingProfile] = useState(false);
   const [pendingNotifications, setPendingNotifications] = useState(0);
-
-  const normalizedEffectiveRole = normalizeRole(effectiveRole);
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -261,7 +258,7 @@ export function Sidebar() {
     ];
 
     return links.filter((link) => link.visible);
-  }, [t, permissions, pendingNotifications, normalizedEffectiveRole]);
+  }, [t, permissions, pendingNotifications]);
 
   if (!isAuthenticated) return null;
 
