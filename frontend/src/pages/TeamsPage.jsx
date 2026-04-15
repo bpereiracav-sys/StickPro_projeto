@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTeam } from '../context/TeamContext';
 import { usePermissions } from '../context/PermissionsContext';
@@ -43,6 +43,7 @@ import {
   Loader2,
   Calendar,
   ChevronRight,
+  Shield,
 } from 'lucide-react';
 import { LogoUpload } from '../components/ImageUpload';
 
@@ -74,7 +75,7 @@ const getCurrentSeason = () => {
 
 export default function TeamsPage() {
   const { teams, refreshTeams, loading: teamsLoading } = useTeam();
-  const { canManageTeam, canManageClub } = usePermissions();
+  const { canManageTeam, canManageClub, isAdmin } = usePermissions();
 
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -95,6 +96,10 @@ export default function TeamsPage() {
     setLoading(teamsLoading);
   }, [teamsLoading]);
 
+  const safeTeams = useMemo(() => {
+    return Array.isArray(teams) ? teams : [];
+  }, [teams]);
+
   const resetForm = () => {
     setFormData({
       name: '',
@@ -105,20 +110,26 @@ export default function TeamsPage() {
   };
 
   const handleCreateTeam = async () => {
-    if (!formData.name || !formData.category || !formData.season) {
+    if (!formData.name.trim() || !formData.category || !formData.season.trim()) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
 
     setSaving(true);
     try {
-      await teamsApi.create(formData);
+      await teamsApi.create({
+        name: formData.name.trim(),
+        category: formData.category,
+        season: formData.season.trim(),
+        photo_url: formData.photo_url || '',
+      });
+
       toast.success('Equipa criada com sucesso');
       setShowCreateDialog(false);
       resetForm();
       await refreshTeams();
     } catch (error) {
-      const message = error.response?.data?.detail || 'Erro ao criar equipa';
+      const message = error?.response?.data?.detail || 'Erro ao criar equipa';
       toast.error(message);
     } finally {
       setSaving(false);
@@ -128,21 +139,27 @@ export default function TeamsPage() {
   const handleEditTeam = async () => {
     if (!selectedTeamForEdit) return;
 
-    if (!formData.name || !formData.category || !formData.season) {
+    if (!formData.name.trim() || !formData.category || !formData.season.trim()) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
 
     setSaving(true);
     try {
-      await teamsApi.update(selectedTeamForEdit.id, formData);
+      await teamsApi.update(selectedTeamForEdit.id, {
+        name: formData.name.trim(),
+        category: formData.category,
+        season: formData.season.trim(),
+        photo_url: formData.photo_url || '',
+      });
+
       toast.success('Equipa atualizada com sucesso');
       setShowEditDialog(false);
       setSelectedTeamForEdit(null);
       resetForm();
       await refreshTeams();
     } catch (error) {
-      const message = error.response?.data?.detail || 'Erro ao atualizar equipa';
+      const message = error?.response?.data?.detail || 'Erro ao atualizar equipa';
       toast.error(message);
     } finally {
       setSaving(false);
@@ -160,7 +177,7 @@ export default function TeamsPage() {
       setSelectedTeamForDelete(null);
       await refreshTeams();
     } catch (error) {
-      const message = error.response?.data?.detail || 'Erro ao eliminar equipa';
+      const message = error?.response?.data?.detail || 'Erro ao eliminar equipa';
       toast.error(message);
     } finally {
       setSaving(false);
@@ -175,10 +192,10 @@ export default function TeamsPage() {
   const openEditDialog = (team) => {
     setSelectedTeamForEdit(team);
     setFormData({
-      name: team.name || '',
-      category: team.category || '',
-      season: team.season || getCurrentSeason(),
-      photo_url: team.photo_url || '',
+      name: team?.name || '',
+      category: team?.category || '',
+      season: team?.season || getCurrentSeason(),
+      photo_url: team?.photo_url || '',
     });
     setShowEditDialog(true);
   };
@@ -190,10 +207,10 @@ export default function TeamsPage() {
 
   const getMemberCount = (team) => {
     return (
-      (team.coach_ids?.length || 0) +
-      (team.assistant_coach_ids?.length || 0) +
-      (team.delegate_ids?.length || 0) +
-      (team.player_ids?.length || 0)
+      (team?.coach_ids?.length || 0) +
+      (team?.assistant_coach_ids?.length || 0) +
+      (team?.delegate_ids?.length || 0) +
+      (team?.player_ids?.length || 0)
     );
   };
 
@@ -228,12 +245,12 @@ export default function TeamsPage() {
         )}
       </div>
 
-      {teams.length > 0 ? (
+      {safeTeams.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {teams.map((team) => (
+          {safeTeams.map((team) => (
             <Card
               key={team.id}
-              className="border border-border hover:border-primary/50 transition-colors"
+              className="border border-border hover:border-primary/50 hover:bg-accent/20 transition-all duration-200"
               data-testid={`team-card-${team.id}`}
             >
               <CardContent className="pt-6">
@@ -245,21 +262,28 @@ export default function TeamsPage() {
                       className="w-16 h-16 object-cover rounded-lg border border-border"
                     />
                   ) : (
-                    <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <div className="w-16 h-16 bg-primary/10 rounded-lg flex items-center justify-center shrink-0">
                       <Users className="w-8 h-8 text-primary" />
                     </div>
                   )}
 
                   <div className="flex-1 min-w-0">
                     <h3 className="font-heading text-lg truncate">{team.name}</h3>
-                    <Badge variant="outline" className="mt-1">
-                      {team.category}
-                    </Badge>
-                    <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
+                      <Badge variant="outline">{team.category}</Badge>
+
+                      {team.is_active === false && (
+                        <Badge variant="secondary">Inativa</Badge>
+                      )}
+                    </div>
+
+                    <p className="text-sm text-muted-foreground mt-2 flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {team.season}
                     </p>
-                    <p className="text-sm text-muted-foreground mt-2">
+
+                    <p className="text-sm text-muted-foreground mt-1">
                       {getMemberCount(team)} membro{getMemberCount(team) !== 1 ? 's' : ''}
                     </p>
                   </div>
@@ -288,7 +312,7 @@ export default function TeamsPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="text-destructive hover:text-destructive"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={() => openDeleteDialog(team)}
                       data-testid={`delete-team-${team.id}`}
                     >
@@ -296,6 +320,13 @@ export default function TeamsPage() {
                     </Button>
                   )}
                 </div>
+
+                {isAdmin && (
+                  <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+                    <Shield className="w-3 h-3" />
+                    Gestão completa disponível
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -308,6 +339,7 @@ export default function TeamsPage() {
             <p className="text-muted-foreground mb-4">
               Ainda não existem equipas criadas no clube.
             </p>
+
             {canManageTeam && (
               <Button onClick={openCreateDialog}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -318,8 +350,14 @@ export default function TeamsPage() {
         </Card>
       )}
 
-      <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+      <Dialog
+        open={showCreateDialog}
+        onOpenChange={(open) => {
+          setShowCreateDialog(open);
+          if (!open) resetForm();
+        }}
+      >
+        <DialogContent className="sm:max-w-[500px] bg-white">
           <DialogHeader>
             <DialogTitle>Criar Nova Equipa</DialogTitle>
             <DialogDescription>Adicione uma nova equipa ao clube</DialogDescription>
@@ -339,7 +377,9 @@ export default function TeamsPage() {
               <Label>Nome da Equipa *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
                 placeholder="Ex: Benjamins A"
                 data-testid="team-name-input"
               />
@@ -357,7 +397,7 @@ export default function TeamsPage() {
                   <SelectTrigger data-testid="team-category-select">
                     <SelectValue placeholder="Selecionar" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     {CATEGORIES.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
@@ -371,7 +411,9 @@ export default function TeamsPage() {
                 <Label>Época *</Label>
                 <Input
                   value={formData.season}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, season: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, season: e.target.value }))
+                  }
                   placeholder="2024/2025"
                   data-testid="team-season-input"
                 />
@@ -383,6 +425,7 @@ export default function TeamsPage() {
             <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
               Cancelar
             </Button>
+
             <Button onClick={handleCreateTeam} disabled={saving}>
               {saving ? (
                 <>
@@ -407,7 +450,7 @@ export default function TeamsPage() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] bg-white">
           <DialogHeader>
             <DialogTitle>Editar Equipa</DialogTitle>
             <DialogDescription>Alterar informações da equipa</DialogDescription>
@@ -427,7 +470,9 @@ export default function TeamsPage() {
               <Label>Nome da Equipa *</Label>
               <Input
                 value={formData.name}
-                onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, name: e.target.value }))
+                }
                 placeholder="Ex: Benjamins A"
               />
             </div>
@@ -444,7 +489,7 @@ export default function TeamsPage() {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecionar" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white">
                     {CATEGORIES.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
@@ -458,7 +503,9 @@ export default function TeamsPage() {
                 <Label>Época *</Label>
                 <Input
                   value={formData.season}
-                  onChange={(e) => setFormData((prev) => ({ ...prev, season: e.target.value }))}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, season: e.target.value }))
+                  }
                   placeholder="2024/2025"
                 />
               </div>
@@ -469,6 +516,7 @@ export default function TeamsPage() {
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
               Cancelar
             </Button>
+
             <Button onClick={handleEditTeam} disabled={saving}>
               {saving ? (
                 <>
@@ -492,7 +540,7 @@ export default function TeamsPage() {
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
             <AlertDialogTitle>Eliminar Equipa</AlertDialogTitle>
             <AlertDialogDescription>
@@ -500,11 +548,13 @@ export default function TeamsPage() {
               <br />
               <br />
               <strong className="text-destructive">Esta ação é irreversível.</strong> Todos os
-              eventos, campeonatos e dados associados a esta equipa serão eliminados.
+              eventos, campeonatos e dados associados a esta equipa poderão ser eliminados.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
+
             <AlertDialogAction
               onClick={handleDeleteTeam}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
