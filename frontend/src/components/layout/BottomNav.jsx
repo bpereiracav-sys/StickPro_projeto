@@ -9,38 +9,49 @@ export function BottomNav() {
   const { t } = useLanguage();
   const permissions = usePermissions();
 
+  const calendarLabel =
+    t('nav.calendar') !== 'nav.calendar' ? t('nav.calendar') : 'Calendário';
+  const messagesLabel =
+    t('nav.messages') !== 'nav.messages' ? t('nav.messages') : 'Mensagens';
+  const membersLabel =
+    t('nav.members') !== 'nav.members' ? t('nav.members') : 'Membros';
+  const statsLabel =
+    t('nav.stats') !== 'nav.stats' ? t('nav.stats') : 'Estatísticas';
+  const profileLabel =
+    t('nav.myProfile') !== 'nav.myProfile' ? t('nav.myProfile') : 'Perfil';
+
   const navItems = [
     {
       href: '/calendar',
-      label: t('nav.calendar') !== 'nav.calendar' ? t('nav.calendar') : 'Calendário',
+      label: calendarLabel,
       icon: Calendar,
       visible: true,
       testId: 'calendar',
     },
     {
       href: '/messages',
-      label: t('nav.messages') !== 'nav.messages' ? t('nav.messages') : 'Mensagens',
+      label: messagesLabel,
       icon: MessageSquare,
       visible: true,
       testId: 'messages',
     },
     {
       href: '/members',
-      label: t('nav.members') !== 'nav.members' ? t('nav.members') : 'Membros',
+      label: membersLabel,
       icon: Users,
       visible: permissions.hasPermission('view_team_members'),
       testId: 'members',
     },
     {
       href: '/stats',
-      label: t('nav.stats') !== 'nav.stats' ? t('nav.stats') : 'Estatísticas',
+      label: statsLabel,
       icon: BarChart3,
       visible: true,
       testId: 'stats',
     },
     {
       href: '/profile',
-      label: t('nav.myProfile') !== 'nav.myProfile' ? t('nav.myProfile') : 'Perfil',
+      label: profileLabel,
       icon: User,
       visible: true,
       testId: 'profile',
@@ -56,7 +67,7 @@ export function BottomNav() {
         const Icon = item.icon;
         const isActive =
           location.pathname === item.href ||
-          location.pathname.startsWith(item.href + '/');
+          location.pathname.startsWith(`${item.href}/`);
 
         return (
           <Link
