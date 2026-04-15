@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -71,12 +71,12 @@ export default function Dashboard() {
 
   const getEventDateLabel = (date) => {
     if (!date) return '';
-    const d = new Date(date);
+    const parsedDate = new Date(date);
 
-    if (isToday(d)) return t('time.today').toUpperCase();
-    if (isTomorrow(d)) return t('time.tomorrow').toUpperCase();
+    if (isToday(parsedDate)) return t('time.today').toUpperCase();
+    if (isTomorrow(parsedDate)) return t('time.tomorrow').toUpperCase();
 
-    return format(d, 'EEE, d MMM', { locale: dateLocale }).toUpperCase();
+    return format(parsedDate, 'EEE, d MMM', { locale: dateLocale }).toUpperCase();
   };
 
   const getGreeting = () => {
@@ -86,9 +86,10 @@ export default function Dashboard() {
     return t('dashboard.goodEvening');
   };
 
-  const upcomingEvents = data?.upcoming_events || [];
-  const pendingConvocations = data?.pending_convocations || [];
-  const recentMessages = data?.recent_messages || [];
+  const upcomingEvents = useMemo(() => data?.upcoming_events || [], [data]);
+  const pendingConvocations = useMemo(() => data?.pending_convocations || [], [data]);
+  const recentMessages = useMemo(() => data?.recent_messages || [], [data]);
+
   const nextEvent = upcomingEvents[0] || null;
   const pendingCount = pendingConvocations.length;
 
@@ -130,7 +131,9 @@ export default function Dashboard() {
         >
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${config.color}`}>
+              <div
+                className={`w-10 h-10 rounded-full flex items-center justify-center ${config.color}`}
+              >
                 <StatusIcon className={`w-5 h-5 ${config.iconColor}`} />
               </div>
 
@@ -142,13 +145,14 @@ export default function Dashboard() {
               <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
             </div>
 
-            {paymentStatus.status === 'overdue' && Number(paymentStatus.total_overdue || 0) > 0 && (
-              <div className="mt-2 pt-2 border-t border-red-200">
-                <p className="text-sm font-mono text-red-700">
-                  Total em atraso: €{Number(paymentStatus.total_overdue || 0).toFixed(2)}
-                </p>
-              </div>
-            )}
+            {paymentStatus.status === 'overdue' &&
+              Number(paymentStatus.total_overdue || 0) > 0 && (
+                <div className="mt-2 pt-2 border-t border-red-200">
+                  <p className="text-sm font-mono text-red-700">
+                    Total em atraso: €{Number(paymentStatus.total_overdue || 0).toFixed(2)}
+                  </p>
+                </div>
+              )}
           </CardContent>
         </Card>
       </Link>
@@ -207,7 +211,9 @@ export default function Dashboard() {
               </span>
               <span className="text-sm opacity-80">
                 {nextEvent.start_time
-                  ? format(new Date(nextEvent.start_time), 'MMM', { locale: dateLocale }).toUpperCase()
+                  ? format(new Date(nextEvent.start_time), 'MMM', {
+                      locale: dateLocale,
+                    }).toUpperCase()
                   : ''}
               </span>
             </div>
@@ -337,7 +343,11 @@ export default function Dashboard() {
           </CardStripeContent>
         </CardWithStripe>
 
-        <CardWithStripe stripeColor="amber" className="card-hover" data-testid="convocations-section">
+        <CardWithStripe
+          stripeColor="amber"
+          className="card-hover"
+          data-testid="convocations-section"
+        >
           <CardStripeHeader className="flex flex-row items-center justify-between pb-2">
             <CardStripeTitle className="flex items-center gap-2 text-base sm:text-lg">
               <ClipboardCheck className="w-5 h-5 text-amber-500" />
@@ -366,7 +376,9 @@ export default function Dashboard() {
 
                       <span className="text-xs text-muted-foreground">
                         {item.event?.start_time
-                          ? format(new Date(item.event.start_time), 'd MMM', { locale: dateLocale })
+                          ? format(new Date(item.event.start_time), 'd MMM', {
+                              locale: dateLocale,
+                            })
                           : ''}
                       </span>
                     </div>
@@ -378,18 +390,23 @@ export default function Dashboard() {
                     </p>
 
                     <div className="flex gap-2 mt-3">
-                      <Button size="sm" className="flex-1 h-8 bg-secondary hover:bg-secondary/90">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        {t('attendance.present')}
+                      <Button asChild size="sm" className="flex-1 h-8 bg-secondary hover:bg-secondary/90">
+                        <Link to="/convocations">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          {t('attendance.present')}
+                        </Link>
                       </Button>
 
                       <Button
+                        asChild
                         size="sm"
                         variant="outline"
                         className="flex-1 h-8 text-destructive border-destructive hover:bg-destructive/10"
                       >
-                        <XCircle className="w-3 h-3 mr-1" />
-                        {t('attendance.absent')}
+                        <Link to="/convocations">
+                          <XCircle className="w-3 h-3 mr-1" />
+                          {t('attendance.absent')}
+                        </Link>
                       </Button>
                     </div>
                   </div>
