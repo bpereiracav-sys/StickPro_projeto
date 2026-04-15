@@ -99,6 +99,9 @@ export function TopNavBar() {
     return availableProfiles?.some((p) => p.type === 'associated');
   }, [availableProfiles]);
 
+  const teamsLabel =
+    t('nav.teams') !== 'nav.teams' ? t('nav.teams') : 'Equipas';
+
   if (!isAuthenticated) {
     return (
       <header className="bg-white border-b border-border sticky top-0 z-50">
@@ -132,7 +135,6 @@ export function TopNavBar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo / Club */}
           <Link to="/dashboard" className="flex items-center gap-3 min-w-0">
             {club?.logo_url ? (
               <img
@@ -154,11 +156,12 @@ export function TopNavBar() {
             </span>
           </Link>
 
-          {/* Desktop context navigation */}
           <nav className="hidden lg:flex items-center gap-1">
             <Button
               variant="ghost"
-              className={`flex items-center gap-2 ${isAllTeamsSelected ? 'text-primary bg-primary/5' : ''}`}
+              className={`flex items-center gap-2 ${
+                isAllTeamsSelected ? 'text-primary bg-primary/5' : ''
+              }`}
               onClick={handleSelectAllTeams}
               data-testid="nav-my-club"
             >
@@ -171,7 +174,9 @@ export function TopNavBar() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className={`flex items-center gap-2 ${selectedTeam ? 'text-primary bg-primary/5' : ''}`}
+                  className={`flex items-center gap-2 ${
+                    selectedTeam ? 'text-primary bg-primary/5' : ''
+                  }`}
                   data-testid="nav-my-teams"
                 >
                   <Users className="w-4 h-4" />
@@ -238,7 +243,7 @@ export function TopNavBar() {
                   <DropdownMenuItem asChild>
                     <Link to="/teams" className="flex items-center gap-2 cursor-pointer">
                       <Settings className="w-4 h-4" />
-                      {t('nav.teams') || 'Gerir Equipas'}
+                      {teamsLabel}
                     </Link>
                   </DropdownMenuItem>
                 )}
@@ -261,7 +266,9 @@ export function TopNavBar() {
 
             <Button
               variant="ghost"
-              className={`flex items-center gap-2 ${location.pathname === '/profile' ? 'text-primary bg-primary/5' : ''}`}
+              className={`flex items-center gap-2 ${
+                location.pathname === '/profile' ? 'text-primary bg-primary/5' : ''
+              }`}
               asChild
               data-testid="nav-my-profile"
             >
@@ -272,7 +279,6 @@ export function TopNavBar() {
             </Button>
           </nav>
 
-          {/* User menu */}
           <div className="flex items-center gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -312,14 +318,12 @@ export function TopNavBar() {
                   </Link>
                 </DropdownMenuItem>
 
-                {permissions.isAdmin && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="cursor-pointer">
-                      <Settings className="w-4 h-4 mr-2" />
-                      {t('nav.settings')}
-                    </Link>
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="cursor-pointer">
+                    <Settings className="w-4 h-4 mr-2" />
+                    {t('nav.settings')}
+                  </Link>
+                </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 
