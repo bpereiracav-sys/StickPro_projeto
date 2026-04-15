@@ -226,8 +226,7 @@ export function Sidebar() {
         visible:
           permissions.isAdmin ||
           permissions.isPlayer ||
-          permissions.isFamilyMember ||
-          normalizedEffectiveRole === 'guardian',
+          permissions.isFamilyMember,
       },
       {
         href: '/library',
