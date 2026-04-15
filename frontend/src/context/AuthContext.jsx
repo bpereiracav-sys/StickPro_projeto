@@ -7,6 +7,19 @@ const AuthContext = createContext(null);
 const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
 const ADMIN_ROLES = ['admin', 'gestor_desportivo'];
 
+function normalizeProfile(profile) {
+  if (!profile) return null;
+
+  return {
+    ...profile,
+    role: profile?.role ? normalizeRole(profile.role) : profile?.role,
+  };
+}
+
+function normalizeProfiles(profiles = []) {
+  return profiles.map(normalizeProfile);
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [token, setToken] = useState(localStorage.getItem('token'));
@@ -28,41 +41,56 @@ export function AuthProvider({ children }) {
     try {
       const response = await axios.get(`${API_URL}/auth/me`);
       const userData = response.data;
+      const normalizedAvailableProfiles = normalizeProfiles(userData.available_profiles || []);
 
       setUser(userData);
-      setAvailableProfiles(userData.available_profiles || []);
+      setAvailableProfiles(normalizedAvailableProfiles);
 
       const savedProfile = localStorage.getItem('activeProfile');
 
       if (savedProfile) {
         try {
-          const profile = JSON.parse(savedProfile);
-          const normalizedProfile = {
-            ...profile,
-            role: profile?.role ? normalizeRole(profile.role) : profile?.role,
-          };
+          const parsedProfile = JSON.parse(savedProfile);
+          const normalizedProfile = normalizeProfile(parsedProfile);
 
-          setActiveProfile(normalizedProfile);
+          if (
+            normalizedProfile &&
+            (normalizedProfile.type === 'self' || normalizedProfile.type === 'associated')
+          ) {
+            setActiveProfile(normalizedProfile);
 
-          if (normalizedProfile.type === 'associated') {
-            setViewingAs(normalizedProfile);
+            if (normalizedProfile.type === 'associated') {
+              setViewingAs(normalizedProfile);
+            } else {
+              setViewingAs(null);
+            }
           } else {
+            const fallbackProfile = {
+              type: 'self',
+              user_id: userData.id,
+              role: normalizeRole(userData.role),
+            };
+            setActiveProfile(fallbackProfile);
             setViewingAs(null);
+            localStorage.setItem('activeProfile', JSON.stringify(fallbackProfile));
           }
         } catch (error) {
-          setActiveProfile({
+          const fallbackProfile = {
             type: 'self',
             user_id: userData.id,
             role: normalizeRole(userData.role),
-          });
+          };
+          setActiveProfile(fallbackProfile);
           setViewingAs(null);
+          localStorage.setItem('activeProfile', JSON.stringify(fallbackProfile));
         }
       } else {
-        setActiveProfile({
+        const defaultProfile = {
           type: 'self',
           user_id: userData.id,
           role: normalizeRole(userData.role),
-        });
+        };
+        setActiveProfile(defaultProfile);
         setViewingAs(null);
       }
     } catch (error) {
@@ -77,38 +105,45 @@ export function AuthProvider({ children }) {
     const response = await axios.post(`${API_URL}/auth/login`, { email, password });
     const { token: newToken, user: userData, available_profiles } = response.data;
 
+    const normalizedAvailableProfiles = normalizeProfiles(available_profiles || []);
+    const selfProfile = {
+      type: 'self',
+      user_id: userData.id,
+      role: normalizeRole(userData.role),
+    };
+
     localStorage.setItem('token', newToken);
+    localStorage.removeItem('activeProfile');
     axios.defaults.headers.common.Authorization = `Bearer ${newToken}`;
 
     setToken(newToken);
     setUser(userData);
-    setAvailableProfiles(available_profiles || []);
-    setActiveProfile({
-      type: 'self',
-      user_id: userData.id,
-      role: normalizeRole(userData.role),
-    });
+    setAvailableProfiles(normalizedAvailableProfiles);
+    setActiveProfile(selfProfile);
     setViewingAs(null);
-    localStorage.removeItem('activeProfile');
 
-    return { user: userData, availableProfiles: available_profiles };
+    return { user: userData, availableProfiles: normalizedAvailableProfiles };
   };
 
   const register = async (data) => {
     const response = await axios.post(`${API_URL}/auth/register`, data);
     const { token: newToken, user: userData, available_profiles } = response.data;
 
+    const normalizedAvailableProfiles = normalizeProfiles(available_profiles || []);
+    const selfProfile = {
+      type: 'self',
+      user_id: userData.id,
+      role: normalizeRole(userData.role),
+    };
+
     localStorage.setItem('token', newToken);
+    localStorage.removeItem('activeProfile');
     axios.defaults.headers.common.Authorization = `Bearer ${newToken}`;
 
     setToken(newToken);
     setUser(userData);
-    setAvailableProfiles(available_profiles || []);
-    setActiveProfile({
-      type: 'self',
-      user_id: userData.id,
-      role: normalizeRole(userData.role),
-    });
+    setAvailableProfiles(normalizedAvailableProfiles);
+    setActiveProfile(selfProfile);
     setViewingAs(null);
 
     return userData;
@@ -128,10 +163,7 @@ export function AuthProvider({ children }) {
   };
 
   const switchProfile = async (profile) => {
-    const normalizedProfile = {
-      ...profile,
-      role: profile?.role ? normalizeRole(profile.role) : profile?.role,
-    };
+    const normalizedProfile = normalizeProfile(profile);
 
     try {
       const response = await axios.post(`${API_URL}/auth/switch-profile`, {
@@ -144,10 +176,7 @@ export function AuthProvider({ children }) {
       localStorage.setItem('activeProfile', JSON.stringify(normalizedProfile));
 
       if (normalizedProfile.type === 'associated') {
-        const resolvedViewingAs = {
-          ...response.data.viewing_as,
-          role: normalizeRole(response.data.viewing_as?.role),
-        };
+        const resolvedViewingAs = normalizeProfile(response.data.viewing_as);
         setViewingAs(resolvedViewingAs);
       } else {
         setViewingAs(null);
@@ -163,8 +192,9 @@ export function AuthProvider({ children }) {
   const refreshProfiles = async () => {
     try {
       const response = await axios.get(`${API_URL}/auth/profiles`);
-      setAvailableProfiles(response.data || []);
-      return response.data;
+      const normalizedProfiles = normalizeProfiles(response.data || []);
+      setAvailableProfiles(normalizedProfiles);
+      return normalizedProfiles;
     } catch (error) {
       console.error('Error refreshing profiles:', error);
       return [];
