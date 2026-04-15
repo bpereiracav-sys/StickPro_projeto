@@ -18,7 +18,6 @@ import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
-import Teams from "./pages/Teams";
 import TeamDetail from "./pages/TeamDetail";
 import PlayerProfile from "./pages/PlayerProfile";
 import CalendarPage from "./pages/Calendar";
@@ -119,7 +118,14 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
-      <Route path="/login" element={<Login />} />
+      <Route
+        path="/login"
+        element={
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        }
+      />
       <Route
         path="/register"
         element={
@@ -214,12 +220,7 @@ function AppRoutes() {
           </PermissionRoute>
         }
       />
-      <Route
-        path="/teams-management"
-        element={
-          <Navigate to="/teams" replace />
-        }
-      />
+      <Route path="/teams-management" element={<Navigate to="/teams" replace />} />
       <Route
         path="/teams/:teamId"
         element={
@@ -338,9 +339,7 @@ function AppRoutes() {
       <Route
         path="/settings"
         element={
-          <PermissionRoute
-            allowedRoles={["admin", "gestor_desportivo"]}
-          >
+          <PermissionRoute allowedRoles={["admin", "gestor_desportivo"]}>
             <Settings />
           </PermissionRoute>
         }
@@ -348,9 +347,7 @@ function AppRoutes() {
       <Route
         path="/subscription"
         element={
-          <PermissionRoute
-            allowedRoles={["admin", "gestor_desportivo"]}
-          >
+          <PermissionRoute allowedRoles={["admin", "gestor_desportivo"]}>
             <SubscriptionPage />
           </PermissionRoute>
         }
