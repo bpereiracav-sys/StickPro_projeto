@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { convocationsApi } from '../services/api';
 import { Card, CardContent } from '../components/ui/card';
@@ -36,7 +35,6 @@ import {
 } from '../lib/utils';
 
 export default function Convocations() {
-  const { user } = useAuth();
   const { isCoach, isAdmin } = usePermissions();
 
   const [myConvocations, setMyConvocations] = useState([]);
@@ -92,7 +90,7 @@ export default function Convocations() {
       setReasonDialogOpen(false);
       setSelectedAttendance(null);
       setReason('');
-      fetchConvocations();
+      await fetchConvocations();
     } catch (error) {
       console.error('Error updating attendance:', error);
       toast.error('Erro ao atualizar presença');
@@ -105,6 +103,12 @@ export default function Convocations() {
     setSelectedAttendance(attendance);
     setReason(attendance?.reason || '');
     setReasonDialogOpen(true);
+  };
+
+  const closeReasonDialog = () => {
+    setReasonDialogOpen(false);
+    setSelectedAttendance(null);
+    setReason('');
   };
 
   const renderMyConvocations = () => {
@@ -169,9 +173,10 @@ export default function Convocations() {
                     </div>
 
                     {convocation?.message && (
-                      <p className="mt-3 text-sm bg-muted p-3 rounded-sm">
-                        {convocation.message}
-                      </p>
+                      <div className="mt-3 flex items-start gap-2 text-sm bg-muted p-3 rounded-sm">
+                        <MessageSquare className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                        <p>{convocation.message}</p>
+                      </div>
                     )}
 
                     {attendance?.reason && (
@@ -260,6 +265,7 @@ export default function Convocations() {
           <Card
             key={conv?.id || `conv-${index}`}
             className={`border border-border animate-fade-in-up stagger-${(index % 5) + 1}`}
+            data-testid={`all-convocation-${conv?.id}`}
           >
             <CardContent className="p-6">
               <div className="flex items-start justify-between mb-4 gap-4 flex-wrap">
@@ -277,7 +283,7 @@ export default function Convocations() {
 
               {conv?.message ? (
                 <div className="flex items-start gap-2 text-sm bg-muted p-3 rounded-sm">
-                  <MessageSquare className="w-4 h-4 mt-0.5 text-muted-foreground" />
+                  <MessageSquare className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
                   <p>{conv.message}</p>
                 </div>
               ) : (
@@ -358,14 +364,7 @@ export default function Convocations() {
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => {
-                setReasonDialogOpen(false);
-                setSelectedAttendance(null);
-                setReason('');
-              }}
-            >
+            <Button variant="outline" onClick={closeReasonDialog}>
               Cancelar
             </Button>
 
