@@ -10,7 +10,10 @@ import { PermissionsProvider, usePermissions } from "./context/PermissionsContex
 
 import { Toaster } from "./components/ui/sonner";
 import { AppLayout } from "./components/layout/AppLayout";
-import { PWAInstallPrompt, registerServiceWorker } from "./components/PWAInstallPrompt";
+import {
+  PWAInstallPrompt,
+  registerServiceWorker,
+} from "./components/PWAInstallPrompt";
 import { AIAssistant } from "./components/AIAssistant";
 
 // Pages
@@ -135,7 +138,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Authenticated - general */}
+      {/* General authenticated */}
       <Route
         path="/dashboard"
         element={
@@ -209,7 +212,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Team management / members */}
+      {/* Team management */}
       <Route
         path="/teams"
         element={
@@ -229,6 +232,8 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+
+      {/* Members */}
       <Route
         path="/members"
         element={
@@ -272,7 +277,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Competitions / attendance / stats */}
+      {/* Competitions / stats / attendance */}
       <Route
         path="/championships"
         element={
@@ -314,17 +319,24 @@ function AppRoutes() {
         }
       />
 
-      {/* Admin / management */}
+      {/* Payments */}
       <Route
         path="/payments"
         element={
           <PermissionRoute
-            allowedRoles={["admin", "gestor_desportivo", "jogador", "responsavel"]}
+            allowedRoles={[
+              "admin",
+              "gestor_desportivo",
+              "jogador",
+              "responsavel",
+            ]}
           >
             <Payments />
           </PermissionRoute>
         }
       />
+
+      {/* Admin / club management */}
       <Route
         path="/club"
         element={
@@ -339,7 +351,9 @@ function AppRoutes() {
       <Route
         path="/settings"
         element={
-          <PermissionRoute allowedRoles={["admin", "gestor_desportivo"]}>
+          <PermissionRoute
+            allowedRoles={["admin", "gestor_desportivo"]}
+          >
             <Settings />
           </PermissionRoute>
         }
@@ -347,7 +361,9 @@ function AppRoutes() {
       <Route
         path="/subscription"
         element={
-          <PermissionRoute allowedRoles={["admin", "gestor_desportivo"]}>
+          <PermissionRoute
+            allowedRoles={["admin", "gestor_desportivo"]}
+          >
             <SubscriptionPage />
           </PermissionRoute>
         }
