@@ -13,7 +13,6 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
-
 import {
   Select,
   SelectContent,
@@ -21,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-
 import {
   Dialog,
   DialogContent,
@@ -30,7 +28,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -41,7 +38,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
-
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -51,7 +47,6 @@ import {
 } from '../components/ui/dropdown-menu';
 
 import { toast } from 'sonner';
-
 import {
   Users,
   Plus,
@@ -70,7 +65,6 @@ import {
   Archive,
   ArchiveRestore,
   Bell,
-  BarChart3,
   Eye,
   CheckCircle,
   Clock,
@@ -80,13 +74,7 @@ import {
   Briefcase,
 } from 'lucide-react';
 
-import {
-  getInitials,
-  getRoleName,
-  getRoleColor,
-  normalizeRole,
-  isStaffRole,
-} from '../lib/utils';
+import { getInitials, getRoleName, getRoleColor, normalizeRole, isStaffRole } from '../lib/utils';
 
 const FLAGS = {
   PT: '🇵🇹',
@@ -234,13 +222,6 @@ function MemberRow({
                 </Link>
               </DropdownMenuItem>
 
-              <DropdownMenuItem asChild>
-                <Link to={`/players/${member.id}`} data-testid={`view-stats-${member.id}`}>
-                  <BarChart3 className="w-4 h-4 mr-2" />
-                  {t('members.viewStats')}
-                </Link>
-              </DropdownMenuItem>
-
               {isAdmin && !member.is_activated && (
                 <DropdownMenuItem onClick={onSendReminder}>
                   <Bell className="w-4 h-4 mr-2" />
@@ -358,38 +339,35 @@ export default function Members() {
     nationalities: [],
   });
 
-  const currentTeam = useMemo(
-    () => teams.find((teamItem) => teamItem.id === selectedTeamId),
-    [teams, selectedTeamId]
-  );
+  const currentTeam = teams.find((team) => team.id === selectedTeamId);
 
-  const groupedMembers = useMemo(
-    () => ({
-      staff: members
-        .filter((member) => isStaffRole(member.team_role || member.role))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-      players: members
-        .filter((member) => !isStaffRole(member.team_role || member.role))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    }),
-    [members]
-  );
-
-  const availableUsers = useMemo(
-    () => allUsers.filter((candidate) => !members.some((member) => member.id === candidate.id)),
-    [allUsers, members]
-  );
-
-  useEffect(() => {
-    fetchClub();
+  const fetchClub = useCallback(async () => {
+    try {
+      const response = await clubApi.getAll();
+      if (response.data.length > 0) {
+        setClub(response.data[0]);
+      } else {
+        setClub(null);
+      }
+    } catch (error) {
+      console.error('Error fetching club:', error);
+      setClub(null);
+    }
   }, []);
 
   useEffect(() => {
-    setTeams(contextTeams);
+    fetchClub();
+  }, [fetchClub]);
 
-    if (selectedTeam) {
+  useEffect(() => {
+    setTeams(contextTeams || []);
+
+    if (selectedTeam?.id) {
       setSelectedTeamId(selectedTeam.id);
-    } else if (!selectedTeam && !isAllTeamsSelected && contextTeams.length > 0 && !selectedTeamId) {
+      return;
+    }
+
+    if (!selectedTeam?.id && !isAllTeamsSelected && contextTeams.length > 0 && !selectedTeamId) {
       setSelectedTeamId(contextTeams[0].id);
     }
   }, [selectedTeam, contextTeams, isAllTeamsSelected, selectedTeamId]);
@@ -398,38 +376,10 @@ export default function Members() {
     setCurrentPage(1);
   }, [selectedTeamId, isAllTeamsSelected, searchQuery]);
 
-  useEffect(() => {
-    if (isAllTeamsSelected && club) {
-      fetchClubMembers();
-      return;
-    }
-
-    if (!isAllTeamsSelected && selectedTeamId) {
-      fetchTeamMembers();
-      return;
-    }
-
-    if (!isAllTeamsSelected && contextTeams.length === 0) {
-      setLoading(false);
-    }
-  }, [isAllTeamsSelected, club, selectedTeamId, currentPage, searchQuery, contextTeams.length]);
-
-  const fetchClub = async () => {
-    try {
-      const response = await clubApi.getAll();
-      if (response.data?.length > 0) {
-        setClub(response.data[0]);
-      }
-    } catch (error) {
-      console.error('Error fetching club:', error);
-    }
-  };
-
   const fetchClubMembers = useCallback(async () => {
     if (!club) return;
 
     setLoading(true);
-
     try {
       const response = await membersApi.getAll({
         club_id: club.id,
@@ -438,9 +388,9 @@ export default function Members() {
         search: searchQuery || undefined,
       });
 
-      setMembers(response.data?.members || []);
-      setTotalPages(response.data?.total_pages || 1);
-      setTotalMembers(response.data?.total || 0);
+      setMembers(response.data.members || []);
+      setTotalPages(response.data.total_pages || 1);
+      setTotalMembers(response.data.total || 0);
     } catch (error) {
       console.error('Error fetching club members:', error);
 
@@ -468,7 +418,6 @@ export default function Members() {
     if (!selectedTeamId) return;
 
     setLoading(true);
-
     try {
       const response = await membersApi.getAll({
         team_id: selectedTeamId,
@@ -477,9 +426,9 @@ export default function Members() {
         search: searchQuery || undefined,
       });
 
-      setMembers(response.data?.members || []);
-      setTotalPages(response.data?.total_pages || 1);
-      setTotalMembers(response.data?.total || 0);
+      setMembers(response.data.members || []);
+      setTotalPages(response.data.total_pages || 1);
+      setTotalMembers(response.data.total || 0);
 
       if (canManageTeam) {
         const usersRes = await usersApi.getAll();
@@ -492,16 +441,41 @@ export default function Members() {
       setMembers([]);
       setTotalPages(1);
       setTotalMembers(0);
-      setAllUsers([]);
     } finally {
       setLoading(false);
     }
   }, [selectedTeamId, currentPage, searchQuery, canManageTeam]);
 
+  useEffect(() => {
+    if (isAllTeamsSelected && club) {
+      fetchClubMembers();
+      return;
+    }
+
+    if (!isAllTeamsSelected && selectedTeamId) {
+      fetchTeamMembers();
+      return;
+    }
+
+    if (contextTeams.length === 0 && !isAllTeamsSelected) {
+      setLoading(false);
+    }
+  }, [
+    isAllTeamsSelected,
+    club,
+    selectedTeamId,
+    contextTeams.length,
+    fetchClubMembers,
+    fetchTeamMembers,
+  ]);
+
   const refreshMembers = useCallback(() => {
     if (isAllTeamsSelected && club) {
       fetchClubMembers();
-    } else if (!isAllTeamsSelected && selectedTeamId) {
+      return;
+    }
+
+    if (selectedTeamId) {
       fetchTeamMembers();
     }
   }, [isAllTeamsSelected, club, selectedTeamId, fetchClubMembers, fetchTeamMembers]);
@@ -513,7 +487,7 @@ export default function Members() {
         per_page: 50,
         search: searchQuery || undefined,
       });
-      setArchivedMembers(response.data?.members || []);
+      setArchivedMembers(response.data.members || []);
     } catch (error) {
       console.error('Error fetching archived members:', error);
       toast.error('Erro ao carregar arquivados');
@@ -567,7 +541,6 @@ export default function Members() {
     if (!selectedUserId || !selectedTeamId) return;
 
     setAdding(true);
-
     try {
       await teamsApi.addMember(selectedTeamId, {
         user_id: selectedUserId,
@@ -593,7 +566,6 @@ export default function Members() {
     }
 
     setAdding(true);
-
     try {
       const response = await membersApi.create({
         ...newMember,
@@ -602,7 +574,6 @@ export default function Members() {
       });
 
       toast.success(`Membro criado! Password temporária: ${response.data.temp_password}`);
-
       setCreateDialogOpen(false);
       setNewMember({
         name: '',
@@ -630,7 +601,6 @@ export default function Members() {
     }
 
     setAdding(true);
-
     try {
       for (const memberId of selectedMembersToAdd) {
         await membersApi.addToTeam(memberId, selectedTeamId);
@@ -652,7 +622,6 @@ export default function Members() {
     if (!selectedMember || !selectedTeamId) return;
 
     setAdding(true);
-
     try {
       await membersApi.removeFromTeam(selectedMember.id, selectedTeamId);
       toast.success('Membro removido da equipa');
@@ -697,7 +666,6 @@ export default function Members() {
 
   const handleExportExcel = async () => {
     setExporting(true);
-
     try {
       const params = {};
 
@@ -740,10 +708,7 @@ Ana,Oliveira,1990-06-30,ana@exemplo.com,treinador adjunto,,,916666666,Portuguesa
 Manuel,Rodrigues,1975-03-12,manuel@exemplo.com,delegado,,,917777777,Portuguesa,Masculino
 Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Feminino`;
 
-    const blob = new Blob(['\uFEFF' + csvContent], {
-      type: 'text/csv;charset=utf-8;',
-    });
-
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'template_membros.csv';
@@ -751,8 +716,8 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
   };
 
   const handleToggleAdminRole = async (member) => {
-    const normalizedRole = normalizeRole(member.role);
-    const newIsAdmin = normalizedRole !== 'admin' && normalizedRole !== 'gestor_desportivo';
+    const normalizedMemberRole = normalizeRole(member.role);
+    const newIsAdmin = normalizedMemberRole !== 'admin';
     const action = newIsAdmin ? 'conceder' : 'remover';
 
     if (!window.confirm(`Tem a certeza que quer ${action} role de admin a ${member.name}?`)) {
@@ -774,7 +739,6 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
     if (!selectedMember) return;
 
     setDeleting(true);
-
     try {
       await membersApi.delete(selectedMember.id);
       toast.success(t('members.memberDeleted'));
@@ -789,10 +753,25 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
   };
 
   const getTranslatedRoleName = (role) => {
-    const normalizedRole = normalizeRole(role);
-    const translated = t(`roles.${normalizedRole}`);
-    return translated !== `roles.${normalizedRole}` ? translated : getRoleName(normalizedRole);
+    const normalized = normalizeRole(role);
+    const translated = t(`roles.${normalized}`);
+    return translated !== `roles.${normalized}` ? translated : getRoleName(normalized);
   };
+
+  const groupedMembers = useMemo(() => {
+    return {
+      staff: members
+        .filter((member) => isStaffRole(member.team_role || member.role))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      players: members
+        .filter((member) => !isStaffRole(member.team_role || member.role))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    };
+  }, [members]);
+
+  const availableUsers = useMemo(() => {
+    return allUsers.filter((availableUser) => !members.find((m) => m.id === availableUser.id));
+  }, [allUsers, members]);
 
   if (loading) {
     return (
@@ -816,7 +795,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
             {t('members.title')}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Gestão de jogadores e staff • {totalMembers} membro(s)
+            {t('members.subtitle')} • {totalMembers} membro(s)
           </p>
         </div>
 
@@ -833,7 +812,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 data-testid="view-archived-btn"
               >
                 <Archive className="w-4 h-4 mr-2" />
-                Arquivados
+                {t('members.archived')}
               </Button>
             )}
 
@@ -845,7 +824,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 data-testid="import-members-btn"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Importar
+                {t('common.import')}
               </Button>
             )}
 
@@ -857,13 +836,13 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 data-testid="add-existing-btn"
               >
                 <UserPlus className="w-4 h-4 mr-2" />
-                Do Clube
+                {t('members.fromClub')}
               </Button>
             )}
 
             <Button size="sm" onClick={() => setCreateDialogOpen(true)} data-testid="create-member-btn">
               <Plus className="w-4 h-4 mr-2" />
-              Novo Membro
+              {t('members.newMember')}
             </Button>
 
             <Button
@@ -878,7 +857,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
               ) : (
                 <Download className="w-4 h-4 mr-2" />
               )}
-              Exportar
+              {t('common.export')}
             </Button>
           </div>
         )}
@@ -946,7 +925,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
             <Card className="border border-border">
               <CardContent className="p-4">
                 <div className="flex items-center gap-4">
-                  <Label className="whitespace-nowrap">Equipa:</Label>
+                  <Label className="whitespace-nowrap">{t('common.selectTeam')}:</Label>
                   <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                     <SelectTrigger className="max-w-xs" data-testid="team-selector">
                       <SelectValue placeholder="Selecione uma equipa" />
@@ -1222,7 +1201,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                       }}
                     >
                       <ArchiveRestore className="w-4 h-4 mr-2" />
-                      Restaurar
+                      {t('common.restore')}
                     </Button>
                   </div>
                 ))}
@@ -1274,7 +1253,9 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
       <Dialog open={addDialogOpen} onOpenChange={setAddDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-tight">Adicionar Membro</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">
+              Adicionar Membro
+            </DialogTitle>
             <DialogDescription>Adicionar utilizador existente à equipa</DialogDescription>
           </DialogHeader>
 
@@ -1314,10 +1295,10 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddDialogOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleAddExistingMember} disabled={adding || !selectedUserId}>
-              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : t('common.add')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1326,7 +1307,9 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-tight">Novo Membro</DialogTitle>
+            <DialogTitle className="font-heading text-xl tracking-tight">
+              {t('members.newMember')}
+            </DialogTitle>
             <DialogDescription>Criar novo membro e adicionar à equipa</DialogDescription>
           </DialogHeader>
 
@@ -1359,7 +1342,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 <Label>Função</Label>
                 <Select
                   value={newMember.role}
-                  onValueChange={(value) => setNewMember({ ...newMember, role: value })}
+                  onValueChange={(v) => setNewMember({ ...newMember, role: v })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1387,7 +1370,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 <Label>Posição</Label>
                 <Select
                   value={newMember.position}
-                  onValueChange={(value) => setNewMember({ ...newMember, position: value })}
+                  onValueChange={(v) => setNewMember({ ...newMember, position: v })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -1423,10 +1406,10 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleCreateMember} disabled={adding}>
-              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Criar Membro'}
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : t('members.createMember')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1435,16 +1418,16 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
       <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-tight">Importar Membros</DialogTitle>
-            <DialogDescription>Importar membros a partir de ficheiro Excel ou CSV</DialogDescription>
+            <DialogTitle className="font-heading text-xl tracking-tight">
+              {t('members.importTitle')}
+            </DialogTitle>
+            <DialogDescription>{t('members.importDescription')}</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
               <FileSpreadsheet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-              <p className="text-sm text-muted-foreground mb-4">
-                Arraste um ficheiro .xlsx ou .csv ou clique para selecionar
-              </p>
+              <p className="text-sm text-muted-foreground mb-4">{t('members.importDragDrop')}</p>
 
               <input
                 ref={fileInputRef}
@@ -1458,7 +1441,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
               <div className="flex justify-center gap-2">
                 <Button variant="outline" onClick={downloadTemplate}>
                   <Download className="w-4 h-4 mr-2" />
-                  Template
+                  {t('members.downloadTemplate')}
                 </Button>
 
                 <Button onClick={() => fileInputRef.current?.click()} disabled={importing}>
@@ -1467,7 +1450,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                   ) : (
                     <Upload className="w-4 h-4 mr-2" />
                   )}
-                  Selecionar Ficheiro
+                  {t('members.selectFile')}
                 </Button>
               </div>
             </div>
@@ -1475,20 +1458,26 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
             {importResults && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="default">{importResults.success} importados</Badge>
+                  <Badge variant="default">
+                    {importResults.success} {t('members.importSuccess')}
+                  </Badge>
 
                   {importResults.warnings?.length > 0 && (
-                    <Badge variant="secondary">{importResults.warnings.length} avisos</Badge>
+                    <Badge variant="secondary">
+                      {importResults.warnings.length} {t('members.importWarnings')}
+                    </Badge>
                   )}
 
-                  {importResults.errors?.length > 0 && (
-                    <Badge variant="destructive">{importResults.errors.length} erros</Badge>
+                  {importResults.errors.length > 0 && (
+                    <Badge variant="destructive">
+                      {importResults.errors.length} {t('members.importErrors')}
+                    </Badge>
                   )}
                 </div>
 
                 {importResults.created?.length > 0 && (
                   <div className="max-h-40 overflow-y-auto text-sm border rounded p-2">
-                    <p className="font-medium mb-1">Passwords temporárias:</p>
+                    <p className="font-medium mb-1">{t('members.tempPasswords')}:</p>
                     {importResults.created.map((createdUser, i) => (
                       <p key={i} className="text-muted-foreground">
                         {createdUser.name}:{' '}
@@ -1519,19 +1508,19 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
             )}
 
             <div className="text-sm text-muted-foreground">
-              <p className="font-medium mb-1">Colunas esperadas:</p>
+              <p className="font-medium mb-1">{t('members.expectedColumns')}:</p>
               <code className="text-xs bg-muted px-2 py-1 rounded block">
                 Nome, Apelido, Data de Nascimento, Email, Função
               </code>
               <p className="text-xs mt-2 text-muted-foreground">
-                Colunas opcionais: Número, Posição, Telefone, Nacionalidade, Sexo
+                {t('members.optionalColumns')}: Número, Posição, Telefone, Nacionalidade, Sexo
               </p>
               <p className="text-xs mt-1">
-                <strong>Funções válidas:</strong> jogador, treinador, treinador adjunto, delegado,
-                responsavel, gestor desportivo
+                <strong>{t('members.validRoles')}:</strong> jogador, treinador, treinador adjunto,
+                delegado, responsavel, gestor desportivo
               </p>
               <p className="text-xs mt-1">
-                <strong>Posições válidas:</strong> GR (Guarda-Redes), JC (Jogador de Campo)
+                <strong>{t('members.validPositions')}:</strong> GR (Guarda-Redes), JC (Jogador de Campo)
               </p>
             </div>
           </div>
@@ -1544,7 +1533,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 setImportResults(null);
               }}
             >
-              Fechar
+              {t('common.close')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1562,12 +1551,12 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleRemoveMemberFromTeam}
               className="bg-destructive text-white hover:bg-destructive/90"
             >
-              Remover
+              {t('common.remove')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1577,14 +1566,14 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">
-              Adicionar a Equipa
+              {t('members.addToTeam')}
             </DialogTitle>
             <DialogDescription>Selecione a equipa para adicionar o membro</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label>Equipa</Label>
+              <Label>{t('common.selectTeam')}</Label>
               <Select value={selectedTeamId} onValueChange={setSelectedTeamId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione uma equipa" />
@@ -1609,10 +1598,10 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setAddToTeamDialogOpen(false)}>
-              Cancelar
+              {t('common.cancel')}
             </Button>
             <Button onClick={handleAddMembersToTeam} disabled={adding || !selectedTeamId}>
-              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Adicionar'}
+              {adding ? <Loader2 className="w-4 h-4 animate-spin" /> : t('common.add')}
             </Button>
           </DialogFooter>
         </DialogContent>
