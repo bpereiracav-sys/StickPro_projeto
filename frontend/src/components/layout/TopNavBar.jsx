@@ -1,4 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTeam } from '../../context/TeamContext';
@@ -23,7 +24,6 @@ import {
   ChevronDown,
   Check,
 } from 'lucide-react';
-import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
 import { clubApi } from '../../services/api';
 
@@ -52,7 +52,13 @@ const StickProLogo = ({ size = 'md' }) => {
 export function TopNavBar() {
   const { user, logout, isAuthenticated, availableProfiles } = useAuth();
   const { t } = useLanguage();
-  const { teams, selectedTeam, selectTeam, selectAllTeams, isAllTeamsSelected } = useTeam();
+  const {
+    teams,
+    selectedTeam,
+    selectTeam,
+    selectAllTeams,
+    isAllTeamsSelected,
+  } = useTeam();
   const permissions = usePermissions();
 
   const location = useLocation();
@@ -101,6 +107,23 @@ export function TopNavBar() {
 
   const teamsLabel =
     t('nav.teams') !== 'nav.teams' ? t('nav.teams') : 'Equipas';
+
+  const myTeamsLabel =
+    t('nav.myTeams') !== 'nav.myTeams' ? t('nav.myTeams') : 'Minhas Equipas';
+
+  const myClubLabel =
+    t('nav.myClub') !== 'nav.myClub' ? t('nav.myClub') : 'Meu Clube';
+
+  const myProfileLabel =
+    t('nav.myProfile') !== 'nav.myProfile' ? t('nav.myProfile') : 'Meu Perfil';
+
+  const childrenLabel =
+    t('nav.childrenTeams') !== 'nav.childrenTeams'
+      ? t('nav.childrenTeams')
+      : 'Os Meus Filhos';
+
+  const settingsLabel =
+    t('nav.settings') !== 'nav.settings' ? t('nav.settings') : 'Definições';
 
   if (!isAuthenticated) {
     return (
@@ -166,7 +189,7 @@ export function TopNavBar() {
               data-testid="nav-my-club"
             >
               <Building2 className="w-4 h-4" />
-              {t('nav.myClub')}
+              {myClubLabel}
               {isAllTeamsSelected && <Check className="w-3 h-3 ml-1" />}
             </Button>
 
@@ -180,13 +203,13 @@ export function TopNavBar() {
                   data-testid="nav-my-teams"
                 >
                   <Users className="w-4 h-4" />
-                  {selectedTeam ? selectedTeam.name : t('nav.myTeams')}
+                  {selectedTeam ? selectedTeam.name : myTeamsLabel}
                   <ChevronDown className="w-4 h-4" />
                 </Button>
               </DropdownMenuTrigger>
 
               <DropdownMenuContent className="w-64 bg-white">
-                <DropdownMenuLabel>{t('nav.myTeams')}</DropdownMenuLabel>
+                <DropdownMenuLabel>{myTeamsLabel}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
                 {teams.length > 0 ? (
@@ -210,7 +233,9 @@ export function TopNavBar() {
                         )}
 
                         <div className="min-w-0">
-                          <span className="font-medium truncate block">{team.name}</span>
+                          <span className="font-medium truncate block">
+                            {team.name}
+                          </span>
                           <span className="text-xs text-muted-foreground">
                             {team.category}
                           </span>
@@ -235,7 +260,7 @@ export function TopNavBar() {
                 <DropdownMenuItem asChild>
                   <Link to="/my-teams" className="flex items-center gap-2 cursor-pointer">
                     <Users className="w-4 h-4" />
-                    {t('nav.myTeams')}
+                    {myTeamsLabel}
                   </Link>
                 </DropdownMenuItem>
 
@@ -259,7 +284,7 @@ export function TopNavBar() {
               >
                 <Link to="/children">
                   <Baby className="w-4 h-4" />
-                  {t('nav.childrenTeams') || 'Os Meus Filhos'}
+                  {childrenLabel}
                 </Link>
               </Button>
             )}
@@ -274,7 +299,7 @@ export function TopNavBar() {
             >
               <Link to="/profile">
                 <UserCircle className="w-4 h-4" />
-                {t('nav.myProfile')}
+                {myProfileLabel}
               </Link>
             </Button>
           </nav>
@@ -314,14 +339,14 @@ export function TopNavBar() {
                 <DropdownMenuItem asChild>
                   <Link to="/profile" className="cursor-pointer">
                     <UserCircle className="w-4 h-4 mr-2" />
-                    {t('nav.myProfile')}
+                    {myProfileLabel}
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link to="/settings" className="cursor-pointer">
                     <Settings className="w-4 h-4 mr-2" />
-                    {t('nav.settings')}
+                    {settingsLabel}
                   </Link>
                 </DropdownMenuItem>
 
