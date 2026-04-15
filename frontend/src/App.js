@@ -208,20 +208,14 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/settings"
-        element={
-          <ProtectedRoute>
-            <Settings />
-          </ProtectedRoute>
-        }
-      />
 
       {/* Team management / members */}
       <Route
         path="/teams"
         element={
-          <PermissionRoute allowedRoles={["admin", "gestor_desportivo", "treinador"]}>
+          <PermissionRoute
+            allowedRoles={["admin", "gestor_desportivo", "treinador"]}
+          >
             <TeamsPage />
           </PermissionRoute>
         }
@@ -320,7 +314,7 @@ function AppRoutes() {
         }
       />
 
-      {/* Payments */}
+      {/* Admin / management */}
       <Route
         path="/payments"
         element={
@@ -331,8 +325,6 @@ function AppRoutes() {
           </PermissionRoute>
         }
       />
-
-      {/* Admin only */}
       <Route
         path="/club"
         element={
@@ -341,6 +333,14 @@ function AppRoutes() {
             requiredPermission="view_club_settings"
           >
             <ClubPage />
+          </PermissionRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <PermissionRoute allowedRoles={["admin", "gestor_desportivo"]}>
+            <Settings />
           </PermissionRoute>
         }
       />
