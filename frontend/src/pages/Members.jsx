@@ -74,7 +74,13 @@ import {
   Briefcase,
 } from 'lucide-react';
 
-import { getInitials, getRoleName, getRoleColor, normalizeRole, isStaffRole } from '../lib/utils';
+import {
+  getInitials,
+  getRoleName,
+  getRoleColor,
+  normalizeRole,
+  isStaffRole,
+} from '../lib/utils';
 
 const FLAGS = {
   PT: '🇵🇹',
@@ -99,6 +105,16 @@ const FLAGS = {
   RO: '🇷🇴',
 };
 
+function getMemberNationalities(member) {
+  if (Array.isArray(member?.nationalities)) return member.nationalities;
+  if (Array.isArray(member?.profile?.identity?.nationalities)) {
+    return member.profile.identity.nationalities;
+  }
+  if (member?.nationality) return [member.nationality];
+  if (member?.profile?.identity?.nationality) return [member.profile.identity.nationality];
+  return [];
+}
+
 function MemberRow({
   member,
   isAdmin,
@@ -116,6 +132,7 @@ function MemberRow({
   user,
 }) {
   const memberRole = member.team_role || member.role;
+  const nationalities = getMemberNationalities(member);
 
   return (
     <div
@@ -157,11 +174,14 @@ function MemberRow({
               {member.name}
             </Link>
 
-            {member.nationalities?.slice(0, 2).map((nat, i) => (
-              <span key={i} className="text-lg" title={nat}>
-                {FLAGS[nat] || nat}
-              </span>
-            ))}
+            {nationalities.slice(0, 2).map((nat, i) => {
+              const code = String(nat).trim().toUpperCase();
+              return (
+                <span key={i} className="text-lg" title={nat}>
+                  {FLAGS[code] || nat}
+                </span>
+              );
+            })}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
@@ -264,7 +284,7 @@ function MemberRow({
 
                   <DropdownMenuItem className="text-amber-600" onClick={onArchive}>
                     <Archive className="w-4 h-4 mr-2" />
-                    {t('common.archived')}
+                    {t('members.archived')}
                   </DropdownMenuItem>
 
                   <DropdownMenuItem
@@ -362,12 +382,16 @@ export default function Members() {
   useEffect(() => {
     setTeams(contextTeams || []);
 
+    if (isAllTeamsSelected) {
+      return;
+    }
+
     if (selectedTeam?.id) {
       setSelectedTeamId(selectedTeam.id);
       return;
     }
 
-    if (!selectedTeam?.id && !isAllTeamsSelected && contextTeams.length > 0 && !selectedTeamId) {
+    if (contextTeams.length > 0 && !selectedTeamId) {
       setSelectedTeamId(contextTeams[0].id);
     }
   }, [selectedTeam, contextTeams, isAllTeamsSelected, selectedTeamId]);
