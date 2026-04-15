@@ -1,50 +1,64 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { teamsApi } from '../services/api';
 import { useAuth } from './AuthContext';
 
-const TeamContext = createContext();
+const TeamContext = createContext(null);
 
 export function TeamProvider({ children }) {
   const { isAuthenticated } = useAuth();
+
   const [teams, setTeams] = useState([]);
-  const [selectedTeam, setSelectedTeam] = useState(null); // null = "Meu Clube" (all teams)
+  const [selectedTeam, setSelectedTeam] = useState(null); // null = Meu Clube
   const [loading, setLoading] = useState(true);
 
   const fetchTeams = useCallback(async () => {
     if (!isAuthenticated) {
       setTeams([]);
       setSelectedTeam(null);
+      localStorage.removeItem('stickpro_selected_team');
       setLoading(false);
       return;
     }
-    
+
     try {
       const response = await teamsApi.getAll();
-      setTeams(response.data || []);
-      
-      // Restore selected team from localStorage
+      const fetchedTeams = response.data || [];
+
+      setTeams(fetchedTeams);
+
       const savedTeamId = localStorage.getItem('stickpro_selected_team');
-      if (savedTeamId && savedTeamId !== 'all') {
-        const team = response.data.find(t => t.id === savedTeamId);
-        if (team) {
-          setSelectedTeam(team);
-        }
+
+      if (!savedTeamId || savedTeamId === 'all') {
+        setSelectedTeam(null);
+        return;
+      }
+
+      const savedTeam = fetchedTeams.find((team) => team.id === savedTeamId);
+
+      if (savedTeam) {
+        setSelectedTeam(savedTeam);
+      } else {
+        setSelectedTeam(null);
+        localStorage.setItem('stickpro_selected_team', 'all');
       }
     } catch (error) {
       console.error('Error fetching teams:', error);
       setTeams([]);
+      setSelectedTeam(null);
     } finally {
       setLoading(false);
     }
   }, [isAuthenticated]);
 
   useEffect(() => {
+    setLoading(true);
     fetchTeams();
   }, [fetchTeams]);
 
   const selectTeam = useCallback((team) => {
-    setSelectedTeam(team);
-    if (team) {
+    setSelectedTeam(team || null);
+
+    if (team?.id) {
       localStorage.setItem('stickpro_selected_team', team.id);
     } else {
       localStorage.setItem('stickpro_selected_team', 'all');
@@ -61,38 +75,46 @@ export function TeamProvider({ children }) {
     await fetchTeams();
   }, [fetchTeams]);
 
-  // Get team IDs for filtering
   const getTeamFilter = useCallback(() => {
-    if (selectedTeam) {
+    if (selectedTeam?.id) {
       return selectedTeam.id;
     }
-    // Return all team IDs when "Meu Clube" is selected
-    return teams.map(t => t.id);
+
+    return teams.map((team) => team.id);
   }, [selectedTeam, teams]);
 
-  const value = {
-    teams,
-    selectedTeam,
-    loading,
-    selectTeam,
-    selectAllTeams,
-    refreshTeams,
-    getTeamFilter,
-    isAllTeamsSelected: selectedTeam === null,
-  };
-
-  return (
-    <TeamContext.Provider value={value}>
-      {children}
-    </TeamContext.Provider>
+  const value = useMemo(
+    () => ({
+      teams,
+      selectedTeam,
+      loading,
+      selectTeam,
+      selectAllTeams,
+      refreshTeams,
+      getTeamFilter,
+      isAllTeamsSelected: selectedTeam === null,
+    }),
+    [
+      teams,
+      selectedTeam,
+      loading,
+      selectTeam,
+      selectAllTeams,
+      refreshTeams,
+      getTeamFilter,
+    ]
   );
+
+  return <TeamContext.Provider value={value}>{children}</TeamContext.Provider>;
 }
 
 export function useTeam() {
   const context = useContext(TeamContext);
+
   if (!context) {
     throw new Error('useTeam must be used within a TeamProvider');
   }
+
   return context;
 }
 
