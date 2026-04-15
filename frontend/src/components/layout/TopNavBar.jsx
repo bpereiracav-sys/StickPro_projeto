@@ -20,8 +20,6 @@ import {
   UserCircle,
   LogOut,
   Settings,
-  Menu,
-  X,
   ChevronDown,
   Check,
 } from 'lucide-react';
@@ -60,7 +58,6 @@ export function TopNavBar() {
   const location = useLocation();
   const navigate = useNavigate();
 
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [club, setClub] = useState(null);
 
   useEffect(() => {
@@ -101,53 +98,6 @@ export function TopNavBar() {
   const hasChildren = useMemo(() => {
     return availableProfiles?.some((p) => p.type === 'associated');
   }, [availableProfiles]);
-
-  const isAdmin = permissions.isAdmin;
-
-  const mobileNavItems = [
-    {
-      href: '/dashboard',
-      label: t('nav.home'),
-      icon: Building2,
-      show: true,
-    },
-    {
-      href: '#club-context',
-      label: t('nav.myClub'),
-      icon: Building2,
-      show: true,
-      onClick: handleSelectAllTeams,
-    },
-    {
-      href: '#teams-context',
-      label: t('nav.myTeams'),
-      icon: Users,
-      show: teams.length > 0,
-      items: teams.map((team) => ({
-        href: '#',
-        label: team.name,
-        onClick: () => handleSelectTeam(team),
-      })),
-    },
-    {
-      href: '/my-teams',
-      label: t('nav.myTeams'),
-      icon: Users,
-      show: true,
-    },
-    {
-      href: '/children',
-      label: t('nav.childrenTeams') || 'Os Meus Filhos',
-      icon: Baby,
-      show: hasChildren,
-    },
-    {
-      href: '/profile',
-      label: t('nav.myProfile'),
-      icon: UserCircle,
-      show: true,
-    },
-  ];
 
   if (!isAuthenticated) {
     return (
@@ -204,7 +154,7 @@ export function TopNavBar() {
             </span>
           </Link>
 
-          {/* Desktop Context Navigation */}
+          {/* Desktop context navigation */}
           <nav className="hidden lg:flex items-center gap-1">
             <Button
               variant="ghost"
@@ -355,6 +305,24 @@ export function TopNavBar() {
 
                 <DropdownMenuSeparator />
 
+                <DropdownMenuItem asChild>
+                  <Link to="/profile" className="cursor-pointer">
+                    <UserCircle className="w-4 h-4 mr-2" />
+                    {t('nav.myProfile')}
+                  </Link>
+                </DropdownMenuItem>
+
+                {permissions.isAdmin && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="cursor-pointer">
+                      <Settings className="w-4 h-4 mr-2" />
+                      {t('nav.settings')}
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuSeparator />
+
                 <DropdownMenuItem
                   className="flex items-center gap-2 text-destructive cursor-pointer"
                   onClick={handleLogout}
@@ -365,82 +333,8 @@ export function TopNavBar() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </Button>
           </div>
         </div>
-
-        {/* Mobile nav */}
-        {mobileMenuOpen && (
-          <nav className="lg:hidden py-4 border-t border-border">
-            {mobileNavItems
-              .filter((item) => item.show !== false)
-              .map((item, index) => {
-                const Icon = item.icon;
-
-                return (
-                  <div key={`${item.href}-${index}`} className="py-2">
-                    {item.onClick ? (
-                      <button
-                        className="flex items-center gap-3 px-4 py-2 text-foreground hover:bg-muted rounded-sm w-full text-left"
-                        onClick={() => {
-                          item.onClick();
-                          setMobileMenuOpen(false);
-                        }}
-                      >
-                        <Icon className="w-5 h-5" />
-                        {item.label}
-                      </button>
-                    ) : (
-                      <Link
-                        to={item.href}
-                        className="flex items-center gap-3 px-4 py-2 text-foreground hover:bg-muted rounded-sm"
-                        onClick={() => setMobileMenuOpen(false)}
-                      >
-                        <Icon className="w-5 h-5" />
-                        {item.label}
-                      </Link>
-                    )}
-
-                    {item.items && item.items.length > 0 && (
-                      <div className="ml-12 mt-1 space-y-1">
-                        {item.items.map((subItem, idx) =>
-                          subItem.onClick ? (
-                            <button
-                              key={idx}
-                              className="block px-4 py-1 text-sm text-muted-foreground hover:text-foreground w-full text-left"
-                              onClick={() => {
-                                subItem.onClick();
-                                setMobileMenuOpen(false);
-                              }}
-                            >
-                              {subItem.label}
-                            </button>
-                          ) : (
-                            <Link
-                              key={idx}
-                              to={subItem.href}
-                              className="block px-4 py-1 text-sm text-muted-foreground hover:text-foreground"
-                              onClick={() => setMobileMenuOpen(false)}
-                            >
-                              {subItem.label}
-                            </Link>
-                          )
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-          </nav>
-        )}
       </div>
     </header>
   );
