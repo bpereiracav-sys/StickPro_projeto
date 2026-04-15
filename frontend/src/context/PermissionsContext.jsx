@@ -103,9 +103,8 @@ export function PermissionsProvider({ children }) {
     const isPlayer = normalizedRole === ROLES.PLAYER;
     const isFamilyMember = normalizedRole === ROLES.FAMILY_MEMBER;
 
-    // Staff includes sports manager/admin from an operational perspective
-    const isStaff =
-      isAdmin || isCoach || isAssistantCoach || isDelegate;
+    // Staff includes admin and sports manager operationally
+    const isStaff = isAdmin || isCoach || isAssistantCoach || isDelegate;
 
     // Permission checks
     const canManageTeam = isAdmin || isCoach;
@@ -138,24 +137,24 @@ export function PermissionsProvider({ children }) {
       if (isAdmin) return true;
       if (!targetUser) return false;
 
-      // own profile
+      // Own profile
       if (targetUser.id === user.id) return true;
 
-      // family member -> linked player only
+      // Family member -> linked player only
       if (isFamilyMember && linkedPlayerId && targetUser.id === linkedPlayerId) {
         return true;
       }
 
       const targetTeams = new Set(targetUser.team_ids || []);
 
-      // staff can access users in their teams
+      // Staff can access users in their teams
       if (isCoach || isAssistantCoach || isDelegate) {
         for (const tid of teamIds) {
           if (targetTeams.has(tid)) return true;
         }
       }
 
-      // player can see own team context only
+      // Player can see team context
       if (isPlayer) {
         for (const tid of teamIds) {
           if (targetTeams.has(tid)) return true;
@@ -169,10 +168,10 @@ export function PermissionsProvider({ children }) {
       if (isAdmin) return true;
       if (!targetUser) return false;
 
-      // own profile
+      // Own profile
       if (targetUser.id === user.id) return true;
 
-      // coaches can edit users in their teams
+      // Coaches can edit users in their teams
       if (isCoach) {
         const targetTeams = new Set(targetUser.team_ids || []);
         for (const tid of teamIds) {
@@ -235,7 +234,8 @@ export function PermissionsProvider({ children }) {
         view_all_teams: isAdmin,
         manage_all_teams: isAdmin,
 
-        view_team_members: isCoach || isAssistantCoach || isDelegate || isPlayer,
+        view_team_members:
+          isCoach || isAssistantCoach || isDelegate || isPlayer || isFamilyMember,
         manage_team_members: canManageTeam,
 
         view_team_events: true,
@@ -244,7 +244,8 @@ export function PermissionsProvider({ children }) {
         view_team_stats: true,
         manage_team_stats: canManageStats,
 
-        view_team_attendance: isCoach || isAssistantCoach || isDelegate || isPlayer || isFamilyMember,
+        view_team_attendance:
+          isCoach || isAssistantCoach || isDelegate || isPlayer || isFamilyMember,
         manage_team_attendance: canManageAttendance,
 
         create_convocations: canCreateConvocations,
