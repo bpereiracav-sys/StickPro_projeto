@@ -1,5 +1,4 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTeam } from '../../context/TeamContext';
@@ -24,6 +23,7 @@ import {
   ChevronDown,
   Check,
 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
 import { clubApi } from '../../services/api';
 
@@ -61,23 +61,24 @@ export function TopNavBar() {
   const [club, setClub] = useState(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      setClub(null);
-      return;
+    if (isAuthenticated) {
+      fetchClub();
     }
+  }, [isAuthenticated]);
 
-    const fetchClub = async () => {
-      try {
-        const response = await clubApi.getAll();
-        setClub(response.data?.length > 0 ? response.data[0] : null);
-      } catch (error) {
-        console.error('Error fetching club:', error);
+  const fetchClub = async () => {
+    try {
+      const response = await clubApi.getAll();
+      if (response.data?.length > 0) {
+        setClub(response.data[0]);
+      } else {
         setClub(null);
       }
-    };
-
-    fetchClub();
-  }, [isAuthenticated]);
+    } catch (error) {
+      console.error('Error fetching club:', error);
+      setClub(null);
+    }
+  };
 
   const handleLogout = () => {
     logout();
@@ -98,11 +99,8 @@ export function TopNavBar() {
     return availableProfiles?.some((profile) => profile.type === 'associated');
   }, [availableProfiles]);
 
-  const teamsLabel = t('nav.teams') !== 'nav.teams' ? t('nav.teams') : 'Equipas';
-  const childrenLabel =
-    t('nav.childrenTeams') !== 'nav.childrenTeams'
-      ? t('nav.childrenTeams')
-      : 'Os Meus Filhos';
+  const teamsLabel =
+    t('nav.teams') !== 'nav.teams' ? t('nav.teams') : 'Equipas';
 
   if (!isAuthenticated) {
     return (
@@ -261,7 +259,7 @@ export function TopNavBar() {
               >
                 <Link to="/children">
                   <Baby className="w-4 h-4" />
-                  {childrenLabel}
+                  {t('nav.childrenTeams') || 'Os Meus Filhos'}
                 </Link>
               </Button>
             )}
@@ -320,14 +318,12 @@ export function TopNavBar() {
                   </Link>
                 </DropdownMenuItem>
 
-                {permissions.isAdmin && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/settings" className="cursor-pointer">
-                      <Settings className="w-4 h-4 mr-2" />
-                      {t('nav.settings')}
-                    </Link>
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem asChild>
+                  <Link to="/settings" className="cursor-pointer">
+                    <Settings className="w-4 h-4 mr-2" />
+                    {t('nav.settings')}
+                  </Link>
+                </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 
