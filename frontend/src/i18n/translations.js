@@ -3,7 +3,6 @@
 
 export const translations = {
   pt: {
-    // Common
     common: {
       save: 'Guardar',
       cancel: 'Cancelar',
@@ -51,7 +50,7 @@ export const translations = {
       archived: 'Arquivado',
       restore: 'Restaurar',
     },
-    // Auth
+
     auth: {
       login: 'Entrar',
       loginButton: 'Entrar',
@@ -85,7 +84,7 @@ export const translations = {
       passwordMismatch: 'As passwords não coincidem',
       passwordTooShort: 'A password deve ter pelo menos 6 caracteres',
     },
-    // Navigation
+
     nav: {
       home: 'Início',
       dashboard: 'Painel',
@@ -98,12 +97,19 @@ export const translations = {
       settings: 'Definições',
       myClub: 'Meu Clube',
       myTeams: 'Minhas Equipas',
-      club: 'Clube',
-      subscription: 'Subscrição',
       childrenTeams: 'Equipas dos Meus Filhos',
       myProfile: 'Meu Perfil',
+      club: 'Clube',
+      subscription: 'Subscrição',
+      teams: 'Equipas',
+      payments: 'Pagamentos',
+      library: 'Biblioteca',
     },
-    // Dashboard
+
+    sidebar: {
+      tagline: 'Gestão Desportiva',
+    },
+
     dashboard: {
       goodMorning: 'Bom dia',
       goodAfternoon: 'Boa tarde',
@@ -115,7 +121,7 @@ export const translations = {
       seeAll: 'Ver Todas',
       today: 'Hoje',
     },
-    // Calendar
+
     calendar: {
       title: 'Calendário',
       subtitle: 'Gerir eventos e treinos',
@@ -138,7 +144,7 @@ export const translations = {
       allTypes: 'Todos os tipos',
       filterByType: 'Filtrar por tipo',
     },
-    // Members
+
     members: {
       title: 'Membros',
       subtitle: 'Gerir jogadores e staff',
@@ -150,7 +156,8 @@ export const translations = {
       exportList: 'Exportar Lista',
       deleteMember: 'Eliminar Membro',
       deleteMemberConfirm: 'Tem a certeza que pretende eliminar este membro?',
-      deleteMemberWarning: 'Esta ação é irreversível. Todas as estatísticas e dados do membro serão eliminados.',
+      deleteMemberWarning:
+        'Esta ação é irreversível. Todas as estatísticas e dados do membro serão eliminados.',
       memberDeleted: 'Membro eliminado com sucesso',
       memberCreated: 'Membro criado com sucesso',
       memberUpdated: 'Membro atualizado com sucesso',
@@ -167,7 +174,6 @@ export const translations = {
       removeFromTeam: 'Remover da Equipa',
       viewProfile: 'Ver Perfil',
       viewStats: 'Ver Estatísticas',
-      // Import dialog
       importTitle: 'Importar Membros',
       importDescription: 'Importar membros a partir de ficheiro Excel ou CSV',
       importDragDrop: 'Arraste um ficheiro .xlsx ou .csv ou clique para selecionar',
@@ -182,23 +188,23 @@ export const translations = {
       importWarnings: 'avisos',
       tempPasswords: 'Passwords temporárias',
     },
-    // Roles (internal keys -> display names)
-   roles: {
-  admin: 'Administrador',
-  gestor_desportivo: 'Gestor Desportivo',
-  treinador: 'Treinador',
-  treinador_adjunto: 'Treinador Adjunto',
-  delegado: 'Delegado',
-  jogador: 'Jogador',
-  responsavel: 'Responsável',
-},
-    // Groups
+
+    roles: {
+      admin: 'Administrador',
+      gestor_desportivo: 'Gestor Desportivo',
+      treinador: 'Treinador',
+      treinador_adjunto: 'Treinador Adjunto',
+      delegado: 'Delegado',
+      jogador: 'Jogador',
+      responsavel: 'Responsável',
+    },
+
     groups: {
       players: 'Jogadores',
       staff: 'Staff',
       all: 'Todos',
     },
-    // Championships (Competições)
+
     championships: {
       title: 'Competições',
       subtitle: 'Gerir competições e resultados',
@@ -261,9 +267,9 @@ export const translations = {
       noTeamsAvailable: 'Nenhuma equipa disponível. Adicione equipas primeiro.',
       teamName: 'Nome da Equipa',
       vs: 'vs',
-      // Statistics extraction
       extractStats: 'Extrair Estatísticas',
-      extractStatsDescription: 'Extrair estatísticas de jogadores a partir de uma ficha de jogo',
+      extractStatsDescription:
+        'Extrair estatísticas de jogadores a partir de uma ficha de jogo',
       gamesheetUrl: 'URL da Ficha de Jogo',
       extracting: 'A extrair...',
       statsExtracted: 'Estatísticas extraídas com sucesso',
@@ -278,10 +284,10 @@ export const translations = {
         LDF: 'Livres Diretos Falhados',
         yellow: 'Amarelos',
         blue: 'Azuis',
-        red: 'Vermelhos'
-      }
+        red: 'Vermelhos',
+      },
     },
-    // Attendance
+
     attendance: {
       title: 'Presenças',
       subtitle: 'Controlo de presenças',
@@ -295,7 +301,6 @@ export const translations = {
       byMonth: 'Por Mês',
       total: 'Total',
       confirmed: 'Confirmados',
-      // Convocation status view
       viewStatus: 'Ver estado da convocatória',
       statusTitle: 'Estado da Convocatória',
       statusDescription: 'Ver e gerir respostas dos jogadores',
@@ -312,7 +317,7 @@ export const translations = {
       statusSynced: 'Presença sincronizada',
       confirmedCount: 'confirmados',
     },
-    // Stats
+
     stats: {
       title: 'Estatísticas',
       subtitle: 'Análise de desempenho',
@@ -332,7 +337,7 @@ export const translations = {
       points: 'Pontos',
       goalDiff: 'Diferença de Golos',
     },
-    // Settings
+
     settings: {
       title: 'Definições',
       language: 'Idioma',
@@ -341,8 +346,10 @@ export const translations = {
       themeDescription: 'Escolha o tema de cores da aplicação',
       selectTheme: 'Selecionar tema',
       notifications: 'Notificações',
-      notificationsDescription: 'Recebe alertas push quando fores convocado para eventos',
-      notificationsHint: 'Ativa as notificações para seres avisado de novas convocatórias mesmo quando a app está fechada.',
+      notificationsDescription:
+        'Recebe alertas push quando fores convocado para eventos',
+      notificationsHint:
+        'Ativa as notificações para seres avisado de novas convocatórias mesmo quando a app está fechada.',
       profile: 'Perfil',
       profileDescription: 'Informações da sua conta',
       security: 'Segurança',
@@ -353,16 +360,20 @@ export const translations = {
       signOut: 'Terminar Sessão',
       signOutDescription: 'Sair da sua conta',
       associatedAccounts: 'Contas Associadas',
-      associatedAccountsDescription: 'Vincule contas de atletas que está a acompanhar (ex: filhos)',
+      associatedAccountsDescription:
+        'Vincule contas de atletas que está a acompanhar (ex: filhos)',
       addAssociatedAccount: 'Associar Conta',
       noAssociatedAccounts: 'Nenhuma conta associada',
-      noAssociatedAccountsHint: 'Associe a conta de um atleta para acompanhar as suas atividades',
+      noAssociatedAccountsHint:
+        'Associe a conta de um atleta para acompanhar as suas atividades',
       searchByEmail: 'Pesquise pelo email da conta que pretende associar',
       removeAssociation: 'Remover Associação',
-      removeAssociationConfirm: 'Tem a certeza que pretende remover a associação com a conta de',
-      removeAssociationWarning: 'Deixará de poder acompanhar as atividades deste atleta.',
+      removeAssociationConfirm:
+        'Tem a certeza que pretende remover a associação com a conta de',
+      removeAssociationWarning:
+        'Deixará de poder acompanhar as atividades deste atleta.',
     },
-    // Club
+
     club: {
       title: 'Clube',
       createClub: 'Criar Clube',
@@ -381,11 +392,10 @@ export const translations = {
       venueLocation: 'Localização do Pavilhão',
       themeColors: 'Cores do Tema',
       currentColors: 'Cores atuais',
-      // Timezone
       timezone: 'Fuso Horário',
-      timezoneDescription: 'Define o fuso horário para eventos e notificações do clube',
+      timezoneDescription:
+        'Define o fuso horário para eventos e notificações do clube',
       selectTimezone: 'Selecione o fuso horário',
-      // Seasons
       seasons: 'Temporadas',
       seasonsDescription: 'Gerir temporadas do clube',
       createSeason: 'Criar Temporada',
@@ -404,14 +414,14 @@ export const translations = {
       seasonUpdated: 'Temporada atualizada',
       seasonDeleted: 'Temporada eliminada',
       seasonActivated: 'Temporada ativada',
-      // Sidebar active color
       sidebarActiveColor: 'Cor do Menu Ativo',
-      sidebarActiveColorDesc: 'Escolha a cor do texto do item de menu ativo na barra lateral',
+      sidebarActiveColorDesc:
+        'Escolha a cor do texto do item de menu ativo na barra lateral',
       currentSidebarColor: 'Cor atual do menu ativo',
       sidebarColorUpdated: 'Cor do menu atualizada com sucesso',
       preview: 'Pré-visualização',
     },
-    // Subscription
+
     subscription: {
       title: 'Subscrição',
       description: 'Gerir a subscrição e faturação do clube',
@@ -431,12 +441,14 @@ export const translations = {
       statusPending: 'Pendente',
       cancel: 'Cancelar Subscrição',
       cancelTitle: 'Cancelar Subscrição',
-      cancelWarning: 'Tem a certeza que pretende cancelar a subscrição? Esta ação não pode ser revertida e perderá acesso às funcionalidades do plano.',
+      cancelWarning:
+        'Tem a certeza que pretende cancelar a subscrição? Esta ação não pode ser revertida e perderá acesso às funcionalidades do plano.',
       confirmCancel: 'Sim, Cancelar',
       cancelledSuccess: 'Subscrição cancelada com sucesso',
       notFound: 'Subscrição não encontrada',
       paymentMethod: 'Método de Pagamento',
-      paymentMethodDescription: 'Selecione como pretende efetuar os pagamentos',
+      paymentMethodDescription:
+        'Selecione como pretende efetuar os pagamentos',
       creditCard: 'Cartão de Crédito',
       bankTransfer: 'Transferência Bancária',
       bankDetails: 'Dados Bancários',
@@ -457,7 +469,7 @@ export const translations = {
       invoiceCancelled: 'Cancelada',
       invoiceNotAvailable: 'Ficheiro da fatura não disponível',
     },
-    // Profile
+
     profile: {
       identity: 'Identidade',
       family: 'Familiares',
@@ -474,7 +486,7 @@ export const translations = {
       shortsSize: 'Tamanho Calções',
       shoeSize: 'Tamanho Sapato',
     },
-    // Messages
+
     messages: {
       title: 'Mensagens',
       newMessage: 'Nova Mensagem',
@@ -482,7 +494,7 @@ export const translations = {
       send: 'Enviar',
       typeMessage: 'Escreva uma mensagem...',
     },
-    // Time
+
     time: {
       today: 'Hoje',
       yesterday: 'Ontem',
@@ -507,7 +519,7 @@ export const translations = {
       november: 'Novembro',
       december: 'Dezembro',
     },
-    // Seasons
+
     seasons: {
       all: 'Todas as épocas',
       season: 'Época',
@@ -515,7 +527,6 @@ export const translations = {
   },
 
   es: {
-    // Common
     common: {
       save: 'Guardar',
       cancel: 'Cancelar',
@@ -544,7 +555,7 @@ export const translations = {
       seeDetails: 'Ver Detalles',
       actions: 'Acciones',
     },
-    // Auth
+
     auth: {
       login: 'Iniciar sesión',
       loginButton: 'Iniciar sesión',
@@ -566,7 +577,8 @@ export const translations = {
       loginHere: 'Iniciar sesión aquí',
       backToHome: 'Volver al inicio',
       loginSubtitle: 'Acceda a su cuenta para gestionar el equipo',
-      registerSubtitle: 'Únete a la plataforma de gestión de hockey sobre patines',
+      registerSubtitle:
+        'Únete a la plataforma de gestión de hockey sobre patines',
       fullName: 'Nombre Completo',
       namePlaceholder: 'Su nombre',
       role: 'Función',
@@ -578,7 +590,7 @@ export const translations = {
       passwordMismatch: 'Las contraseñas no coinciden',
       passwordTooShort: 'La contraseña debe tener al menos 6 caracteres',
     },
-    // Navigation
+
     nav: {
       home: 'Inicio',
       dashboard: 'Panel',
@@ -595,8 +607,15 @@ export const translations = {
       myProfile: 'Mi Perfil',
       club: 'Club',
       subscription: 'Suscripción',
+      teams: 'Equipos',
+      payments: 'Pagos',
+      library: 'Biblioteca',
     },
-    // Dashboard
+
+    sidebar: {
+      tagline: 'Gestión Deportiva',
+    },
+
     dashboard: {
       goodMorning: 'Buenos días',
       goodAfternoon: 'Buenas tardes',
@@ -608,7 +627,7 @@ export const translations = {
       seeAll: 'Ver Todas',
       today: 'Hoy',
     },
-    // Calendar
+
     calendar: {
       title: 'Calendario',
       subtitle: 'Gestionar eventos y entrenamientos',
@@ -631,7 +650,7 @@ export const translations = {
       allTypes: 'Todos los tipos',
       filterByType: 'Filtrar por tipo',
     },
-    // Members
+
     members: {
       title: 'Miembros',
       subtitle: 'Gestionar jugadores y personal',
@@ -643,7 +662,8 @@ export const translations = {
       exportList: 'Exportar Lista',
       deleteMember: 'Eliminar Miembro',
       deleteMemberConfirm: '¿Está seguro de que desea eliminar este miembro?',
-      deleteMemberWarning: 'Esta acción es irreversible. Todas las estadísticas y datos del miembro serán eliminados.',
+      deleteMemberWarning:
+        'Esta acción es irreversible. Todas las estadísticas y datos del miembro serán eliminados.',
       memberDeleted: 'Miembro eliminado con éxito',
       memberCreated: 'Miembro creado con éxito',
       memberUpdated: 'Miembro actualizado con éxito',
@@ -662,7 +682,8 @@ export const translations = {
       viewStats: 'Ver Estadísticas',
       importTitle: 'Importar Miembros',
       importDescription: 'Importar miembros desde archivo Excel o CSV',
-      importDragDrop: 'Arrastre un archivo .xlsx o .csv o haga clic para seleccionar',
+      importDragDrop:
+        'Arrastre un archivo .xlsx o .csv o haga clic para seleccionar',
       downloadTemplate: 'Plantilla',
       selectFile: 'Seleccionar Archivo',
       expectedColumns: 'Columnas esperadas',
@@ -674,21 +695,23 @@ export const translations = {
       importWarnings: 'avisos',
       tempPasswords: 'Contraseñas temporales',
     },
+
     roles: {
-  admin: 'Administrador',
-  gestor_desportivo: 'Gestor Deportivo',
-  treinador: 'Entrenador',
-  treinador_adjunto: 'Entrenador Adjunto',
-  delegado: 'Delegado',
-  jogador: 'Jugador',
-  responsavel: 'Responsable',
-},
+      admin: 'Administrador',
+      gestor_desportivo: 'Gestor Deportivo',
+      treinador: 'Entrenador',
+      treinador_adjunto: 'Entrenador Adjunto',
+      delegado: 'Delegado',
+      jogador: 'Jugador',
+      responsavel: 'Responsable',
+    },
+
     groups: {
       players: 'Jugadores',
       staff: 'Staff',
       all: 'Todos',
     },
-    // Championships
+
     championships: {
       title: 'Campeonatos',
       subtitle: 'Gestionar competiciones y resultados',
@@ -752,7 +775,8 @@ export const translations = {
       teamName: 'Nombre del Equipo',
       vs: 'vs',
       extractStats: 'Extraer Estadísticas',
-      extractStatsDescription: 'Extraer estadísticas de jugadores de una hoja de partido',
+      extractStatsDescription:
+        'Extraer estadísticas de jugadores de una hoja de partido',
       gamesheetUrl: 'URL de la Hoja de Partido',
       extracting: 'Extrayendo...',
       statsExtracted: 'Estadísticas extraídas con éxito',
@@ -767,10 +791,10 @@ export const translations = {
         LDF: 'Libres Directos Fallados',
         yellow: 'Amarillas',
         blue: 'Azules',
-        red: 'Rojas'
-      }
+        red: 'Rojas',
+      },
     },
-    // Attendance
+
     attendance: {
       title: 'Asistencias',
       subtitle: 'Control de asistencias',
@@ -800,7 +824,7 @@ export const translations = {
       statusSynced: 'Asistencia sincronizada',
       confirmedCount: 'confirmados',
     },
-    // Stats
+
     stats: {
       title: 'Estadísticas',
       subtitle: 'Análisis de rendimiento',
@@ -820,7 +844,7 @@ export const translations = {
       points: 'Puntos',
       goalDiff: 'Diferencia de Goles',
     },
-    // Settings
+
     settings: {
       title: 'Ajustes',
       language: 'Idioma',
@@ -829,8 +853,10 @@ export const translations = {
       themeDescription: 'Elige el tema de colores de la aplicación',
       selectTheme: 'Seleccionar tema',
       notifications: 'Notificaciones',
-      notificationsDescription: 'Recibe alertas push cuando seas convocado para eventos',
-      notificationsHint: 'Activa las notificaciones para ser avisado de nuevas convocatorias incluso cuando la app esté cerrada.',
+      notificationsDescription:
+        'Recibe alertas push cuando seas convocado para eventos',
+      notificationsHint:
+        'Activa las notificaciones para ser avisado de nuevas convocatorias incluso cuando la app esté cerrada.',
       profile: 'Perfil',
       profileDescription: 'Información de tu cuenta',
       security: 'Seguridad',
@@ -841,16 +867,20 @@ export const translations = {
       signOut: 'Cerrar Sesión',
       signOutDescription: 'Salir de tu cuenta',
       associatedAccounts: 'Cuentas Asociadas',
-      associatedAccountsDescription: 'Vincula cuentas de atletas que estás siguiendo (ej: hijos)',
+      associatedAccountsDescription:
+        'Vincula cuentas de atletas que estás siguiendo (ej: hijos)',
       addAssociatedAccount: 'Asociar Cuenta',
       noAssociatedAccounts: 'Ninguna cuenta asociada',
-      noAssociatedAccountsHint: 'Asocia la cuenta de un atleta para seguir sus actividades',
+      noAssociatedAccountsHint:
+        'Asocia la cuenta de un atleta para seguir sus actividades',
       searchByEmail: 'Busca por el email de la cuenta que deseas asociar',
       removeAssociation: 'Eliminar Asociación',
-      removeAssociationConfirm: '¿Estás seguro de que deseas eliminar la asociación con la cuenta de',
-      removeAssociationWarning: 'Dejarás de poder seguir las actividades de este atleta.',
+      removeAssociationConfirm:
+        '¿Estás seguro de que deseas eliminar la asociación con la cuenta de',
+      removeAssociationWarning:
+        'Dejarás de poder seguir las actividades de este atleta.',
     },
-    // Club
+
     club: {
       title: 'Club',
       createClub: 'Crear Club',
@@ -870,7 +900,8 @@ export const translations = {
       themeColors: 'Colores del Tema',
       currentColors: 'Colores actuales',
       timezone: 'Zona Horaria',
-      timezoneDescription: 'Define la zona horaria para eventos y notificaciones del club',
+      timezoneDescription:
+        'Define la zona horaria para eventos y notificaciones del club',
       selectTimezone: 'Selecciona la zona horaria',
       seasons: 'Temporadas',
       seasonsDescription: 'Gestionar temporadas del club',
@@ -885,18 +916,20 @@ export const translations = {
       noSeasons: 'Sin temporadas',
       noSeasonsHint: 'Crea la primera temporada del club',
       deleteSeason: 'Eliminar Temporada',
-      deleteSeasonConfirm: '¿Estás seguro de que deseas eliminar esta temporada?',
+      deleteSeasonConfirm:
+        '¿Estás seguro de que deseas eliminar esta temporada?',
       seasonCreated: 'Temporada creada con éxito',
       seasonUpdated: 'Temporada actualizada',
       seasonDeleted: 'Temporada eliminada',
       seasonActivated: 'Temporada activada',
       sidebarActiveColor: 'Color del Menú Activo',
-      sidebarActiveColorDesc: 'Elige el color del texto del elemento de menú activo en la barra lateral',
+      sidebarActiveColorDesc:
+        'Elige el color del texto del elemento de menú activo en la barra lateral',
       currentSidebarColor: 'Color actual del menú activo',
       sidebarColorUpdated: 'Color del menú actualizado',
       preview: 'Vista previa',
     },
-    // Subscription
+
     subscription: {
       title: 'Suscripción',
       description: 'Gestionar la suscripción y facturación del club',
@@ -916,12 +949,14 @@ export const translations = {
       statusPending: 'Pendiente',
       cancel: 'Cancelar Suscripción',
       cancelTitle: 'Cancelar Suscripción',
-      cancelWarning: '¿Estás seguro de que deseas cancelar la suscripción? Esta acción no se puede revertir.',
+      cancelWarning:
+        '¿Estás seguro de que deseas cancelar la suscripción? Esta acción no se puede revertir.',
       confirmCancel: 'Sí, Cancelar',
       cancelledSuccess: 'Suscripción cancelada con éxito',
       notFound: 'Suscripción no encontrada',
       paymentMethod: 'Método de Pago',
-      paymentMethodDescription: 'Selecciona cómo deseas realizar los pagos',
+      paymentMethodDescription:
+        'Selecciona cómo deseas realizar los pagos',
       creditCard: 'Tarjeta de Crédito',
       bankTransfer: 'Transferencia Bancaria',
       bankDetails: 'Datos Bancarios',
@@ -942,7 +977,7 @@ export const translations = {
       invoiceCancelled: 'Cancelada',
       invoiceNotAvailable: 'Archivo de factura no disponible',
     },
-    // Profile
+
     profile: {
       identity: 'Identidad',
       family: 'Familiares',
@@ -959,7 +994,7 @@ export const translations = {
       shortsSize: 'Talla Pantalón',
       shoeSize: 'Talla Zapato',
     },
-    // Messages
+
     messages: {
       title: 'Mensajes',
       newMessage: 'Nuevo Mensaje',
@@ -967,7 +1002,7 @@ export const translations = {
       send: 'Enviar',
       typeMessage: 'Escribe un mensaje...',
     },
-    // Time
+
     time: {
       today: 'Hoy',
       yesterday: 'Ayer',
@@ -992,7 +1027,7 @@ export const translations = {
       november: 'Noviembre',
       december: 'Diciembre',
     },
-    // Seasons
+
     seasons: {
       all: 'Todas las temporadas',
       season: 'Temporada',
@@ -1000,7 +1035,6 @@ export const translations = {
   },
 
   fr: {
-    // Common
     common: {
       save: 'Enregistrer',
       cancel: 'Annuler',
@@ -1029,7 +1063,7 @@ export const translations = {
       seeDetails: 'Voir Détails',
       actions: 'Actions',
     },
-    // Auth
+
     auth: {
       login: 'Connexion',
       loginButton: 'Se connecter',
@@ -1045,13 +1079,14 @@ export const translations = {
       logoutSuccess: 'Déconnexion réussie',
       invalidCredentials: 'Identifiants invalides',
       alreadyHaveAccount: "J'ai déjà un compte",
-      noAccount: "Pas de compte ?",
+      noAccount: 'Pas de compte ?',
       createAccount: 'Créer un compte',
       hasAccount: 'Vous avez déjà un compte ?',
       loginHere: 'Se connecter ici',
       backToHome: "Retour à l'accueil",
       loginSubtitle: "Accédez à votre compte pour gérer l'équipe",
-      registerSubtitle: 'Rejoignez la plateforme de gestion de hockey sur patins',
+      registerSubtitle:
+        'Rejoignez la plateforme de gestion de hockey sur patins',
       fullName: 'Nom Complet',
       namePlaceholder: 'Votre nom',
       role: 'Fonction',
@@ -1063,7 +1098,7 @@ export const translations = {
       passwordMismatch: 'Les mots de passe ne correspondent pas',
       passwordTooShort: 'Le mot de passe doit contenir au moins 6 caractères',
     },
-    // Navigation
+
     nav: {
       home: 'Accueil',
       dashboard: 'Tableau de bord',
@@ -1080,8 +1115,15 @@ export const translations = {
       myProfile: 'Mon Profil',
       club: 'Club',
       subscription: 'Abonnement',
+      teams: 'Équipes',
+      payments: 'Paiements',
+      library: 'Bibliothèque',
     },
-    // Dashboard
+
+    sidebar: {
+      tagline: 'Gestion Sportive',
+    },
+
     dashboard: {
       goodMorning: 'Bonjour',
       goodAfternoon: 'Bon après-midi',
@@ -1093,7 +1135,7 @@ export const translations = {
       seeAll: 'Voir Tout',
       today: "Aujourd'hui",
     },
-    // Calendar
+
     calendar: {
       title: 'Calendrier',
       subtitle: 'Gérer les événements et les entraînements',
@@ -1116,7 +1158,7 @@ export const translations = {
       allTypes: 'Tous les types',
       filterByType: 'Filtrer par type',
     },
-    // Members
+
     members: {
       title: 'Membres',
       subtitle: 'Gérer les joueurs et le personnel',
@@ -1127,8 +1169,10 @@ export const translations = {
       importMembers: 'Importer des Membres',
       exportList: 'Exporter la Liste',
       deleteMember: 'Supprimer le Membre',
-      deleteMemberConfirm: 'Êtes-vous sûr de vouloir supprimer ce membre ?',
-      deleteMemberWarning: 'Cette action est irréversible. Toutes les statistiques et données du membre seront supprimées.',
+      deleteMemberConfirm:
+        'Êtes-vous sûr de vouloir supprimer ce membre ?',
+      deleteMemberWarning:
+        'Cette action est irréversible. Toutes les statistiques et données du membre seront supprimées.',
       memberDeleted: 'Membre supprimé avec succès',
       memberCreated: 'Membre créé avec succès',
       memberUpdated: 'Membre mis à jour avec succès',
@@ -1141,13 +1185,15 @@ export const translations = {
       fromClub: 'Du Club',
       archived: 'Archivés',
       sendReminder: 'Envoyer Rappel',
-      addToTeam: 'Ajouter à l\'Équipe',
-      removeFromTeam: 'Retirer de l\'Équipe',
+      addToTeam: "Ajouter à l'Équipe",
+      removeFromTeam: "Retirer de l'Équipe",
       viewProfile: 'Voir Profil',
       viewStats: 'Voir Statistiques',
       importTitle: 'Importer des Membres',
-      importDescription: 'Importer des membres depuis un fichier Excel ou CSV',
-      importDragDrop: 'Faites glisser un fichier .xlsx ou .csv ou cliquez pour sélectionner',
+      importDescription:
+        'Importer des membres depuis un fichier Excel ou CSV',
+      importDragDrop:
+        'Faites glisser un fichier .xlsx ou .csv ou cliquez pour sélectionner',
       downloadTemplate: 'Modèle',
       selectFile: 'Sélectionner Fichier',
       expectedColumns: 'Colonnes attendues',
@@ -1159,29 +1205,31 @@ export const translations = {
       importWarnings: 'avertissements',
       tempPasswords: 'Mots de passe temporaires',
     },
-   roles: {
-  admin: 'Administrateur',
-  gestor_desportivo: 'Responsable Sportif',
-  treinador: 'Entraîneur',
-  treinador_adjunto: 'Entraîneur Adjoint',
-  delegado: 'Délégué',
-  jogador: 'Joueur',
-  responsavel: 'Responsable',
-},
+
+    roles: {
+      admin: 'Administrateur',
+      gestor_desportivo: 'Responsable Sportif',
+      treinador: 'Entraîneur',
+      treinador_adjunto: 'Entraîneur Adjoint',
+      delegado: 'Délégué',
+      jogador: 'Joueur',
+      responsavel: 'Responsable',
+    },
+
     groups: {
       players: 'Joueurs',
       staff: 'Staff',
       all: 'Tous',
     },
-    // Championships
+
     championships: {
       title: 'Championnats',
       subtitle: 'Gérer les compétitions et les résultats',
       newChampionship: 'Nouveau Championnat',
       addGame: 'Ajouter un Match',
       addTeam: 'Ajouter une Équipe',
-      editTeam: 'Modifier l\'Équipe',
-      deleteTeam: 'Supprimer l\'Équipe',
+      editTeam: "Modifier l'Équipe",
+      deleteTeam: "Supprimer l'Équipe",
       games: 'Matchs',
       teams: 'Équipes',
       standings: 'Classement',
@@ -1203,7 +1251,7 @@ export const translations = {
       away: 'Extérieur',
       neutral: 'Neutre',
       homeTeam: 'Équipe à Domicile',
-      awayTeam: 'Équipe à l\'Extérieur',
+      awayTeam: "Équipe à l'Extérieur",
       opponent: 'Adversaire',
       date: 'Date',
       time: 'Heure',
@@ -1230,14 +1278,16 @@ export const translations = {
       matchesSorted: 'Matchs triés par date et heure',
       importSuccess: 'Importation réussie',
       selectTeam: 'Sélectionner une équipe',
-      selectHomeTeam: 'Sélectionner l\'équipe à domicile',
-      selectAwayTeam: 'Sélectionner l\'équipe à l\'extérieur',
+      selectHomeTeam: "Sélectionner l'équipe à domicile",
+      selectAwayTeam: "Sélectionner l'équipe à l'extérieur",
       sameTeamError: 'Les équipes ne peuvent pas être identiques',
-      noTeamsAvailable: 'Aucune équipe disponible. Ajoutez des équipes d\'abord.',
-      teamName: 'Nom de l\'Équipe',
+      noTeamsAvailable:
+        "Aucune équipe disponible. Ajoutez des équipes d'abord.",
+      teamName: "Nom de l'Équipe",
       vs: 'vs',
       extractStats: 'Extraire Statistiques',
-      extractStatsDescription: 'Extraire les statistiques des joueurs à partir d\'une feuille de match',
+      extractStatsDescription:
+        "Extraire les statistiques des joueurs à partir d'une feuille de match",
       gamesheetUrl: 'URL de la Feuille de Match',
       extracting: 'Extraction en cours...',
       statsExtracted: 'Statistiques extraites avec succès',
@@ -1252,10 +1302,10 @@ export const translations = {
         LDF: 'Coups francs Ratés',
         yellow: 'Jaunes',
         blue: 'Bleus',
-        red: 'Rouges'
-      }
+        red: 'Rouges',
+      },
     },
-    // Attendance
+
     attendance: {
       title: 'Présences',
       subtitle: 'Contrôle des présences',
@@ -1269,7 +1319,7 @@ export const translations = {
       byMonth: 'Par Mois',
       total: 'Total',
       confirmed: 'Confirmés',
-      viewStatus: 'Voir l\'état de la convocation',
+      viewStatus: "Voir l'état de la convocation",
       statusTitle: 'État de la Convocation',
       statusDescription: 'Voir et gérer les réponses des joueurs',
       presentPlayers: 'Présents',
@@ -1279,13 +1329,13 @@ export const translations = {
       updateStatus: 'Mettre à jour le statut',
       sendReminder: 'Envoyer un rappel',
       reminderSent: 'Rappel envoyé aux joueurs en attente',
-      reminderMessage: 'Merci de confirmer ta présence à l\'événement',
+      reminderMessage: "Merci de confirmer ta présence à l'événement",
       autoMarkAbsent: 'Marquer comme absent (événement passé)',
       statusUpdated: 'Statut mis à jour avec succès',
       statusSynced: 'Présence synchronisée',
       confirmedCount: 'confirmés',
     },
-    // Stats
+
     stats: {
       title: 'Statistiques',
       subtitle: 'Analyse des performances',
@@ -1305,17 +1355,20 @@ export const translations = {
       points: 'Points',
       goalDiff: 'Différence de Buts',
     },
-    // Settings
+
     settings: {
       title: 'Paramètres',
       language: 'Langue',
       theme: 'Thème',
       themeTitle: 'Apparence',
-      themeDescription: 'Choisissez le thème de couleurs de l\'application',
+      themeDescription:
+        "Choisissez le thème de couleurs de l'application",
       selectTheme: 'Sélectionner le thème',
       notifications: 'Notifications',
-      notificationsDescription: 'Recevez des alertes push lorsque vous êtes convoqué pour des événements',
-      notificationsHint: 'Activez les notifications pour être averti des nouvelles convocations même lorsque l\'application est fermée.',
+      notificationsDescription:
+        'Recevez des alertes push lorsque vous êtes convoqué pour des événements',
+      notificationsHint:
+        "Activez les notifications pour être averti des nouvelles convocations même lorsque l'application est fermée.",
       profile: 'Profil',
       profileDescription: 'Informations de votre compte',
       security: 'Sécurité',
@@ -1326,16 +1379,21 @@ export const translations = {
       signOut: 'Déconnexion',
       signOutDescription: 'Se déconnecter de votre compte',
       associatedAccounts: 'Comptes Associés',
-      associatedAccountsDescription: 'Liez les comptes d\'athlètes que vous suivez (ex: enfants)',
+      associatedAccountsDescription:
+        "Liez les comptes d'athlètes que vous suivez (ex: enfants)",
       addAssociatedAccount: 'Associer un Compte',
       noAssociatedAccounts: 'Aucun compte associé',
-      noAssociatedAccountsHint: 'Associez le compte d\'un athlète pour suivre ses activités',
-      searchByEmail: 'Recherchez par email le compte que vous souhaitez associer',
-      removeAssociation: 'Supprimer l\'Association',
-      removeAssociationConfirm: 'Êtes-vous sûr de vouloir supprimer l\'association avec le compte de',
-      removeAssociationWarning: 'Vous ne pourrez plus suivre les activités de cet athlète.',
+      noAssociatedAccountsHint:
+        "Associez le compte d'un athlète pour suivre ses activités",
+      searchByEmail:
+        'Recherchez par email le compte que vous souhaitez associer',
+      removeAssociation: "Supprimer l'Association",
+      removeAssociationConfirm:
+        "Êtes-vous sûr de vouloir supprimer l'association avec le compte de",
+      removeAssociationWarning:
+        "Vous ne pourrez plus suivre les activités de cet athlète.",
     },
-    // Club
+
     club: {
       title: 'Club',
       createClub: 'Créer un Club',
@@ -1355,7 +1413,8 @@ export const translations = {
       themeColors: 'Couleurs du Thème',
       currentColors: 'Couleurs actuelles',
       timezone: 'Fuseau Horaire',
-      timezoneDescription: 'Définit le fuseau horaire pour les événements et notifications du club',
+      timezoneDescription:
+        'Définit le fuseau horaire pour les événements et notifications du club',
       selectTimezone: 'Sélectionnez le fuseau horaire',
       seasons: 'Saisons',
       seasonsDescription: 'Gérer les saisons du club',
@@ -1370,22 +1429,24 @@ export const translations = {
       noSeasons: 'Aucune saison',
       noSeasonsHint: 'Créez la première saison du club',
       deleteSeason: 'Supprimer la Saison',
-      deleteSeasonConfirm: 'Êtes-vous sûr de vouloir supprimer cette saison?',
+      deleteSeasonConfirm:
+        'Êtes-vous sûr de vouloir supprimer cette saison?',
       seasonCreated: 'Saison créée avec succès',
       seasonUpdated: 'Saison mise à jour',
       seasonDeleted: 'Saison supprimée',
       seasonActivated: 'Saison activée',
       sidebarActiveColor: 'Couleur du Menu Actif',
-      sidebarActiveColorDesc: 'Choisissez la couleur du texte de l\'élément de menu actif dans la barre latérale',
+      sidebarActiveColorDesc:
+        "Choisissez la couleur du texte de l'élément de menu actif dans la barre latérale",
       currentSidebarColor: 'Couleur actuelle du menu actif',
       sidebarColorUpdated: 'Couleur du menu mise à jour',
       preview: 'Aperçu',
     },
-    // Subscription
+
     subscription: {
       title: 'Abonnement',
-      description: 'Gérer l\'abonnement et la facturation du club',
-      summary: 'Résumé de l\'Abonnement',
+      description: "Gérer l'abonnement et la facturation du club",
+      summary: "Résumé de l'Abonnement",
       summaryDescription: 'Détails du plan actuel',
       memberCount: 'Membres',
       activeAccounts: 'comptes actifs',
@@ -1399,14 +1460,16 @@ export const translations = {
       statusExpired: 'Expirée',
       statusCancelled: 'Annulée',
       statusPending: 'En attente',
-      cancel: 'Annuler l\'Abonnement',
-      cancelTitle: 'Annuler l\'Abonnement',
-      cancelWarning: 'Êtes-vous sûr de vouloir annuler l\'abonnement? Cette action ne peut pas être annulée.',
+      cancel: "Annuler l'Abonnement",
+      cancelTitle: "Annuler l'Abonnement",
+      cancelWarning:
+        "Êtes-vous sûr de vouloir annuler l'abonnement? Cette action ne peut pas être annulée.",
       confirmCancel: 'Oui, Annuler',
       cancelledSuccess: 'Abonnement annulé avec succès',
       notFound: 'Abonnement non trouvé',
       paymentMethod: 'Méthode de Paiement',
-      paymentMethodDescription: 'Sélectionnez comment vous souhaitez effectuer les paiements',
+      paymentMethodDescription:
+        'Sélectionnez comment vous souhaitez effectuer les paiements',
       creditCard: 'Carte de Crédit',
       bankTransfer: 'Virement Bancaire',
       bankDetails: 'Coordonnées Bancaires',
@@ -1414,7 +1477,8 @@ export const translations = {
       billing: 'Facturation',
       billingDescription: 'Historique des factures',
       noInvoices: 'Aucune facture',
-      noInvoicesHint: 'Les factures apparaîtront ici lorsqu\'elles seront générées',
+      noInvoicesHint:
+        "Les factures apparaîtront ici lorsqu'elles seront générées",
       invoiceNumber: 'N° Facture',
       period: 'Période',
       members: 'Membres',
@@ -1427,7 +1491,7 @@ export const translations = {
       invoiceCancelled: 'Annulée',
       invoiceNotAvailable: 'Fichier de facture non disponible',
     },
-    // Profile
+
     profile: {
       identity: 'Identité',
       family: 'Famille',
@@ -1444,7 +1508,7 @@ export const translations = {
       shortsSize: 'Taille Short',
       shoeSize: 'Pointure',
     },
-    // Messages
+
     messages: {
       title: 'Messages',
       newMessage: 'Nouveau Message',
@@ -1452,7 +1516,7 @@ export const translations = {
       send: 'Envoyer',
       typeMessage: 'Écrivez un message...',
     },
-    // Time
+
     time: {
       today: "Aujourd'hui",
       yesterday: 'Hier',
@@ -1477,7 +1541,7 @@ export const translations = {
       november: 'Novembre',
       december: 'Décembre',
     },
-    // Seasons
+
     seasons: {
       all: 'Toutes les saisons',
       season: 'Saison',
@@ -1485,7 +1549,6 @@ export const translations = {
   },
 
   it: {
-    // Common
     common: {
       save: 'Salva',
       cancel: 'Annulla',
@@ -1514,7 +1577,7 @@ export const translations = {
       seeDetails: 'Vedi Dettagli',
       actions: 'Azioni',
     },
-    // Auth
+
     auth: {
       login: 'Accedi',
       loginButton: 'Accedi',
@@ -1536,7 +1599,8 @@ export const translations = {
       loginHere: 'Accedi qui',
       backToHome: 'Torna alla home',
       loginSubtitle: 'Accedi al tuo account per gestire la squadra',
-      registerSubtitle: 'Unisciti alla piattaforma di gestione dell\'hockey su pista',
+      registerSubtitle:
+        "Unisciti alla piattaforma di gestione dell'hockey su pista",
       fullName: 'Nome Completo',
       namePlaceholder: 'Il tuo nome',
       role: 'Funzione',
@@ -1544,11 +1608,11 @@ export const translations = {
       phone: 'Telefono',
       creatingAccount: 'Creazione account...',
       registerSuccess: 'Account creato con successo!',
-      registerError: 'Errore nella creazione dell\'account',
+      registerError: "Errore nella creazione dell'account",
       passwordMismatch: 'Le password non corrispondono',
       passwordTooShort: 'La password deve contenere almeno 6 caratteri',
     },
-    // Navigation
+
     nav: {
       home: 'Home',
       dashboard: 'Pannello',
@@ -1565,8 +1629,15 @@ export const translations = {
       myProfile: 'Il Mio Profilo',
       club: 'Club',
       subscription: 'Abbonamento',
+      teams: 'Squadre',
+      payments: 'Pagamenti',
+      library: 'Biblioteca',
     },
-    // Dashboard
+
+    sidebar: {
+      tagline: 'Gestione Sportiva',
+    },
+
     dashboard: {
       goodMorning: 'Buongiorno',
       goodAfternoon: 'Buon pomeriggio',
@@ -1574,11 +1645,12 @@ export const translations = {
       upcomingEvents: 'Prossimi Eventi',
       seeCalendar: 'Vedi Calendario',
       convocations: 'Convocazioni',
-      allConvocationsAnswered: 'Tutte le convocazioni sono state risposte!',
+      allConvocationsAnswered:
+        'Tutte le convocazioni sono state risposte!',
       seeAll: 'Vedi Tutto',
       today: 'Oggi',
     },
-    // Calendar
+
     calendar: {
       title: 'Calendario',
       subtitle: 'Gestisci eventi e allenamenti',
@@ -1601,7 +1673,7 @@ export const translations = {
       allTypes: 'Tutti i tipi',
       filterByType: 'Filtra per tipo',
     },
-    // Members
+
     members: {
       title: 'Membri',
       subtitle: 'Gestisci giocatori e staff',
@@ -1612,8 +1684,10 @@ export const translations = {
       importMembers: 'Importa Membri',
       exportList: 'Esporta Lista',
       deleteMember: 'Elimina Membro',
-      deleteMemberConfirm: 'Sei sicuro di voler eliminare questo membro?',
-      deleteMemberWarning: 'Questa azione è irreversibile. Tutte le statistiche e i dati del membro verranno eliminati.',
+      deleteMemberConfirm:
+        'Sei sicuro di voler eliminare questo membro?',
+      deleteMemberWarning:
+        'Questa azione è irreversibile. Tutte le statistiche e i dati del membro verranno eliminati.',
       memberDeleted: 'Membro eliminato con successo',
       memberCreated: 'Membro creato con successo',
       memberUpdated: 'Membro aggiornato con successo',
@@ -1632,7 +1706,8 @@ export const translations = {
       viewStats: 'Vedi Statistiche',
       importTitle: 'Importa Membri',
       importDescription: 'Importa membri da file Excel o CSV',
-      importDragDrop: 'Trascina un file .xlsx o .csv oppure clicca per selezionare',
+      importDragDrop:
+        'Trascina un file .xlsx o .csv oppure clicca per selezionare',
       downloadTemplate: 'Modello',
       selectFile: 'Seleziona File',
       expectedColumns: 'Colonne previste',
@@ -1644,21 +1719,23 @@ export const translations = {
       importWarnings: 'avvisi',
       tempPasswords: 'Password temporanee',
     },
+
     roles: {
-  admin: 'Amministratore',
-  gestor_desportivo: 'Responsabile Sportivo',
-  treinador: 'Allenatore',
-  treinador_adjunto: 'Allenatore in Seconda',
-  delegado: 'Delegato',
-  jogador: 'Giocatore',
-  responsavel: 'Responsabile',
-},
+      admin: 'Amministratore',
+      gestor_desportivo: 'Responsabile Sportivo',
+      treinador: 'Allenatore',
+      treinador_adjunto: 'Allenatore in Seconda',
+      delegado: 'Delegato',
+      jogador: 'Giocatore',
+      responsavel: 'Responsabile',
+    },
+
     groups: {
       players: 'Giocatori',
       staff: 'Staff',
       all: 'Tutti',
     },
-    // Championships
+
     championships: {
       title: 'Campionati',
       subtitle: 'Gestisci competizioni e risultati',
@@ -1718,11 +1795,13 @@ export const translations = {
       selectHomeTeam: 'Seleziona squadra di casa',
       selectAwayTeam: 'Seleziona squadra ospite',
       sameTeamError: 'Le squadre non possono essere uguali',
-      noTeamsAvailable: 'Nessuna squadra disponibile. Aggiungi squadre prima.',
+      noTeamsAvailable:
+        'Nessuna squadra disponibile. Aggiungi squadre prima.',
       teamName: 'Nome della Squadra',
       vs: 'vs',
       extractStats: 'Estrai Statistiche',
-      extractStatsDescription: 'Estrai le statistiche dei giocatori da un referto di partita',
+      extractStatsDescription:
+        'Estrai le statistiche dei giocatori da un referto di partita',
       gamesheetUrl: 'URL del Referto',
       extracting: 'Estrazione in corso...',
       statsExtracted: 'Statistiche estratte con successo',
@@ -1737,10 +1816,10 @@ export const translations = {
         LDF: 'Tiri Diretti Sbagliati',
         yellow: 'Gialli',
         blue: 'Blu',
-        red: 'Rossi'
-      }
+        red: 'Rossi',
+      },
     },
-    // Attendance
+
     attendance: {
       title: 'Presenze',
       subtitle: 'Controllo presenze',
@@ -1764,13 +1843,13 @@ export const translations = {
       updateStatus: 'Aggiorna stato',
       sendReminder: 'Invia promemoria',
       reminderSent: 'Promemoria inviato ai giocatori in attesa',
-      reminderMessage: 'Per favore conferma la tua presenza all\'evento',
+      reminderMessage: "Per favore conferma la tua presenza all'evento",
       autoMarkAbsent: 'Segna come assente (evento passato)',
       statusUpdated: 'Stato aggiornato con successo',
       statusSynced: 'Presenza sincronizzata',
       confirmedCount: 'confermati',
     },
-    // Stats
+
     stats: {
       title: 'Statistiche',
       subtitle: 'Analisi delle prestazioni',
@@ -1790,17 +1869,20 @@ export const translations = {
       points: 'Punti',
       goalDiff: 'Differenza Reti',
     },
-    // Settings
+
     settings: {
       title: 'Impostazioni',
       language: 'Lingua',
       theme: 'Tema',
       themeTitle: 'Aspetto',
-      themeDescription: 'Scegli il tema di colori dell\'applicazione',
+      themeDescription:
+        "Scegli il tema di colori dell'applicazione",
       selectTheme: 'Seleziona tema',
       notifications: 'Notifiche',
-      notificationsDescription: 'Ricevi avvisi push quando sei convocato per eventi',
-      notificationsHint: 'Attiva le notifiche per essere avvisato delle nuove convocazioni anche quando l\'app è chiusa.',
+      notificationsDescription:
+        'Ricevi avvisi push quando sei convocato per eventi',
+      notificationsHint:
+        "Attiva le notifiche per essere avvisato delle nuove convocazioni anche quando l'app è chiusa.",
       profile: 'Profilo',
       profileDescription: 'Informazioni del tuo account',
       security: 'Sicurezza',
@@ -1811,16 +1893,20 @@ export const translations = {
       signOut: 'Esci',
       signOutDescription: 'Esci dal tuo account',
       associatedAccounts: 'Account Associati',
-      associatedAccountsDescription: 'Collega account di atleti che stai seguendo (es: figli)',
+      associatedAccountsDescription:
+        'Collega account di atleti che stai seguendo (es: figli)',
       addAssociatedAccount: 'Associa Account',
       noAssociatedAccounts: 'Nessun account associato',
-      noAssociatedAccountsHint: 'Associa l\'account di un atleta per seguire le sue attività',
-      searchByEmail: 'Cerca per email l\'account che vuoi associare',
+      noAssociatedAccountsHint:
+        "Associa l'account di un atleta per seguire le sue attività",
+      searchByEmail: "Cerca per email l'account che vuoi associare",
       removeAssociation: 'Rimuovi Associazione',
-      removeAssociationConfirm: 'Sei sicuro di voler rimuovere l\'associazione con l\'account di',
-      removeAssociationWarning: 'Non potrai più seguire le attività di questo atleta.',
+      removeAssociationConfirm:
+        "Sei sicuro di voler rimuovere l'associazione con l'account di",
+      removeAssociationWarning:
+        'Non potrai più seguire le attività di questo atleta.',
     },
-    // Club
+
     club: {
       title: 'Club',
       createClub: 'Crea Club',
@@ -1840,7 +1926,8 @@ export const translations = {
       themeColors: 'Colori del Tema',
       currentColors: 'Colori attuali',
       timezone: 'Fuso Orario',
-      timezoneDescription: 'Definisce il fuso orario per eventi e notifiche del club',
+      timezoneDescription:
+        'Definisce il fuso orario per eventi e notifiche del club',
       selectTimezone: 'Seleziona il fuso orario',
       seasons: 'Stagioni',
       seasonsDescription: 'Gestire le stagioni del club',
@@ -1855,22 +1942,24 @@ export const translations = {
       noSeasons: 'Nessuna stagione',
       noSeasonsHint: 'Crea la prima stagione del club',
       deleteSeason: 'Elimina Stagione',
-      deleteSeasonConfirm: 'Sei sicuro di voler eliminare questa stagione?',
+      deleteSeasonConfirm:
+        'Sei sicuro di voler eliminare questa stagione?',
       seasonCreated: 'Stagione creata con successo',
       seasonUpdated: 'Stagione aggiornata',
       seasonDeleted: 'Stagione eliminata',
       seasonActivated: 'Stagione attivata',
       sidebarActiveColor: 'Colore del Menu Attivo',
-      sidebarActiveColorDesc: 'Scegli il colore del testo dell\'elemento di menu attivo nella barra laterale',
+      sidebarActiveColorDesc:
+        "Scegli il colore del testo dell'elemento di menu attivo nella barra laterale",
       currentSidebarColor: 'Colore attuale del menu attivo',
       sidebarColorUpdated: 'Colore del menu aggiornato',
       preview: 'Anteprima',
     },
-    // Subscription
+
     subscription: {
       title: 'Abbonamento',
-      description: 'Gestire l\'abbonamento e la fatturazione del club',
-      summary: 'Riepilogo dell\'Abbonamento',
+      description: "Gestire l'abbonamento e la fatturazione del club",
+      summary: "Riepilogo dell'Abbonamento",
       summaryDescription: 'Dettagli del piano attuale',
       memberCount: 'Membri',
       activeAccounts: 'account attivi',
@@ -1886,12 +1975,14 @@ export const translations = {
       statusPending: 'In attesa',
       cancel: 'Annulla Abbonamento',
       cancelTitle: 'Annulla Abbonamento',
-      cancelWarning: 'Sei sicuro di voler annullare l\'abbonamento? Questa azione non può essere annullata.',
+      cancelWarning:
+        "Sei sicuro di voler annullare l'abbonamento? Questa azione non può essere annullata.",
       confirmCancel: 'Sì, Annulla',
       cancelledSuccess: 'Abbonamento annullato con successo',
       notFound: 'Abbonamento non trovato',
       paymentMethod: 'Metodo di Pagamento',
-      paymentMethodDescription: 'Seleziona come desideri effettuare i pagamenti',
+      paymentMethodDescription:
+        'Seleziona come desideri effettuare i pagamenti',
       creditCard: 'Carta di Credito',
       bankTransfer: 'Bonifico Bancario',
       bankDetails: 'Coordinate Bancarie',
@@ -1899,7 +1990,8 @@ export const translations = {
       billing: 'Fatturazione',
       billingDescription: 'Storico fatture',
       noInvoices: 'Nessuna fattura',
-      noInvoicesHint: 'Le fatture appariranno qui quando saranno generate',
+      noInvoicesHint:
+        'Le fatture appariranno qui quando saranno generate',
       invoiceNumber: 'N° Fattura',
       period: 'Periodo',
       members: 'Membri',
@@ -1912,7 +2004,7 @@ export const translations = {
       invoiceCancelled: 'Annullata',
       invoiceNotAvailable: 'File fattura non disponibile',
     },
-    // Profile
+
     profile: {
       identity: 'Identità',
       family: 'Famiglia',
@@ -1929,7 +2021,7 @@ export const translations = {
       shortsSize: 'Taglia Pantaloncini',
       shoeSize: 'Numero Scarpe',
     },
-    // Messages
+
     messages: {
       title: 'Messaggi',
       newMessage: 'Nuovo Messaggio',
@@ -1937,7 +2029,7 @@ export const translations = {
       send: 'Invia',
       typeMessage: 'Scrivi un messaggio...',
     },
-    // Time
+
     time: {
       today: 'Oggi',
       yesterday: 'Ieri',
@@ -1962,7 +2054,7 @@ export const translations = {
       november: 'Novembre',
       december: 'Dicembre',
     },
-    // Seasons
+
     seasons: {
       all: 'Tutte le stagioni',
       season: 'Stagione',
@@ -1970,7 +2062,6 @@ export const translations = {
   },
 
   en: {
-    // Common
     common: {
       save: 'Save',
       cancel: 'Cancel',
@@ -1999,7 +2090,7 @@ export const translations = {
       seeDetails: 'See Details',
       actions: 'Actions',
     },
-    // Auth
+
     auth: {
       login: 'Login',
       loginButton: 'Sign In',
@@ -2033,7 +2124,7 @@ export const translations = {
       passwordMismatch: 'Passwords do not match',
       passwordTooShort: 'Password must be at least 6 characters',
     },
-    // Navigation
+
     nav: {
       home: 'Home',
       dashboard: 'Dashboard',
@@ -2050,8 +2141,15 @@ export const translations = {
       myProfile: 'My Profile',
       club: 'Club',
       subscription: 'Subscription',
+      teams: 'Teams',
+      payments: 'Payments',
+      library: 'Library',
     },
-    // Dashboard
+
+    sidebar: {
+      tagline: 'Sports Management',
+    },
+
     dashboard: {
       goodMorning: 'Good morning',
       goodAfternoon: 'Good afternoon',
@@ -2063,7 +2161,7 @@ export const translations = {
       seeAll: 'See All',
       today: 'Today',
     },
-    // Calendar
+
     calendar: {
       title: 'Calendar',
       subtitle: 'Manage events and training sessions',
@@ -2086,7 +2184,7 @@ export const translations = {
       allTypes: 'All types',
       filterByType: 'Filter by type',
     },
-    // Members
+
     members: {
       title: 'Members',
       subtitle: 'Manage players and staff',
@@ -2098,7 +2196,8 @@ export const translations = {
       exportList: 'Export List',
       deleteMember: 'Delete Member',
       deleteMemberConfirm: 'Are you sure you want to delete this member?',
-      deleteMemberWarning: 'This action is irreversible. All member statistics and data will be deleted.',
+      deleteMemberWarning:
+        'This action is irreversible. All member statistics and data will be deleted.',
       memberDeleted: 'Member deleted successfully',
       memberCreated: 'Member created successfully',
       memberUpdated: 'Member updated successfully',
@@ -2129,21 +2228,23 @@ export const translations = {
       importWarnings: 'warnings',
       tempPasswords: 'Temporary passwords',
     },
+
     roles: {
-  admin: 'Administrator',
-  gestor_desportivo: 'Sports Manager',
-  treinador: 'Coach',
-  treinador_adjunto: 'Assistant Coach',
-  delegado: 'Delegate',
-  jogador: 'Player',
-  responsavel: 'Guardian',
-},
+      admin: 'Administrator',
+      gestor_desportivo: 'Sports Manager',
+      treinador: 'Coach',
+      treinador_adjunto: 'Assistant Coach',
+      delegado: 'Delegate',
+      jogador: 'Player',
+      responsavel: 'Guardian',
+    },
+
     groups: {
       players: 'Players',
       staff: 'Staff',
       all: 'All',
     },
-    // Championships
+
     championships: {
       title: 'Championships',
       subtitle: 'Manage competitions and results',
@@ -2207,7 +2308,8 @@ export const translations = {
       teamName: 'Team Name',
       vs: 'vs',
       extractStats: 'Extract Statistics',
-      extractStatsDescription: 'Extract player statistics from a game sheet',
+      extractStatsDescription:
+        'Extract player statistics from a game sheet',
       gamesheetUrl: 'Game Sheet URL',
       extracting: 'Extracting...',
       statsExtracted: 'Statistics extracted successfully',
@@ -2222,10 +2324,10 @@ export const translations = {
         LDF: 'Direct Free Hits Missed',
         yellow: 'Yellow',
         blue: 'Blue',
-        red: 'Red'
-      }
+        red: 'Red',
+      },
     },
-    // Attendance
+
     attendance: {
       title: 'Attendance',
       subtitle: 'Attendance control',
@@ -2249,13 +2351,14 @@ export const translations = {
       updateStatus: 'Update status',
       sendReminder: 'Send reminder',
       reminderSent: 'Reminder sent to pending players',
-      reminderMessage: 'Please confirm your attendance at the event',
+      reminderMessage:
+        'Please confirm your attendance at the event',
       autoMarkAbsent: 'Mark as absent (past event)',
       statusUpdated: 'Status updated successfully',
       statusSynced: 'Attendance synchronized',
       confirmedCount: 'confirmed',
     },
-    // Stats
+
     stats: {
       title: 'Statistics',
       subtitle: 'Performance analysis',
@@ -2275,7 +2378,7 @@ export const translations = {
       points: 'Points',
       goalDiff: 'Goal Difference',
     },
-    // Settings
+
     settings: {
       title: 'Settings',
       language: 'Language',
@@ -2284,8 +2387,10 @@ export const translations = {
       themeDescription: 'Choose the app color theme',
       selectTheme: 'Select theme',
       notifications: 'Notifications',
-      notificationsDescription: 'Receive push alerts when you are called up for events',
-      notificationsHint: 'Enable notifications to be notified of new call-ups even when the app is closed.',
+      notificationsDescription:
+        'Receive push alerts when you are called up for events',
+      notificationsHint:
+        'Enable notifications to be notified of new call-ups even when the app is closed.',
       profile: 'Profile',
       profileDescription: 'Your account information',
       security: 'Security',
@@ -2296,16 +2401,21 @@ export const translations = {
       signOut: 'Sign Out',
       signOutDescription: 'Sign out of your account',
       associatedAccounts: 'Associated Accounts',
-      associatedAccountsDescription: 'Link accounts of athletes you are following (e.g. children)',
+      associatedAccountsDescription:
+        'Link accounts of athletes you are following (e.g. children)',
       addAssociatedAccount: 'Associate Account',
       noAssociatedAccounts: 'No associated accounts',
-      noAssociatedAccountsHint: 'Associate an athlete\'s account to follow their activities',
-      searchByEmail: 'Search by email for the account you want to associate',
+      noAssociatedAccountsHint:
+        "Associate an athlete's account to follow their activities",
+      searchByEmail:
+        'Search by email for the account you want to associate',
       removeAssociation: 'Remove Association',
-      removeAssociationConfirm: 'Are you sure you want to remove the association with the account of',
-      removeAssociationWarning: 'You will no longer be able to follow this athlete\'s activities.',
+      removeAssociationConfirm:
+        'Are you sure you want to remove the association with the account of',
+      removeAssociationWarning:
+        "You will no longer be able to follow this athlete's activities.",
     },
-    // Club
+
     club: {
       title: 'Club',
       createClub: 'Create Club',
@@ -2325,7 +2435,8 @@ export const translations = {
       themeColors: 'Theme Colors',
       currentColors: 'Current colors',
       timezone: 'Timezone',
-      timezoneDescription: 'Set the timezone for club events and notifications',
+      timezoneDescription:
+        'Set the timezone for club events and notifications',
       selectTimezone: 'Select timezone',
       seasons: 'Seasons',
       seasonsDescription: 'Manage club seasons',
@@ -2340,18 +2451,20 @@ export const translations = {
       noSeasons: 'No seasons',
       noSeasonsHint: 'Create the first club season',
       deleteSeason: 'Delete Season',
-      deleteSeasonConfirm: 'Are you sure you want to delete this season?',
+      deleteSeasonConfirm:
+        'Are you sure you want to delete this season?',
       seasonCreated: 'Season created successfully',
       seasonUpdated: 'Season updated',
       seasonDeleted: 'Season deleted',
       seasonActivated: 'Season activated',
       sidebarActiveColor: 'Active Menu Color',
-      sidebarActiveColorDesc: 'Choose the text color of the active menu item in the sidebar',
+      sidebarActiveColorDesc:
+        'Choose the text color of the active menu item in the sidebar',
       currentSidebarColor: 'Current active menu color',
       sidebarColorUpdated: 'Menu color updated',
       preview: 'Preview',
     },
-    // Subscription
+
     subscription: {
       title: 'Subscription',
       description: 'Manage club subscription and billing',
@@ -2371,12 +2484,14 @@ export const translations = {
       statusPending: 'Pending',
       cancel: 'Cancel Subscription',
       cancelTitle: 'Cancel Subscription',
-      cancelWarning: 'Are you sure you want to cancel the subscription? This action cannot be undone.',
+      cancelWarning:
+        'Are you sure you want to cancel the subscription? This action cannot be undone.',
       confirmCancel: 'Yes, Cancel',
       cancelledSuccess: 'Subscription cancelled successfully',
       notFound: 'Subscription not found',
       paymentMethod: 'Payment Method',
-      paymentMethodDescription: 'Select how you want to make payments',
+      paymentMethodDescription:
+        'Select how you want to make payments',
       creditCard: 'Credit Card',
       bankTransfer: 'Bank Transfer',
       bankDetails: 'Bank Details',
@@ -2397,7 +2512,7 @@ export const translations = {
       invoiceCancelled: 'Cancelled',
       invoiceNotAvailable: 'Invoice file not available',
     },
-    // Profile
+
     profile: {
       identity: 'Identity',
       family: 'Family',
@@ -2414,7 +2529,7 @@ export const translations = {
       shortsSize: 'Shorts Size',
       shoeSize: 'Shoe Size',
     },
-    // Messages
+
     messages: {
       title: 'Messages',
       newMessage: 'New Message',
@@ -2422,7 +2537,7 @@ export const translations = {
       send: 'Send',
       typeMessage: 'Type a message...',
     },
-    // Time
+
     time: {
       today: 'Today',
       yesterday: 'Yesterday',
@@ -2447,7 +2562,7 @@ export const translations = {
       november: 'November',
       december: 'December',
     },
-    // Seasons
+
     seasons: {
       all: 'All seasons',
       season: 'Season',
@@ -2455,7 +2570,6 @@ export const translations = {
   },
 };
 
-// Language names for display
 export const languageNames = {
   pt: 'Português',
   es: 'Español',
@@ -2464,30 +2578,27 @@ export const languageNames = {
   en: 'English',
 };
 
-// Default language
 export const defaultLanguage = 'pt';
 
-// Get nested translation
 export function getTranslation(lang, path) {
   const keys = path.split('.');
   let result = translations[lang] || translations[defaultLanguage];
-  
+
   for (const key of keys) {
     if (result && typeof result === 'object' && key in result) {
       result = result[key];
     } else {
-      // Fallback to default language
       result = translations[defaultLanguage];
       for (const k of keys) {
         if (result && typeof result === 'object' && k in result) {
           result = result[k];
         } else {
-          return path; // Return the path if not found
+          return path;
         }
       }
       break;
     }
   }
-  
+
   return result;
 }
