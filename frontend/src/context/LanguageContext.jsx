@@ -1,57 +1,66 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { translations, languageNames, defaultLanguage, getTranslation } from '../i18n/translations';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import {
+  translations,
+  languageNames,
+  defaultLanguage,
+  getTranslation,
+} from '../i18n/translations';
 
-const LanguageContext = createContext();
+const LanguageContext = createContext(null);
 
 export function LanguageProvider({ children }) {
   const [language, setLanguage] = useState(() => {
-    // Try to get saved language from localStorage
-    const saved = localStorage.getItem('stickpro_language');
-    if (saved && translations[saved]) {
-      return saved;
+    const savedLanguage = localStorage.getItem('stickpro_language');
+    if (savedLanguage && translations[savedLanguage]) {
+      return savedLanguage;
     }
-    // Try to detect browser language
-    const browserLang = navigator.language?.split('-')[0];
-    if (browserLang && translations[browserLang]) {
-      return browserLang;
+
+    const browserLanguage = navigator.language?.split('-')[0];
+    if (browserLanguage && translations[browserLanguage]) {
+      return browserLanguage;
     }
+
     return defaultLanguage;
   });
 
   useEffect(() => {
     localStorage.setItem('stickpro_language', language);
-    // Update HTML lang attribute
     document.documentElement.lang = language;
   }, [language]);
 
-  // Translation function
-  const t = useCallback((path, params = {}) => {
-    let text = getTranslation(language, path);
-    
-    // Replace parameters like {name}
-    if (typeof text === 'string' && Object.keys(params).length > 0) {
-      Object.entries(params).forEach(([key, value]) => {
-        text = text.replace(new RegExp(`{${key}}`, 'g'), value);
-      });
-    }
-    
-    return text;
-  }, [language]);
+  const t = useCallback(
+    (path, params = {}) => {
+      let text = getTranslation(language, path);
 
-  // Change language function
-  const changeLanguage = useCallback((newLang) => {
-    if (translations[newLang]) {
-      setLanguage(newLang);
+      if (typeof text === 'string' && Object.keys(params).length > 0) {
+        Object.entries(params).forEach(([key, value]) => {
+          text = text.replace(new RegExp(`{${key}}`, 'g'), String(value));
+        });
+      }
+
+      return text;
+    },
+    [language]
+  );
+
+  const changeLanguage = useCallback((newLanguage) => {
+    if (!translations[newLanguage]) {
+      return;
     }
+
+    setLanguage(newLanguage);
   }, []);
 
-  const value = {
-    language,
-    languages: Object.keys(translations),
-    languageNames,
-    t,
-    changeLanguage,
-  };
+  const value = useMemo(
+    () => ({
+      language,
+      languages: Object.keys(translations),
+      languageNames,
+      t,
+      changeLanguage,
+    }),
+    [language, t, changeLanguage]
+  );
 
   return (
     <LanguageContext.Provider value={value}>
@@ -62,9 +71,11 @@ export function LanguageProvider({ children }) {
 
 export function useLanguage() {
   const context = useContext(LanguageContext);
+
   if (!context) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
+
   return context;
 }
 
