@@ -390,7 +390,11 @@ export default function Dashboard() {
                     </p>
 
                     <div className="flex gap-2 mt-3">
-                      <Button asChild size="sm" className="flex-1 h-8 bg-secondary hover:bg-secondary/90">
+                      <Button
+                        asChild
+                        size="sm"
+                        className="flex-1 h-8 bg-secondary hover:bg-secondary/90"
+                      >
                         <Link to="/convocations">
                           <CheckCircle className="w-3 h-3 mr-1" />
                           {t('attendance.present')}
