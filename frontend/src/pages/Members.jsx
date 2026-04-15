@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { useLanguage } from '../context/LanguageContext';
 import { teamsApi, usersApi, clubApi, membersApi } from '../services/api';
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -12,6 +13,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Avatar, AvatarFallback, AvatarImage } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
+
 import {
   Select,
   SelectContent,
@@ -19,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
+
 import {
   Dialog,
   DialogContent,
@@ -27,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,6 +41,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +49,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
+
 import { toast } from 'sonner';
+
 import {
   Users,
   Plus,
@@ -72,7 +79,14 @@ import {
   UsersRound,
   Briefcase,
 } from 'lucide-react';
-import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
+
+import {
+  getInitials,
+  getRoleName,
+  getRoleColor,
+  normalizeRole,
+  isStaffRole,
+} from '../lib/utils';
 
 const FLAGS = {
   PT: '🇵🇹',
@@ -97,19 +111,6 @@ const FLAGS = {
   RO: '🇷🇴',
 };
 
-const STAFF_ROLES = [
-  'admin',
-  'gestor_desportivo',
-  'sports_manager',
-  'sports_director',
-  'treinador',
-  'coach',
-  'treinador_adjunto',
-  'assistant_coach',
-  'delegado',
-  'delegate',
-];
-
 function MemberRow({
   member,
   isAdmin,
@@ -126,6 +127,8 @@ function MemberRow({
   t,
   user,
 }) {
+  const memberRole = member.team_role || member.role;
+
   return (
     <div
       className="flex items-center justify-between p-3 border border-border rounded-lg hover:bg-accent/30 hover:border-primary/30 transition-all duration-200"
@@ -135,7 +138,7 @@ function MemberRow({
         <div className="relative">
           <Avatar>
             <AvatarImage src={member.avatar_url} />
-            <AvatarFallback className={`${getRoleColor(member.team_role || member.role)} text-white`}>
+            <AvatarFallback className={`${getRoleColor(memberRole)} text-white`}>
               {getInitials(member.name)}
             </AvatarFallback>
           </Avatar>
@@ -175,7 +178,7 @@ function MemberRow({
 
           <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
             <Badge variant="outline" className="text-xs">
-              {getTranslatedRoleName(member.team_role || member.role)}
+              {getTranslatedRoleName(memberRole)}
             </Badge>
 
             {member.profile?.sports_info?.jersey_number && (
@@ -272,7 +275,7 @@ function MemberRow({
                   {member.id !== user?.id && (
                     <DropdownMenuItem onClick={onToggleAdmin}>
                       <Shield className="w-4 h-4 mr-2" />
-                      {['admin', 'gestor_desportivo'].includes(member.role)
+                      {['admin', 'gestor_desportivo'].includes(normalizeRole(member.role))
                         ? `${t('common.remove')} Admin`
                         : `${t('common.add')} Admin`}
                     </DropdownMenuItem>
@@ -340,8 +343,6 @@ export default function Members() {
   const [archivedMembers, setArchivedMembers] = useState([]);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
-  const [memberDetailDialogOpen, setMemberDetailDialogOpen] = useState(false);
-  const [memberDetail, setMemberDetail] = useState(null);
   const [exporting, setExporting] = useState(false);
 
   const perPage = 20;
@@ -357,31 +358,41 @@ export default function Members() {
     nationalities: [],
   });
 
-  const currentTeam = teams.find((tItem) => tItem.id === selectedTeamId);
+  const currentTeam = useMemo(
+    () => teams.find((teamItem) => teamItem.id === selectedTeamId),
+    [teams, selectedTeamId]
+  );
 
-  const groupedMembers = {
-    staff: members
-      .filter((m) => STAFF_ROLES.includes(m.team_role || m.role))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-    players: members
-      .filter((m) => !STAFF_ROLES.includes(m.team_role || m.role))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-  };
+  const groupedMembers = useMemo(
+    () => ({
+      staff: members
+        .filter((member) => isStaffRole(member.team_role || member.role))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+      players: members
+        .filter((member) => !isStaffRole(member.team_role || member.role))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    }),
+    [members]
+  );
 
-  const availableUsers = allUsers.filter((u) => !members.find((m) => m.id === u.id));
+  const availableUsers = useMemo(
+    () => allUsers.filter((candidate) => !members.some((member) => member.id === candidate.id)),
+    [allUsers, members]
+  );
 
   useEffect(() => {
     fetchClub();
   }, []);
 
   useEffect(() => {
+    setTeams(contextTeams);
+
     if (selectedTeam) {
       setSelectedTeamId(selectedTeam.id);
-    } else if (contextTeams.length > 0 && !selectedTeamId) {
+    } else if (!selectedTeam && !isAllTeamsSelected && contextTeams.length > 0 && !selectedTeamId) {
       setSelectedTeamId(contextTeams[0].id);
     }
-    setTeams(contextTeams);
-  }, [selectedTeam, contextTeams, selectedTeamId]);
+  }, [selectedTeam, contextTeams, isAllTeamsSelected, selectedTeamId]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -390,17 +401,23 @@ export default function Members() {
   useEffect(() => {
     if (isAllTeamsSelected && club) {
       fetchClubMembers();
-    } else if (selectedTeamId) {
+      return;
+    }
+
+    if (!isAllTeamsSelected && selectedTeamId) {
       fetchTeamMembers();
-    } else if (contextTeams.length > 0) {
+      return;
+    }
+
+    if (!isAllTeamsSelected && contextTeams.length === 0) {
       setLoading(false);
     }
-  }, [selectedTeamId, isAllTeamsSelected, club, currentPage, searchQuery]);
+  }, [isAllTeamsSelected, club, selectedTeamId, currentPage, searchQuery, contextTeams.length]);
 
   const fetchClub = async () => {
     try {
       const response = await clubApi.getAll();
-      if (response.data.length > 0) {
+      if (response.data?.length > 0) {
         setClub(response.data[0]);
       }
     } catch (error) {
@@ -408,10 +425,11 @@ export default function Members() {
     }
   };
 
-  const fetchClubMembers = async () => {
+  const fetchClubMembers = useCallback(async () => {
     if (!club) return;
 
     setLoading(true);
+
     try {
       const response = await membersApi.getAll({
         club_id: club.id,
@@ -420,17 +438,18 @@ export default function Members() {
         search: searchQuery || undefined,
       });
 
-      setMembers(response.data.members || []);
-      setTotalPages(response.data.total_pages || 1);
-      setTotalMembers(response.data.total || 0);
+      setMembers(response.data?.members || []);
+      setTotalPages(response.data?.total_pages || 1);
+      setTotalMembers(response.data?.total || 0);
     } catch (error) {
       console.error('Error fetching club members:', error);
 
       try {
         const usersRes = await usersApi.getAll();
         const fallbackMembers = Array.isArray(usersRes.data)
-          ? usersRes.data.filter((u) => u.role !== 'admin')
+          ? usersRes.data.filter((u) => normalizeRole(u.role) !== 'admin')
           : [];
+
         setMembers(fallbackMembers);
         setTotalPages(1);
         setTotalMembers(fallbackMembers.length);
@@ -443,12 +462,13 @@ export default function Members() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [club, currentPage, searchQuery]);
 
-  const fetchTeamMembers = async () => {
+  const fetchTeamMembers = useCallback(async () => {
     if (!selectedTeamId) return;
 
     setLoading(true);
+
     try {
       const response = await membersApi.getAll({
         team_id: selectedTeamId,
@@ -457,31 +477,34 @@ export default function Members() {
         search: searchQuery || undefined,
       });
 
-      setMembers(response.data.members || []);
-      setTotalPages(response.data.total_pages || 1);
-      setTotalMembers(response.data.total || 0);
+      setMembers(response.data?.members || []);
+      setTotalPages(response.data?.total_pages || 1);
+      setTotalMembers(response.data?.total || 0);
 
       if (canManageTeam) {
         const usersRes = await usersApi.getAll();
         setAllUsers(Array.isArray(usersRes.data) ? usersRes.data : []);
+      } else {
+        setAllUsers([]);
       }
     } catch (error) {
       console.error('Error fetching members:', error);
       setMembers([]);
       setTotalPages(1);
       setTotalMembers(0);
+      setAllUsers([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedTeamId, currentPage, searchQuery, canManageTeam]);
 
-  const refreshMembers = () => {
+  const refreshMembers = useCallback(() => {
     if (isAllTeamsSelected && club) {
       fetchClubMembers();
-    } else if (selectedTeamId) {
+    } else if (!isAllTeamsSelected && selectedTeamId) {
       fetchTeamMembers();
     }
-  };
+  }, [isAllTeamsSelected, club, selectedTeamId, fetchClubMembers, fetchTeamMembers]);
 
   const fetchArchivedMembers = async () => {
     try {
@@ -490,20 +513,10 @@ export default function Members() {
         per_page: 50,
         search: searchQuery || undefined,
       });
-      setArchivedMembers(response.data.members || []);
+      setArchivedMembers(response.data?.members || []);
     } catch (error) {
       console.error('Error fetching archived members:', error);
       toast.error('Erro ao carregar arquivados');
-    }
-  };
-
-  const handleViewMemberDetail = async (member) => {
-    try {
-      const response = await membersApi.getOne(member.id);
-      setMemberDetail(response.data);
-      setMemberDetailDialogOpen(true);
-    } catch (error) {
-      toast.error('Erro ao carregar detalhes do membro');
     }
   };
 
@@ -554,6 +567,7 @@ export default function Members() {
     if (!selectedUserId || !selectedTeamId) return;
 
     setAdding(true);
+
     try {
       await teamsApi.addMember(selectedTeamId, {
         user_id: selectedUserId,
@@ -579,6 +593,7 @@ export default function Members() {
     }
 
     setAdding(true);
+
     try {
       const response = await membersApi.create({
         ...newMember,
@@ -587,6 +602,7 @@ export default function Members() {
       });
 
       toast.success(`Membro criado! Password temporária: ${response.data.temp_password}`);
+
       setCreateDialogOpen(false);
       setNewMember({
         name: '',
@@ -614,6 +630,7 @@ export default function Members() {
     }
 
     setAdding(true);
+
     try {
       for (const memberId of selectedMembersToAdd) {
         await membersApi.addToTeam(memberId, selectedTeamId);
@@ -622,6 +639,7 @@ export default function Members() {
       toast.success(`${selectedMembersToAdd.length} membro(s) adicionado(s) à equipa!`);
       setAddToTeamDialogOpen(false);
       setSelectedMembersToAdd([]);
+      setSelectedMember(null);
       fetchTeamMembers();
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erro ao adicionar membros à equipa');
@@ -634,6 +652,7 @@ export default function Members() {
     if (!selectedMember || !selectedTeamId) return;
 
     setAdding(true);
+
     try {
       await membersApi.removeFromTeam(selectedMember.id, selectedTeamId);
       toast.success('Membro removido da equipa');
@@ -678,11 +697,14 @@ export default function Members() {
 
   const handleExportExcel = async () => {
     setExporting(true);
+
     try {
       const params = {};
+
       if (!isAllTeamsSelected && selectedTeamId) {
         params.team_id = selectedTeamId;
       }
+
       if (searchQuery) {
         params.search = searchQuery;
       }
@@ -718,7 +740,10 @@ Ana,Oliveira,1990-06-30,ana@exemplo.com,treinador adjunto,,,916666666,Portuguesa
 Manuel,Rodrigues,1975-03-12,manuel@exemplo.com,delegado,,,917777777,Portuguesa,Masculino
 Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Feminino`;
 
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
+
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = 'template_membros.csv';
@@ -726,7 +751,8 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
   };
 
   const handleToggleAdminRole = async (member) => {
-    const newIsAdmin = member.role !== 'admin';
+    const normalizedRole = normalizeRole(member.role);
+    const newIsAdmin = normalizedRole !== 'admin' && normalizedRole !== 'gestor_desportivo';
     const action = newIsAdmin ? 'conceder' : 'remover';
 
     if (!window.confirm(`Tem a certeza que quer ${action} role de admin a ${member.name}?`)) {
@@ -748,6 +774,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
     if (!selectedMember) return;
 
     setDeleting(true);
+
     try {
       await membersApi.delete(selectedMember.id);
       toast.success(t('members.memberDeleted'));
@@ -762,26 +789,9 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
   };
 
   const getTranslatedRoleName = (role) => {
-    const roleMap = {
-      admin: 'admin',
-      gestor_desportivo: 'gestor_desportivo',
-      sports_manager: 'gestor_desportivo',
-      sports_director: 'gestor_desportivo',
-      treinador: 'treinador',
-      coach: 'treinador',
-      treinador_adjunto: 'treinador_adjunto',
-      assistant_coach: 'treinador_adjunto',
-      delegado: 'delegado',
-      delegate: 'delegado',
-      jogador: 'jogador',
-      player: 'jogador',
-      responsavel: 'responsavel',
-      guardian: 'responsavel',
-    };
-
-    const key = roleMap[role] || role;
-    const translated = t(`roles.${key}`);
-    return translated !== `roles.${key}` ? translated : getRoleName(role);
+    const normalizedRole = normalizeRole(role);
+    const translated = t(`roles.${normalizedRole}`);
+    return translated !== `roles.${normalizedRole}` ? translated : getRoleName(normalizedRole);
   };
 
   if (loading) {
@@ -803,7 +813,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
         <div>
           <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight flex items-center gap-3">
             <Users className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
-            Membros
+            {t('members.title')}
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
             Gestão de jogadores e staff • {totalMembers} membro(s)
@@ -878,7 +888,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Pesquisar por nome..."
+            placeholder={t('members.searchPlaceholder')}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -968,9 +978,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 )}
               </CardTitle>
 
-              <CardDescription className="text-sm">
-                {isAllTeamsSelected ? t('members.subtitle') : t('members.subtitle')}
-              </CardDescription>
+              <CardDescription className="text-sm">{t('members.subtitle')}</CardDescription>
             </CardHeader>
 
             <CardContent>
@@ -1224,72 +1232,6 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
         </DialogContent>
       </Dialog>
 
-      <Dialog open={memberDetailDialogOpen} onOpenChange={setMemberDetailDialogOpen}>
-        <DialogContent className="bg-white">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              Estatísticas do Membro
-            </DialogTitle>
-          </DialogHeader>
-
-          {memberDetail && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-4 pb-4 border-b">
-                <Avatar className="w-16 h-16">
-                  <AvatarFallback className="bg-primary text-white text-xl">
-                    {getInitials(memberDetail.member?.name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-semibold text-lg">{memberDetail.member?.name}</h3>
-                  <p className="text-muted-foreground">{memberDetail.member?.email}</p>
-                  <Badge variant="outline">{getRoleName(memberDetail.member?.role)}</Badge>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <p className="text-3xl font-bold text-primary">
-                      {memberDetail.statistics?.total_events || 0}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Eventos</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <p className="text-3xl font-bold text-green-600">
-                      {memberDetail.statistics?.attendance_rate || 0}%
-                    </p>
-                    <p className="text-sm text-muted-foreground">Assiduidade</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <p className="text-3xl font-bold text-blue-600">
-                      {memberDetail.statistics?.goals || 0}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Golos</p>
-                  </CardContent>
-                </Card>
-
-                <Card>
-                  <CardContent className="pt-4 text-center">
-                    <p className="text-3xl font-bold text-purple-600">
-                      {memberDetail.statistics?.assists || 0}
-                    </p>
-                    <p className="text-sm text-muted-foreground">Assistências</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-
       <AlertDialog open={archiveDialogOpen} onOpenChange={setArchiveDialogOpen}>
         <AlertDialogContent className="bg-white">
           <AlertDialogHeader>
@@ -1417,7 +1359,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 <Label>Função</Label>
                 <Select
                   value={newMember.role}
-                  onValueChange={(v) => setNewMember({ ...newMember, role: v })}
+                  onValueChange={(value) => setNewMember({ ...newMember, role: value })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -1445,7 +1387,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                 <Label>Posição</Label>
                 <Select
                   value={newMember.position}
-                  onValueChange={(v) => setNewMember({ ...newMember, position: v })}
+                  onValueChange={(value) => setNewMember({ ...newMember, position: value })}
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -1539,12 +1481,12 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                     <Badge variant="secondary">{importResults.warnings.length} avisos</Badge>
                   )}
 
-                  {importResults.errors.length > 0 && (
+                  {importResults.errors?.length > 0 && (
                     <Badge variant="destructive">{importResults.errors.length} erros</Badge>
                   )}
                 </div>
 
-                {importResults.created.length > 0 && (
+                {importResults.created?.length > 0 && (
                   <div className="max-h-40 overflow-y-auto text-sm border rounded p-2">
                     <p className="font-medium mb-1">Passwords temporárias:</p>
                     {importResults.created.map((createdUser, i) => (
@@ -1565,7 +1507,7 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                   </div>
                 )}
 
-                {importResults.errors.length > 0 && (
+                {importResults.errors?.length > 0 && (
                   <div className="max-h-40 overflow-y-auto text-sm text-destructive border border-destructive/20 rounded p-2">
                     <p className="font-medium mb-1">Erros:</p>
                     {importResults.errors.map((err, i) => (
