@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { useLanguage } from '../context/LanguageContext';
 import { paymentsApi, membersApi } from '../services/api';
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -34,6 +35,7 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
+
 import { toast } from 'sonner';
 import {
   CreditCard,
@@ -58,45 +60,57 @@ import {
   ShieldAlert,
   Eye,
 } from 'lucide-react';
+
 import { formatDate, normalizeRole } from '../lib/utils';
 
-const PLAYER_ROLES = ['jogador'];
-const BLOCKED_FINANCE_ROLES = ['treinador', 'treinador_adjunto', 'delegado'];
+const PLAYER_ROLES = ['jogador', 'player'];
+const BLOCKED_FINANCE_ROLES = [
+  'treinador',
+  'treinador_adjunto',
+  'delegado',
+  'coach',
+  'assistant_coach',
+  'delegate',
+];
 
-function getMonthOptions(t) {
+function getMonthOptions() {
   return [
-    { value: '1', label: t('time.january') !== 'time.january' ? t('time.january') : 'Janeiro' },
-    { value: '2', label: t('time.february') !== 'time.february' ? t('time.february') : 'Fevereiro' },
-    { value: '3', label: t('time.march') !== 'time.march' ? t('time.march') : 'Março' },
-    { value: '4', label: t('time.april') !== 'time.april' ? t('time.april') : 'Abril' },
-    { value: '5', label: t('time.may') !== 'time.may' ? t('time.may') : 'Maio' },
-    { value: '6', label: t('time.june') !== 'time.june' ? t('time.june') : 'Junho' },
-    { value: '7', label: t('time.july') !== 'time.july' ? t('time.july') : 'Julho' },
-    { value: '8', label: t('time.august') !== 'time.august' ? t('time.august') : 'Agosto' },
-    { value: '9', label: t('time.september') !== 'time.september' ? t('time.september') : 'Setembro' },
-    { value: '10', label: t('time.october') !== 'time.october' ? t('time.october') : 'Outubro' },
-    { value: '11', label: t('time.november') !== 'time.november' ? t('time.november') : 'Novembro' },
-    { value: '12', label: t('time.december') !== 'time.december' ? t('time.december') : 'Dezembro' },
+    { value: '1', label: 'Jan' },
+    { value: '2', label: 'Fev' },
+    { value: '3', label: 'Mar' },
+    { value: '4', label: 'Abr' },
+    { value: '5', label: 'Mai' },
+    { value: '6', label: 'Jun' },
+    { value: '7', label: 'Jul' },
+    { value: '8', label: 'Ago' },
+    { value: '9', label: 'Set' },
+    { value: '10', label: 'Out' },
+    { value: '11', label: 'Nov' },
+    { value: '12', label: 'Dez' },
   ];
 }
 
-function getMonthName(month, t) {
-  const found = getMonthOptions(t).find((m) => Number(m.value) === Number(month));
+function getMonthName(month) {
+  const found = getMonthOptions().find((m) => Number(m.value) === Number(month));
   return found?.label || '';
 }
 
 function isPlayerMember(member) {
-  return PLAYER_ROLES.includes(normalizeRole(member?.role));
+  return PLAYER_ROLES.includes(normalizeRole(member?.role || ''));
 }
 
 export default function Payments() {
-  const { user, effectiveRole, viewingAs } = useAuth();
-  const { isAdmin, isFamilyMember, isPlayer } = usePermissions();
+  const { user, effectiveRole } = useAuth();
+  const permissions = usePermissions();
   const { t } = useLanguage();
 
-  const normalizedRole = normalizeRole(effectiveRole || user?.role);
+  const isAdmin = permissions?.isAdmin;
+  const isFamilyMember = permissions?.isFamilyMember;
+  const isPlayer = permissions?.isPlayer;
+
+  const role = normalizeRole(effectiveRole || user?.role || '');
   const canViewFinance = isAdmin || isPlayer || isFamilyMember;
-  const isFinanceBlockedRole = BLOCKED_FINANCE_ROLES.includes(normalizedRole);
+  const isFinanceBlockedRole = BLOCKED_FINANCE_ROLES.includes(role);
 
   const [payments, setPayments] = useState([]);
   const [summary, setSummary] = useState(null);
@@ -155,7 +169,7 @@ export default function Payments() {
     }
 
     fetchData();
-  }, [canViewFinance, isFinanceBlockedRole, isAdmin, isFamilyMember, isPlayer]);
+  }, [canViewFinance, isFinanceBlockedRole, isAdmin]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -165,18 +179,15 @@ export default function Payments() {
         const [paymentsRes, summaryRes, membersRes] = await Promise.all([
           paymentsApi.getAll(),
           paymentsApi.getSummary(),
-          membersApi.getAll({ page: 1, per_page: 500 }),
+          membersApi.getAll({ limit: 500 }),
         ]);
 
         setPayments(Array.isArray(paymentsRes?.data) ? paymentsRes.data : []);
         setSummary(summaryRes?.data || null);
-
-        const membersData = membersRes?.data?.members || membersRes?.data?.users || membersRes?.data || [];
-        setMembers(Array.isArray(membersData) ? membersData : []);
+        setMembers(membersRes?.data?.users || membersRes?.data?.members || []);
       } else {
         const paymentsRes = await paymentsApi.getMy();
-        const myPayments = Array.isArray(paymentsRes?.data) ? paymentsRes.data : [];
-        setPayments(myPayments);
+        setPayments(Array.isArray(paymentsRes?.data) ? paymentsRes.data : []);
         setSummary(null);
         setMembers([]);
       }
@@ -192,21 +203,11 @@ export default function Payments() {
   };
 
   const playerMembers = useMemo(() => {
-    return members.filter(isPlayerMember).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    return members.filter(isPlayerMember);
   }, [members]);
 
-  const visiblePayments = useMemo(() => {
-    if (isAdmin) return payments;
-
-    if (isFamilyMember && viewingAs?.id) {
-      return payments.filter((payment) => String(payment.user_id) === String(viewingAs.id));
-    }
-
-    return payments;
-  }, [payments, isAdmin, isFamilyMember, viewingAs]);
-
   const filteredPayments = useMemo(() => {
-    let filtered = [...visiblePayments];
+    let filtered = [...payments];
 
     if (statusFilter !== 'all') {
       filtered = filtered.filter((payment) => payment.status === statusFilter);
@@ -232,7 +233,9 @@ export default function Payments() {
     }
 
     if (memberFilter !== 'all') {
-      filtered = filtered.filter((payment) => String(payment.user_id) === String(memberFilter));
+      filtered = filtered.filter(
+        (payment) => String(payment.user_id) === String(memberFilter)
+      );
     }
 
     if (searchQuery.trim()) {
@@ -255,28 +258,22 @@ export default function Payments() {
     }
 
     return filtered;
-  }, [visiblePayments, statusFilter, typeFilter, monthFilter, memberFilter, searchQuery]);
+  }, [payments, statusFilter, typeFilter, monthFilter, memberFilter, searchQuery]);
 
   const stats = useMemo(() => {
-    const paid = visiblePayments.filter((payment) => payment.status === 'paid').length;
-    const pending = visiblePayments.filter((payment) => payment.status === 'pending').length;
-    const overdue = visiblePayments.filter((payment) => payment.status === 'overdue').length;
-    const total = visiblePayments.reduce((acc, payment) => acc + (Number(payment.amount) || 0), 0);
-    const collected = visiblePayments
+    const paid = payments.filter((payment) => payment.status === 'paid').length;
+    const pending = payments.filter((payment) => payment.status === 'pending').length;
+    const overdue = payments.filter((payment) => payment.status === 'overdue').length;
+    const total = payments.reduce((acc, payment) => acc + (Number(payment.amount) || 0), 0);
+    const collected = payments
       .filter((payment) => payment.status === 'paid')
       .reduce((acc, payment) => acc + (Number(payment.amount) || 0), 0);
 
     return { paid, pending, overdue, total, collected };
-  }, [visiblePayments]);
+  }, [payments]);
 
   const handleCreateFee = async (e) => {
     e.preventDefault();
-
-    if (!feeForm.user_id || !feeForm.amount || !feeForm.due_date) {
-      toast.error('Preencha os campos obrigatórios');
-      return;
-    }
-
     setCreating(true);
 
     try {
@@ -302,12 +299,6 @@ export default function Payments() {
 
   const handleCreateBulkFees = async (e) => {
     e.preventDefault();
-
-    if (!bulkFeeForm.amount || !bulkFeeForm.due_date) {
-      toast.error('Preencha os campos obrigatórios');
-      return;
-    }
-
     setCreating(true);
 
     try {
@@ -331,12 +322,6 @@ export default function Payments() {
 
   const handleCreateCustomPayment = async (e) => {
     e.preventDefault();
-
-    if (!customForm.user_id || !customForm.title || !customForm.amount || !customForm.due_date) {
-      toast.error('Preencha os campos obrigatórios');
-      return;
-    }
-
     setCreating(true);
 
     try {
@@ -369,7 +354,7 @@ export default function Payments() {
       const result = await paymentsApi.importFees(file);
       toast.success(result?.data?.message || 'Importação concluída');
 
-      if (Array.isArray(result?.data?.errors) && result.data.errors.length > 0) {
+      if (result?.data?.errors?.length > 0) {
         result.data.errors.forEach((err) => toast.warning(err));
       }
 
@@ -450,9 +435,9 @@ export default function Payments() {
 
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
-      link.href = url;
-
       const timestamp = new Date().toISOString().split('T')[0];
+
+      link.href = url;
       link.download = `pagamentos_${timestamp}.xlsx`;
 
       document.body.appendChild(link);
@@ -502,22 +487,27 @@ export default function Payments() {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'paid':
-        return <Badge className="bg-green-100 text-green-700 border-green-300">Pago</Badge>;
+        return (
+          <Badge className="bg-green-100 text-green-700 border-green-300">
+            Pago
+          </Badge>
+        );
       case 'pending':
-        return <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">Pendente</Badge>;
+        return (
+          <Badge className="bg-yellow-100 text-yellow-700 border-yellow-300">
+            Pendente
+          </Badge>
+        );
       case 'overdue':
-        return <Badge className="bg-red-100 text-red-700 border-red-300">Atrasado</Badge>;
+        return (
+          <Badge className="bg-red-100 text-red-700 border-red-300">
+            Atrasado
+          </Badge>
+        );
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
   };
-
-  const pageTitle = t('nav.payments') !== 'nav.payments' ? t('nav.payments') : 'Pagamentos';
-  const blockedTitle = 'Sem acesso a pagamentos';
-  const blockedMessage =
-    'O perfil atual não tem permissão para consultar ou gerir informação financeira.';
-  const myPaymentsSubtitle = 'Os meus pagamentos';
-  const adminPaymentsSubtitle = 'Gestão de mensalidades e pagamentos';
 
   if (loading) {
     return (
@@ -539,7 +529,7 @@ export default function Payments() {
         <div>
           <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl tracking-tight flex items-center gap-3">
             <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
-            {pageTitle}
+            Pagamentos
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             Acesso condicionado por perfil
@@ -551,8 +541,10 @@ export default function Payments() {
             <div className="flex items-start gap-4">
               <ShieldAlert className="w-6 h-6 text-amber-600 mt-0.5" />
               <div>
-                <p className="font-semibold text-amber-800">{blockedTitle}</p>
-                <p className="text-sm text-amber-700 mt-1">{blockedMessage}</p>
+                <p className="font-semibold text-amber-800">Sem acesso a pagamentos</p>
+                <p className="text-sm text-amber-700 mt-1">
+                  O perfil atual não tem permissão para consultar ou gerir informação financeira.
+                </p>
               </div>
             </div>
           </CardContent>
@@ -567,10 +559,10 @@ export default function Payments() {
         <div>
           <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl tracking-tight flex items-center gap-3">
             <CreditCard className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
-            {pageTitle}
+            Pagamentos
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {isAdmin ? adminPaymentsSubtitle : myPaymentsSubtitle}
+            {isAdmin ? 'Gestão de mensalidades e pagamentos' : 'Os meus pagamentos'}
           </p>
         </div>
 
@@ -732,12 +724,12 @@ export default function Payments() {
           </Select>
 
           <Select value={monthFilter} onValueChange={setMonthFilter}>
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-[150px]">
               <SelectValue placeholder="Mês" />
             </SelectTrigger>
             <SelectContent className="bg-white">
               <SelectItem value="all">Todos os meses</SelectItem>
-              {getMonthOptions(t).map((month) => (
+              {getMonthOptions().map((month) => (
                 <SelectItem key={month.value} value={month.value}>
                   {month.label}
                 </SelectItem>
@@ -752,7 +744,7 @@ export default function Payments() {
             <SelectContent className="bg-white max-h-72">
               <SelectItem value="all">Todos os membros</SelectItem>
               {playerMembers.map((member) => (
-                <SelectItem key={member.id} value={String(member.id)}>
+                <SelectItem key={member.id} value={member.id}>
                   {member.name}
                 </SelectItem>
               ))}
@@ -790,7 +782,7 @@ export default function Payments() {
 
                 <TableBody>
                   {filteredPayments.map((payment) => (
-                    <TableRow key={`${payment.type}-${payment.id}`} data-testid={`payment-${payment.id}`}>
+                    <TableRow key={payment.id} data-testid={`payment-${payment.id}`}>
                       {isAdmin && (
                         <TableCell>
                           <div>
@@ -814,7 +806,7 @@ export default function Payments() {
                           <div className="flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-muted-foreground" />
                             <span>
-                              Mensalidade {getMonthName(payment.month, t)}/{payment.year}
+                              Mensalidade {getMonthName(payment.month)}/{payment.year}
                             </span>
                           </div>
                         ) : (
@@ -922,7 +914,7 @@ export default function Payments() {
         </CardContent>
       </Card>
 
-      {!isAdmin && visiblePayments.length > 0 && (
+      {!isAdmin && payments.length > 0 && (
         <Card className="border border-border">
           <CardHeader className="pb-3">
             <CardTitle className="font-heading text-lg tracking-tight">Resumo</CardTitle>
@@ -975,7 +967,7 @@ export default function Payments() {
                   </SelectTrigger>
                   <SelectContent className="bg-white max-h-60">
                     {playerMembers.map((member) => (
-                      <SelectItem key={member.id} value={String(member.id)}>
+                      <SelectItem key={member.id} value={member.id}>
                         {member.name}
                       </SelectItem>
                     ))}
@@ -988,13 +980,15 @@ export default function Payments() {
                   <Label>Mês *</Label>
                   <Select
                     value={String(feeForm.month)}
-                    onValueChange={(v) => setFeeForm((prev) => ({ ...prev, month: parseInt(v, 10) }))}
+                    onValueChange={(v) =>
+                      setFeeForm((prev) => ({ ...prev, month: parseInt(v, 10) }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      {getMonthOptions(t).map((m) => (
+                      {getMonthOptions().map((m) => (
                         <SelectItem key={m.value} value={m.value}>
                           {m.label}
                         </SelectItem>
@@ -1007,13 +1001,15 @@ export default function Payments() {
                   <Label>Ano *</Label>
                   <Select
                     value={String(feeForm.year)}
-                    onValueChange={(v) => setFeeForm((prev) => ({ ...prev, year: parseInt(v, 10) }))}
+                    onValueChange={(v) =>
+                      setFeeForm((prev) => ({ ...prev, year: parseInt(v, 10) }))
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      {[2024, 2025, 2026, 2027, 2028].map((y) => (
+                      {[2024, 2025, 2026, 2027].map((y) => (
                         <SelectItem key={y} value={String(y)}>
                           {y}
                         </SelectItem>
@@ -1029,7 +1025,6 @@ export default function Payments() {
                   <Input
                     type="number"
                     step="0.01"
-                    min="0"
                     value={feeForm.amount}
                     onChange={(e) => setFeeForm((prev) => ({ ...prev, amount: e.target.value }))}
                     placeholder="0.00"
@@ -1043,7 +1038,9 @@ export default function Payments() {
                   <Input
                     type="date"
                     value={feeForm.due_date}
-                    onChange={(e) => setFeeForm((prev) => ({ ...prev, due_date: e.target.value }))}
+                    onChange={(e) =>
+                      setFeeForm((prev) => ({ ...prev, due_date: e.target.value }))
+                    }
                     required
                     data-testid="fee-due-date"
                   />
@@ -1100,7 +1097,7 @@ export default function Payments() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      {getMonthOptions(t).map((m) => (
+                      {getMonthOptions().map((m) => (
                         <SelectItem key={m.value} value={m.value}>
                           {m.label}
                         </SelectItem>
@@ -1121,7 +1118,7 @@ export default function Payments() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-white">
-                      {[2024, 2025, 2026, 2027, 2028].map((y) => (
+                      {[2024, 2025, 2026, 2027].map((y) => (
                         <SelectItem key={y} value={String(y)}>
                           {y}
                         </SelectItem>
@@ -1137,7 +1134,6 @@ export default function Payments() {
                   <Input
                     type="number"
                     step="0.01"
-                    min="0"
                     value={bulkFeeForm.amount}
                     onChange={(e) =>
                       setBulkFeeForm((prev) => ({ ...prev, amount: e.target.value }))
@@ -1203,7 +1199,7 @@ export default function Payments() {
                   </SelectTrigger>
                   <SelectContent className="bg-white max-h-60">
                     {playerMembers.map((member) => (
-                      <SelectItem key={member.id} value={String(member.id)}>
+                      <SelectItem key={member.id} value={member.id}>
                         {member.name}
                       </SelectItem>
                     ))}
@@ -1215,7 +1211,9 @@ export default function Payments() {
                 <Label>Título *</Label>
                 <Input
                   value={customForm.title}
-                  onChange={(e) => setCustomForm((prev) => ({ ...prev, title: e.target.value }))}
+                  onChange={(e) =>
+                    setCustomForm((prev) => ({ ...prev, title: e.target.value }))
+                  }
                   placeholder="Ex: Equipamento, inscrição torneio..."
                   required
                   data-testid="custom-title"
@@ -1240,9 +1238,10 @@ export default function Payments() {
                   <Input
                     type="number"
                     step="0.01"
-                    min="0"
                     value={customForm.amount}
-                    onChange={(e) => setCustomForm((prev) => ({ ...prev, amount: e.target.value }))}
+                    onChange={(e) =>
+                      setCustomForm((prev) => ({ ...prev, amount: e.target.value }))
+                    }
                     placeholder="0.00"
                     required
                     data-testid="custom-amount"
@@ -1306,7 +1305,7 @@ export default function Payments() {
                   • <strong>Mês</strong> - Número do mês (1-12)
                 </li>
                 <li>
-                  • <strong>Ano</strong> - Ano
+                  • <strong>Ano</strong> - Ano (ex: 2026)
                 </li>
                 <li>
                   • <strong>Vencimento</strong> - Data limite (opcional)
@@ -1358,10 +1357,12 @@ export default function Payments() {
               <div className="p-3 bg-muted/30 rounded-sm">
                 <p className="text-sm">
                   {selectedPayment.type === 'monthly_fee'
-                    ? `Mensalidade ${getMonthName(selectedPayment.month, t)}/${selectedPayment.year}`
+                    ? `Mensalidade ${getMonthName(selectedPayment.month)}/${selectedPayment.year}`
                     : selectedPayment.title}
                 </p>
-                <p className="text-lg font-bold">€{Number(selectedPayment.amount || 0).toFixed(2)}</p>
+                <p className="text-lg font-bold">
+                  €{Number(selectedPayment.amount || 0).toFixed(2)}
+                </p>
               </div>
             )}
 
