@@ -44,7 +44,6 @@ export function AppLayout({ children }) {
         <Activity className="w-24 h-24 text-primary/[0.03]" strokeWidth={1} />
       </div>
 
-      <Toaster position="top-right" richColors />
     </div>
   );
 }
