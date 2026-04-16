@@ -1,3 +1,4 @@
+import { usePermissions } from '../context/PermissionsContext';
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -44,6 +45,7 @@ const ROLE_NAMES = {
 export default function MyTeamsPage() {
   const { user, effectiveRole } = useAuth();
   const { teams: userTeams, loading: teamsLoading } = useTeam();
+  const permissions = usePermissions();
   const [searchParams] = useSearchParams();
 
   const initialTab = searchParams.get('tab') || 'teams';
