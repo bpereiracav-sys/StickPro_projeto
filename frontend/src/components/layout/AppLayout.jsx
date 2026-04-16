@@ -2,7 +2,6 @@ import { useEffect } from 'react';
 import { Sidebar } from './Sidebar';
 import { TopNavBar } from './TopNavBar';
 import { BottomNav } from './BottomNav';
-import { Toaster } from '../ui/sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Activity } from 'lucide-react';
@@ -18,12 +17,7 @@ export function AppLayout({ children }) {
   }, [isAuthenticated, refreshTheme]);
 
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background">
-        {children}
-        <Toaster position="top-right" richColors />
-      </div>
-    );
+    return <div className="min-h-screen bg-background">{children}</div>;
   }
 
   return (
@@ -43,7 +37,6 @@ export function AppLayout({ children }) {
       >
         <Activity className="w-24 h-24 text-primary/[0.03]" strokeWidth={1} />
       </div>
-
     </div>
   );
 }
