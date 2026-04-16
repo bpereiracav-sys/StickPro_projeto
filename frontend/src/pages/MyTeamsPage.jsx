@@ -149,7 +149,7 @@ export default function MyTeamsPage() {
     if (team.coach_ids?.includes(user.id)) return 'treinador';
     if (team.assistant_coach_ids?.includes(user.id)) return 'treinador_adjunto';
     if (team.delegate_ids?.includes(user.id)) return 'delegado';
-    if (team.admin_ids?.includes?.(user.id)) return 'admin';
+    if (team.admin_ids?.includes(user.id)) return 'admin';
 
     return 'jogador';
   };
