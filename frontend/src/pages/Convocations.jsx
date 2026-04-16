@@ -87,9 +87,7 @@ export default function Convocations() {
         status === 'confirmado' ? 'Presença confirmada!' : 'Ausência registada'
       );
 
-      setReasonDialogOpen(false);
-      setSelectedAttendance(null);
-      setReason('');
+      closeReasonDialog();
       await fetchConvocations();
     } catch (error) {
       console.error('Error updating attendance:', error);
@@ -342,7 +340,16 @@ export default function Convocations() {
         )}
       </Tabs>
 
-      <Dialog open={reasonDialogOpen} onOpenChange={setReasonDialogOpen}>
+      <Dialog
+        open={reasonDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            closeReasonDialog();
+          } else {
+            setReasonDialogOpen(true);
+          }
+        }}
+      >
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">
