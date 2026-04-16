@@ -1,5 +1,4 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useTeam } from '../../context/TeamContext';
@@ -24,6 +23,7 @@ import {
   ChevronDown,
   Check,
 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
 import { clubApi } from '../../services/api';
 
@@ -52,13 +52,7 @@ const StickProLogo = ({ size = 'md' }) => {
 export function TopNavBar() {
   const { user, logout, isAuthenticated, availableProfiles } = useAuth();
   const { t } = useLanguage();
-  const {
-    teams,
-    selectedTeam,
-    selectTeam,
-    selectAllTeams,
-    isAllTeamsSelected,
-  } = useTeam();
+  const { teams, selectedTeam, selectTeam, selectAllTeams, isAllTeamsSelected } = useTeam();
   const permissions = usePermissions();
 
   const location = useLocation();
@@ -69,13 +63,15 @@ export function TopNavBar() {
   useEffect(() => {
     if (isAuthenticated) {
       fetchClub();
+    } else {
+      setClub(null);
     }
   }, [isAuthenticated]);
 
   const fetchClub = async () => {
     try {
       const response = await clubApi.getAll();
-      if (response.data?.length > 0) {
+      if (response?.data?.length > 0) {
         setClub(response.data[0]);
       } else {
         setClub(null);
@@ -108,11 +104,11 @@ export function TopNavBar() {
   const teamsLabel =
     t('nav.teams') !== 'nav.teams' ? t('nav.teams') : 'Equipas';
 
-  const myTeamsLabel =
-    t('nav.myTeams') !== 'nav.myTeams' ? t('nav.myTeams') : 'Minhas Equipas';
-
   const myClubLabel =
     t('nav.myClub') !== 'nav.myClub' ? t('nav.myClub') : 'Meu Clube';
+
+  const myTeamsLabel =
+    t('nav.myTeams') !== 'nav.myTeams' ? t('nav.myTeams') : 'As Minhas Equipas';
 
   const myProfileLabel =
     t('nav.myProfile') !== 'nav.myProfile' ? t('nav.myProfile') : 'Meu Perfil';
@@ -212,7 +208,7 @@ export function TopNavBar() {
                 <DropdownMenuLabel>{myTeamsLabel}</DropdownMenuLabel>
                 <DropdownMenuSeparator />
 
-                {teams.length > 0 ? (
+                {teams?.length > 0 ? (
                   teams.map((team) => (
                     <DropdownMenuItem
                       key={team.id}
@@ -233,9 +229,7 @@ export function TopNavBar() {
                         )}
 
                         <div className="min-w-0">
-                          <span className="font-medium truncate block">
-                            {team.name}
-                          </span>
+                          <span className="font-medium truncate block">{team.name}</span>
                           <span className="text-xs text-muted-foreground">
                             {team.category}
                           </span>
@@ -250,7 +244,9 @@ export function TopNavBar() {
                 ) : (
                   <DropdownMenuItem disabled>
                     <span className="text-muted-foreground">
-                      {t('common.noData') || 'Sem equipas'}
+                      {t('common.noData') !== 'common.noData'
+                        ? t('common.noData')
+                        : 'Sem equipas'}
                     </span>
                   </DropdownMenuItem>
                 )}
@@ -343,12 +339,14 @@ export function TopNavBar() {
                   </Link>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem asChild>
-                  <Link to="/settings" className="cursor-pointer">
-                    <Settings className="w-4 h-4 mr-2" />
-                    {settingsLabel}
-                  </Link>
-                </DropdownMenuItem>
+                {(permissions.isAdmin || permissions.canManageClub) && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="cursor-pointer">
+                      <Settings className="w-4 h-4 mr-2" />
+                      {settingsLabel}
+                    </Link>
+                  </DropdownMenuItem>
+                )}
 
                 <DropdownMenuSeparator />
 
