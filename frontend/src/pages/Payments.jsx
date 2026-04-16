@@ -102,7 +102,7 @@ function isPlayerMember(member) {
 export default function Payments() {
   const { user, effectiveRole } = useAuth();
   const permissions = usePermissions();
-  const { t } = useLanguage();
+  useLanguage();
 
   const isAdmin = permissions?.isAdmin;
   const isFamilyMember = permissions?.isFamilyMember;
