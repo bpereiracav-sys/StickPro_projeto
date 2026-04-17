@@ -1,10 +1,16 @@
 import axios from 'axios';
 
-const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+
+if (!BACKEND_URL) {
+  console.error('REACT_APP_BACKEND_URL is not defined');
+}
+
+const API_URL = `${BACKEND_URL || ''}/api`;
 
 const api = axios.create({
   baseURL: API_URL,
-  headers: { 'Content-Type': 'application/json' }
+  headers: { 'Content-Type': 'application/json' },
 });
 
 // Add token to requests
@@ -39,12 +45,15 @@ export const teamsApi = {
   getMembersForMessage: (id) => api.get(`/teams/${id}/members-for-message`),
   addMember: (teamId, data) => api.post(`/teams/${teamId}/members`, data),
   removeMember: (teamId, userId) => api.delete(`/teams/${teamId}/members/${userId}`),
-  updateMemberRole: (teamId, userId, role) => api.put(`/teams/${teamId}/members/${userId}/role`, { role }),
-  getStats: (id, championshipId) => api.get(`/teams/${id}/stats`, { params: { championship_id: championshipId } }),
+  updateMemberRole: (teamId, userId, role) =>
+    api.put(`/teams/${teamId}/members/${userId}/role`, { role }),
+  getStats: (id, championshipId) =>
+    api.get(`/teams/${id}/stats`, { params: { championship_id: championshipId } }),
   getAttendance: (id, params) => api.get(`/teams/${id}/attendance`, { params }),
   getAttendanceSummary: (id) => api.get(`/teams/${id}/attendance/summary`),
-  searchAttendance: (id, query) => api.get(`/teams/${id}/attendance/search`, { params: { query } }),
-  getAttendanceUnavailabilities: (id) => api.get(`/teams/${id}/attendance/unavailabilities`)
+  searchAttendance: (id, query) =>
+    api.get(`/teams/${id}/attendance/search`, { params: { query } }),
+  getAttendanceUnavailabilities: (id) => api.get(`/teams/${id}/attendance/unavailabilities`),
 };
 
 // Championships API
@@ -57,51 +66,66 @@ export const championshipsApi = {
   getMatches: (id) => api.get(`/championships/${id}/matches`),
   createMatch: (id, data) => api.post(`/championships/${id}/matches`, data),
   updateMatch: (matchId, data) => api.put(`/championships/matches/${matchId}`, data),
-  updateMatchResult: (matchId, data) => api.put(`/championships/matches/${matchId}/result`, data),
+  updateMatchResult: (matchId, data) =>
+    api.put(`/championships/matches/${matchId}/result`, data),
   deleteMatch: (matchId) => api.delete(`/championships/matches/${matchId}`),
   getStandings: (id) => api.get(`/championships/${id}/standings`),
   getMatchPlayerStats: (matchId) => api.get(`/matches/${matchId}/player-stats`),
-  createMatchPlayerStats: (matchId, data) => api.post(`/matches/${matchId}/player-stats`, data),
+  createMatchPlayerStats: (matchId, data) =>
+    api.post(`/matches/${matchId}/player-stats`, data),
+
   // Match Lineups
   getMatchLineup: (matchId) => api.get(`/championships/matches/${matchId}/lineup`),
-  saveMatchLineup: (matchId, data) => api.post(`/championships/matches/${matchId}/lineup`, data),
+  saveMatchLineup: (matchId, data) =>
+    api.post(`/championships/matches/${matchId}/lineup`, data),
   deleteMatchLineup: (matchId) => api.delete(`/championships/matches/${matchId}/lineup`),
-  // Competition Teams (equipas participantes)
+
+  // Competition Teams
   getCompetitionTeams: (championshipId) => api.get(`/championships/${championshipId}/teams`),
-  createCompetitionTeam: (championshipId, data) => api.post(`/championships/${championshipId}/teams`, data),
-  updateCompetitionTeam: (teamId, data) => api.put(`/championships/teams/${teamId}`, data),
+  createCompetitionTeam: (championshipId, data) =>
+    api.post(`/championships/${championshipId}/teams`, data),
+  updateCompetitionTeam: (teamId, data) =>
+    api.put(`/championships/teams/${teamId}`, data),
   deleteCompetitionTeam: (teamId) => api.delete(`/championships/teams/${teamId}`),
+
   importCompetitionTeams: (championshipId, file) => {
     const formData = new FormData();
     formData.append('file', file);
     return api.post(`/championships/${championshipId}/teams/import`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+
   // Import matches from Excel/CSV
   importMatches: (championshipId, file) => {
     const formData = new FormData();
     formData.append('file', file);
     return api.post(`/championships/${championshipId}/matches/import`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
+
   // Download import template
   downloadMatchesTemplate: () => {
-    const baseUrl = process.env.REACT_APP_BACKEND_URL || '';
+    const baseUrl = BACKEND_URL || '';
     const token = localStorage.getItem('token');
     return `${baseUrl}/api/championships/matches/import-template?token=${token}`;
   },
+
   // Extract player stats from gamesheet URL
   extractGamesheetStats: (url) => api.post('/championships/extract-gamesheet-stats', { url }),
+
   // Get gamesheet stats for a match
-  getMatchGamesheetStats: (matchId) => api.get(`/championships/matches/${matchId}/gamesheet-stats`),
+  getMatchGamesheetStats: (matchId) =>
+    api.get(`/championships/matches/${matchId}/gamesheet-stats`),
+
   // Save player match stats
-  savePlayerMatchStats: (matchId, playerId, data) => api.post(`/matches/${matchId}/player-stats`, {
-    match_id: matchId,
-    player_id: playerId,
-    ...data
-  })
+  savePlayerMatchStats: (matchId, playerId, data) =>
+    api.post(`/matches/${matchId}/player-stats`, {
+      match_id: matchId,
+      player_id: playerId,
+      ...data,
+    }),
 };
 
 // Events API
@@ -113,12 +137,13 @@ export const eventsApi = {
   delete: (id) => api.delete(`/events/${id}`),
   getAttendance: (id) => api.get(`/events/${id}/attendance`),
   getEventAttendance: (id) => api.get(`/events/${id}/attendance`),
-  createConvocation: (eventId, data) => api.post('/convocations', { event_id: eventId, ...data }),
-  // Convocation status
+  createConvocation: (eventId, data) =>
+    api.post('/convocations', { event_id: eventId, ...data }),
   getConvocationStatus: (eventId) => api.get(`/events/${eventId}/convocation-status`),
-  updateConvocationStatus: (eventId, playerId, status) => api.put(`/events/${eventId}/convocation-status`, { player_id: playerId, status }),
+  updateConvocationStatus: (eventId, playerId, status) =>
+    api.put(`/events/${eventId}/convocation-status`, { player_id: playerId, status }),
   sendReminder: (eventId) => api.post(`/events/${eventId}/send-reminder`),
-  autoMarkAbsent: (eventId) => api.post(`/events/${eventId}/auto-mark-absent`)
+  autoMarkAbsent: (eventId) => api.post(`/events/${eventId}/auto-mark-absent`),
 };
 
 // Convocations API
@@ -127,13 +152,13 @@ export const convocationsApi = {
   getMy: () => api.get('/convocations/my'),
   create: (data) => api.post('/convocations', data),
   updateAttendance: (id, data) => api.put(`/attendance/${id}`, data),
-  getMyDetailed: () => api.get('/attendance/my/detailed')
+  getMyDetailed: () => api.get('/attendance/my/detailed'),
 };
 
 // Messages API
 export const messagesApi = {
   getByTeam: (teamId, limit) => api.get(`/messages/${teamId}`, { params: { limit } }),
-  send: (data) => api.post('/messages', data)
+  send: (data) => api.post('/messages', data),
 };
 
 // Users API
@@ -145,22 +170,27 @@ export const usersApi = {
   updateRole: (id, role) => api.put(`/users/${id}/role`, { role }),
   updateAdminRole: (id, isAdmin) => api.put(`/users/${id}/admin-role`, { is_admin: isAdmin }),
   getConsolidatedStats: (id) => api.get(`/player-stats/${id}/consolidated`),
-  getMatchStats: (id, championshipId) => api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } }),
+  getMatchStats: (id, championshipId) =>
+    api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } }),
+
   // Associated accounts
   getAssociated: () => api.get('/users/associated'),
-  searchToAssociate: (email) => api.post('/users/associate/search', null, { params: { email } }),
-  associate: (childUserId, relationship) => api.post('/users/associate', { child_user_id: childUserId, relationship }),
+  searchToAssociate: (email) =>
+    api.post('/users/associate/search', null, { params: { email } }),
+  associate: (childUserId, relationship) =>
+    api.post('/users/associate', { child_user_id: childUserId, relationship }),
   removeAssociation: (childId) => api.delete(`/users/associate/${childId}`),
+
   // Player linking for family accounts
   linkPlayer: (playerId) => api.post('/users/link-player', { player_id: playerId }),
   linkPlayers: (playerIds) => api.post('/users/link-players', { player_ids: playerIds }),
-  unlinkPlayer: () => api.delete('/users/link-player')
+  unlinkPlayer: () => api.delete('/users/link-player'),
 };
 
 // Auth API
 export const authApi = {
   getProfiles: () => api.get('/auth/profiles'),
-  switchProfile: (data) => api.post('/auth/switch-profile', data)
+  switchProfile: (data) => api.post('/auth/switch-profile', data),
 };
 
 // Club API
@@ -169,7 +199,7 @@ export const clubApi = {
   getOne: (id) => api.get(`/clubs/${id}`),
   create: (data) => api.post('/clubs', data),
   update: (id, data) => api.put(`/clubs/${id}`, data),
-  getMembers: (clubId) => api.get(`/clubs/${clubId}/members`)
+  getMembers: (clubId) => api.get(`/clubs/${clubId}/members`),
 };
 
 // Seasons API
@@ -177,9 +207,11 @@ export const seasonsApi = {
   getAll: (clubId) => api.get(`/clubs/${clubId}/seasons`),
   getActive: (clubId) => api.get(`/clubs/${clubId}/seasons/active`),
   create: (clubId, data) => api.post(`/clubs/${clubId}/seasons`, data),
-  update: (clubId, seasonId, data) => api.put(`/clubs/${clubId}/seasons/${seasonId}`, data),
+  update: (clubId, seasonId, data) =>
+    api.put(`/clubs/${clubId}/seasons/${seasonId}`, data),
   delete: (clubId, seasonId) => api.delete(`/clubs/${clubId}/seasons/${seasonId}`),
-  activate: (clubId, seasonId) => api.put(`/clubs/${clubId}/seasons/${seasonId}/activate`)
+  activate: (clubId, seasonId) =>
+    api.put(`/clubs/${clubId}/seasons/${seasonId}/activate`),
 };
 
 // Subscription API
@@ -190,15 +222,18 @@ export const subscriptionApi = {
   getInvoices: () => api.get('/subscription/invoices'),
   getInvoice: (invoiceId) => api.get(`/subscription/invoices/${invoiceId}`),
   createInvoice: (data) => api.post('/subscription/invoices', data),
-  updateInvoice: (invoiceId, data) => api.patch(`/subscription/invoices/${invoiceId}`, data),
-  downloadInvoice: (invoiceId) => api.get(`/subscription/invoices/${invoiceId}/download`)
+  updateInvoice: (invoiceId, data) =>
+    api.patch(`/subscription/invoices/${invoiceId}`, data),
+  downloadInvoice: (invoiceId) =>
+    api.get(`/subscription/invoices/${invoiceId}/download`),
 };
 
 // Permissions API
 export const permissionsApi = {
   getDefaults: () => api.get('/permissions/defaults'),
   getForUser: (userId) => api.get(`/permissions/${userId}`),
-  updateForUser: (userId, permissions) => api.put(`/permissions/${userId}`, permissions)
+  updateForUser: (userId, permissions) =>
+    api.put(`/permissions/${userId}`, permissions),
 };
 
 // Unavailabilities API
@@ -208,10 +243,11 @@ export const unavailabilitiesApi = {
   create: (data) => api.post('/unavailabilities', data),
   update: (id, data) => api.put(`/unavailabilities/${id}`, data),
   delete: (id) => api.delete(`/unavailabilities/${id}`),
-  check: (playerIds, eventDate) => api.get('/unavailabilities/check', { 
-    params: { player_ids: playerIds.join(','), event_date: eventDate } 
-  }),
-  getUpcomingWithoutConvocation: () => api.get('/events/upcoming-without-convocation')
+  check: (playerIds, eventDate) =>
+    api.get('/unavailabilities/check', {
+      params: { player_ids: playerIds.join(','), event_date: eventDate },
+    }),
+  getUpcomingWithoutConvocation: () => api.get('/events/upcoming-without-convocation'),
 };
 
 // Payments API
@@ -221,17 +257,19 @@ export const paymentsApi = {
   getAll: (params) => api.get('/payments/admin', { params }),
   getSummary: () => api.get('/payments/summary'),
   getUserPayments: (userId) => api.get(`/users/${userId}/payments`),
-  exportExcel: (params) => api.get('/payments/export', { 
-    params,
-    responseType: 'blob'
-  }),
+  exportExcel: (params) =>
+    api.get('/payments/export', {
+      params,
+      responseType: 'blob',
+    }),
   createMonthlyFee: (data) => api.post('/payments/monthly-fees', data),
-  createBulkFees: (data) => api.post('/payments/monthly-fees/bulk', null, { params: data }),
+  createBulkFees: (data) =>
+    api.post('/payments/monthly-fees/bulk', null, { params: data }),
   importFees: (file) => {
     const formData = new FormData();
     formData.append('file', file);
     return api.post('/payments/monthly-fees/import', formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
   createCustom: (data) => api.post('/payments/custom', data),
@@ -240,11 +278,11 @@ export const paymentsApi = {
     const formData = new FormData();
     formData.append('file', file);
     return api.put(`/payments/${type}/${id}/upload-proof`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
   },
   delete: (type, id) => api.delete(`/payments/${type}/${id}`),
-  updateSettings: (userId, data) => api.put(`/users/${userId}/payment-settings`, data)
+  updateSettings: (userId, data) => api.put(`/users/${userId}/payment-settings`, data),
 };
 
 // Members API
@@ -256,14 +294,18 @@ export const membersApi = {
   update: (id, data) => api.put(`/members/${id}`, data),
   delete: (id) => api.delete(`/members/${id}`),
   archive: (id) => api.post(`/members/${id}/archive`),
-  restore: (id, teamId) => api.post(`/members/${id}/restore`, null, { params: { team_id: teamId } }),
-  sendActivationReminder: (id) => api.post(`/members/${id}/send-activation-reminder`),
+  restore: (id, teamId) =>
+    api.post(`/members/${id}/restore`, null, { params: { team_id: teamId } }),
+  sendActivationReminder: (id) =>
+    api.post(`/members/${id}/send-activation-reminder`),
   addToTeam: (memberId, teamId) => api.post(`/members/${memberId}/teams/${teamId}`),
-  removeFromTeam: (memberId, teamId) => api.delete(`/members/${memberId}/teams/${teamId}`),
-  exportExcel: (params) => api.get('/members/export', { 
-    params,
-    responseType: 'blob'
-  }),
+  removeFromTeam: (memberId, teamId) =>
+    api.delete(`/members/${memberId}/teams/${teamId}`),
+  exportExcel: (params) =>
+    api.get('/members/export', {
+      params,
+      responseType: 'blob',
+    }),
   import: (file, clubId, teamId) => {
     const formData = new FormData();
     formData.append('file', file);
@@ -271,14 +313,14 @@ export const membersApi = {
     if (clubId) params.append('club_id', clubId);
     if (teamId) params.append('team_id', teamId);
     return api.post(`/members/import?${params.toString()}`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' }
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
-  }
+  },
 };
 
 // Dashboard API
 export const dashboardApi = {
-  get: () => api.get('/dashboard')
+  get: () => api.get('/dashboard'),
 };
 
 // Library API
@@ -287,20 +329,23 @@ export const libraryApi = {
   getCategories: () => api.get('/library/categories'),
   create: (data) => api.post('/library', data),
   update: (id, data) => api.put(`/library/${id}`, data),
-  delete: (id) => api.delete(`/library/${id}`)
+  delete: (id) => api.delete(`/library/${id}`),
 };
 
 // AI Assistant API
 export const aiApi = {
-  chat: (message, sessionId) => api.post('/ai/chat', { message, session_id: sessionId }),
-  getHistory: (sessionId) => api.get('/ai/chat/history', { params: { session_id: sessionId } }),
-  clearHistory: (sessionId) => api.delete('/ai/chat/history', { params: { session_id: sessionId } })
+  chat: (message, sessionId) =>
+    api.post('/ai/chat', { message, session_id: sessionId }),
+  getHistory: (sessionId) =>
+    api.get('/ai/chat/history', { params: { session_id: sessionId } }),
+  clearHistory: (sessionId) =>
+    api.delete('/ai/chat/history', { params: { session_id: sessionId } }),
 };
 
-// Guardian (Parent) API
+// Guardian API
 export const guardianApi = {
   getChildren: () => api.get('/guardian/children'),
-  getChildTeams: (childId) => api.get(`/guardian/children/${childId}/teams`)
+  getChildTeams: (childId) => api.get(`/guardian/children/${childId}/teams`),
 };
 
 export default api;
