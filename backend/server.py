@@ -1275,7 +1275,9 @@ async def register(user_data: UserCreate):
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
-    if not user or not verify_password(credentials.password, user['password']):
+
+    stored_hash = user.get("hashed_password") if user else None
+    if not user or not stored_hash or not verify_password(credentials.password, stored_hash):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
     
     token = create_token(user['id'], user['email'], user['role'])
@@ -2467,23 +2469,26 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     if not club_id:
         club = await db.clubs.find_one({}, {"_id": 0, "id": 1})
         if club:
-            club_id = club['id']
+            club_id = club["id"]
     
     # Emails duplicados são permitidos (ex: pai com vários filhos)
     
     # Create user with random password
     import secrets
     temp_password = secrets.token_urlsafe(8)
-    hashed_password = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+    hashed_password = bcrypt.hashpw(
+        temp_password.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
     
     user_id = str(uuid.uuid4())
     user = {
         "id": user_id,
         "name": data.name,
         "email": data.email,
-        "password": hashed_password,
+        "hashed_password": hashed_password,
         "role": data.role,
-        "club_id": club_id,  # Associate with club
+        "club_id": club_id,
         "team_ids": [data.team_id] if data.team_id else [],
         "profile": {
             "sports_info": {
@@ -2501,20 +2506,20 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     
     # Add to team if specified
     if data.team_id:
-        field_map = {'treinador': 'coach_ids', 'delegado': 'delegate_ids'}
-        field = field_map.get(data.role, 'player_ids')
+        field_map = {"treinador": "coach_ids", "delegado": "delegate_ids"}
+        field = field_map.get(data.role, "player_ids")
         await db.teams.update_one({"id": data.team_id}, {"$addToSet": {field: user_id}})
     
-    user.pop("password")
+    user.pop("hashed_password", None)
     user.pop("_id", None)
     return {"user": user, "temp_password": temp_password}
-
+    
 @api_router.get("/clubs/{club_id}/members")
 async def get_club_members(club_id: str, current_user: dict = Depends(get_current_user)):
     """Get all members that belong to the club"""
     members = await db.users.find(
-        {"club_id": club_id, "role": {"$ne": "admin"}}, 
-        {"_id": 0, "password": 0}
+        {"club_id": club_id, "role": {"$ne": "admin"}},
+        {"_id": 0, "hashed_password": 0}
     ).to_list(500)
     return members
 
