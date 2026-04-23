@@ -54,6 +54,10 @@ export const teamsApi = {
   searchAttendance: (id, query) =>
     api.get(`/teams/${id}/attendance/search`, { params: { query } }),
   getAttendanceUnavailabilities: (id) => api.get(`/teams/${id}/attendance/unavailabilities`),
+
+  // Add existing club member to team
+  addExistingMember: (teamId, memberId) =>
+    api.post(`/teams/${teamId}/add-existing-member/${memberId}`),
 };
 
 // Championships API
@@ -191,6 +195,8 @@ export const usersApi = {
 export const authApi = {
   getProfiles: () => api.get('/auth/profiles'),
   switchProfile: (data) => api.post('/auth/switch-profile', data),
+  activateAccount: (token, password) =>
+    api.post('/auth/activate', { token, password }),
 };
 
 // Club API
@@ -200,6 +206,8 @@ export const clubApi = {
   create: (data) => api.post('/clubs', data),
   update: (id, data) => api.put(`/clubs/${id}`, data),
   getMembers: (clubId) => api.get(`/clubs/${clubId}/members`),
+  searchMembers: (clubId, query) =>
+    api.get(`/clubs/${clubId}/members/search`, { params: { query } }),
 };
 
 // Seasons API
@@ -296,8 +304,7 @@ export const membersApi = {
   archive: (id) => api.post(`/members/${id}/archive`),
   restore: (id, teamId) =>
     api.post(`/members/${id}/restore`, null, { params: { team_id: teamId } }),
-  sendActivationReminder: (id) =>
-    api.post(`/members/${id}/send-activation-reminder`),
+  sendInvite: (id) => api.post(`/members/${id}/send-invite`),
   addToTeam: (memberId, teamId) => api.post(`/members/${memberId}/teams/${teamId}`),
   removeFromTeam: (memberId, teamId) =>
     api.delete(`/members/${memberId}/teams/${teamId}`),
