@@ -20,6 +20,7 @@ import { AIAssistant } from "./components/AIAssistant";
 import Landing from "./pages/Landing";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import ActivateAccount from "./pages/ActivateAccount";
 import Dashboard from "./pages/Dashboard";
 import TeamDetail from "./pages/TeamDetail";
 import PlayerProfile from "./pages/PlayerProfile";
@@ -134,6 +135,14 @@ function AppRoutes() {
         element={
           <PublicRoute>
             <Register />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/activate-account"
+        element={
+          <PublicRoute>
+            <ActivateAccount />
           </PublicRoute>
         }
       />
