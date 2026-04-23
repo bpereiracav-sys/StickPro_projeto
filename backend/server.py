@@ -1196,44 +1196,45 @@ async def build_available_profiles(user: dict) -> List[dict]:
     profiles = []
     
     # Own profile with all roles
-    all_roles = [user['role']] + user.get('additional_roles', [])
+    all_roles = [user["role"]] + user.get("additional_roles", [])
     for role in all_roles:
         # Get teams for this role
         user_teams = []
-        for team_id in user.get('team_ids', []):
+        for team_id in user.get("team_ids", []):
             team = await db.teams.find_one({"id": team_id}, {"_id": 0})
             if team:
                 user_teams.append(team)
         
         profiles.append({
             "type": "self",
-            "user_id": user['id'],
-            "user_name": user['name'],
+            "user_id": user["id"],
+            "user_name": user["name"],
             "role": role,
-            "label": f"{user['name']} ({getRoleNamePt(role)})",
+            "label": f'{user["name"]} ({getRoleNamePt(role)})',
             "teams": user_teams
         })
     
     # Associated accounts (e.g., children)
-    for assoc_id in user.get('associated_accounts', []):
-        assoc_user = await db.users.find_one({"id": assoc_id}, {"_id": 0, "password": 0})
+    for assoc_id in user.get("associated_accounts", []):
+        assoc_user = await db.users.find_one({"id": assoc_id}, {"_id": 0, "hashed_password": 0})
         if assoc_user:
             assoc_teams = []
-            for team_id in assoc_user.get('team_ids', []):
+            for team_id in assoc_user.get("team_ids", []):
                 team = await db.teams.find_one({"id": team_id}, {"_id": 0})
                 if team:
                     assoc_teams.append(team)
             
             profiles.append({
                 "type": "associated",
-                "user_id": assoc_user['id'],
-                "user_name": assoc_user['name'],
+                "user_id": assoc_user["id"],
+                "user_name": assoc_user["name"],
                 "role": "responsavel",
-                "label": f"Responsável de {assoc_user['name']}",
+                "label": f'Responsável de {assoc_user["name"]}',
                 "teams": assoc_teams
             })
     
     return profiles
+
 
 def getRoleNamePt(role: str) -> str:
     roles = {
@@ -1245,25 +1246,33 @@ def getRoleNamePt(role: str) -> str:
     }
     return roles.get(role, role)
 
+
+class ActivateAccountRequest(BaseModel):
+    token: str
+    password: str
+
+
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate):
     # Emails duplicados são permitidos (ex: pai com vários filhos)
     # Cada conta é única pelo ID, não pelo email
     
     user = User(
-        email=user_data.email, 
-        name=user_data.name, 
-        role=user_data.role, 
+        email=user_data.email,
+        name=user_data.name,
+        role=user_data.role,
         phone=user_data.phone,
         additional_roles=user_data.additional_roles
     )
     user_dict = user.model_dump()
-    user_dict['password'] = hash_password(user_data.password)
-    user_dict['created_at'] = user_dict['created_at'].isoformat()
+    user_dict["hashed_password"] = hash_password(user_data.password)
+    user_dict["is_activated"] = True
+    user_dict["created_at"] = user_dict["created_at"].isoformat()
     
     await db.users.insert_one(user_dict)
     token = create_token(user.id, user.email, user.role)
     
+    user_dict.pop("hashed_password", None)
     profiles = await build_available_profiles(user_dict)
     
     return {
@@ -1272,32 +1281,81 @@ async def register(user_data: UserCreate):
         "available_profiles": profiles
     }
 
+
+@api_router.post("/auth/activate")
+async def activate_account(data: ActivateAccountRequest):
+    user = await db.users.find_one({"invite_token": data.token}, {"_id": 0})
+
+    if not user:
+        raise HTTPException(status_code=400, detail="Convite inválido")
+
+    if user.get("is_activated"):
+        raise HTTPException(status_code=400, detail="Conta já ativada")
+
+    expires_at = user.get("invite_expires_at")
+    if not expires_at:
+        raise HTTPException(status_code=400, detail="Convite inválido")
+
+    if datetime.fromisoformat(expires_at) < datetime.now(timezone.utc):
+        raise HTTPException(status_code=400, detail="Convite expirado")
+
+    hashed_password = bcrypt.hashpw(
+        data.password.encode("utf-8"),
+        bcrypt.gensalt()
+    ).decode("utf-8")
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {
+            "$set": {
+                "hashed_password": hashed_password,
+                "is_activated": True,
+                "activated_at": datetime.now(timezone.utc).isoformat()
+            },
+            "$unset": {
+                "invite_token": "",
+                "invite_expires_at": ""
+            }
+        }
+    )
+
+    return {"message": "Conta ativada com sucesso"}
+
+
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
 
     stored_hash = user.get("hashed_password") if user else None
-    if not user or not stored_hash or not verify_password(credentials.password, stored_hash):
+
+    if not user or not stored_hash:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+
+    if not user.get("is_activated", False):
+        raise HTTPException(status_code=401, detail="Conta ainda não ativada")
+
+    if not verify_password(credentials.password, stored_hash):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
     
-    token = create_token(user['id'], user['email'], user['role'])
+    token = create_token(user["id"], user["email"], user["role"])
     profiles = await build_available_profiles(user)
     
     return {
         "token": token,
         "user": {
-            "id": user['id'],
-            "email": user['email'],
-            "name": user['name'],
-            "role": user['role'],
-            "additional_roles": user.get('additional_roles', []),
-            "phone": user.get('phone'),
-            "avatar_url": user.get('avatar_url'),
-            "team_ids": user.get('team_ids', []),
-            "associated_accounts": user.get('associated_accounts', [])
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "role": user["role"],
+            "additional_roles": user.get("additional_roles", []),
+            "phone": user.get("phone"),
+            "avatar_url": user.get("avatar_url"),
+            "team_ids": user.get("team_ids", []),
+            "associated_accounts": user.get("associated_accounts", [])
         },
         "available_profiles": profiles
     }
+
 
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
@@ -1330,14 +1388,15 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "accessible_team_ids": list(checker.team_ids) if not checker.is_admin else None
     }
 
+
 @api_router.get("/auth/permissions")
 async def get_my_permissions(current_user: dict = Depends(get_current_user)):
     """Get current user's permissions"""
     checker = get_permission_checker(current_user)
     
     return {
-        "role": current_user.get('role'),
-        "additional_roles": current_user.get('additional_roles', []),
+        "role": current_user.get("role"),
+        "additional_roles": current_user.get("additional_roles", []),
         "team_ids": list(checker.team_ids),
         "is_admin": checker.is_admin,
         "is_coach": checker.is_coach,
@@ -1354,13 +1413,15 @@ async def get_my_permissions(current_user: dict = Depends(get_current_user)):
         "can_manage_lineups": checker.can_manage_lineups,
         "can_import_data": checker.can_import_data,
         "can_manage_club": checker.can_manage_club,
-        "linked_player_id": current_user.get('linked_player_id'),
+        "linked_player_id": current_user.get("linked_player_id"),
     }
+
 
 @api_router.get("/auth/profiles")
 async def get_my_profiles(current_user: dict = Depends(get_current_user)):
     """Get all available profiles for the current user"""
     return await build_available_profiles(current_user)
+
 
 # ==================== USER ROUTES ====================
 
@@ -1369,8 +1430,9 @@ async def get_users(role: Optional[str] = None, current_user: dict = Depends(get
     query = {}
     if role:
         query["role"] = role
-    users = await db.users.find(query, {"_id": 0, "password": 0}).to_list(1000)
+    users = await db.users.find(query, {"_id": 0, "hashed_password": 0}).to_list(1000)
     return [UserResponse(**u) for u in users]
+
 
 # ==================== ASSOCIATED ACCOUNTS ROUTES ====================
 # NOTE: These routes MUST be defined BEFORE /users/{user_id} to avoid route conflicts
@@ -1378,21 +1440,22 @@ async def get_users(role: Optional[str] = None, current_user: dict = Depends(get
 @api_router.get("/users/associated")
 async def get_associated_accounts(current_user: dict = Depends(get_current_user)):
     """Get all accounts associated with the current user (children/athletes)"""
-    associated_ids = current_user.get('associated_accounts', [])
+    associated_ids = current_user.get("associated_accounts", [])
     
     if not associated_ids:
         return []
     
     associated_users = await db.users.find(
-        {"id": {"$in": associated_ids}}, 
-        {"_id": 0, "password": 0}
+        {"id": {"$in": associated_ids}},
+        {"_id": 0, "hashed_password": 0}
     ).to_list(100)
     
     # Add relationship info
     for user in associated_users:
-        user['relationship'] = 'filho/a'
+        user["relationship"] = "filho/a"
     
     return associated_users
+
 
 @api_router.post("/users/associate")
 async def associate_account(request: AssociateAccountRequest, current_user: dict = Depends(get_current_user)):
@@ -1402,58 +1465,60 @@ async def associate_account(request: AssociateAccountRequest, current_user: dict
     if not child:
         raise HTTPException(status_code=404, detail="Conta não encontrada")
     
-    if request.child_user_id in current_user.get('associated_accounts', []):
+    if request.child_user_id in current_user.get("associated_accounts", []):
         raise HTTPException(status_code=400, detail="Conta já está associada")
     
-    if child.get('parent_account_id'):
+    if child.get("parent_account_id"):
         raise HTTPException(status_code=400, detail="Esta conta já tem um responsável associado")
     
     await db.users.update_one(
-        {"id": current_user['id']},
+        {"id": current_user["id"]},
         {"$addToSet": {"associated_accounts": request.child_user_id}}
     )
     
     await db.users.update_one(
         {"id": request.child_user_id},
-        {"$set": {"parent_account_id": current_user['id']}}
+        {"$set": {"parent_account_id": current_user["id"]}}
     )
     
-    return {"message": f"Conta de {child['name']} associada com sucesso", "child": child}
+    return {"message": f'Conta de {child["name"]} associada com sucesso', "child": child}
+
 
 @api_router.post("/users/associate/search")
 async def search_user_to_associate(email: str, current_user: dict = Depends(get_current_user)):
     """Search for a user by email to associate"""
-    user = await db.users.find_one({"email": email}, {"_id": 0, "password": 0})
+    user = await db.users.find_one({"email": email}, {"_id": 0, "hashed_password": 0})
     
     if not user:
         raise HTTPException(status_code=404, detail="Utilizador não encontrado com este email")
     
-    if user['id'] == current_user['id']:
+    if user["id"] == current_user["id"]:
         raise HTTPException(status_code=400, detail="Não pode associar a sua própria conta")
     
-    if user['id'] in current_user.get('associated_accounts', []):
+    if user["id"] in current_user.get("associated_accounts", []):
         raise HTTPException(status_code=400, detail="Esta conta já está associada")
     
-    if user.get('parent_account_id'):
+    if user.get("parent_account_id"):
         raise HTTPException(status_code=400, detail="Esta conta já tem um responsável")
     
     return {
-        "id": user['id'],
-        "name": user['name'],
-        "email": user['email'],
-        "role": user['role'],
-        "team_ids": user.get('team_ids', [])
+        "id": user["id"],
+        "name": user["name"],
+        "email": user["email"],
+        "role": user["role"],
+        "team_ids": user.get("team_ids", [])
     }
+
 
 @api_router.delete("/users/associate/{child_id}")
 async def remove_association(child_id: str, current_user: dict = Depends(get_current_user)):
     """Remove association with a child account"""
     
-    if child_id not in current_user.get('associated_accounts', []):
+    if child_id not in current_user.get("associated_accounts", []):
         raise HTTPException(status_code=404, detail="Associação não encontrada")
     
     await db.users.update_one(
-        {"id": current_user['id']},
+        {"id": current_user["id"]},
         {"$pull": {"associated_accounts": child_id}}
     )
     
@@ -1464,6 +1529,7 @@ async def remove_association(child_id: str, current_user: dict = Depends(get_cur
     
     return {"message": "Associação removida com sucesso"}
 
+
 @api_router.put("/users/{user_id}/admin-role")
 async def toggle_admin_role(user_id: str, role_data: dict, current_user: dict = Depends(get_current_user)):
     """Grant or revoke admin role - only admins can do this"""
@@ -1473,14 +1539,14 @@ async def toggle_admin_role(user_id: str, role_data: dict, current_user: dict = 
         raise HTTPException(status_code=403, detail="Apenas administradores podem alterar roles de admin")
     
     # Can't remove own admin role
-    if user_id == current_user['id'] and not role_data.get('is_admin', True):
+    if user_id == current_user["id"] and not role_data.get("is_admin", True):
         raise HTTPException(status_code=400, detail="Não pode remover o seu próprio role de admin")
     
     user = await db.users.find_one({"id": user_id}, {"_id": 0})
     if not user:
         raise HTTPException(status_code=404, detail="Utilizador não encontrado")
     
-    is_admin = role_data.get('is_admin', False)
+    is_admin = role_data.get("is_admin", False)
     
     if is_admin:
         # Grant admin role
@@ -1488,11 +1554,11 @@ async def toggle_admin_role(user_id: str, role_data: dict, current_user: dict = 
             {"id": user_id},
             {"$set": {"role": "admin"}}
         )
-        return {"message": f"Role de admin concedido a {user['name']}", "role": "admin"}
+        return {"message": f'Role de admin concedido a {user["name"]}', "role": "admin"}
     else:
         # Remove admin role - set to most common role in their teams or jogador
         new_role = "jogador"
-        team_roles = user.get('team_roles', {})
+        team_roles = user.get("team_roles", {})
         if team_roles:
             # Use the most common role from their team roles
             roles_count = {}
@@ -1505,19 +1571,20 @@ async def toggle_admin_role(user_id: str, role_data: dict, current_user: dict = 
             {"id": user_id},
             {"$set": {"role": new_role}}
         )
-        return {"message": f"Role de admin removido de {user['name']}", "role": new_role}
+        return {"message": f'Role de admin removido de {user["name"]}', "role": new_role}
 
 
 class LinkPlayerRequest(BaseModel):
     """Request to link a family member to a player"""
     player_id: str
 
+
 @api_router.post("/users/link-player")
 async def link_family_member_to_player(request: LinkPlayerRequest, current_user: dict = Depends(get_current_user)):
     """Link a family member (responsavel) to a player they are responsible for"""
     
     # Only family members (responsavel) can be linked to players
-    if current_user.get('role') != 'responsavel':
+    if current_user.get("role") != "responsavel":
         raise HTTPException(status_code=400, detail="Apenas responsáveis/familiares podem ser ligados a jogadores")
     
     # Check if player exists and is a player
@@ -1525,36 +1592,37 @@ async def link_family_member_to_player(request: LinkPlayerRequest, current_user:
     if not player:
         raise HTTPException(status_code=404, detail="Jogador não encontrado")
     
-    if player.get('role') != 'jogador':
+    if player.get("role") != "jogador":
         raise HTTPException(status_code=400, detail="O utilizador selecionado não é um jogador")
     
     # Update the family member with linked_player_id
     await db.users.update_one(
-        {"id": current_user['id']},
+        {"id": current_user["id"]},
         {"$set": {
             "linked_player_id": request.player_id,
-            "team_ids": player.get('team_ids', [])  # Give family member access to player's teams
+            "team_ids": player.get("team_ids", [])  # Give family member access to player's teams
         }}
     )
     
     return {
-        "message": f"Ligado com sucesso ao jogador {player['name']}",
+        "message": f'Ligado com sucesso ao jogador {player["name"]}',
         "linked_player": {
-            "id": player['id'],
-            "name": player['name'],
-            "team_ids": player.get('team_ids', [])
+            "id": player["id"],
+            "name": player["name"],
+            "team_ids": player.get("team_ids", [])
         }
     }
+
 
 @api_router.post("/users/link-players")
 async def link_multiple_players(request: dict, current_user: dict = Depends(get_current_user)):
     """Link a family member to multiple players - for family accounts"""
     
     # Only family members (responsavel/familiar) can be linked to players
-    if current_user.get('role') not in ['responsavel', 'familiar']:
+    if current_user.get("role") not in ["responsavel", "familiar"]:
         raise HTTPException(status_code=400, detail="Apenas responsáveis/familiares podem ser ligados a jogadores")
     
-    player_ids = request.get('player_ids', [])
+    player_ids = request.get("player_ids", [])
     if not player_ids:
         raise HTTPException(status_code=400, detail="Deve fornecer pelo menos um jogador")
     
@@ -1567,11 +1635,11 @@ async def link_multiple_players(request: dict, current_user: dict = Depends(get_
     # Collect all team_ids from linked players
     all_team_ids = set()
     for player in players:
-        all_team_ids.update(player.get('team_ids', []))
+        all_team_ids.update(player.get("team_ids", []))
     
     # Update the family member with linked_player_ids
     await db.users.update_one(
-        {"id": current_user['id']},
+        {"id": current_user["id"]},
         {"$set": {
             "linked_player_ids": player_ids,
             "linked_player_id": player_ids[0] if player_ids else None,  # Keep backwards compatibility
@@ -1581,18 +1649,19 @@ async def link_multiple_players(request: dict, current_user: dict = Depends(get_
     
     return {
         "message": f"Ligado com sucesso a {len(players)} jogador(es)",
-        "linked_players": [{"id": p['id'], "name": p['name']} for p in players]
+        "linked_players": [{"id": p["id"], "name": p["name"]} for p in players]
     }
+
 
 @api_router.delete("/users/link-player")
 async def unlink_family_member_from_player(current_user: dict = Depends(get_current_user)):
     """Remove the link between a family member and a player"""
     
-    if not current_user.get('linked_player_id'):
+    if not current_user.get("linked_player_id"):
         raise HTTPException(status_code=400, detail="Não está ligado a nenhum jogador")
     
     await db.users.update_one(
-        {"id": current_user['id']},
+        {"id": current_user["id"]},
         {"$set": {"linked_player_id": None}}
     )
     
@@ -1605,15 +1674,15 @@ async def switch_profile(request: ActiveProfileRequest, current_user: dict = Dep
     
     if request.profile_type == "self":
         target_user = current_user
-        active_role = request.active_role or current_user['role']
+        active_role = request.active_role or current_user["role"]
     elif request.profile_type == "associated":
         if not request.associated_user_id:
             raise HTTPException(status_code=400, detail="ID da conta associada é obrigatório")
         
-        if request.associated_user_id not in current_user.get('associated_accounts', []):
+        if request.associated_user_id not in current_user.get("associated_accounts", []):
             raise HTTPException(status_code=403, detail="Conta não está associada a si")
         
-        target_user = await db.users.find_one({"id": request.associated_user_id}, {"_id": 0, "password": 0})
+        target_user = await db.users.find_one({"id": request.associated_user_id}, {"_id": 0, "hashed_password": 0})
         if not target_user:
             raise HTTPException(status_code=404, detail="Conta associada não encontrada")
         
@@ -1622,7 +1691,7 @@ async def switch_profile(request: ActiveProfileRequest, current_user: dict = Dep
         raise HTTPException(status_code=400, detail="Tipo de perfil inválido")
     
     teams = []
-    for team_id in target_user.get('team_ids', []):
+    for team_id in target_user.get("team_ids", []):
         team = await db.teams.find_one({"id": team_id}, {"_id": 0})
         if team:
             teams.append(team)
@@ -1630,14 +1699,14 @@ async def switch_profile(request: ActiveProfileRequest, current_user: dict = Dep
     return {
         "profile_type": request.profile_type,
         "viewing_as": {
-            "id": target_user['id'],
-            "name": target_user['name'],
+            "id": target_user["id"],
+            "name": target_user["name"],
             "role": active_role,
             "teams": teams
         },
         "original_user": {
-            "id": current_user['id'],
-            "name": current_user['name']
+            "id": current_user["id"],
+            "name": current_user["name"]
         }
     }
 
@@ -1645,7 +1714,7 @@ async def switch_profile(request: ActiveProfileRequest, current_user: dict = Dep
 
 @api_router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str, current_user: dict = Depends(get_current_user)):
-    user = await db.users.find_one({"id": user_id}, {"_id": 0, "password": 0})
+    user = await db.users.find_one({"id": user_id}, {"_id": 0, "hashed_password": 0})
     if not user:
         raise HTTPException(status_code=404, detail="Utilizador não encontrado")
     return UserResponse(**user)
@@ -2434,12 +2503,13 @@ class MemberCreate(BaseModel):
     name: str
     email: EmailStr
     role: UserRole = "jogador"
-    team_id: Optional[str] = None  # Optional - can add to team later
-    club_id: Optional[str] = None  # Club the member belongs to
+    team_id: Optional[str] = None
+    club_id: Optional[str] = None
     jersey_number: Optional[str] = None
     position: Optional[str] = None
     phone: Optional[str] = None
-    nationalities: Optional[List[str]] = None  # Up to 2 country codes
+    nationalities: Optional[List[str]] = None
+
 
 class MemberUpdate(BaseModel):
     name: Optional[str] = None
@@ -2451,45 +2521,49 @@ class MemberUpdate(BaseModel):
     nationalities: Optional[List[str]] = None
     is_archived: Optional[bool] = None
     is_activated: Optional[bool] = None
+    invite_token: Optional[str] = None
+    invite_expires_at: Optional[str] = None
+
 
 @api_router.post("/members")
 async def create_member(data: MemberCreate, current_user: dict = Depends(get_current_user)):
-    """Create a new member (user) associated with the club"""
+    """Create a new member (user) associated with the club with pending activation"""
     checker = get_permission_checker(current_user)
-    
+
     if not checker.can_manage_team:
         raise HTTPException(status_code=403, detail="Sem permissão para criar membros")
-    
-    # Check team access if team_id is provided
+
     if data.team_id and not checker.is_admin and not checker.can_access_team(data.team_id):
         raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
-    
-    # Get club_id - either from data or from first club in system
+
     club_id = data.club_id
     if not club_id:
         club = await db.clubs.find_one({}, {"_id": 0, "id": 1})
         if club:
             club_id = club["id"]
-    
-    # Emails duplicados são permitidos (ex: pai com vários filhos)
-    
-    # Create user with random password
-    import secrets
-    temp_password = secrets.token_urlsafe(8)
-    hashed_password = bcrypt.hashpw(
-        temp_password.encode("utf-8"),
-        bcrypt.gensalt()
-    ).decode("utf-8")
-    
+
+    existing_user = await db.users.find_one({"email": data.email.strip().lower()}, {"_id": 0})
+    if existing_user:
+        raise HTTPException(
+            status_code=400,
+            detail="Já existe um utilizador com este email. Use 'Adicionar membros do clube'."
+        )
+
     user_id = str(uuid.uuid4())
+    invite_token = secrets.token_urlsafe(32)
+    invite_expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+
     user = {
         "id": user_id,
         "name": data.name,
-        "email": data.email,
-        "hashed_password": hashed_password,
+        "email": data.email.strip().lower(),
+        "hashed_password": None,
         "role": data.role,
         "club_id": club_id,
         "team_ids": [data.team_id] if data.team_id else [],
+        "is_activated": False,
+        "invite_token": invite_token,
+        "invite_expires_at": invite_expires_at,
         "profile": {
             "sports_info": {
                 "jersey_number": data.jersey_number or "",
@@ -2501,19 +2575,30 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
         },
         "created_at": datetime.now(timezone.utc).isoformat()
     }
-    
+
     await db.users.insert_one(user)
-    
-    # Add to team if specified
+
     if data.team_id:
-        field_map = {"treinador": "coach_ids", "delegado": "delegate_ids"}
+        field_map = {
+            "treinador": "coach_ids",
+            "treinador_adjunto": "assistant_coach_ids",
+            "delegado": "delegate_ids"
+        }
         field = field_map.get(data.role, "player_ids")
         await db.teams.update_one({"id": data.team_id}, {"$addToSet": {field: user_id}})
-    
-    user.pop("hashed_password", None)
-    user.pop("_id", None)
-    return {"user": user, "temp_password": temp_password}
-    
+
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    activation_link = f"{frontend_url}/activate-account?token={invite_token}" if frontend_url else ""
+
+    safe_user = {k: v for k, v in user.items() if k != "hashed_password"}
+
+    return {
+        "user": safe_user,
+        "activation_link": activation_link,
+        "invite_token": invite_token
+    }
+
+
 @api_router.get("/clubs/{club_id}/members")
 async def get_club_members(club_id: str, current_user: dict = Depends(get_current_user)):
     """Get all members that belong to the club"""
@@ -2523,36 +2608,130 @@ async def get_club_members(club_id: str, current_user: dict = Depends(get_curren
     ).to_list(500)
     return members
 
+
+@api_router.post("/members/{member_id}/send-invite")
+async def send_member_invite(member_id: str, current_user: dict = Depends(get_current_user)):
+    checker = get_permission_checker(current_user)
+
+    if not checker.can_manage_team:
+        raise HTTPException(status_code=403, detail="Sem permissão para enviar convites")
+
+    user = await db.users.find_one({"id": member_id}, {"_id": 0, "hashed_password": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+
+    if user.get("is_activated"):
+        raise HTTPException(status_code=400, detail="A conta já está ativada")
+
+    invite_token = secrets.token_urlsafe(32)
+    invite_expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+
+    await db.users.update_one(
+        {"id": member_id},
+        {
+            "$set": {
+                "invite_token": invite_token,
+                "invite_expires_at": invite_expires_at
+            }
+        }
+    )
+
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    activation_link = f"{frontend_url}/activate-account?token={invite_token}" if frontend_url else ""
+
+    return {
+        "message": "Convite gerado com sucesso",
+        "activation_link": activation_link
+    }
+
+
+@api_router.get("/clubs/{club_id}/members/search")
+async def search_club_members(
+    club_id: str,
+    query: str,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    if not checker.can_manage_team:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+
+    members = await db.users.find(
+        {
+            "club_id": club_id,
+            "role": {"$ne": "admin"},
+            "$or": [
+                {"name": {"$regex": query, "$options": "i"}},
+                {"email": {"$regex": query, "$options": "i"}}
+            ]
+        },
+        {"_id": 0, "hashed_password": 0}
+    ).to_list(50)
+
+    return members
+
+
+@api_router.post("/teams/{team_id}/add-existing-member/{member_id}")
+async def add_existing_member_to_team(
+    team_id: str,
+    member_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    if not checker.can_manage_team:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+
+    team = await db.teams.find_one({"id": team_id}, {"_id": 0})
+    if not team:
+        raise HTTPException(status_code=404, detail="Equipa não encontrada")
+
+    user = await db.users.find_one({"id": member_id}, {"_id": 0, "hashed_password": 0})
+    if not user:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+
+    role = user.get("role", "jogador")
+    field_map = {
+        "treinador": "coach_ids",
+        "treinador_adjunto": "assistant_coach_ids",
+        "delegado": "delegate_ids"
+    }
+    field = field_map.get(role, "player_ids")
+
+    await db.teams.update_one({"id": team_id}, {"$addToSet": {field: member_id}})
+    await db.users.update_one({"id": member_id}, {"$addToSet": {"team_ids": team_id}})
+
+    return {"message": "Membro adicionado à equipa com sucesso"}
+
+
 @api_router.post("/members/import")
 async def import_members(file: UploadFile = File(...), team_id: str = None, club_id: str = None, current_user: dict = Depends(get_current_user)):
-    """Import members from Excel/CSV file - members are associated with the club"""
+    """Import members from Excel/CSV file - members are associated with the club with pending activation"""
     checker = get_permission_checker(current_user)
     
     if not checker.can_import_data:
         raise HTTPException(status_code=403, detail="Sem permissão para importar dados")
     
-    # Check team access if team_id is provided
     if team_id and not checker.is_admin and not checker.can_access_team(team_id):
         raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
     
-    # Get club_id if not provided
     if not club_id:
         club = await db.clubs.find_one({}, {"_id": 0, "id": 1})
         if club:
-            club_id = club['id']
+            club_id = club["id"]
     
     content = await file.read()
-    
-    results = {"success": 0, "errors": [], "created": []}
+    results = {"success": 0, "errors": [], "created": [], "warnings": []}
     
     try:
-        # Try to parse as CSV first
-        if file.filename.endswith('.csv'):
+        if file.filename.endswith(".csv"):
             import csv
-            reader = csv.DictReader(io.StringIO(content.decode('utf-8')))
+            reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
             rows = list(reader)
         else:
-            # For Excel, we need openpyxl
             try:
                 import openpyxl
                 wb = openpyxl.load_workbook(io.BytesIO(content))
@@ -2563,218 +2742,192 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
                     if any(row):
                         rows.append(dict(zip(headers, row)))
             except ImportError:
-                # Fallback: try CSV
-                reader = csv.DictReader(io.StringIO(content.decode('utf-8')))
+                import csv
+                reader = csv.DictReader(io.StringIO(content.decode("utf-8")))
                 rows = list(reader)
         
-        import secrets
         for row in rows:
             try:
-                # Multilingual header mapping (PT, ES, FR, IT, EN)
-                # First Name
-                nome = (row.get('Nome') or row.get('nome') or row.get('Nombre') or row.get('nombre') or 
-                       row.get('Prénom') or row.get('prenom') or row.get('prénom') or 
-                       row.get('Nome') or  # IT same as PT
-                       row.get('First Name') or row.get('first_name') or row.get('name') or "")
+                nome = (row.get("Nome") or row.get("nome") or row.get("Nombre") or row.get("nombre") or 
+                       row.get("Prénom") or row.get("prenom") or row.get("prénom") or 
+                       row.get("First Name") or row.get("first_name") or row.get("name") or "")
                 
-                # Surname
-                apelido = (row.get('Apelido') or row.get('apelido') or row.get('Sobrenome') or row.get('sobrenome') or
-                          row.get('Apellido') or row.get('apellido') or 
-                          row.get('Nom') or row.get('nom') or 
-                          row.get('Cognome') or row.get('cognome') or
-                          row.get('Surname') or row.get('surname') or row.get('last_name') or "")
+                apelido = (row.get("Apelido") or row.get("apelido") or row.get("Sobrenome") or row.get("sobrenome") or
+                          row.get("Apellido") or row.get("apellido") or 
+                          row.get("Nom") or row.get("nom") or 
+                          row.get("Cognome") or row.get("cognome") or
+                          row.get("Surname") or row.get("surname") or row.get("last_name") or "")
                 
-                # Birth Date
-                data_nascimento = (row.get('Data de Nascimento') or row.get('data_nascimento') or row.get('nascimento') or
-                                  row.get('Fecha de Nacimiento') or row.get('fecha_nacimiento') or
-                                  row.get('Date de Naissance') or row.get('date_naissance') or
-                                  row.get('Data di Nascita') or row.get('data_nascita') or
-                                  row.get('Date of Birth') or row.get('birth_date') or row.get('dob') or "")
+                data_nascimento = (row.get("Data de Nascimento") or row.get("data_nascimento") or row.get("nascimento") or
+                                  row.get("Fecha de Nacimiento") or row.get("fecha_nacimiento") or
+                                  row.get("Date de Naissance") or row.get("date_naissance") or
+                                  row.get("Data di Nascita") or row.get("data_nascita") or
+                                  row.get("Date of Birth") or row.get("birth_date") or row.get("dob") or "")
                 
-                # Email
-                email = (row.get('Email') or row.get('email') or row.get('E-mail') or row.get('e-mail') or
-                        row.get('Correo') or row.get('correo') or "")
+                email = (row.get("Email") or row.get("email") or row.get("E-mail") or row.get("e-mail") or
+                        row.get("Correo") or row.get("correo") or "")
                 
-                # Role/Function
-                funcao = (row.get('Função') or row.get('funcao') or row.get('função') or
-                         row.get('Rol') or row.get('rol') or
-                         row.get('Fonction') or row.get('fonction') or
-                         row.get('Ruolo') or row.get('ruolo') or
-                         row.get('Role') or row.get('role') or 'jogador')
+                funcao = (row.get("Função") or row.get("funcao") or row.get("função") or
+                         row.get("Rol") or row.get("rol") or
+                         row.get("Fonction") or row.get("fonction") or
+                         row.get("Ruolo") or row.get("ruolo") or
+                         row.get("Role") or row.get("role") or "jogador")
                 
-                # Jersey Number
-                numero = (row.get('Número') or row.get('numero') or row.get('Nº') or row.get('nº') or row.get('N') or row.get('n') or
-                         row.get('Numero') or  # ES/IT
-                         row.get('Numéro') or row.get('numéro') or
-                         row.get('Number') or row.get('number') or row.get('Jersey') or row.get('jersey') or "")
+                numero = (row.get("Número") or row.get("numero") or row.get("Nº") or row.get("nº") or row.get("N") or row.get("n") or
+                         row.get("Numero") or
+                         row.get("Numéro") or row.get("numéro") or
+                         row.get("Number") or row.get("number") or row.get("Jersey") or row.get("jersey") or "")
                 
-                # Position
-                posicao = (row.get('Posição') or row.get('posicao') or row.get('posição') or
-                          row.get('Posición') or row.get('posicion') or
-                          row.get('Poste') or row.get('poste') or
-                          row.get('Posizione') or row.get('posizione') or
-                          row.get('Position') or row.get('position') or "")
+                posicao = (row.get("Posição") or row.get("posicao") or row.get("posição") or
+                          row.get("Posición") or row.get("posicion") or
+                          row.get("Poste") or row.get("poste") or
+                          row.get("Posizione") or row.get("posizione") or
+                          row.get("Position") or row.get("position") or "")
                 
-                # Phone
-                telefone = (row.get('Telefone') or row.get('telefone') or row.get('contacto') or
-                           row.get('Teléfono') or row.get('telefono') or
-                           row.get('Téléphone') or row.get('téléphone') or row.get('telephone') or
-                           row.get('Telefono') or  # IT
-                           row.get('Phone') or row.get('phone') or "")
+                telefone = (row.get("Telefone") or row.get("telefone") or row.get("contacto") or
+                           row.get("Teléfono") or row.get("telefono") or
+                           row.get("Téléphone") or row.get("téléphone") or row.get("telephone") or
+                           row.get("Telefono") or
+                           row.get("Phone") or row.get("phone") or "")
                 
-                # Nationality
-                nacionalidade = (row.get('Nacionalidade') or row.get('nacionalidade') or
-                                row.get('Nacionalidad') or row.get('nacionalidad') or
-                                row.get('Nationalité') or row.get('nationalité') or row.get('nationalite') or
-                                row.get('Nazionalità') or row.get('nazionalità') or row.get('nazionalita') or
-                                row.get('Nationality') or row.get('nationality') or "")
+                nacionalidade = (row.get("Nacionalidade") or row.get("nacionalidade") or
+                                row.get("Nacionalidad") or row.get("nacionalidad") or
+                                row.get("Nationalité") or row.get("nationalité") or row.get("nationalite") or
+                                row.get("Nazionalità") or row.get("nazionalità") or row.get("nazionalita") or
+                                row.get("Nationality") or row.get("nationality") or "")
                 
-                # Gender/Sex
-                sexo = (row.get('Sexo') or row.get('sexo') or
-                       row.get('Sexe') or row.get('sexe') or
-                       row.get('Sesso') or row.get('sesso') or
-                       row.get('Gender') or row.get('gender') or row.get('Sex') or row.get('sex') or "")
+                sexo = (row.get("Sexo") or row.get("sexo") or
+                       row.get("Sexe") or row.get("sexe") or
+                       row.get("Sesso") or row.get("sesso") or
+                       row.get("Gender") or row.get("gender") or row.get("Sex") or row.get("sex") or "")
                 
-                # Combine first name and surname
                 full_name = f"{nome} {apelido}".strip() if apelido else nome.strip()
                 
                 if not full_name or not email:
                     results["errors"].append(f"Linha sem nome ou email: {row}")
                     continue
-                
-                # Verificar se email já existe e avisar (mas permitir - ex: pai com vários filhos)
-                existing_user = await db.users.find_one({"email": email.strip().lower()})
+
+                normalized_email = email.strip().lower()
+                existing_user = await db.users.find_one({"email": normalized_email}, {"_id": 0})
                 if existing_user:
-                    results["warnings"] = results.get("warnings", [])
-                    results["warnings"].append(f"Email duplicado (existente): {email} - criado novo utilizador")
-                
-                temp_password = secrets.token_urlsafe(8)
-                hashed = bcrypt.hashpw(temp_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+                    results["warnings"].append(f"Email já existente no clube/sistema: {normalized_email}")
+                    continue
                 
                 user_id = str(uuid.uuid4())
+                invite_token = secrets.token_urlsafe(32)
+                invite_expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
                 
-                # Normalizar função - suporta PT, EN, ES, FR, IT
                 funcao_map = {
-                    # Portuguese
-                    'administrador': 'admin',
-                    'admin': 'admin',
-                    'gestor desportivo': 'gestor_desportivo',
-                    'gestor_desportivo': 'gestor_desportivo',
-                    'diretor desportivo': 'gestor_desportivo',
-                    'treinador': 'treinador',
-                    'treinador principal': 'treinador',
-                    'treinador adjunto': 'treinador_adjunto',
-                    'adjunto': 'treinador_adjunto',
-                    'delegado': 'delegado',
-                    'jogador': 'jogador',
-                    'atleta': 'jogador',
-                    'responsavel': 'responsavel',
-                    'responsável': 'responsavel',
-                    'pai': 'responsavel',
-                    'mãe': 'responsavel',
-                    'encarregado': 'responsavel',
-                    # English
-                    'administrator': 'admin',
-                    'sports manager': 'gestor_desportivo',
-                    'sports director': 'gestor_desportivo',
-                    'coach': 'treinador',
-                    'head coach': 'treinador',
-                    'assistant coach': 'treinador_adjunto',
-                    'assistant': 'treinador_adjunto',
-                    'delegate': 'delegado',
-                    'team manager': 'delegado',
-                    'player': 'jogador',
-                    'guardian': 'responsavel',
-                    'parent': 'responsavel',
-                    'family': 'responsavel',
-                    # Spanish
-                    'gestor deportivo': 'gestor_desportivo',
-                    'director deportivo': 'gestor_desportivo',
-                    'entrenador': 'treinador',
-                    'entrenador principal': 'treinador',
-                    'entrenador asistente': 'treinador_adjunto',
-                    'entrenador adjunto': 'treinador_adjunto',
-                    'jugador': 'jogador',
-                    'responsable': 'responsavel',
-                    'familiar': 'responsavel',
-                    # French
-                    'administrateur': 'admin',
-                    'responsable sportif': 'gestor_desportivo',
-                    'directeur sportif': 'gestor_desportivo',
-                    'entraîneur': 'treinador',
-                    'entraineur': 'treinador',
-                    'entraîneur adjoint': 'treinador_adjunto',
-                    'entraineur adjoint': 'treinador_adjunto',
-                    'délégué': 'delegado',
-                    'delegue': 'delegado',
-                    'joueur': 'jogador',
-                    # Italian
-                    'amministratore': 'admin',
-                    'responsabile sportivo': 'gestor_desportivo',
-                    'direttore sportivo': 'gestor_desportivo',
-                    'allenatore': 'treinador',
-                    'allenatore in seconda': 'treinador_adjunto',
-                    'vice allenatore': 'treinador_adjunto',
-                    'delegato': 'delegado',
-                    'giocatore': 'jogador',
+                    "administrador": "admin",
+                    "admin": "admin",
+                    "gestor desportivo": "gestor_desportivo",
+                    "gestor_desportivo": "gestor_desportivo",
+                    "diretor desportivo": "gestor_desportivo",
+                    "treinador": "treinador",
+                    "treinador principal": "treinador",
+                    "treinador adjunto": "treinador_adjunto",
+                    "adjunto": "treinador_adjunto",
+                    "delegado": "delegado",
+                    "jogador": "jogador",
+                    "atleta": "jogador",
+                    "responsavel": "responsavel",
+                    "responsável": "responsavel",
+                    "pai": "responsavel",
+                    "mãe": "responsavel",
+                    "encarregado": "responsavel",
+                    "administrator": "admin",
+                    "sports manager": "gestor_desportivo",
+                    "sports director": "gestor_desportivo",
+                    "coach": "treinador",
+                    "head coach": "treinador",
+                    "assistant coach": "treinador_adjunto",
+                    "assistant": "treinador_adjunto",
+                    "delegate": "delegado",
+                    "team manager": "delegado",
+                    "player": "jogador",
+                    "guardian": "responsavel",
+                    "parent": "responsavel",
+                    "family": "responsavel",
+                    "gestor deportivo": "gestor_desportivo",
+                    "director deportivo": "gestor_desportivo",
+                    "entrenador": "treinador",
+                    "entrenador principal": "treinador",
+                    "entrenador asistente": "treinador_adjunto",
+                    "entrenador adjunto": "treinador_adjunto",
+                    "jugador": "jogador",
+                    "responsable": "responsavel",
+                    "familiar": "responsavel",
+                    "administrateur": "admin",
+                    "responsable sportif": "gestor_desportivo",
+                    "directeur sportif": "gestor_desportivo",
+                    "entraîneur": "treinador",
+                    "entraineur": "treinador",
+                    "entraîneur adjoint": "treinador_adjunto",
+                    "entraineur adjoint": "treinador_adjunto",
+                    "délégué": "delegado",
+                    "delegue": "delegado",
+                    "joueur": "jogador",
+                    "amministratore": "admin",
+                    "responsabile sportivo": "gestor_desportivo",
+                    "direttore sportivo": "gestor_desportivo",
+                    "allenatore": "treinador",
+                    "allenatore in seconda": "treinador_adjunto",
+                    "vice allenatore": "treinador_adjunto",
+                    "delegato": "delegado",
+                    "giocatore": "jogador",
                 }
-                role = funcao_map.get(funcao.lower().strip(), 'jogador') if funcao else 'jogador'
+                role = funcao_map.get(funcao.lower().strip(), "jogador") if funcao else "jogador"
                 
-                # Normalizar posição
                 posicao_map = {
-                    'guarda-redes': 'GR',
-                    'gr': 'GR',
-                    'goalkeeper': 'GR',
-                    'portero': 'GR',
-                    'jogador de campo': 'JC',
-                    'jc': 'JC',
-                    'field player': 'JC',
-                    'jugador de campo': 'JC',
-                    'avançado': 'JC',
-                    'defesa': 'JC',
+                    "guarda-redes": "GR",
+                    "gr": "GR",
+                    "goalkeeper": "GR",
+                    "portero": "GR",
+                    "jogador de campo": "JC",
+                    "jc": "JC",
+                    "field player": "JC",
+                    "jugador de campo": "JC",
+                    "avançado": "JC",
+                    "defesa": "JC",
                 }
                 normalized_position = posicao_map.get(str(posicao).lower().strip(), str(posicao).strip().upper() if posicao else "")
                 
-                # Normalizar sexo
                 sexo_map = {
-                    'masculino': 'Masculino',
-                    'm': 'Masculino',
-                    'male': 'Masculino',
-                    'hombre': 'Masculino',
-                    'feminino': 'Feminino',
-                    'f': 'Feminino',
-                    'female': 'Feminino',
-                    'mujer': 'Feminino',
+                    "masculino": "Masculino",
+                    "m": "Masculino",
+                    "male": "Masculino",
+                    "hombre": "Masculino",
+                    "feminino": "Feminino",
+                    "f": "Feminino",
+                    "female": "Feminino",
+                    "mujer": "Feminino",
                 }
                 normalized_gender = sexo_map.get(str(sexo).lower().strip(), "") if sexo else ""
                 
-                # Processar nacionalidades (pode ser separado por vírgula ou ponto e vírgula)
                 nationalities = []
                 if nacionalidade:
-                    # Mapeamento de nomes de países para códigos ISO
                     nationality_map = {
-                        'portuguesa': 'PT', 'portugal': 'PT', 'pt': 'PT',
-                        'espanhola': 'ES', 'espanha': 'ES', 'spain': 'ES', 'es': 'ES', 'española': 'ES',
-                        'francesa': 'FR', 'frança': 'FR', 'france': 'FR', 'fr': 'FR',
-                        'brasileira': 'BR', 'brasil': 'BR', 'brazil': 'BR', 'br': 'BR',
-                        'italiana': 'IT', 'itália': 'IT', 'italy': 'IT', 'it': 'IT',
-                        'alemã': 'DE', 'alemanha': 'DE', 'germany': 'DE', 'de': 'DE',
-                        'inglesa': 'GB', 'inglaterra': 'GB', 'uk': 'GB', 'gb': 'GB', 'england': 'GB',
-                        'americana': 'US', 'eua': 'US', 'usa': 'US', 'us': 'US',
-                        'angolana': 'AO', 'angola': 'AO', 'ao': 'AO',
-                        'moçambicana': 'MZ', 'moçambique': 'MZ', 'mozambique': 'MZ', 'mz': 'MZ',
-                        'cabo-verdiana': 'CV', 'cabo verde': 'CV', 'cv': 'CV',
-                        'guineense': 'GW', 'guiné-bissau': 'GW', 'gw': 'GW',
-                        'são-tomense': 'ST', 'são tomé': 'ST', 'st': 'ST',
-                        'holandesa': 'NL', 'holanda': 'NL', 'netherlands': 'NL', 'nl': 'NL',
-                        'belga': 'BE', 'bélgica': 'BE', 'belgium': 'BE', 'be': 'BE',
-                        'suíça': 'CH', 'suíça': 'CH', 'switzerland': 'CH', 'ch': 'CH',
-                        'argentina': 'AR', 'ar': 'AR',
-                        'marroquina': 'MA', 'marrocos': 'MA', 'morocco': 'MA', 'ma': 'MA',
-                        'romena': 'RO', 'roménia': 'RO', 'romania': 'RO', 'ro': 'RO',
+                        "portuguesa": "PT", "portugal": "PT", "pt": "PT",
+                        "espanhola": "ES", "espanha": "ES", "spain": "ES", "es": "ES", "española": "ES",
+                        "francesa": "FR", "frança": "FR", "france": "FR", "fr": "FR",
+                        "brasileira": "BR", "brasil": "BR", "brazil": "BR", "br": "BR",
+                        "italiana": "IT", "itália": "IT", "italy": "IT", "it": "IT",
+                        "alemã": "DE", "alemanha": "DE", "germany": "DE", "de": "DE",
+                        "inglesa": "GB", "inglaterra": "GB", "uk": "GB", "gb": "GB", "england": "GB",
+                        "americana": "US", "eua": "US", "usa": "US", "us": "US",
+                        "angolana": "AO", "angola": "AO", "ao": "AO",
+                        "moçambicana": "MZ", "moçambique": "MZ", "mozambique": "MZ", "mz": "MZ",
+                        "cabo-verdiana": "CV", "cabo verde": "CV", "cv": "CV",
+                        "guineense": "GW", "guiné-bissau": "GW", "gw": "GW",
+                        "são-tomense": "ST", "são tomé": "ST", "st": "ST",
+                        "holandesa": "NL", "holanda": "NL", "netherlands": "NL", "nl": "NL",
+                        "belga": "BE", "bélgica": "BE", "belgium": "BE", "be": "BE",
+                        "suíça": "CH", "switzerland": "CH", "ch": "CH",
+                        "argentina": "AR", "ar": "AR",
+                        "marroquina": "MA", "marrocos": "MA", "morocco": "MA", "ma": "MA",
+                        "romena": "RO", "roménia": "RO", "romania": "RO", "ro": "RO",
                     }
-                    # Separar múltiplas nacionalidades
-                    nat_parts = [n.strip() for n in str(nacionalidade).replace(';', ',').split(',')]
+                    nat_parts = [n.strip() for n in str(nacionalidade).replace(";", ",").split(",")]
                     for nat in nat_parts:
                         if nat:
                             code = nationality_map.get(nat.lower(), nat.upper()[:2] if len(nat) == 2 else None)
@@ -2784,13 +2937,15 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
                 user = {
                     "id": user_id,
                     "name": full_name,
-                    "email": email.strip().lower(),
-                    "password": hashed,
+                    "email": normalized_email,
+                    "hashed_password": None,
                     "role": role,
                     "club_id": club_id,
                     "team_ids": [team_id] if team_id else [],
-                    "nationalities": nationalities[:2],  # Max 2 nacionalidades
+                    "nationalities": nationalities[:2],
                     "is_activated": False,
+                    "invite_token": invite_token,
+                    "invite_expires_at": invite_expires_at,
                     "profile": {
                         "sports_info": {
                             "jersey_number": str(numero).strip() if numero else "",
@@ -2808,12 +2963,23 @@ async def import_members(file: UploadFile = File(...), team_id: str = None, club
                 await db.users.insert_one(user)
                 
                 if team_id:
-                    field_map = {'treinador': 'coach_ids', 'delegado': 'delegate_ids'}
-                    field = field_map.get(role, 'player_ids')
+                    field_map = {
+                        "treinador": "coach_ids",
+                        "treinador_adjunto": "assistant_coach_ids",
+                        "delegado": "delegate_ids"
+                    }
+                    field = field_map.get(role, "player_ids")
                     await db.teams.update_one({"id": team_id}, {"$addToSet": {field: user_id}})
                 
+                frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+                activation_link = f"{frontend_url}/activate-account?token={invite_token}" if frontend_url else ""
+
                 results["success"] += 1
-                results["created"].append({"name": full_name, "email": email, "temp_password": temp_password})
+                results["created"].append({
+                    "name": full_name,
+                    "email": normalized_email,
+                    "activation_link": activation_link
+                })
                 
             except Exception as e:
                 results["errors"].append(f"Erro na linha: {str(e)}")
