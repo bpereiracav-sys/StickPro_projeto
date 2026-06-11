@@ -45,6 +45,9 @@ import ChildrenPage from "./pages/ChildrenPage";
 import LibraryPage from "./pages/LibraryPage";
 import Payments from "./pages/Payments";
 import SubscriptionPage from "./pages/SubscriptionPage";
+import OnboardingPage from "./pages/OnboardingPage";
+
+const ONBOARDING_ROLES = ["admin", "gestor_desportivo"];
 
 function FullScreenLoader() {
   return (
@@ -112,6 +115,26 @@ function PublicRoute({ children }) {
   return children;
 }
 
+// Phase O1 — gates `/onboarding` to admin / gestor_desportivo only.
+// Renders WITHOUT AppLayout so the wizard owns the full viewport.
+function OnboardingRoute({ children }) {
+  const { isAuthenticated, loading, user } = useAuth();
+
+  if (loading) {
+    return <FullScreenLoader />;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!user || !ONBOARDING_ROLES.includes(user.role)) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return children;
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -166,6 +189,14 @@ function AppRoutes() {
       />
 
       {/* General authenticated */}
+      <Route
+        path="/onboarding"
+        element={
+          <OnboardingRoute>
+            <OnboardingPage />
+          </OnboardingRoute>
+        }
+      />
       <Route
         path="/dashboard"
         element={

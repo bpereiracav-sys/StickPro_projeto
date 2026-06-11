@@ -555,6 +555,51 @@ export const translations = {
       all: 'Todas as épocas',
       season: 'Época',
     },
+
+    onboarding: {
+      title: 'Bem-vindo ao StickPro',
+      subtitle: 'Vamos configurar o seu clube em poucos passos',
+      stepLabel: 'Passo',
+      ofLabel: 'de',
+      next: 'Seguinte',
+      back: 'Anterior',
+      skip: 'Saltar onboarding',
+      finish: 'Concluir',
+      finishing: 'A concluir...',
+      goToDashboard: 'Ir para o painel',
+      placeholderTitle: 'Em breve',
+      placeholderDescription: 'Este passo será preenchido numa fase seguinte.',
+      completedToast: 'Onboarding concluído com sucesso',
+      errorToast: 'Não foi possível concluir o onboarding',
+      welcomeBackTitle: 'Onboarding já concluído',
+      welcomeBackDescription: 'Já tem o seu clube configurado. Pode voltar a percorrer o assistente em qualquer momento.',
+      steps: {
+        welcome: {
+          title: 'Boas-vindas',
+          description: 'Apresentação rápida do StickPro e do que vamos configurar.',
+        },
+        club: {
+          title: 'Clube',
+          description: 'Identidade e detalhes do clube.',
+        },
+        season: {
+          title: 'Época',
+          description: 'Defina a época desportiva ativa.',
+        },
+        teams: {
+          title: 'Equipas',
+          description: 'Crie as suas primeiras equipas e escalões.',
+        },
+        members: {
+          title: 'Membros',
+          description: 'Adicione treinadores, atletas e staff.',
+        },
+        summary: {
+          title: 'Resumo',
+          description: 'Reveja a configuração e finalize o onboarding.',
+        },
+      },
+    },
   },
 
   es: {
@@ -1112,6 +1157,51 @@ export const translations = {
     seasons: {
       all: 'Todas las temporadas',
       season: 'Temporada',
+    },
+
+    onboarding: {
+      title: 'Bienvenido a StickPro',
+      subtitle: 'Vamos a configurar tu club en pocos pasos',
+      stepLabel: 'Paso',
+      ofLabel: 'de',
+      next: 'Siguiente',
+      back: 'Anterior',
+      skip: 'Saltar onboarding',
+      finish: 'Finalizar',
+      finishing: 'Finalizando...',
+      goToDashboard: 'Ir al panel',
+      placeholderTitle: 'Próximamente',
+      placeholderDescription: 'Este paso se completará en una fase posterior.',
+      completedToast: 'Onboarding completado con éxito',
+      errorToast: 'No se pudo completar el onboarding',
+      welcomeBackTitle: 'Onboarding ya completado',
+      welcomeBackDescription: 'Tu club ya está configurado. Puedes recorrer el asistente cuando quieras.',
+      steps: {
+        welcome: {
+          title: 'Bienvenida',
+          description: 'Presentación rápida de StickPro y de lo que vamos a configurar.',
+        },
+        club: {
+          title: 'Club',
+          description: 'Identidad y datos del club.',
+        },
+        season: {
+          title: 'Temporada',
+          description: 'Define la temporada deportiva activa.',
+        },
+        teams: {
+          title: 'Equipos',
+          description: 'Crea tus primeros equipos y categorías.',
+        },
+        members: {
+          title: 'Miembros',
+          description: 'Añade entrenadores, atletas y staff.',
+        },
+        summary: {
+          title: 'Resumen',
+          description: 'Revisa la configuración y finaliza el onboarding.',
+        },
+      },
     },
   },
 
@@ -1677,6 +1767,51 @@ export const translations = {
       all: 'Toutes les saisons',
       season: 'Saison',
     },
+
+    onboarding: {
+      title: 'Bienvenue sur StickPro',
+      subtitle: 'Configurons votre club en quelques étapes',
+      stepLabel: 'Étape',
+      ofLabel: 'sur',
+      next: 'Suivant',
+      back: 'Précédent',
+      skip: 'Passer l\'onboarding',
+      finish: 'Terminer',
+      finishing: 'Finalisation...',
+      goToDashboard: 'Aller au tableau de bord',
+      placeholderTitle: 'Bientôt disponible',
+      placeholderDescription: 'Cette étape sera complétée dans une phase ultérieure.',
+      completedToast: 'Onboarding terminé avec succès',
+      errorToast: 'Impossible de terminer l\'onboarding',
+      welcomeBackTitle: 'Onboarding déjà terminé',
+      welcomeBackDescription: 'Votre club est déjà configuré. Vous pouvez parcourir l\'assistant à tout moment.',
+      steps: {
+        welcome: {
+          title: 'Bienvenue',
+          description: 'Présentation rapide de StickPro et de ce que nous allons configurer.',
+        },
+        club: {
+          title: 'Club',
+          description: 'Identité et informations du club.',
+        },
+        season: {
+          title: 'Saison',
+          description: 'Définissez la saison sportive active.',
+        },
+        teams: {
+          title: 'Équipes',
+          description: 'Créez vos premières équipes et catégories.',
+        },
+        members: {
+          title: 'Membres',
+          description: 'Ajoutez entraîneurs, athlètes et staff.',
+        },
+        summary: {
+          title: 'Résumé',
+          description: 'Vérifiez la configuration et finalisez l\'onboarding.',
+        },
+      },
+    },
   },
 
   it: {
@@ -2240,6 +2375,51 @@ export const translations = {
       all: 'Tutte le stagioni',
       season: 'Stagione',
     },
+
+    onboarding: {
+      title: 'Benvenuto su StickPro',
+      subtitle: 'Configuriamo il tuo club in pochi passi',
+      stepLabel: 'Passo',
+      ofLabel: 'di',
+      next: 'Avanti',
+      back: 'Indietro',
+      skip: 'Salta onboarding',
+      finish: 'Concludi',
+      finishing: 'Conclusione...',
+      goToDashboard: 'Vai alla dashboard',
+      placeholderTitle: 'Prossimamente',
+      placeholderDescription: 'Questo passo sarà completato in una fase successiva.',
+      completedToast: 'Onboarding completato con successo',
+      errorToast: 'Impossibile completare l\'onboarding',
+      welcomeBackTitle: 'Onboarding già completato',
+      welcomeBackDescription: 'Il tuo club è già configurato. Puoi ripercorrere l\'assistente quando vuoi.',
+      steps: {
+        welcome: {
+          title: 'Benvenuto',
+          description: 'Presentazione rapida di StickPro e di cosa configureremo.',
+        },
+        club: {
+          title: 'Club',
+          description: 'Identità e dati del club.',
+        },
+        season: {
+          title: 'Stagione',
+          description: 'Definisci la stagione sportiva attiva.',
+        },
+        teams: {
+          title: 'Squadre',
+          description: 'Crea le tue prime squadre e categorie.',
+        },
+        members: {
+          title: 'Membri',
+          description: 'Aggiungi allenatori, atleti e staff.',
+        },
+        summary: {
+          title: 'Riepilogo',
+          description: 'Rivedi la configurazione e finalizza l\'onboarding.',
+        },
+      },
+    },
   },
 
   en: {
@@ -2797,6 +2977,51 @@ export const translations = {
     seasons: {
       all: 'All seasons',
       season: 'Season',
+    },
+
+    onboarding: {
+      title: 'Welcome to StickPro',
+      subtitle: 'Let\'s set up your club in a few steps',
+      stepLabel: 'Step',
+      ofLabel: 'of',
+      next: 'Next',
+      back: 'Back',
+      skip: 'Skip onboarding',
+      finish: 'Finish',
+      finishing: 'Finishing...',
+      goToDashboard: 'Go to dashboard',
+      placeholderTitle: 'Coming soon',
+      placeholderDescription: 'This step will be filled in a later phase.',
+      completedToast: 'Onboarding completed successfully',
+      errorToast: 'Could not complete onboarding',
+      welcomeBackTitle: 'Onboarding already completed',
+      welcomeBackDescription: 'Your club is already set up. You can walk through the wizard again at any time.',
+      steps: {
+        welcome: {
+          title: 'Welcome',
+          description: 'A quick intro to StickPro and what we will set up.',
+        },
+        club: {
+          title: 'Club',
+          description: 'Club identity and details.',
+        },
+        season: {
+          title: 'Season',
+          description: 'Define the active sporting season.',
+        },
+        teams: {
+          title: 'Teams',
+          description: 'Create your first teams and categories.',
+        },
+        members: {
+          title: 'Members',
+          description: 'Add coaches, athletes and staff.',
+        },
+        summary: {
+          title: 'Summary',
+          description: 'Review the setup and complete onboarding.',
+        },
+      },
     },
   },
 };
