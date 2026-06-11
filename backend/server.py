@@ -11,6 +11,7 @@ import io
 import logging
 import asyncio
 import resend
+import secrets
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 from typing import List, Optional, Literal, Dict, Any
@@ -27,6 +28,10 @@ import pandas as pd
 
 # Import RBAC permissions module
 from permissions import PermissionChecker, get_permission_checker, Role, ROLE_PERMISSIONS
+
+# Phase E2: new modular activation email helper (services.emails-backed).
+# Imported lazily-friendly so app boot fails loudly if services/ is missing.
+from services.activation_emails import send_activation_email
 
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
@@ -1336,6 +1341,82 @@ async def activate_account(data: ActivateAccountRequest):
     return {"message": "Conta ativada com sucesso"}
 
 
+# Phase E2 — public, unauthenticated endpoint to request a fresh activation link.
+# Security properties:
+#   * Always returns the same generic message regardless of whether the email
+#     exists in the database — prevents account enumeration.
+#   * Only sends a link for accounts that exist AND are NOT yet activated.
+#   * Refreshes the invite_token if it's missing or expired; otherwise reuses
+#     the still-valid one (token rotation is bounded by the 7-day expiry).
+#   * Throttles repeat sends per account to once every 60 seconds via the
+#     last_activation_email_sent_at field — the API still returns success so
+#     attackers can't probe the throttle either.
+class RequestActivationLinkRequest(BaseModel):
+    email: EmailStr
+
+
+_GENERIC_ACTIVATION_RESPONSE = {
+    "message": (
+        "Se existir uma conta inativa associada a este email, "
+        "enviámos um novo link de ativação."
+    )
+}
+
+
+@api_router.post("/auth/request-new-activation-link")
+async def request_new_activation_link(data: RequestActivationLinkRequest):
+    email = data.email.strip().lower()
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+
+    if not user or user.get("is_activated"):
+        return _GENERIC_ACTIVATION_RESPONSE
+
+    # Throttle: at most one activation email every 60 seconds per account.
+    last_sent_iso = user.get("last_activation_email_sent_at")
+    if last_sent_iso:
+        try:
+            last_sent = datetime.fromisoformat(last_sent_iso)
+            if (datetime.now(timezone.utc) - last_sent).total_seconds() < 60:
+                return _GENERIC_ACTIVATION_RESPONSE
+        except Exception:
+            pass  # bad data — fall through and treat as no throttle
+
+    # Refresh token only if missing or expired; otherwise reuse the valid one.
+    invite_token = user.get("invite_token")
+    invite_expires_at = user.get("invite_expires_at")
+    token_valid = False
+    if invite_token and invite_expires_at:
+        try:
+            token_valid = datetime.fromisoformat(invite_expires_at) > datetime.now(timezone.utc)
+        except Exception:
+            token_valid = False
+    if not token_valid:
+        invite_token = secrets.token_urlsafe(32)
+        invite_expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"invite_token": invite_token, "invite_expires_at": invite_expires_at}}
+        )
+
+    sent_at_iso = datetime.now(timezone.utc).isoformat()
+    try:
+        await send_activation_email(
+            to_email=email,
+            name=user.get("name", "Atleta"),
+            token=invite_token,
+            idempotency_key=f"resend-{user['id']}-{invite_token[:8]}",
+        )
+    except Exception as e:
+        logger.warning(f"[ACTIVATION EMAIL] request-new-link: {e}")
+    else:
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"last_activation_email_sent_at": sent_at_iso}}
+        )
+
+    return _GENERIC_ACTIVATION_RESPONSE
+
+
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
@@ -2604,6 +2685,19 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
     activation_link = f"{frontend_url}/activate-account?token={invite_token}" if frontend_url else ""
 
+    # Phase E2: dispatch activation email via the new service. Failure to
+    # send must NOT abort the user creation flow; activation_link is still
+    # returned so the operator can hand it over manually if needed.
+    try:
+        await send_activation_email(
+            to_email=user["email"],
+            name=user["name"],
+            token=invite_token,
+            idempotency_key=f"member-create-{user_id}",
+        )
+    except Exception as e:
+        logger.warning(f"[ACTIVATION EMAIL] failed to send to {user['email']}: {e}")
+
     safe_user = {k: v for k, v in user.items() if k != "hashed_password"}
 
     return {
@@ -2652,6 +2746,18 @@ async def send_member_invite(member_id: str, current_user: dict = Depends(get_cu
 
     frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
     activation_link = f"{frontend_url}/activate-account?token={invite_token}" if frontend_url else ""
+
+    # Phase E2: dispatch the activation email. Email failure does not abort
+    # the flow — operator still gets the activation_link in the response.
+    try:
+        await send_activation_email(
+            to_email=user["email"],
+            name=user.get("name", "Atleta"),
+            token=invite_token,
+            idempotency_key=f"send-invite-{member_id}-{invite_token[:8]}",
+        )
+    except Exception as e:
+        logger.warning(f"[ACTIVATION EMAIL] send-invite to {user.get('email')}: {e}")
 
     return {
         "message": "Convite gerado com sucesso",
@@ -3557,24 +3663,32 @@ async def send_activation_reminder(member_id: str, current_user: dict = Depends(
         logging.error(f"Failed to send activation reminder: {e}")
     
     # Send email
+    # Phase E2: ensure a valid (non-expired) invite_token exists, then send
+    # the activation email through services.activation_emails. The legacy
+    # inline HTML/send_email_notification path is kept disabled to avoid
+    # duplicate sends.
     try:
-        email_content = f"""
-            <p>Olá <strong>{member.get('name', 'Atleta')}</strong>!</p>
-            <p>A tua conta no StickPro está quase pronta. Por favor, faz login e atualiza a tua palavra-passe para ativares a tua conta.</p>
-            <p style="margin-top: 20px;"><strong>Isto permite-te:</strong></p>
-            <ul style="padding-left: 20px;">
-                <li>Receber convocatórias</li>
-                <li>Confirmar presença em treinos e jogos</li>
-                <li>Ver o teu calendário de eventos</li>
-                <li>Acompanhar as tuas estatísticas</li>
-            </ul>
-            <p style="margin-top: 20px;">Bons treinos!</p>
-        """
-        
-        await send_email_notification(
-            member.get('email'),
-            "Ativa a tua conta StickPro",
-            build_email_template("Ativa a tua conta!", email_content)
+        invite_token = member.get("invite_token")
+        invite_expires_at = member.get("invite_expires_at")
+        token_valid = False
+        if invite_token and invite_expires_at:
+            try:
+                token_valid = datetime.fromisoformat(invite_expires_at) > datetime.now(timezone.utc)
+            except Exception:
+                token_valid = False
+        if not token_valid:
+            invite_token = secrets.token_urlsafe(32)
+            invite_expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+            await db.users.update_one(
+                {"id": member_id},
+                {"$set": {"invite_token": invite_token, "invite_expires_at": invite_expires_at}}
+            )
+
+        await send_activation_email(
+            to_email=member.get("email"),
+            name=member.get("name", "Atleta"),
+            token=invite_token,
+            idempotency_key=f"reminder-{member_id}-{invite_token[:8]}",
         )
     except Exception as e:
         logging.error(f"Failed to send activation email: {e}")
