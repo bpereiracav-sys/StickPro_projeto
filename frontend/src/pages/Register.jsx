@@ -53,13 +53,7 @@ const StickProLogo = ({ size = 'md' }) => {
   );
 };
 
-const roles = [
-  { value: 'jogador', label: 'Jogador' },
-  { value: 'treinador', label: 'Treinador' },
-  { value: 'delegado', label: 'Delegado' },
-  { value: 'responsavel', label: 'Responsável/Pai' },
-  { value: 'admin', label: 'Administrador de Clube' },
-];
+const ROLE_KEYS = ['jogador', 'treinador', 'delegado', 'responsavel', 'admin'];
 
 export default function Register() {
   const [formData, setFormData] = useState({
@@ -258,9 +252,9 @@ export default function Register() {
                   <SelectValue placeholder={t('auth.selectRole') || 'Selecione a sua função'} />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  {roles.map(role => (
-                    <SelectItem key={role.value} value={role.value}>
-                      {role.label}
+                  {ROLE_KEYS.map(roleKey => (
+                    <SelectItem key={roleKey} value={roleKey}>
+                      {t(`roles.${roleKey}`) || roleKey}
                     </SelectItem>
                   ))}
                 </SelectContent>

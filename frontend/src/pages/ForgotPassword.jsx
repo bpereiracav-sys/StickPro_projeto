@@ -5,9 +5,11 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Loader2, ArrowLeft, Mail } from 'lucide-react';
 import api from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -19,7 +21,7 @@ export default function ForgotPassword() {
 
     const trimmed = (email || '').trim();
     if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
-      setError('Introduz um email válido.');
+      setError(t('auth.invalidEmail') || 'Introduz um email válido.');
       return;
     }
 
@@ -30,7 +32,7 @@ export default function ForgotPassword() {
     } catch (err) {
       // Backend returns 200 even for unknown emails, so any error here is
       // network-level. Show a friendly message and keep the form usable.
-      setError('Não foi possível contactar o servidor. Tenta novamente.');
+      setError(t('auth.serverError') || 'Não foi possível contactar o servidor. Tenta novamente.');
     } finally {
       setLoading(false);
     }
@@ -49,7 +51,7 @@ export default function ForgotPassword() {
           data-testid="forgot-back-to-login"
         >
           <ArrowLeft className="w-4 h-4" />
-          Voltar ao login
+          {t('auth.backToLogin') || 'Voltar ao login'}
         </button>
 
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-900 mb-6">
@@ -57,19 +59,18 @@ export default function ForgotPassword() {
         </div>
 
         <h1 className="text-2xl font-semibold text-slate-900 mb-2">
-          Recuperar palavra-passe
+          {t('auth.forgotPasswordTitle') || 'Recuperar palavra-passe'}
         </h1>
 
         {!submitted ? (
           <>
             <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-              Introduz o email associado à tua conta Stick Pro.
-              Vamos enviar-te um link para definires uma nova palavra-passe.
+              {t('auth.forgotPasswordDescription') || 'Introduz o email associado à tua conta Stick Pro. Vamos enviar-te um link para definires uma nova palavra-passe.'}
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="email" className="text-slate-700">Email</Label>
+                <Label htmlFor="email" className="text-slate-700">{t('auth.email') || 'Email'}</Label>
                 <Input
                   id="email"
                   type="email"
@@ -103,10 +104,10 @@ export default function ForgotPassword() {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    A enviar...
+                    {t('auth.sending') || 'A enviar...'}
                   </>
                 ) : (
-                  'Enviar link de recuperação'
+                  t('auth.sendResetLink') || 'Enviar link de recuperação'
                 )}
               </Button>
             </form>
@@ -114,18 +115,17 @@ export default function ForgotPassword() {
         ) : (
           <div data-testid="forgot-success-state">
             <p className="text-sm text-slate-700 leading-relaxed mb-4">
-              Se existir uma conta associada a <strong>{email}</strong>,
-              enviámos um link para redefinir a palavra-passe.
+              {(t('auth.forgotPasswordSuccess') || 'Se existir uma conta associada a {email}, enviámos um link para redefinir a palavra-passe.').replace('{email}', email)}
             </p>
             <p className="text-sm text-slate-500 leading-relaxed mb-6">
-              Verifica também a pasta de spam. O link expira em 1 hora.
+              {t('auth.checkSpam') || 'Verifica também a pasta de spam. O link expira em 1 hora.'}
             </p>
             <Link
               to="/login"
               className="text-sm font-medium text-slate-900 hover:underline"
               data-testid="forgot-back-link"
             >
-              Voltar ao login
+              {t('auth.backToLogin') || 'Voltar ao login'}
             </Link>
           </div>
         )}
