@@ -1,17 +1,19 @@
 import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function ActivateAccount() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const token = searchParams.get('token') || '';
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-const [message, setMessage] = useState('');
+  const [message, setMessage] = useState('');
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
@@ -20,17 +22,19 @@ const [message, setMessage] = useState('');
     setMessage('');
 
     if (!token) {
-      setError('Token de ativação em falta.');
+      setError(t('auth.activationTokenMissing') || 'Token de ativação em falta.');
       return;
     }
 
     if (!password || password.length < 6) {
-      setError('A password deve ter pelo menos 6 caracteres.');
+      setError(
+        (t('auth.passwordTooShortReset') || 'A palavra-passe deve ter pelo menos {n} caracteres.').replace('{n}', 6)
+      );
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('As passwords não coincidem.');
+      setError(t('auth.passwordsDoNotMatch') || 'As palavras-passe não coincidem.');
       return;
     }
 
@@ -42,13 +46,14 @@ const [message, setMessage] = useState('');
         password,
       });
 
-      setMessage('Conta ativada com sucesso. Vais ser redirecionado para o login.');
+      setMessage(t('auth.activationSuccess') || 'Conta ativada com sucesso. Vais ser redirecionado para o login.');
       setTimeout(() => {
         navigate('/login');
       }, 2000);
     } catch (err) {
       setError(
         err?.response?.data?.detail ||
+          t('auth.activationError') ||
           'Não foi possível ativar a conta.'
       );
     } finally {
@@ -57,37 +62,41 @@ const [message, setMessage] = useState('');
   };
 
   return (
-    <div style={styles.page}>
+    <div style={styles.page} data-testid="activate-account-page">
       <div style={styles.card}>
-        <h1 style={styles.title}>Ativar conta</h1>
+        <h1 style={styles.title}>{t('auth.activateButton') || 'Ativar conta'}</h1>
         <p style={styles.subtitle}>
-          Define a tua password para concluir o registo na StickPro.
+          {t('auth.resetPasswordDescription') || 'Define a tua palavra-passe para concluir o registo.'}
         </p>
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          <label style={styles.label}>Password</label>
+          <label style={styles.label}>{t('auth.password') || 'Password'}</label>
           <input
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             style={styles.input}
-            placeholder="Introduz a password"
+            placeholder={(t('auth.minCharactersPlaceholder') || 'Mínimo {n} caracteres').replace('{n}', 6)}
+            data-testid="activate-password-input"
           />
 
-          <label style={styles.label}>Confirmar password</label>
+          <label style={styles.label}>{t('auth.confirmPasswordLabel') || 'Confirmar palavra-passe'}</label>
           <input
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
             style={styles.input}
-            placeholder="Confirma a password"
+            placeholder={t('auth.repeatPasswordPlaceholder') || 'Repete a palavra-passe'}
+            data-testid="activate-confirm-password-input"
           />
 
-          {error ? <div style={styles.error}>{error}</div> : null}
-          {message ? <div style={styles.success}>{message}</div> : null}
+          {error ? <div style={styles.error} data-testid="activate-error-message">{error}</div> : null}
+          {message ? <div style={styles.success} data-testid="activate-success-message">{message}</div> : null}
 
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? 'A ativar...' : 'Ativar conta'}
+          <button type="submit" style={styles.button} disabled={loading} data-testid="activate-submit-button">
+            {loading
+              ? (t('auth.activating') || 'A ativar...')
+              : (t('auth.activateButton') || 'Ativar conta')}
           </button>
         </form>
       </div>

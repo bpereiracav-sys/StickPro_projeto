@@ -5,12 +5,14 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Loader2, ArrowLeft, KeyRound, CheckCircle2 } from 'lucide-react';
 import api from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 
 const MIN_PASSWORD_LEN = 8;
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const token = (searchParams.get('token') || '').trim();
 
   const [password, setPassword] = useState('');
@@ -34,7 +36,7 @@ export default function ResetPassword() {
 
   useEffect(() => {
     if (tokenMissing) {
-      setError('Link inválido ou em falta.');
+      setError(t('auth.linkMissing') || 'Link inválido ou em falta.');
     }
   }, [tokenMissing]);
 
@@ -44,11 +46,11 @@ export default function ResetPassword() {
     setError('');
 
     if (!password || password.length < MIN_PASSWORD_LEN) {
-      setError(`A palavra-passe deve ter pelo menos ${MIN_PASSWORD_LEN} caracteres.`);
+      setError((t('auth.passwordTooShortReset') || 'A palavra-passe deve ter pelo menos {n} caracteres.').replace('{n}', MIN_PASSWORD_LEN));
       return;
     }
     if (password !== confirmPassword) {
-      setError('As palavras-passe não coincidem.');
+      setError(t('auth.passwordsDoNotMatch') || 'As palavras-passe não coincidem.');
       return;
     }
 
@@ -63,12 +65,12 @@ export default function ResetPassword() {
       if (status === 400) {
         setError(
           err?.response?.data?.detail ||
-            'Este link já não é válido. Pede um novo email de recuperação.'
+            (t('auth.linkNoLongerValid') || 'Este link já não é válido. Pede um novo email de recuperação.')
         );
       } else if (status === 422) {
-        setError(`A palavra-passe deve ter pelo menos ${MIN_PASSWORD_LEN} caracteres.`);
+        setError((t('auth.passwordTooShortReset') || 'A palavra-passe deve ter pelo menos {n} caracteres.').replace('{n}', MIN_PASSWORD_LEN));
       } else {
-        setError('Não foi possível contactar o servidor. Tenta novamente.');
+        setError(t('auth.serverError') || 'Não foi possível contactar o servidor. Tenta novamente.');
       }
     } finally {
       setLoading(false);
@@ -88,7 +90,7 @@ export default function ResetPassword() {
           data-testid="reset-back-to-login"
         >
           <ArrowLeft className="w-4 h-4" />
-          Voltar ao login
+          {t('auth.backToLogin') || 'Voltar ao login'}
         </button>
 
         <div className="flex items-center justify-center w-12 h-12 rounded-full bg-slate-900 mb-6">
@@ -100,46 +102,45 @@ export default function ResetPassword() {
         </div>
 
         <h1 className="text-2xl font-semibold text-slate-900 mb-2">
-          {submitted ? 'Palavra-passe atualizada' : 'Definir nova palavra-passe'}
+          {submitted ? (t('auth.resetPasswordTitleSuccess') || 'Palavra-passe atualizada') : (t('auth.resetPasswordTitle') || 'Definir nova palavra-passe')}
         </h1>
 
         {submitted ? (
           <div data-testid="reset-success-state">
             <p className="text-sm text-slate-700 leading-relaxed mb-6">
-              A tua palavra-passe foi atualizada com sucesso. Vais ser
-              redirecionado para o login...
+              {t('auth.resetSuccessMessage') || 'A tua palavra-passe foi atualizada com sucesso. Vais ser redirecionado para o login...'}
             </p>
             <Link
               to="/login"
               className="text-sm font-medium text-slate-900 hover:underline"
               data-testid="reset-go-login-link"
             >
-              Ir para o login
+              {t('auth.goToLogin') || 'Ir para o login'}
             </Link>
           </div>
         ) : tokenMissing ? (
           <div data-testid="reset-missing-token-state">
             <p className="text-sm text-red-600 mb-6">
-              O link de recuperação está em falta ou é inválido.
+              {t('auth.linkMissingDescription') || 'O link de recuperação está em falta ou é inválido.'}
             </p>
             <Link
               to="/forgot-password"
               className="text-sm font-medium text-slate-900 hover:underline"
               data-testid="reset-request-new-link"
             >
-              Pedir novo link
+              {t('auth.requestNewLink') || 'Pedir novo link'}
             </Link>
           </div>
         ) : (
           <>
             <p className="text-sm text-slate-600 mb-6 leading-relaxed">
-              Escolhe uma nova palavra-passe para a tua conta Stick Pro.
+              {t('auth.resetPasswordDescription') || 'Escolhe uma nova palavra-passe para a tua conta Stick Pro.'}
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="password" className="text-slate-700">
-                  Nova palavra-passe
+                  {t('auth.newPasswordLabel') || 'Nova palavra-passe'}
                 </Label>
                 <Input
                   id="password"
@@ -148,7 +149,7 @@ export default function ResetPassword() {
                   autoFocus
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Mínimo 8 caracteres"
+                  placeholder={(t('auth.minCharactersPlaceholder') || 'Mínimo {n} caracteres').replace('{n}', MIN_PASSWORD_LEN)}
                   className="mt-1.5"
                   disabled={loading}
                   data-testid="reset-password-input"
@@ -173,7 +174,7 @@ export default function ResetPassword() {
 
               <div>
                 <Label htmlFor="confirm-password" className="text-slate-700">
-                  Confirmar palavra-passe
+                  {t('auth.confirmPasswordLabel') || 'Confirmar palavra-passe'}
                 </Label>
                 <Input
                   id="confirm-password"
@@ -181,7 +182,7 @@ export default function ResetPassword() {
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Repete a palavra-passe"
+                  placeholder={t('auth.repeatPasswordPlaceholder') || 'Repete a palavra-passe'}
                   className="mt-1.5"
                   disabled={loading}
                   data-testid="reset-confirm-password-input"
@@ -206,10 +207,10 @@ export default function ResetPassword() {
                 {loading ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    A atualizar...
+                    {t('auth.updating') || 'A atualizar...'}
                   </>
                 ) : (
-                  'Atualizar palavra-passe'
+                  t('auth.updatePasswordButton') || 'Atualizar palavra-passe'
                 )}
               </Button>
             </form>
