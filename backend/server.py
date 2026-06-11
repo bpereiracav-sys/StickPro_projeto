@@ -37,6 +37,14 @@ from services.activation_emails import send_activation_email
 # Phase E3: password reset email helper.
 from services.password_reset_emails import send_password_reset_email
 
+# P0 startup hardening: validate email-related env vars at module import.
+# In production, this raises EmailConfigError and aborts boot when any of
+# RESEND_API_KEY / SENDER_EMAIL / FRONTEND_URL is missing. In development
+# and test environments, validate_email_config() only logs a warning and
+# returns — outbound mail falls back to dry-run mode via services.emails.
+from services.emails import validate_email_config as _validate_email_config
+_validate_email_config()
+
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
