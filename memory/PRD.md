@@ -14,24 +14,6 @@ Construir uma aplicação web para gestão de equipas de hóquei em patins, simi
 
 ## ÚLTIMAS ATUALIZAÇÕES
 
-### ✅ Phase O1: Admin Onboarding Wizard — Shell & Routing (11 Jun 2026) - COMPLETO
-**Status:** Implementado, testado (11 pytest + 9 Jest a passar), em branch `feature/onboarding-o1-shell`.
-
-**O que foi entregue:**
-- Backend: `User.onboarding_completed_at` (Optional[datetime]) + endpoints
-  `GET /api/onboarding/status` e `POST /api/onboarding/complete` (admin/gestor_desportivo, idempotente). Campo agora exposto em `/api/auth/me`.
-- Frontend: nova rota `/onboarding` (sem AppLayout) com `WizardShell` (6 passos placeholder: welcome, club, season, teams, members, summary), `useOnboardingState` hook, e redirect automático em `AppLayout` para admins com onboarding por completar.
-- i18n: chaves `onboarding.*` em PT/EN/ES/FR/IT (parity test verde).
-- Testes: `backend/tests/test_onboarding_o1.py` (auth, RBAC, idempotência, exposição em `/auth/me`).
-- E2E browser: Login → /onboarding → Next x5 → Finish → /dashboard → re-visitar /onboarding mostra "Onboarding already completed".
-
-**Próximas fases (P0):**
-- O2: Club + Season setup forms (substitui placeholder dos passos 2 e 3).
-- O3: Teams + Members setup forms (passos 4 e 5).
-- O4: Invitations settings + Completion summary real (passo 6) + permitir tornar persistência por-passo.
-
----
-
 ### ✅ Correção da Importação de Estatísticas de Fichas de Jogo (31 Mar 2026) - COMPLETO
 **Status:** 100% corrigido e funcional
 
