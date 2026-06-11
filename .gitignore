@@ -144,3 +144,8 @@ frontend/node_modules/.cache/default-development/16.pack
 # Allow committing env example templates
 !*.env.example
 !.env.example
+.env
+.env.*
+credentials.json
+*.key
+.credentials
