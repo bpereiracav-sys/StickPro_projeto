@@ -140,3 +140,20 @@ frontend/node_modules/.cache/default-development/16.pack
 # Environment files
 *.env
 *.env.*
+
+# Allow committing env example templates
+!*.env.example
+!.env.example
+.env
+.env.*
+credentials.json
+*.key
+.credentials
+
+# Local-only artifacts (kept on disk but never committed):
+# - generated git patches and bundles
+# - per-pod helper memory files
+# - copies of patches served for download
+*.patch
+/memory/
+/frontend/public/patches/

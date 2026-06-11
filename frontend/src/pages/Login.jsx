@@ -207,6 +207,15 @@ export default function Login() {
                 className="h-12"
                 data-testid="login-password-input"
               />
+              <div className="flex justify-end pt-1">
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-slate-500 hover:text-slate-900"
+                  data-testid="login-forgot-password-link"
+                >
+                  Esqueceste a palavra-passe?
+                </Link>
+              </div>
             </div>
 
             <Button 

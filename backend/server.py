@@ -11,6 +11,8 @@ import io
 import logging
 import asyncio
 import resend
+import secrets
+import hashlib
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 from typing import List, Optional, Literal, Dict, Any
@@ -28,6 +30,13 @@ import pandas as pd
 # Import RBAC permissions module
 from permissions import PermissionChecker, get_permission_checker, Role, ROLE_PERMISSIONS
 
+# Phase E2: new modular activation email helper (services.emails-backed).
+# Imported lazily-friendly so app boot fails loudly if services/ is missing.
+from services.activation_emails import send_activation_email
+
+# Phase E3: password reset email helper.
+from services.password_reset_emails import send_password_reset_email
+
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
@@ -39,7 +48,21 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # JWT Configuration
-JWT_SECRET = os.environ.get('JWT_SECRET', 'roller-hockey-hub-secret-key-2024')
+# Security: JWT_SECRET MUST be set in production. In development/testing only,
+# an insecure fallback is used so the app can boot — never deploy this way.
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development').lower()
+JWT_SECRET = os.environ.get('JWT_SECRET')
+if not JWT_SECRET:
+    if ENVIRONMENT == 'production':
+        raise RuntimeError(
+            "JWT_SECRET environment variable is required in production. "
+            "Set JWT_SECRET to a strong random value (min 32 chars) before starting the app."
+        )
+    JWT_SECRET = 'dev-only-insecure-jwt-secret-change-me'
+    logging.getLogger(__name__).warning(
+        "JWT_SECRET not set - using insecure development fallback. "
+        "DO NOT use this in production. Set JWT_SECRET in backend/.env."
+    )
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
@@ -1322,6 +1345,323 @@ async def activate_account(data: ActivateAccountRequest):
     return {"message": "Conta ativada com sucesso"}
 
 
+# Phase E2 — public, unauthenticated endpoint to request a fresh activation link.
+# Security properties:
+#   * Always returns the same generic message regardless of whether the email
+#     exists in the database — prevents account enumeration.
+#   * Only sends a link for accounts that exist AND are NOT yet activated.
+#   * Refreshes the invite_token if it's missing or expired; otherwise reuses
+#     the still-valid one (token rotation is bounded by the 7-day expiry).
+#   * Throttles repeat sends per account to once every 60 seconds via the
+#     last_activation_email_sent_at field — the API still returns success so
+#     attackers can't probe the throttle either.
+class RequestActivationLinkRequest(BaseModel):
+    email: EmailStr
+
+
+_GENERIC_ACTIVATION_RESPONSE = {
+    "message": (
+        "Se existir uma conta inativa associada a este email, "
+        "enviámos um novo link de ativação."
+    )
+}
+
+
+@api_router.post("/auth/request-new-activation-link")
+async def request_new_activation_link(data: RequestActivationLinkRequest):
+    email = data.email.strip().lower()
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+
+    if not user or user.get("is_activated"):
+        return _GENERIC_ACTIVATION_RESPONSE
+
+    # Throttle: at most one activation email every 60 seconds per account.
+    last_sent_iso = user.get("last_activation_email_sent_at")
+    if last_sent_iso:
+        try:
+            last_sent = datetime.fromisoformat(last_sent_iso)
+            if (datetime.now(timezone.utc) - last_sent).total_seconds() < 60:
+                return _GENERIC_ACTIVATION_RESPONSE
+        except Exception:
+            pass  # bad data — fall through and treat as no throttle
+
+    # Refresh token only if missing or expired; otherwise reuse the valid one.
+    invite_token = user.get("invite_token")
+    invite_expires_at = user.get("invite_expires_at")
+    token_valid = False
+    if invite_token and invite_expires_at:
+        try:
+            token_valid = datetime.fromisoformat(invite_expires_at) > datetime.now(timezone.utc)
+        except Exception:
+            token_valid = False
+    if not token_valid:
+        invite_token = secrets.token_urlsafe(32)
+        invite_expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"invite_token": invite_token, "invite_expires_at": invite_expires_at}}
+        )
+
+    sent_at_iso = datetime.now(timezone.utc).isoformat()
+    try:
+        await send_activation_email(
+            to_email=email,
+            name=user.get("name", "Atleta"),
+            token=invite_token,
+            idempotency_key=f"resend-{user['id']}-{invite_token[:8]}",
+        )
+    except Exception as e:
+        logger.warning(f"[ACTIVATION EMAIL] request-new-link: {e}")
+    else:
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"last_activation_email_sent_at": sent_at_iso}}
+        )
+
+    return _GENERIC_ACTIVATION_RESPONSE
+
+
+# ============================================================================
+# Phase E3 — Password Reset
+# ============================================================================
+#
+# Two endpoints, both public/unauthenticated:
+#
+#   POST /api/auth/forgot-password { email }    → always returns generic 200
+#   POST /api/auth/reset-password  { token, password } → 204 on success,
+#                                                        400 on invalid/expired/used
+#
+# Security properties:
+#   * forgot-password never reveals whether an account exists.
+#   * The raw token is sent in the email; only its SHA-256 hash is stored.
+#     A leaked DB snapshot therefore does not let an attacker reset passwords.
+#   * Tokens are single-use: marked `used_at` atomically on successful reset.
+#   * Tokens expire after 1 hour.
+#   * forgot-password is rate-limited to one send / 60 s per account via the
+#     `last_password_reset_email_sent_at` field on the user document.
+#   * Every reset attempt (success or failure) is logged to the
+#     `password_reset_audit` MongoDB collection with timestamp, masked email,
+#     IP-agnostic outcome code and reason.
+#
+# Token lifecycle storage on the user document:
+#   {
+#     "password_reset_token_hash": "<hex sha256>",  # cleared on success
+#     "password_reset_expires_at": "<iso8601 UTC>",
+#     "last_password_reset_email_sent_at": "<iso8601 UTC>"
+#   }
+#
+PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
+PASSWORD_RESET_THROTTLE_SECONDS = 60
+PASSWORD_RESET_MIN_LEN = 8
+
+_GENERIC_FORGOT_RESPONSE = {
+    "message": (
+        "Se existir uma conta associada a este email, "
+        "enviámos um link para redefinir a palavra-passe."
+    )
+}
+
+
+def _hash_reset_token(token: str) -> str:
+    """SHA-256 hex digest of a reset token. Stored in DB; raw token in email."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+def _mask_email_for_audit(email: str) -> str:
+    """Return a redacted form like 'j***@example.com' for audit logs."""
+    if not email or "@" not in email:
+        return "***"
+    local, _, domain = email.partition("@")
+    if len(local) <= 1:
+        return f"*@{domain}"
+    return f"{local[0]}***@{domain}"
+
+
+async def _audit_password_reset(
+    *, email: str, outcome: str, reason: str = "", user_id: Optional[str] = None
+) -> None:
+    """Append a row to the password_reset_audit collection. Never raises."""
+    try:
+        await db.password_reset_audit.insert_one(
+            {
+                "id": str(uuid.uuid4()),
+                "email_masked": _mask_email_for_audit(email or ""),
+                "user_id": user_id,
+                "outcome": outcome,
+                "reason": reason,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
+    except Exception as e:  # pragma: no cover — audit must never block flow
+        logger.error(f"[AUDIT] failed to write password_reset_audit row: {e}")
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., min_length=10)
+    password: str = Field(..., min_length=PASSWORD_RESET_MIN_LEN)
+
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(data: ForgotPasswordRequest):
+    """Issue a password reset token + email. Always returns generic 200."""
+    email = data.email.strip().lower()
+    user = await db.users.find_one({"email": email}, {"_id": 0})
+
+    # Unknown email — log discreetly, return generic.
+    if not user:
+        await _audit_password_reset(email=email, outcome="ignored", reason="unknown_email")
+        return _GENERIC_FORGOT_RESPONSE
+
+    # Not-yet-activated accounts: redirect users to the activation flow
+    # instead of issuing a reset token (no clear identity yet).
+    if not user.get("is_activated", False):
+        await _audit_password_reset(
+            email=email, outcome="ignored", reason="account_not_activated",
+            user_id=user.get("id"),
+        )
+        return _GENERIC_FORGOT_RESPONSE
+
+    # Throttle: at most one reset email every 60 s per account.
+    last_sent_iso = user.get("last_password_reset_email_sent_at")
+    if last_sent_iso:
+        try:
+            last_sent = datetime.fromisoformat(last_sent_iso)
+            if (datetime.now(timezone.utc) - last_sent).total_seconds() < PASSWORD_RESET_THROTTLE_SECONDS:
+                await _audit_password_reset(
+                    email=email, outcome="ignored", reason="throttled",
+                    user_id=user.get("id"),
+                )
+                return _GENERIC_FORGOT_RESPONSE
+        except Exception:
+            pass
+
+    raw_token = secrets.token_urlsafe(32)
+    token_hash = _hash_reset_token(raw_token)
+    expires_at_iso = (datetime.now(timezone.utc) + PASSWORD_RESET_TOKEN_TTL).isoformat()
+    sent_at_iso = datetime.now(timezone.utc).isoformat()
+
+    await db.users.update_one(
+        {"id": user["id"]},
+        {
+            "$set": {
+                "password_reset_token_hash": token_hash,
+                "password_reset_expires_at": expires_at_iso,
+            }
+        },
+    )
+
+    delivered = False
+    try:
+        delivered = await send_password_reset_email(
+            to_email=email,
+            name=user.get("name", "Atleta"),
+            token=raw_token,
+            idempotency_key=f"forgot-{user['id']}-{token_hash[:8]}",
+        )
+    except Exception as e:
+        logger.warning(f"[PASSWORD RESET] send failed: {e}")
+
+    if delivered:
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"last_password_reset_email_sent_at": sent_at_iso}},
+        )
+        await _audit_password_reset(
+            email=email, outcome="email_sent", reason="", user_id=user["id"],
+        )
+    else:
+        await _audit_password_reset(
+            email=email, outcome="email_failed", reason="delivery_failed",
+            user_id=user["id"],
+        )
+
+    return _GENERIC_FORGOT_RESPONSE
+
+
+@api_router.post("/auth/reset-password", status_code=204)
+async def reset_password(data: ResetPasswordRequest):
+    """Consume a reset token and set the new password. Single-use."""
+    token_hash = _hash_reset_token(data.token)
+    user = await db.users.find_one(
+        {"password_reset_token_hash": token_hash}, {"_id": 0}
+    )
+
+    if not user:
+        await _audit_password_reset(
+            email="?", outcome="reset_rejected", reason="invalid_token",
+        )
+        raise HTTPException(status_code=400, detail="Link inválido ou já utilizado")
+
+    # Expiry check
+    expires_at_iso = user.get("password_reset_expires_at")
+    if not expires_at_iso:
+        await _audit_password_reset(
+            email=user.get("email", ""), outcome="reset_rejected",
+            reason="missing_expiry", user_id=user.get("id"),
+        )
+        raise HTTPException(status_code=400, detail="Link inválido ou já utilizado")
+    try:
+        expires_at = datetime.fromisoformat(expires_at_iso)
+    except Exception:
+        await _audit_password_reset(
+            email=user.get("email", ""), outcome="reset_rejected",
+            reason="bad_expiry", user_id=user.get("id"),
+        )
+        raise HTTPException(status_code=400, detail="Link inválido ou já utilizado")
+    if expires_at < datetime.now(timezone.utc):
+        # Clean up the expired token to make the state explicit and reduce
+        # future enumeration surface area.
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$unset": {
+                "password_reset_token_hash": "",
+                "password_reset_expires_at": "",
+            }},
+        )
+        await _audit_password_reset(
+            email=user.get("email", ""), outcome="reset_rejected",
+            reason="expired", user_id=user.get("id"),
+        )
+        raise HTTPException(status_code=400, detail="Link expirado")
+
+    # Atomic single-use: only consume if the hash field is still present.
+    new_hashed = hash_password(data.password)
+    update_result = await db.users.update_one(
+        {
+            "id": user["id"],
+            "password_reset_token_hash": token_hash,
+        },
+        {
+            "$set": {
+                "hashed_password": new_hashed,
+                "is_activated": True,  # ensures user can log in after reset
+                "password_reset_used_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "$unset": {
+                "password_reset_token_hash": "",
+                "password_reset_expires_at": "",
+            },
+        },
+    )
+    if update_result.modified_count != 1:
+        await _audit_password_reset(
+            email=user.get("email", ""), outcome="reset_rejected",
+            reason="already_used", user_id=user.get("id"),
+        )
+        raise HTTPException(status_code=400, detail="Link inválido ou já utilizado")
+
+    await _audit_password_reset(
+        email=user.get("email", ""), outcome="reset_succeeded",
+        user_id=user.get("id"),
+    )
+    # No body: 204 status. Clients should redirect to /login.
+    return None
+
+
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
     user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
@@ -2590,6 +2930,19 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
     activation_link = f"{frontend_url}/activate-account?token={invite_token}" if frontend_url else ""
 
+    # Phase E2: dispatch activation email via the new service. Failure to
+    # send must NOT abort the user creation flow; activation_link is still
+    # returned so the operator can hand it over manually if needed.
+    try:
+        await send_activation_email(
+            to_email=user["email"],
+            name=user["name"],
+            token=invite_token,
+            idempotency_key=f"member-create-{user_id}",
+        )
+    except Exception as e:
+        logger.warning(f"[ACTIVATION EMAIL] failed to send to {user['email']}: {e}")
+
     safe_user = {k: v for k, v in user.items() if k != "hashed_password"}
 
     return {
@@ -2638,6 +2991,18 @@ async def send_member_invite(member_id: str, current_user: dict = Depends(get_cu
 
     frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
     activation_link = f"{frontend_url}/activate-account?token={invite_token}" if frontend_url else ""
+
+    # Phase E2: dispatch the activation email. Email failure does not abort
+    # the flow — operator still gets the activation_link in the response.
+    try:
+        await send_activation_email(
+            to_email=user["email"],
+            name=user.get("name", "Atleta"),
+            token=invite_token,
+            idempotency_key=f"send-invite-{member_id}-{invite_token[:8]}",
+        )
+    except Exception as e:
+        logger.warning(f"[ACTIVATION EMAIL] send-invite to {user.get('email')}: {e}")
 
     return {
         "message": "Convite gerado com sucesso",
@@ -3543,24 +3908,32 @@ async def send_activation_reminder(member_id: str, current_user: dict = Depends(
         logging.error(f"Failed to send activation reminder: {e}")
     
     # Send email
+    # Phase E2: ensure a valid (non-expired) invite_token exists, then send
+    # the activation email through services.activation_emails. The legacy
+    # inline HTML/send_email_notification path is kept disabled to avoid
+    # duplicate sends.
     try:
-        email_content = f"""
-            <p>Olá <strong>{member.get('name', 'Atleta')}</strong>!</p>
-            <p>A tua conta no StickPro está quase pronta. Por favor, faz login e atualiza a tua palavra-passe para ativares a tua conta.</p>
-            <p style="margin-top: 20px;"><strong>Isto permite-te:</strong></p>
-            <ul style="padding-left: 20px;">
-                <li>Receber convocatórias</li>
-                <li>Confirmar presença em treinos e jogos</li>
-                <li>Ver o teu calendário de eventos</li>
-                <li>Acompanhar as tuas estatísticas</li>
-            </ul>
-            <p style="margin-top: 20px;">Bons treinos!</p>
-        """
-        
-        await send_email_notification(
-            member.get('email'),
-            "Ativa a tua conta StickPro",
-            build_email_template("Ativa a tua conta!", email_content)
+        invite_token = member.get("invite_token")
+        invite_expires_at = member.get("invite_expires_at")
+        token_valid = False
+        if invite_token and invite_expires_at:
+            try:
+                token_valid = datetime.fromisoformat(invite_expires_at) > datetime.now(timezone.utc)
+            except Exception:
+                token_valid = False
+        if not token_valid:
+            invite_token = secrets.token_urlsafe(32)
+            invite_expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+            await db.users.update_one(
+                {"id": member_id},
+                {"$set": {"invite_token": invite_token, "invite_expires_at": invite_expires_at}}
+            )
+
+        await send_activation_email(
+            to_email=member.get("email"),
+            name=member.get("name", "Atleta"),
+            token=invite_token,
+            idempotency_key=f"reminder-{member_id}-{invite_token[:8]}",
         )
     except Exception as e:
         logging.error(f"Failed to send activation email: {e}")
