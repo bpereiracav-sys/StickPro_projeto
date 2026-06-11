@@ -39,7 +39,21 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 # JWT Configuration
-JWT_SECRET = os.environ.get('JWT_SECRET', 'roller-hockey-hub-secret-key-2024')
+# Security: JWT_SECRET MUST be set in production. In development/testing only,
+# an insecure fallback is used so the app can boot — never deploy this way.
+ENVIRONMENT = os.environ.get('ENVIRONMENT', 'development').lower()
+JWT_SECRET = os.environ.get('JWT_SECRET')
+if not JWT_SECRET:
+    if ENVIRONMENT == 'production':
+        raise RuntimeError(
+            "JWT_SECRET environment variable is required in production. "
+            "Set JWT_SECRET to a strong random value (min 32 chars) before starting the app."
+        )
+    JWT_SECRET = 'dev-only-insecure-jwt-secret-change-me'
+    logging.getLogger(__name__).warning(
+        "JWT_SECRET not set - using insecure development fallback. "
+        "DO NOT use this in production. Set JWT_SECRET in backend/.env."
+    )
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRATION_HOURS = 24
 
