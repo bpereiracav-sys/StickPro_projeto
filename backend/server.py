@@ -2943,7 +2943,7 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     except Exception as e:
         logger.warning(f"[ACTIVATION EMAIL] failed to send to {user['email']}: {e}")
 
-    safe_user = {k: v for k, v in user.items() if k != "hashed_password"}
+    safe_user = {k: v for k, v in user.items() if k not in ("hashed_password", "_id")}
 
     return {
         "user": safe_user,
