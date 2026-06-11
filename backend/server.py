@@ -312,10 +312,15 @@ class User(BaseModel):
     
     # Custom permissions (if admin has modified defaults)
     custom_permissions: Optional[Dict[str, bool]] = None
-    
+
+    # Phase O1 — Admin onboarding wizard. Null until the admin (or
+    # gestor_desportivo) finishes the onboarding flow at least once.
+    onboarding_completed_at: Optional[datetime] = None
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
     id: str
     email: str
     name: str
@@ -333,6 +338,9 @@ class UserResponse(BaseModel):
     linked_player_ids: List[str] = []  # NEW
     profile: Optional[UserProfile] = None
     permissions: Optional[Dict[str, bool]] = None
+    # Phase O1 — surfaced so the frontend can route admins to /onboarding
+    # on first login without an extra request.
+    onboarding_completed_at: Optional[datetime] = None
 
 class AssociateAccountRequest(BaseModel):
     child_user_id: str
@@ -1769,6 +1777,63 @@ async def get_my_permissions(current_user: dict = Depends(get_current_user)):
 async def get_my_profiles(current_user: dict = Depends(get_current_user)):
     """Get all available profiles for the current user"""
     return await build_available_profiles(current_user)
+
+
+# ==================== ONBOARDING ROUTES (Phase O1) ====================
+# Admin onboarding wizard — shell + routing only. Subsequent phases
+# (O2..O4) layer real club/season/team/member creation on top of this.
+
+ONBOARDING_ALLOWED_ROLES = {"admin", "gestor_desportivo"}
+
+
+def _ensure_onboarding_role(current_user: dict) -> None:
+    """Reject non-admin roles. The wizard is admin/gestor_desportivo only."""
+    role = current_user.get("role")
+    if role not in ONBOARDING_ALLOWED_ROLES:
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas administradores podem aceder ao onboarding",
+        )
+
+
+@api_router.get("/onboarding/status")
+async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
+    """Return whether the current admin has finished the onboarding wizard."""
+    _ensure_onboarding_role(current_user)
+    completed_at = current_user.get("onboarding_completed_at")
+    completed_at_iso: Optional[str] = None
+    if isinstance(completed_at, datetime):
+        completed_at_iso = completed_at.isoformat()
+    elif isinstance(completed_at, str) and completed_at:
+        completed_at_iso = completed_at
+    return {
+        "completed": completed_at_iso is not None,
+        "completed_at": completed_at_iso,
+    }
+
+
+@api_router.post("/onboarding/complete")
+async def complete_onboarding(current_user: dict = Depends(get_current_user)):
+    """Mark the admin's onboarding wizard as completed.
+
+    Idempotent: if already completed, returns the existing timestamp without
+    overwriting it, so we keep the original finish date for analytics.
+    """
+    _ensure_onboarding_role(current_user)
+
+    existing = current_user.get("onboarding_completed_at")
+    if existing:
+        completed_at_iso = (
+            existing.isoformat() if isinstance(existing, datetime) else existing
+        )
+        return {"completed": True, "completed_at": completed_at_iso}
+
+    now = datetime.now(timezone.utc)
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"onboarding_completed_at": now.isoformat()}},
+    )
+    return {"completed": True, "completed_at": now.isoformat()}
 
 
 # ==================== USER ROUTES ====================

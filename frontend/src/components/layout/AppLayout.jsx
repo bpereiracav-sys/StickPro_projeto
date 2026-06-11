@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopNavBar } from './TopNavBar';
 import { BottomNav } from './BottomNav';
@@ -6,9 +7,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { Activity } from 'lucide-react';
 
+const ONBOARDING_REQUIRED_ROLES = new Set(['admin', 'gestor_desportivo']);
+
 export function AppLayout({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { refreshTheme } = useTheme();
+  const location = useLocation();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -18,6 +22,20 @@ export function AppLayout({ children }) {
 
   if (!isAuthenticated) {
     return <div className="min-h-screen bg-background">{children}</div>;
+  }
+
+  // Phase O1 — redirect admins/gestor_desportivo to the onboarding wizard on
+  // first login. The /onboarding route itself renders without AppLayout, so
+  // this only fires for other protected routes.
+  const role = user?.role;
+  const needsOnboarding =
+    role &&
+    ONBOARDING_REQUIRED_ROLES.has(role) &&
+    !user?.onboarding_completed_at &&
+    location.pathname !== '/onboarding';
+
+  if (needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return (
