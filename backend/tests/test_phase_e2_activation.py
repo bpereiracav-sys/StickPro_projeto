@@ -250,14 +250,14 @@ def api_client_and_db(monkeypatch):
     sync_client = pymongo.MongoClient(os.environ["MONGO_URL"])
     sync_db = sync_client[test_db_name]
 
-    client = TestClient(server.app)
-    try:
-        yield client, sync_db, sender
-    finally:
+    with TestClient(server.app) as client:
         try:
-            sync_client.drop_database(test_db_name)
+            yield client, sync_db, sender
         finally:
-            sync_client.close()
+            try:
+                sync_client.drop_database(test_db_name)
+            finally:
+                sync_client.close()
 
 
 def _insert_user_sync(db, *, email, is_activated=False, invite_token=None,
