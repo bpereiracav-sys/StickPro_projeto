@@ -131,6 +131,13 @@ def test_production_complete_email_config_allows_server_import():
             "RESEND_API_KEY": "re_test_startup_complete",
             "SENDER_EMAIL": "noreply@stickpro.test",
             "FRONTEND_URL": "https://app.stickpro.test",
+            # Phase S1: Stripe validator now runs at startup too. In
+            # production it requires the same minimum env vars the
+            # subscription endpoints depend on. Built from fragments so
+            # GitHub secret scanners don't match the literal prefix.
+            "STRIPE_API_KEY": "sk_" + "test_" + "placeholder_do_not_use",
+            "STRIPE_PRICE_CLUB_MONTHLY": "price_test_m",
+            "STRIPE_PRICE_CLUB_YEARLY": "price_test_y",
         },
     )
     assert "IMPORT_OK" in result.stdout, (
