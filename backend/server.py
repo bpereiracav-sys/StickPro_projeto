@@ -371,6 +371,7 @@ class TeamCreate(BaseModel):
     category: str
     season: str
     photo_url: Optional[str] = None
+    club_id: Optional[str] = None
 
 class TeamUpdate(BaseModel):
     name: Optional[str] = None
@@ -3014,6 +3015,10 @@ class MemberCreate(BaseModel):
     position: Optional[str] = None
     phone: Optional[str] = None
     nationalities: Optional[List[str]] = None
+    # Phase O3 — onboarding wizard sets this to True so the activation
+    # email is deferred to the Invitations step. Default keeps historical
+    # behaviour for every other caller.
+    suppress_invite: bool = False
 
 
 class MemberUpdate(BaseModel):
@@ -3098,15 +3103,19 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     # Phase E2: dispatch activation email via the new service. Failure to
     # send must NOT abort the user creation flow; activation_link is still
     # returned so the operator can hand it over manually if needed.
-    try:
-        await send_activation_email(
-            to_email=user["email"],
-            name=user["name"],
-            token=invite_token,
-            idempotency_key=f"member-create-{user_id}",
-        )
-    except Exception as e:
-        logger.warning(f"[ACTIVATION EMAIL] failed to send to {user['email']}: {e}")
+    # Phase O3: the onboarding wizard sets ``suppress_invite=True`` so the
+    # email is not fired here — it is dispatched later by the Invitations
+    # step (O4). The activation token is still persisted on the user.
+    if not data.suppress_invite:
+        try:
+            await send_activation_email(
+                to_email=user["email"],
+                name=user["name"],
+                token=invite_token,
+                idempotency_key=f"member-create-{user_id}",
+            )
+        except Exception as e:
+            logger.warning(f"[ACTIVATION EMAIL] failed to send to {user['email']}: {e}")
 
     safe_user = {k: v for k, v in user.items() if k not in ("hashed_password", "_id")}
 

@@ -22,6 +22,7 @@ export function WizardShell({
   onSkip,
   onFinish,
   hideForwardButton = false,
+  skipDisabled = false,
   completing = false,
   children,
 }) {
@@ -136,7 +137,7 @@ export function WizardShell({
           type="button"
           variant="ghost"
           onClick={onSkip}
-          disabled={completing}
+          disabled={completing || skipDisabled}
           data-testid="onboarding-skip-btn"
         >
           {t('onboarding.skip')}
