@@ -1929,6 +1929,221 @@ async def complete_onboarding(current_user: dict = Depends(get_current_user)):
     return {"completed": True, "completed_at": now.isoformat()}
 
 
+# ---- Phase O4 — Invitations preview + batch dispatch ---------------------
+
+class OnboardingSendInvitesRequest(BaseModel):
+    """Body for POST /api/onboarding/send-invites.
+
+    ``member_ids`` is optional: when null/empty the endpoint sends to every
+    pending (non-activated) member of the admin's onboarding club.
+    """
+    member_ids: Optional[List[str]] = None
+
+
+def _is_email_dry_run() -> bool:
+    """Mirror the dry-run heuristic used by services.emails: in non-prod
+    environments without a Resend key, mail goes nowhere. The endpoint
+    surfaces this so the wizard can warn the admin."""
+    env = os.environ.get("ENVIRONMENT", "development").lower()
+    if env == "production":
+        return False
+    return not os.environ.get("RESEND_API_KEY")
+
+
+def _parse_invite_expiry(raw) -> Optional[datetime]:
+    if not raw:
+        return None
+    if isinstance(raw, datetime):
+        return raw if raw.tzinfo else raw.replace(tzinfo=timezone.utc)
+    if isinstance(raw, str):
+        try:
+            parsed = datetime.fromisoformat(raw)
+            return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+        except ValueError:
+            return None
+    return None
+
+
+@api_router.get("/onboarding/invite-preview")
+async def get_invite_preview(current_user: dict = Depends(get_current_user)):
+    """Return the list of members the admin's onboarding wizard created so
+    the Summary step can render a preview table before dispatching invites.
+
+    Only returns non-activated members of the admin's onboarding club —
+    activated users no longer need an invite and admins themselves are
+    excluded so the operator never accidentally invites their own account.
+    """
+    _ensure_onboarding_role(current_user)
+
+    state = _normalize_onboarding_state(current_user.get("onboarding_state"))
+    club_id = state.get("club_id")
+    if not club_id:
+        return {"club_id": None, "members": [], "dry_run": _is_email_dry_run()}
+
+    members = await db.users.find(
+        {
+            "club_id": club_id,
+            "role": {"$nin": ["admin", "gestor_desportivo"]},
+            "is_activated": {"$ne": True},
+        },
+        {"_id": 0, "hashed_password": 0, "password_reset_token_hash": 0},
+    ).to_list(500)
+
+    # Cross-reference with teams to attach a team name (best-effort).
+    team_names: Dict[str, str] = {}
+    for tid_list in (m.get("team_ids", []) for m in members):
+        for tid in tid_list or []:
+            team_names.setdefault(tid, "")
+    if team_names:
+        team_docs = await db.teams.find(
+            {"id": {"$in": list(team_names.keys())}}, {"_id": 0, "id": 1, "name": 1}
+        ).to_list(500)
+        for td in team_docs:
+            team_names[td["id"]] = td.get("name", "")
+
+    out = []
+    for m in members:
+        team_id = (m.get("team_ids") or [None])[0]
+        out.append({
+            "id": m["id"],
+            "name": m.get("name"),
+            "email": m.get("email"),
+            "role": m.get("role"),
+            "team_id": team_id,
+            "team_name": team_names.get(team_id, "") if team_id else "",
+            "has_token": bool(m.get("invite_token")),
+        })
+
+    return {
+        "club_id": club_id,
+        "members": out,
+        "dry_run": _is_email_dry_run(),
+    }
+
+
+@api_router.post("/onboarding/send-invites")
+async def send_onboarding_invites(
+    request: OnboardingSendInvitesRequest,
+    current_user: dict = Depends(get_current_user),
+):
+    """Batch-send activation invites to pending members of the admin's
+    onboarding club.
+
+    * Admin / gestor_desportivo only.
+    * If ``member_ids`` is provided, only those IDs are processed; otherwise
+      every pending member of the club is invited.
+    * Already-activated members are skipped (returned in ``skipped``).
+    * Members not belonging to the admin's onboarding club_id are skipped
+      with reason ``foreign_club`` — never silently invite someone outside
+      the wizard's scope.
+    * Existing invite tokens are reused if still valid; new tokens are
+      generated otherwise so links never come back as expired.
+    * Returns a per-member result list plus aggregate counters.
+    """
+    _ensure_onboarding_role(current_user)
+
+    state = _normalize_onboarding_state(current_user.get("onboarding_state"))
+    club_id = state.get("club_id")
+    if not club_id:
+        raise HTTPException(
+            status_code=400,
+            detail="Onboarding sem clube configurado",
+        )
+
+    query: Dict[str, Any] = {
+        "club_id": club_id,
+        "role": {"$nin": ["admin", "gestor_desportivo"]},
+    }
+    if request.member_ids:
+        query["id"] = {"$in": request.member_ids}
+
+    candidates = await db.users.find(
+        query, {"_id": 0, "hashed_password": 0}
+    ).to_list(500)
+
+    # If the caller specified ids that don't exist for this club, surface
+    # them as failed rows so the wizard can show "foreign_club" reasons.
+    found_ids = {c["id"] for c in candidates}
+    missing_ids: List[str] = []
+    if request.member_ids:
+        missing_ids = [mid for mid in request.member_ids if mid not in found_ids]
+
+    sent: List[Dict[str, Any]] = []
+    skipped: List[Dict[str, Any]] = []
+    failed: List[Dict[str, Any]] = []
+    dry_run = _is_email_dry_run()
+    now = datetime.now(timezone.utc)
+
+    for member in candidates:
+        if member.get("is_activated") is True:
+            skipped.append({
+                "id": member["id"],
+                "email": member.get("email"),
+                "reason": "already_activated",
+            })
+            continue
+
+        # Reuse the existing token if still in the future, otherwise mint
+        # a fresh one. Tokens always renew the 7-day window so the link
+        # the recipient receives is valid for the next week.
+        existing_token = member.get("invite_token")
+        existing_expiry = _parse_invite_expiry(member.get("invite_expires_at"))
+        token_reused = (
+            bool(existing_token)
+            and existing_expiry is not None
+            and existing_expiry > now
+        )
+        token = existing_token if token_reused else secrets.token_urlsafe(32)
+        expires_at = (now + timedelta(days=7)).isoformat()
+
+        await db.users.update_one(
+            {"id": member["id"]},
+            {"$set": {"invite_token": token, "invite_expires_at": expires_at}},
+        )
+
+        try:
+            ok = await send_activation_email(
+                to_email=member["email"],
+                name=member.get("name") or "Atleta",
+                token=token,
+                idempotency_key=f"onboarding-invite-{member['id']}-{token[:8]}",
+            )
+        except Exception as exc:  # noqa: BLE001
+            failed.append({
+                "id": member["id"],
+                "email": member.get("email"),
+                "reason": "send_exception",
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+            continue
+
+        if ok:
+            sent.append({
+                "id": member["id"],
+                "email": member.get("email"),
+                "token_reused": token_reused,
+            })
+        else:
+            failed.append({
+                "id": member["id"],
+                "email": member.get("email"),
+                "reason": "send_failed",
+            })
+
+    for mid in missing_ids:
+        failed.append({"id": mid, "email": None, "reason": "foreign_club"})
+
+    return {
+        "dry_run": dry_run,
+        "sent_count": len(sent),
+        "skipped_count": len(skipped),
+        "failed_count": len(failed),
+        "sent": sent,
+        "skipped": skipped,
+        "failed": failed,
+    }
+
+
 # ==================== USER ROUTES ====================
 
 @api_router.get("/users", response_model=List[UserResponse])
