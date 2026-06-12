@@ -7,6 +7,8 @@ import { useOnboardingState } from '../hooks/useOnboardingState';
 import { WizardShell } from '../components/onboarding/WizardShell';
 import { ClubStep } from '../components/onboarding/ClubStep';
 import { SeasonStep } from '../components/onboarding/SeasonStep';
+import { TeamsStep } from '../components/onboarding/TeamsStep';
+import { MembersStep } from '../components/onboarding/MembersStep';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Loader2, CheckCircle2 } from 'lucide-react';
@@ -26,6 +28,14 @@ const STEP_INDEX = ONBOARDING_STEPS.reduce((acc, s, i) => {
   acc[s.key] = i;
   return acc;
 }, {});
+
+// Steps that own their primary CTA (form submit). Shell hides Next/Finish
+// on these so users only see a single forward action.
+const STEPS_WITH_OWN_CTA = new Set(['club', 'season', 'teams', 'members']);
+
+// Steps where Skip must be disabled (mandatory). Teams is the only one
+// in O3; the rest still allow skip → finish.
+const NON_SKIPPABLE_STEPS = new Set(['teams']);
 
 function FullScreenSpinner() {
   return (
@@ -48,8 +58,6 @@ export default function OnboardingPage() {
 
   const goToDashboard = () => navigate('/dashboard', { replace: true });
 
-  // If admin has already completed onboarding, show a friendly summary
-  // instead of forcing them through the wizard again.
   if (state.completed) {
     return (
       <div
@@ -79,11 +87,12 @@ export default function OnboardingPage() {
   }
 
   const currentStepKey = ONBOARDING_STEPS[state.currentStep]?.key;
+  const completedSet = new Set(state.completedSteps);
 
-  // Steps that own their primary CTA (form submit). The shell hides its
-  // Next/Finish button on these so users only see a single forward action.
-  const stepOwnsPrimaryCta = ['club', 'season'].includes(currentStepKey);
+  const stepOwnsPrimaryCta = STEPS_WITH_OWN_CTA.has(currentStepKey);
+  const skipDisabled = NON_SKIPPABLE_STEPS.has(currentStepKey);
 
+  // ---------- Club ----------
   const handleClubCreated = async (club) => {
     try {
       await state.patchState({
@@ -95,17 +104,15 @@ export default function OnboardingPage() {
       toast.error(t('onboarding.steps.club.errorToast'));
     }
   };
-
   const handleClubContinue = async () => {
-    // Club already created in a previous session — just advance the cursor.
     try {
       await state.patchState({ current_step: STEP_INDEX.season });
     } catch (err) {
-      // Soft-fail: still let the user move forward in this session.
       state.goNext();
     }
   };
 
+  // ---------- Season ----------
   const handleSeasonCreated = async (season) => {
     try {
       await state.patchState({
@@ -117,7 +124,6 @@ export default function OnboardingPage() {
       toast.error(t('onboarding.steps.season.errorToast'));
     }
   };
-
   const handleSeasonContinue = async () => {
     try {
       await state.patchState({ current_step: STEP_INDEX.teams });
@@ -126,6 +132,45 @@ export default function OnboardingPage() {
     }
   };
 
+  // ---------- Teams ----------
+  const handleTeamsSaveAndContinue = async () => {
+    try {
+      await state.patchState({
+        completed_step: 'teams',
+        current_step: STEP_INDEX.members,
+      });
+    } catch (err) {
+      toast.error(t('onboarding.steps.teams.errorToast'));
+    }
+  };
+  const handleTeamsContinue = async () => {
+    try {
+      await state.patchState({ current_step: STEP_INDEX.members });
+    } catch (err) {
+      state.goNext();
+    }
+  };
+
+  // ---------- Members ----------
+  const handleMembersSaveAndContinue = async () => {
+    try {
+      await state.patchState({
+        completed_step: 'members',
+        current_step: STEP_INDEX.summary,
+      });
+    } catch (err) {
+      toast.error(t('onboarding.steps.members.errorToast'));
+    }
+  };
+  const handleMembersContinue = async () => {
+    try {
+      await state.patchState({ current_step: STEP_INDEX.summary });
+    } catch (err) {
+      state.goNext();
+    }
+  };
+
+  // ---------- Finish / Skip / Next / Back ----------
   const handleFinish = async () => {
     try {
       const data = await state.complete();
@@ -138,10 +183,8 @@ export default function OnboardingPage() {
       toast.error(t('onboarding.errorToast'));
     }
   };
-
   const handleSkip = handleFinish;
 
-  // Default Next persists the cursor so refreshes resume on the same step.
   const handleNext = async () => {
     const target = Math.min(state.currentStep + 1, ONBOARDING_STEPS.length - 1);
     try {
@@ -150,7 +193,6 @@ export default function OnboardingPage() {
       state.goNext();
     }
   };
-
   const handleBack = async () => {
     const target = Math.max(state.currentStep - 1, 0);
     try {
@@ -179,6 +221,24 @@ export default function OnboardingPage() {
             onCreated={handleSeasonCreated}
           />
         );
+      case 'teams':
+        return (
+          <TeamsStep
+            clubId={state.clubId}
+            stepCompleted={completedSet.has('teams')}
+            onContinue={handleTeamsContinue}
+            onSaveAndContinue={handleTeamsSaveAndContinue}
+          />
+        );
+      case 'members':
+        return (
+          <MembersStep
+            clubId={state.clubId}
+            stepCompleted={completedSet.has('members')}
+            onContinue={handleMembersContinue}
+            onSaveAndContinue={handleMembersSaveAndContinue}
+          />
+        );
       default:
         return null; // Shell renders its "Coming soon" placeholder.
     }
@@ -195,6 +255,7 @@ export default function OnboardingPage() {
         onSkip={handleSkip}
         onFinish={handleFinish}
         hideForwardButton={stepOwnsPrimaryCta}
+        skipDisabled={skipDisabled}
         completing={state.completing}
       >
         {renderStepBody()}
