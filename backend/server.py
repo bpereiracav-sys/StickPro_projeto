@@ -45,6 +45,13 @@ from services.password_reset_emails import send_password_reset_email
 from services.emails import validate_email_config as _validate_email_config
 _validate_email_config()
 
+# Phase S1: Stripe configuration validation. Mirrors the email validator —
+# in production, missing required Stripe env vars abort startup; in dev
+# they only emit a warning so pods that don't need Stripe keep booting.
+# Live keys outside production are always refused.
+from services.stripe_config import validate_stripe_config as _validate_stripe_config
+_validate_stripe_config()
+
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
