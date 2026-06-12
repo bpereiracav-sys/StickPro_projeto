@@ -114,7 +114,8 @@ def test_status_returns_false_for_fresh_admin(api_client_and_db):
     r = client.get("/api/onboarding/status", headers=_auth(token))
     assert r.status_code == 200
     body = r.json()
-    assert body == {"completed": False, "completed_at": None}
+    assert body["completed"] is False
+    assert body["completed_at"] is None
 
 
 def test_status_returns_true_for_completed_admin(api_client_and_db):

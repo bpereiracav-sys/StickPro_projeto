@@ -4,33 +4,37 @@ import axios from 'axios';
 const API_URL = process.env.REACT_APP_BACKEND_URL + '/api';
 
 /**
- * Phase O1 — Admin onboarding shell hook.
+ * Phase O1 + O2 — Admin onboarding state hook.
  *
- * Owns the wizard's transient UI state (current step) and persistence via the
- * `/api/onboarding/status` and `/api/onboarding/complete` endpoints. Later
- * phases (O2..O4) will layer per-step form state on top of this.
+ * Phase O1 owned just the wizard's UI step index plus the
+ * /api/onboarding/complete call. Phase O2 adds per-step persistence
+ * (current_step, completed_steps, club_id, season_id) via
+ * PATCH /api/onboarding/state so admins can resume across sessions.
  */
 export function useOnboardingState({ totalSteps }) {
   const [currentStep, setCurrentStep] = useState(0);
+  const [completedSteps, setCompletedSteps] = useState([]);
+  const [clubId, setClubId] = useState(null);
+  const [seasonId, setSeasonId] = useState(null);
   const [completed, setCompleted] = useState(false);
   const [completedAt, setCompletedAt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState(null);
 
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { data } = await axios.get(`${API_URL}/onboarding/status`);
+  const applyStatus = useCallback(
+    (data) => {
       setCompleted(!!data.completed);
       setCompletedAt(data.completed_at || null);
-    } catch (err) {
-      setError(err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      setCompletedSteps(Array.isArray(data.completed_steps) ? data.completed_steps : []);
+      setClubId(data.club_id || null);
+      setSeasonId(data.season_id || null);
+      const incoming = typeof data.current_step === 'number' ? data.current_step : 0;
+      const clamped = Math.max(0, Math.min(incoming, Math.max(totalSteps - 1, 0)));
+      setCurrentStep(clamped);
+    },
+    [totalSteps]
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -38,8 +42,7 @@ export function useOnboardingState({ totalSteps }) {
       try {
         const { data } = await axios.get(`${API_URL}/onboarding/status`);
         if (cancelled) return;
-        setCompleted(!!data.completed);
-        setCompletedAt(data.completed_at || null);
+        applyStatus(data);
       } catch (err) {
         if (!cancelled) setError(err);
       } finally {
@@ -49,7 +52,22 @@ export function useOnboardingState({ totalSteps }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [applyStatus]);
+
+  const patchState = useCallback(
+    async (patch) => {
+      const { data } = await axios.patch(`${API_URL}/onboarding/state`, patch);
+      setCompletedSteps(Array.isArray(data.completed_steps) ? data.completed_steps : []);
+      setClubId(data.club_id || null);
+      setSeasonId(data.season_id || null);
+      if (typeof data.current_step === 'number') {
+        const clamped = Math.max(0, Math.min(data.current_step, Math.max(totalSteps - 1, 0)));
+        setCurrentStep(clamped);
+      }
+      return data;
+    },
+    [totalSteps]
+  );
 
   const goNext = useCallback(() => {
     setCurrentStep((s) => Math.min(s + 1, Math.max(totalSteps - 1, 0)));
@@ -87,6 +105,9 @@ export function useOnboardingState({ totalSteps }) {
   return {
     currentStep,
     totalSteps,
+    completedSteps,
+    clubId,
+    seasonId,
     completed,
     completedAt,
     loading,
@@ -95,8 +116,8 @@ export function useOnboardingState({ totalSteps }) {
     goNext,
     goBack,
     goTo,
+    patchState,
     complete,
-    refresh,
   };
 }
 
