@@ -4,20 +4,26 @@ import { Card } from '../ui/card';
 import { CheckCircle2, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 
 /**
- * Phase O1 — Wizard shell.
+ * Phase O1 + O2 — Wizard shell.
  *
- * Renders the stepper, the current step's content (a placeholder for now),
- * and the navigation footer (Back / Next / Finish / Skip). All copy goes
- * through i18n.
+ * Renders the stepper, the current step's body (caller-provided) and a
+ * navigation footer. Callers can either:
+ *   - leave `children` empty → default "Coming soon" placeholder is used
+ *     and the footer's Next/Finish button is shown (O1 behaviour);
+ *   - render real step content via `children` and set
+ *     `hideForwardButton` so the step owns its own primary CTA.
  */
 export function WizardShell({
   steps,
   currentStep,
+  completedSteps = [],
   onNext,
   onBack,
   onSkip,
   onFinish,
+  hideForwardButton = false,
   completing = false,
+  children,
 }) {
   const { t } = useLanguage();
 
@@ -30,6 +36,7 @@ export function WizardShell({
   const step = steps[safeIndex];
   const isFirst = safeIndex === 0;
   const isLast = safeIndex === total - 1;
+  const completedSet = new Set(completedSteps);
 
   return (
     <div className="w-full max-w-3xl mx-auto" data-testid="onboarding-wizard">
@@ -53,7 +60,9 @@ export function WizardShell({
       >
         {steps.map((s, idx) => {
           const isActive = idx === safeIndex;
-          const isDone = idx < safeIndex;
+          // A step is shown as "done" if its key was persisted by the
+          // backend OR if it sits before the current step (O1 behaviour).
+          const isDone = completedSet.has(s.key) || idx < safeIndex;
           return (
             <li
               key={s.key}
@@ -71,7 +80,7 @@ export function WizardShell({
                       : 'bg-muted text-muted-foreground',
                 ].join(' ')}
               >
-                {isDone ? (
+                {isDone && !isActive ? (
                   <CheckCircle2 className="w-5 h-5" />
                 ) : (
                   <span>{idx + 1}</span>
@@ -106,18 +115,19 @@ export function WizardShell({
           {t(`onboarding.steps.${step.key}.description`)}
         </p>
 
-        {/* O1 placeholder body — replaced step-by-step in O2/O3/O4. */}
-        <div
-          className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-8 text-center"
-          data-testid="onboarding-step-placeholder"
-        >
-          <p className="text-sm font-medium text-foreground mb-1">
-            {t('onboarding.placeholderTitle')}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {t('onboarding.placeholderDescription')}
-          </p>
-        </div>
+        {children || (
+          <div
+            className="rounded-md border border-dashed border-border bg-muted/30 px-4 py-8 text-center"
+            data-testid="onboarding-step-placeholder"
+          >
+            <p className="text-sm font-medium text-foreground mb-1">
+              {t('onboarding.placeholderTitle')}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t('onboarding.placeholderDescription')}
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Footer / navigation */}
@@ -144,7 +154,7 @@ export function WizardShell({
             {t('onboarding.back')}
           </Button>
 
-          {isLast ? (
+          {!hideForwardButton && (isLast ? (
             <Button
               type="button"
               onClick={onFinish}
@@ -170,7 +180,7 @@ export function WizardShell({
               {t('onboarding.next')}
               <ChevronRight className="w-4 h-4 ml-1" />
             </Button>
-          )}
+          ))}
         </div>
       </div>
     </div>

@@ -5,19 +5,27 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useOnboardingState } from '../hooks/useOnboardingState';
 import { WizardShell } from '../components/onboarding/WizardShell';
+import { ClubStep } from '../components/onboarding/ClubStep';
+import { SeasonStep } from '../components/onboarding/SeasonStep';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 
-// Phase O1 — shell-only step list. Real content lands in O2/O3/O4.
+// Step order is kept stable across O1..O4 so onboarding_state.current_step
+// indexes mean the same thing in every phase.
 const ONBOARDING_STEPS = [
-  { key: 'welcome' },
-  { key: 'club' },
-  { key: 'season' },
-  { key: 'teams' },
-  { key: 'members' },
-  { key: 'summary' },
+  { key: 'welcome' },  // 0
+  { key: 'club' },     // 1
+  { key: 'season' },   // 2
+  { key: 'teams' },    // 3
+  { key: 'members' },  // 4
+  { key: 'summary' },  // 5
 ];
+
+const STEP_INDEX = ONBOARDING_STEPS.reduce((acc, s, i) => {
+  acc[s.key] = i;
+  return acc;
+}, {});
 
 function FullScreenSpinner() {
   return (
@@ -70,11 +78,57 @@ export default function OnboardingPage() {
     );
   }
 
+  const currentStepKey = ONBOARDING_STEPS[state.currentStep]?.key;
+
+  // Steps that own their primary CTA (form submit). The shell hides its
+  // Next/Finish button on these so users only see a single forward action.
+  const stepOwnsPrimaryCta = ['club', 'season'].includes(currentStepKey);
+
+  const handleClubCreated = async (club) => {
+    try {
+      await state.patchState({
+        completed_step: 'club',
+        current_step: STEP_INDEX.season,
+        club_id: club.id,
+      });
+    } catch (err) {
+      toast.error(t('onboarding.steps.club.errorToast'));
+    }
+  };
+
+  const handleClubContinue = async () => {
+    // Club already created in a previous session — just advance the cursor.
+    try {
+      await state.patchState({ current_step: STEP_INDEX.season });
+    } catch (err) {
+      // Soft-fail: still let the user move forward in this session.
+      state.goNext();
+    }
+  };
+
+  const handleSeasonCreated = async (season) => {
+    try {
+      await state.patchState({
+        completed_step: 'season',
+        current_step: STEP_INDEX.teams,
+        season_id: season.id,
+      });
+    } catch (err) {
+      toast.error(t('onboarding.steps.season.errorToast'));
+    }
+  };
+
+  const handleSeasonContinue = async () => {
+    try {
+      await state.patchState({ current_step: STEP_INDEX.teams });
+    } catch (err) {
+      state.goNext();
+    }
+  };
+
   const handleFinish = async () => {
     try {
       const data = await state.complete();
-      // Keep the AuthContext user in sync so the AppLayout redirect doesn't
-      // immediately bounce the admin back to /onboarding.
       if (user) {
         updateUser({ onboarding_completed_at: data.completed_at });
       }
@@ -85,11 +139,49 @@ export default function OnboardingPage() {
     }
   };
 
-  const handleSkip = async () => {
-    // O1 treats "skip" the same as "finish": persist completion so the admin
-    // is not bounced back here on the next login. Re-running the wizard is
-    // still possible by navigating to /onboarding manually.
-    await handleFinish();
+  const handleSkip = handleFinish;
+
+  // Default Next persists the cursor so refreshes resume on the same step.
+  const handleNext = async () => {
+    const target = Math.min(state.currentStep + 1, ONBOARDING_STEPS.length - 1);
+    try {
+      await state.patchState({ current_step: target });
+    } catch (err) {
+      state.goNext();
+    }
+  };
+
+  const handleBack = async () => {
+    const target = Math.max(state.currentStep - 1, 0);
+    try {
+      await state.patchState({ current_step: target });
+    } catch (err) {
+      state.goBack();
+    }
+  };
+
+  const renderStepBody = () => {
+    switch (currentStepKey) {
+      case 'club':
+        return (
+          <ClubStep
+            existingClubId={state.clubId}
+            onContinue={handleClubContinue}
+            onCreated={handleClubCreated}
+          />
+        );
+      case 'season':
+        return (
+          <SeasonStep
+            clubId={state.clubId}
+            existingSeasonId={state.seasonId}
+            onContinue={handleSeasonContinue}
+            onCreated={handleSeasonCreated}
+          />
+        );
+      default:
+        return null; // Shell renders its "Coming soon" placeholder.
+    }
   };
 
   return (
@@ -97,12 +189,16 @@ export default function OnboardingPage() {
       <WizardShell
         steps={ONBOARDING_STEPS}
         currentStep={state.currentStep}
-        onNext={state.goNext}
-        onBack={state.goBack}
+        completedSteps={state.completedSteps}
+        onNext={handleNext}
+        onBack={handleBack}
         onSkip={handleSkip}
         onFinish={handleFinish}
+        hideForwardButton={stepOwnsPrimaryCta}
         completing={state.completing}
-      />
+      >
+        {renderStepBody()}
+      </WizardShell>
     </div>
   );
 }

@@ -317,6 +317,15 @@ class User(BaseModel):
     # gestor_desportivo) finishes the onboarding flow at least once.
     onboarding_completed_at: Optional[datetime] = None
 
+    # Phase O2 — Per-step onboarding state so the admin can resume the
+    # wizard between sessions. None until the wizard is touched the first
+    # time. Keys:
+    #   current_step:     int (default 0)
+    #   completed_steps:  List[str] (e.g. ["club", "season"])
+    #   club_id:          str | None (set after Club step)
+    #   season_id:        str | None (set after Season step)
+    onboarding_state: Optional[Dict[str, Any]] = None
+
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class UserResponse(BaseModel):
@@ -386,6 +395,7 @@ class Team(BaseModel):
 # Club Model
 class ClubCreate(BaseModel):
     name: str
+    acronym: Optional[str] = None
     logo_url: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
@@ -399,6 +409,7 @@ class Club(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     name: str
+    acronym: Optional[str] = None
     logo_url: Optional[str] = None
     address: Optional[str] = None
     city: Optional[str] = None
@@ -1779,11 +1790,16 @@ async def get_my_profiles(current_user: dict = Depends(get_current_user)):
     return await build_available_profiles(current_user)
 
 
-# ==================== ONBOARDING ROUTES (Phase O1) ====================
-# Admin onboarding wizard — shell + routing only. Subsequent phases
-# (O2..O4) layer real club/season/team/member creation on top of this.
+# ==================== ONBOARDING ROUTES (Phase O1 + O2) ====================
+# Admin onboarding wizard — shell + routing (O1) plus per-step state so the
+# wizard can resume across sessions (O2). Phases O3..O4 layer real Teams,
+# Members and Invitations on top of the same /state surface.
 
 ONBOARDING_ALLOWED_ROLES = {"admin", "gestor_desportivo"}
+# Whitelisted step keys the client can mark as completed via PATCH /state.
+ONBOARDING_STEP_KEYS = {
+    "welcome", "club", "season", "teams", "members", "summary",
+}
 
 
 def _ensure_onboarding_role(current_user: dict) -> None:
@@ -1796,9 +1812,42 @@ def _ensure_onboarding_role(current_user: dict) -> None:
         )
 
 
+def _normalize_onboarding_state(raw: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Return a safe, fully-shaped onboarding_state dict.
+
+    Defensive against legacy users (None / partial dicts) so the frontend
+    never has to guard against missing keys.
+    """
+    raw = raw or {}
+    current_step = raw.get("current_step", 0)
+    try:
+        current_step = int(current_step)
+    except (TypeError, ValueError):
+        current_step = 0
+    completed_steps = raw.get("completed_steps") or []
+    if not isinstance(completed_steps, list):
+        completed_steps = []
+    return {
+        "current_step": current_step,
+        "completed_steps": [s for s in completed_steps if isinstance(s, str)],
+        "club_id": raw.get("club_id") or None,
+        "season_id": raw.get("season_id") or None,
+    }
+
+
+class OnboardingStatePatch(BaseModel):
+    """Body for PATCH /api/onboarding/state. All fields optional / additive."""
+    current_step: Optional[int] = None
+    completed_step: Optional[str] = None
+    club_id: Optional[str] = None
+    season_id: Optional[str] = None
+
+
 @api_router.get("/onboarding/status")
 async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
-    """Return whether the current admin has finished the onboarding wizard."""
+    """Return whether the current admin has finished the onboarding wizard
+    plus the per-step resume state (current_step, completed_steps, club_id,
+    season_id)."""
     _ensure_onboarding_role(current_user)
     completed_at = current_user.get("onboarding_completed_at")
     completed_at_iso: Optional[str] = None
@@ -1806,10 +1855,53 @@ async def get_onboarding_status(current_user: dict = Depends(get_current_user)):
         completed_at_iso = completed_at.isoformat()
     elif isinstance(completed_at, str) and completed_at:
         completed_at_iso = completed_at
+
+    state = _normalize_onboarding_state(current_user.get("onboarding_state"))
     return {
         "completed": completed_at_iso is not None,
         "completed_at": completed_at_iso,
+        **state,
     }
+
+
+@api_router.patch("/onboarding/state")
+async def patch_onboarding_state(
+    patch: OnboardingStatePatch,
+    current_user: dict = Depends(get_current_user),
+):
+    """Merge per-step onboarding progress into the user document.
+
+    Idempotent: marking the same step completed twice keeps it in the list
+    exactly once. Returns the resulting normalized state.
+    """
+    _ensure_onboarding_role(current_user)
+
+    state = _normalize_onboarding_state(current_user.get("onboarding_state"))
+
+    if patch.current_step is not None:
+        if patch.current_step < 0:
+            raise HTTPException(status_code=400, detail="current_step inválido")
+        state["current_step"] = patch.current_step
+
+    if patch.completed_step is not None:
+        if patch.completed_step not in ONBOARDING_STEP_KEYS:
+            raise HTTPException(
+                status_code=400,
+                detail=f"completed_step inválido: {patch.completed_step}",
+            )
+        if patch.completed_step not in state["completed_steps"]:
+            state["completed_steps"].append(patch.completed_step)
+
+    if patch.club_id is not None:
+        state["club_id"] = patch.club_id or None
+    if patch.season_id is not None:
+        state["season_id"] = patch.season_id or None
+
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {"$set": {"onboarding_state": state}},
+    )
+    return state
 
 
 @api_router.post("/onboarding/complete")
@@ -2244,7 +2336,7 @@ async def update_club(club_id: str, updates: dict, current_user: dict = Depends(
     if not is_admin_role(current_user['role']) and current_user['id'] not in club.get('admin_ids', []):
         raise HTTPException(status_code=403, detail="Sem permissão")
     
-    allowed_fields = ['name', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color', 'theme_mode', 'timezone', 'sidebar_accent_color']
+    allowed_fields = ['name', 'acronym', 'logo_url', 'address', 'city', 'country', 'founded_year', 'website', 'email', 'phone', 'venue_name', 'venue_location', 'primary_color', 'secondary_color', 'accent_color', 'theme_mode', 'timezone', 'sidebar_accent_color']
     filtered_updates = {k: v for k, v in updates.items() if k in allowed_fields}
     
     if filtered_updates:
