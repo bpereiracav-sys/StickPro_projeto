@@ -9,6 +9,7 @@ import { ClubStep } from '../components/onboarding/ClubStep';
 import { SeasonStep } from '../components/onboarding/SeasonStep';
 import { TeamsStep } from '../components/onboarding/TeamsStep';
 import { MembersStep } from '../components/onboarding/MembersStep';
+import { SummaryStep } from '../components/onboarding/SummaryStep';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Loader2, CheckCircle2 } from 'lucide-react';
@@ -31,7 +32,7 @@ const STEP_INDEX = ONBOARDING_STEPS.reduce((acc, s, i) => {
 
 // Steps that own their primary CTA (form submit). Shell hides Next/Finish
 // on these so users only see a single forward action.
-const STEPS_WITH_OWN_CTA = new Set(['club', 'season', 'teams', 'members']);
+const STEPS_WITH_OWN_CTA = new Set(['club', 'season', 'teams', 'members', 'summary']);
 
 // Steps where Skip must be disabled (mandatory). Teams is the only one
 // in O3; the rest still allow skip → finish.
@@ -237,6 +238,14 @@ export default function OnboardingPage() {
             stepCompleted={completedSet.has('members')}
             onContinue={handleMembersContinue}
             onSaveAndContinue={handleMembersSaveAndContinue}
+          />
+        );
+      case 'summary':
+        return (
+          <SummaryStep
+            completedSteps={state.completedSteps}
+            onComplete={handleFinish}
+            completing={state.completing}
           />
         );
       default:
