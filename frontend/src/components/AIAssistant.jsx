@@ -187,7 +187,7 @@ console.log('AI Assistant open:', open);
   size="icon"
   data-testid="ai-assistant-trigger"
 >
-        <Sparkles className="w-6 h-6" />
+        <span>AI</span>
       </Button>
 
       {open && (
