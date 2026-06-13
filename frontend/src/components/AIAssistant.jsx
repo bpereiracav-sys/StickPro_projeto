@@ -5,7 +5,7 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { toast } from 'sonner';
-import { Send, Loader2, Bot, Trash2, Sparkles, X } from 'lucide-react';
+import { Send, Loader2, Bot, Trash2, X } from 'lucide-react';
 import { getInitials } from '../lib/utils';
 
 const normalizeLanguage = (language) => {
@@ -69,6 +69,23 @@ export function AIAssistant() {
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
+  useEffect(() => {
+  const handleToggleAssistant = () => {
+    setOpen((prev) => !prev);
+  };
+
+  window.addEventListener(
+    'stickpro:toggle-ai-assistant',
+    handleToggleAssistant
+  );
+
+  return () => {
+    window.removeEventListener(
+      'stickpro:toggle-ai-assistant',
+      handleToggleAssistant
+    );
+  };
+}, []);
   useEffect(() => {
     if (open && messages.length === 0) {
       const language = getCurrentLanguage();
@@ -173,20 +190,9 @@ export function AIAssistant() {
       .split('\n')
       .map((line) => line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'))
       .join('<br />');
-console.log('AI Assistant open:', open);
   
   return (
     <>
-<Button
-onClick={() => setOpen((prev) => !prev)}
-  className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
-  style={{ zIndex: 99999 }}
-  size="icon"
-  data-testid="ai-assistant-trigger"
->
-        <Sparkles className="w-6 h-6" />
-      </Button>
-
       {open && (
         <div
   className="fixed bottom-24 right-6 w-[420px] max-w-[calc(100vw-32px)] h-[620px] max-h-[calc(100vh-140px)] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
