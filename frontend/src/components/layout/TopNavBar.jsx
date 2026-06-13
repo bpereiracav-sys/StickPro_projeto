@@ -23,6 +23,7 @@ import {
   Check,
   Bell,
   Search,
+  Sparkles,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -339,6 +340,15 @@ export function TopNavBar() {
           </div>
 
           <div className="flex items-center gap-2">
+            <Button
+  variant="ghost"
+  className="h-10 w-10 rounded-full"
+  type="button"
+  onClick={() => window.dispatchEvent(new Event('stickpro:toggle-ai-assistant'))}
+  data-testid="topnav-ai-assistant"
+>
+  <Sparkles className="h-5 w-5 text-primary" />
+</Button>
             <Button
               variant="ghost"
               className="relative h-10 w-10 rounded-full"
