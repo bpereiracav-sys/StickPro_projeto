@@ -147,23 +147,26 @@ export function AIAssistant() {
           timestamp: new Date(),
         },
       ]);
-    } catch (error) {
-      console.error('AI Chat error:', error);
-      toast.error(error.response?.data?.detail || 'Erro ao comunicar com o assistente');
+   } catch (error) {
+  console.error('AI Chat error:', error);
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: 'Desculpa, ocorreu um erro. Por favor, tenta novamente.',
-          timestamp: new Date(),
-          isError: true,
-        },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const detail =
+    error.response?.data?.detail ||
+    error.message ||
+    'Erro desconhecido ao comunicar com o assistente';
+
+  toast.error(detail);
+
+  setMessages((prev) => [
+    ...prev,
+    {
+      role: 'assistant',
+      content: `Erro técnico: ${detail}`,
+      timestamp: new Date(),
+      isError: true,
+    },
+  ]);
+}
 
   const clearChat = async () => {
     if (sessionId) {
