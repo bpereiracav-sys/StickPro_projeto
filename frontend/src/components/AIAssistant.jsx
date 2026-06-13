@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
 import { aiApi } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -21,30 +20,122 @@ import {
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
 
+const normalizeLanguage = (language) => {
+  const value = (language || 'pt').toLowerCase();
+
+  if (value.startsWith('en')) return 'en';
+  if (value.startsWith('es')) return 'es';
+  if (value.startsWith('fr')) return 'fr';
+  if (value.startsWith('it')) return 'it';
+
+  return 'pt';
+};
+
+const getCurrentLanguage = () => {
+  return normalizeLanguage(
+    localStorage.getItem('language') ||
+    localStorage.getItem('i18nextLng') ||
+    'pt'
+  );
+};
+
+const getWelcomeMessage = (language, firstName) => {
+  const name = firstName ? ` ${firstName}` : '';
+
+  const messages = {
+    pt: `Olá${name}! 👋
+
+Sou o Assistente StickPro, estou aqui para te ajudar com:
+
+• **Dúvidas sobre a app** - Como usar funcionalidades e resolver problemas
+• **Hóquei em Patins** - Regras, táticas, equipamento e organização
+
+O que posso ajudar-te hoje?`,
+
+    en: `Hello${name}! 👋
+
+I am the StickPro Assistant, here to help you with:
+
+• **App questions** - How to use features and solve problems
+• **Roller Hockey** - Rules, tactics, equipment and club organization
+
+How can I help you today?`,
+
+    es: `Hola${name}! 👋
+
+Soy el Asistente StickPro, estoy aquí para ayudarte con:
+
+• **Dudas sobre la app** - Cómo usar funcionalidades y resolver problemas
+• **Hockey sobre patines** - Reglas, tácticas, equipamiento y organización
+
+¿En qué puedo ayudarte hoy?`,
+
+    fr: `Bonjour${name} ! 👋
+
+Je suis l’Assistant StickPro, ici pour vous aider avec :
+
+• **Questions sur l’application** - Utilisation des fonctionnalités et résolution de problèmes
+• **Rink hockey** - Règles, tactique, équipement et organisation
+
+Comment puis-je vous aider aujourd’hui ?`,
+
+    it: `Ciao${name}! 👋
+
+Sono l’Assistente StickPro, qui per aiutarti con:
+
+• **Domande sull’app** - Come usare le funzionalità e risolvere problemi
+• **Hockey su pista** - Regole, tattiche, attrezzatura e organizzazione
+
+Come posso aiutarti oggi?`,
+  };
+
+  return messages[language] || messages.pt;
+};
+
+const getClearMessage = (language) => {
+  const messages = {
+    pt: 'Chat limpo! Como posso ajudar?',
+    en: 'Chat cleared! How can I help?',
+    es: '¡Chat borrado! ¿Cómo puedo ayudarte?',
+    fr: 'Conversation effacée ! Comment puis-je vous aider ?',
+    it: 'Chat cancellata! Come posso aiutarti?',
+  };
+
+  return messages[language] || messages.pt;
+};
+
+const getErrorMessage = (language) => {
+  const messages = {
+    pt: 'Desculpa, ocorreu um erro. Por favor, tenta novamente.',
+    en: 'Sorry, an error occurred. Please try again.',
+    es: 'Lo siento, ha ocurrido un error. Inténtalo de nuevo.',
+    fr: 'Désolé, une erreur est survenue. Veuillez réessayer.',
+    it: 'Mi dispiace, si è verificato un errore. Riprova.',
+  };
+
+  return messages[language] || messages.pt;
+};
+
 export function AIAssistant() {
   const { user } = useAuth();
-  const { language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+
   const scrollRef = useRef(null);
   const inputRef = useRef(null);
 
   useEffect(() => {
     if (open && messages.length === 0) {
+      const language = getCurrentLanguage();
+      const firstName = user?.name?.split(' ')[0] || '';
+
       setMessages([
         {
           role: 'assistant',
-          content: `Olá ${user?.name?.split(' ')[0] || ''}! 👋 
-
-Sou o Assistente StickPro, estou aqui para te ajudar com:
-
-• **Dúvidas sobre a app** - Como usar funcionalidades, resolver problemas
-• **Hóquei em Patins** - Regras, táticas, equipamento, história
-
-O que posso ajudar-te hoje?`,
+          content: getWelcomeMessage(language, firstName),
           timestamp: new Date(),
         },
       ]);
@@ -66,6 +157,8 @@ O que posso ajudar-te hoje?`,
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
 
+    const language = getCurrentLanguage();
+
     const userMessage = {
       role: 'user',
       content: input.trim(),
@@ -77,7 +170,11 @@ O que posso ajudar-te hoje?`,
     setLoading(true);
 
     try {
-      const response = await aiApi.chat(userMessage.content, sessionId, language || 'pt');
+      const response = await aiApi.chat(
+        userMessage.content,
+        sessionId,
+        language
+      );
 
       if (response.data.session_id) {
         setSessionId(response.data.session_id);
@@ -93,15 +190,17 @@ O que posso ajudar-te hoje?`,
       ]);
     } catch (error) {
       console.error('AI Chat error:', error);
+
       const errorMessage =
-        error.response?.data?.detail || 'Erro ao comunicar com o assistente';
+        error.response?.data?.detail || getErrorMessage(language);
+
       toast.error(errorMessage);
 
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Desculpa, ocorreu um erro. Por favor, tenta novamente.',
+          content: getErrorMessage(language),
           timestamp: new Date(),
           isError: true,
         },
@@ -111,7 +210,7 @@ O que posso ajudar-te hoje?`,
     }
   };
 
-  const handleKeyPress = (e) => {
+  const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       sendMessage();
@@ -119,6 +218,8 @@ O que posso ajudar-te hoje?`,
   };
 
   const clearChat = async () => {
+    const language = getCurrentLanguage();
+
     if (sessionId) {
       try {
         await aiApi.clearHistory(sessionId);
@@ -134,7 +235,7 @@ O que posso ajudar-te hoje?`,
       setMessages([
         {
           role: 'assistant',
-          content: 'Chat limpo! Como posso ajudar?',
+          content: getClearMessage(language),
           timestamp: new Date(),
         },
       ]);
@@ -145,7 +246,7 @@ O que posso ajudar-te hoje?`,
     return content
       .split('\n')
       .map((line, i) => {
-        let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        const formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
         if (formattedLine.startsWith('• ') || formattedLine.startsWith('- ')) {
           return `<li key="${i}">${formattedLine.substring(2)}</li>`;
@@ -174,6 +275,7 @@ O que posso ajudar-te hoje?`,
             <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
               <Bot className="w-6 h-6" />
             </div>
+
             <div>
               <h3 className="font-heading text-lg">Assistente StickPro</h3>
               <p className="text-xs text-primary-foreground/70">
@@ -182,17 +284,15 @@ O que posso ajudar-te hoje?`,
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
-              onClick={clearChat}
-              title="Limpar conversa"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
+            onClick={clearChat}
+            title="Limpar conversa"
+          >
+            <Trash2 className="w-4 h-4" />
+          </Button>
         </div>
 
         <ScrollArea ref={scrollRef} className="flex-1 p-4">
@@ -266,7 +366,7 @@ O que posso ajudar-te hoje?`,
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={handleKeyPress}
+              onKeyDown={handleKeyDown}
               placeholder="Escreve a tua mensagem..."
               disabled={loading}
               className="flex-1"
