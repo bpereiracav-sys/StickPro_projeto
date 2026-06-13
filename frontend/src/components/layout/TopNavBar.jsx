@@ -23,7 +23,6 @@ import {
   Check,
   Bell,
   Search,
-  Sparkles,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -328,27 +327,20 @@ export function TopNavBar() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button
-              variant="outline"
-              className="h-10 min-w-[300px] justify-start rounded-full border-slate-200 bg-white px-4 text-slate-400 hover:bg-slate-50"
-              data-testid="topnav-search"
-              type="button"
-            >
-              <Search className="mr-2 h-4 w-4" />
-              {tr('topnav.searchPlaceholder', 'Pesquisar atleta, equipa, evento...')}
-            </Button>
+           <Button
+        variant="outline"
+        className="h-10 min-w-[300px] justify-start rounded-full border-slate-200 bg-white px-4 text-slate-400 hover:bg-slate-50"
+        data-testid="topnav-search"
+        type="button"
+        onClick={() => window.dispatchEvent(new Event('stickpro:toggle-ai-assistant'))}
+      >
+        <Search className="mr-2 h-4 w-4" />
+        {tr('topnav.searchPlaceholder', 'Pesquisar atleta, equipa, evento...')}
+      </Button>
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-  variant="ghost"
-  className="h-10 w-10 rounded-full"
-  type="button"
-  onClick={() => window.dispatchEvent(new Event('stickpro:toggle-ai-assistant'))}
-  data-testid="topnav-ai-assistant"
->
-  <Sparkles className="h-5 w-5 text-primary" />
-</Button>
+
             <Button
               variant="ghost"
               className="relative h-10 w-10 rounded-full"
