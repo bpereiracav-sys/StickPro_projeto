@@ -33,7 +33,6 @@ import {
   BookOpen,
   Building2,
   CreditCard,
-  PlusCircle,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -104,6 +103,7 @@ export function Sidebar() {
 
   const handleSwitchProfile = async (profile) => {
     setSwitchingProfile(true);
+
     try {
       await switchProfile(profile);
       toast.success(`Perfil alterado: ${profile.label || profile.user_name}`);
@@ -156,8 +156,18 @@ export function Sidebar() {
       {
         title: tr('sidebar.operations', 'Operações'),
         items: [
-          { href: '/dashboard', label: tr('nav.home', 'Dashboard'), icon: Home, visible: true },
-          { href: '/calendar', label: tr('nav.calendar', 'Calendário'), icon: Calendar, visible: true },
+          {
+            href: '/dashboard',
+            label: tr('nav.home', 'Dashboard'),
+            icon: Home,
+            visible: true,
+          },
+          {
+            href: '/calendar',
+            label: tr('nav.calendar', 'Calendário'),
+            icon: Calendar,
+            visible: true,
+          },
           {
             href: '/convocations',
             label: tr('nav.convocations', 'Convocatórias'),
@@ -165,7 +175,12 @@ export function Sidebar() {
             visible: true,
             notificationCount: pendingNotifications,
           },
-          { href: '/messages', label: tr('nav.messages', 'Mensagens'), icon: MessageSquare, visible: true },
+          {
+            href: '/messages',
+            label: tr('nav.messages', 'Mensagens'),
+            icon: MessageSquare,
+            visible: true,
+          },
         ],
       },
       {
@@ -189,14 +204,24 @@ export function Sidebar() {
             icon: Users,
             visible: permissions.hasPermission('view_team_members'),
           },
-          { href: '/championships', label: tr('nav.championships', 'Competições'), icon: Trophy, visible: true },
+          {
+            href: '/championships',
+            label: tr('nav.championships', 'Competições'),
+            icon: Trophy,
+            visible: true,
+          },
           {
             href: '/attendance',
             label: tr('nav.attendance', 'Presenças'),
             icon: ClipboardCheck,
             visible: permissions.hasPermission('view_team_attendance'),
           },
-          { href: '/stats', label: tr('nav.stats', 'Estatísticas'), icon: BarChart3, visible: true },
+          {
+            href: '/stats',
+            label: tr('nav.stats', 'Estatísticas'),
+            icon: BarChart3,
+            visible: true,
+          },
         ],
       },
       {
@@ -206,12 +231,35 @@ export function Sidebar() {
             href: '/payments',
             label: tr('nav.payments', 'Pagamentos'),
             icon: CreditCard,
-            visible: permissions.isAdmin || permissions.isPlayer || permissions.isFamilyMember,
+            visible:
+              permissions.isAdmin ||
+              permissions.isPlayer ||
+              permissions.isFamilyMember,
           },
-          { href: '/library', label: tr('nav.library', 'Biblioteca'), icon: BookOpen, visible: true },
-          { href: '/club', label: tr('nav.club', 'Clube'), icon: Building2, visible: permissions.isAdmin },
-          { href: '/subscription', label: tr('nav.subscription', 'Subscrição'), icon: CreditCard, visible: permissions.isAdmin },
-          { href: '/settings', label: tr('nav.settings', 'Definições'), icon: Settings, visible: true },
+          {
+            href: '/library',
+            label: tr('nav.library', 'Biblioteca'),
+            icon: BookOpen,
+            visible: true,
+          },
+          {
+            href: '/club',
+            label: tr('nav.club', 'Clube'),
+            icon: Building2,
+            visible: permissions.isAdmin,
+          },
+          {
+            href: '/subscription',
+            label: tr('nav.subscription', 'Subscrição'),
+            icon: CreditCard,
+            visible: permissions.isAdmin,
+          },
+          {
+            href: '/settings',
+            label: tr('nav.settings', 'Definições'),
+            icon: Settings,
+            visible: true,
+          },
         ],
       },
     ];
@@ -243,7 +291,12 @@ export function Sidebar() {
         />
 
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="relative h-9 w-9" style={{ color: 'var(--sidebar-text)' }}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative h-9 w-9"
+            style={{ color: 'var(--sidebar-text)' }}
+          >
             <Bell className="w-5 h-5" />
             {pendingNotifications > 0 && (
               <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
@@ -263,7 +316,10 @@ export function Sidebar() {
       </header>
 
       {menuOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black/50 z-40" onClick={() => setMenuOpen(false)} />
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setMenuOpen(false)}
+        />
       )}
 
       <aside
@@ -292,8 +348,11 @@ export function Sidebar() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-amber-400" />
-                  <span className="text-xs text-amber-200">A ver como responsável de</span>
+                  <span className="text-xs text-amber-200">
+                    A ver como responsável de
+                  </span>
                 </div>
+
                 <Button
                   variant="ghost"
                   size="sm"
@@ -306,7 +365,10 @@ export function Sidebar() {
                   Voltar
                 </Button>
               </div>
-              <p className="text-sm font-semibold text-amber-100 mt-1">{viewingAs.name}</p>
+
+              <p className="text-sm font-semibold text-amber-100 mt-1">
+                {viewingAs.name}
+              </p>
             </div>
           )}
 
@@ -325,17 +387,31 @@ export function Sidebar() {
                     style={{ backgroundColor: 'hsla(var(--sidebar-accent), 0.2)' }}
                   >
                     {selectedTeam.photo_url ? (
-                      <img src={selectedTeam.photo_url} alt="" className="w-11 h-11 rounded-xl object-cover" />
+                      <img
+                        src={selectedTeam.photo_url}
+                        alt=""
+                        className="w-11 h-11 rounded-xl object-cover"
+                      />
                     ) : (
-                      <Users className="w-5 h-5" style={{ color: 'var(--sidebar-active-text)' }} />
+                      <Users
+                        className="w-5 h-5"
+                        style={{ color: 'var(--sidebar-active-text)' }}
+                      />
                     )}
                   </div>
 
                   <div className="text-left flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--sidebar-text)' }}>
+                    <p
+                      className="font-semibold text-sm truncate"
+                      style={{ color: 'var(--sidebar-text)' }}
+                    >
                       {selectedTeam.name}
                     </p>
-                    <p className="text-xs truncate" style={{ color: 'hsl(var(--sidebar-muted))' }}>
+
+                    <p
+                      className="text-xs truncate"
+                      style={{ color: 'hsl(var(--sidebar-muted))' }}
+                    >
                       {selectedTeam.category} • {selectedTeam.season}
                     </p>
                   </div>
@@ -346,14 +422,24 @@ export function Sidebar() {
                     className="w-11 h-11 rounded-xl flex items-center justify-center"
                     style={{ backgroundColor: 'hsla(var(--sidebar-accent), 0.2)' }}
                   >
-                    <Building2 className="w-5 h-5" style={{ color: 'var(--sidebar-active-text)' }} />
+                    <Building2
+                      className="w-5 h-5"
+                      style={{ color: 'var(--sidebar-active-text)' }}
+                    />
                   </div>
 
                   <div className="text-left flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--sidebar-text)' }}>
+                    <p
+                      className="font-semibold text-sm truncate"
+                      style={{ color: 'var(--sidebar-text)' }}
+                    >
                       {tr('nav.myClub', 'Meu Clube')}
                     </p>
-                    <p className="text-xs" style={{ color: 'hsl(var(--sidebar-muted))' }}>
+
+                    <p
+                      className="text-xs"
+                      style={{ color: 'hsl(var(--sidebar-muted))' }}
+                    >
                       Vista agregada do clube
                     </p>
                   </div>
@@ -371,13 +457,6 @@ export function Sidebar() {
                 Clube operacional ativo
               </div>
             </div>
-
-            <Button asChild className="mt-3 w-full rounded-xl font-semibold" data-testid="sidebar-create-event-btn">
-              <Link to="/calendar" onClick={() => setMenuOpen(false)}>
-                <PlusCircle className="mr-2 h-4 w-4" />
-                Novo Evento
-              </Link>
-            </Button>
           </div>
 
           <ScrollArea className="flex-1 px-3 pb-4">
@@ -410,7 +489,8 @@ export function Sidebar() {
                             isActive
                               ? {
                                   color: 'var(--sidebar-active-text, #22d3ee)',
-                                  borderLeftColor: 'var(--sidebar-active-text, #22d3ee)',
+                                  borderLeftColor:
+                                    'var(--sidebar-active-text, #22d3ee)',
                                   backgroundColor: 'hsla(var(--sidebar-accent), 0.12)',
                                 }
                               : {
@@ -422,8 +502,13 @@ export function Sidebar() {
                         >
                           <Icon
                             className="w-5 h-5"
-                            style={isActive ? { color: 'var(--sidebar-active-text, #22d3ee)' } : {}}
+                            style={
+                              isActive
+                                ? { color: 'var(--sidebar-active-text, #22d3ee)' }
+                                : {}
+                            }
                           />
+
                           <span className="font-medium text-sm">{link.label}</span>
 
                           {link.notificationCount > 0 && (
@@ -431,7 +516,9 @@ export function Sidebar() {
                               className="absolute right-3 top-1/2 -translate-y-1/2 min-w-[20px] h-5 px-1.5 flex items-center justify-center bg-red-500 text-white text-xs font-bold rounded-full"
                               data-testid="notification-badge"
                             >
-                              {link.notificationCount > 99 ? '99+' : link.notificationCount}
+                              {link.notificationCount > 99
+                                ? '99+'
+                                : link.notificationCount}
                             </span>
                           )}
                         </Link>
@@ -443,7 +530,10 @@ export function Sidebar() {
             </nav>
           </ScrollArea>
 
-          <div className="p-3" style={{ borderTop: '1px solid hsl(var(--sidebar-border))' }}>
+          <div
+            className="p-3"
+            style={{ borderTop: '1px solid hsl(var(--sidebar-border))' }}
+          >
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -452,12 +542,18 @@ export function Sidebar() {
                   style={{ color: 'var(--sidebar-text)' }}
                   data-testid="user-menu-sidebar"
                 >
-                  <Avatar className={`h-9 w-9 mr-3 ${isViewingAsAssociated ? 'ring-2 ring-amber-400' : ''}`}>
+                  <Avatar
+                    className={`h-9 w-9 mr-3 ${
+                      isViewingAsAssociated ? 'ring-2 ring-amber-400' : ''
+                    }`}
+                  >
                     <AvatarImage src={user?.avatar_url} alt={displayName} />
                     <AvatarFallback
                       className="text-sm font-semibold"
                       style={{
-                        backgroundColor: isViewingAsAssociated ? '#f59e0b' : 'hsl(var(--sidebar-accent))',
+                        backgroundColor: isViewingAsAssociated
+                          ? '#f59e0b'
+                          : 'hsl(var(--sidebar-accent))',
                         color: 'var(--sidebar-text)',
                       }}
                     >
@@ -466,19 +562,32 @@ export function Sidebar() {
                   </Avatar>
 
                   <div className="text-left flex-1 min-w-0">
-                    <p className="font-semibold text-sm truncate" style={{ color: 'var(--sidebar-text)' }}>
+                    <p
+                      className="font-semibold text-sm truncate"
+                      style={{ color: 'var(--sidebar-text)' }}
+                    >
                       {displayName}
                     </p>
-                    <p className="text-xs" style={{ color: 'hsl(var(--sidebar-muted))' }}>
+
+                    <p
+                      className="text-xs"
+                      style={{ color: 'hsl(var(--sidebar-muted))' }}
+                    >
                       {getRoleName(displayRole)}
                     </p>
                   </div>
 
-                  <ChevronDown className="w-4 h-4" style={{ color: 'hsl(var(--sidebar-muted))' }} />
+                  <ChevronDown
+                    className="w-4 h-4"
+                    style={{ color: 'hsl(var(--sidebar-muted))' }}
+                  />
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent className="w-64 bg-slate-800 border-slate-700" align="end">
+              <DropdownMenuContent
+                className="w-64 bg-slate-800 border-slate-700"
+                align="end"
+              >
                 {otherProfiles.length > 0 && (
                   <>
                     <DropdownMenuLabel className="text-slate-400 flex items-center gap-1">
@@ -503,8 +612,12 @@ export function Sidebar() {
                         ) : (
                           <Users className="w-4 h-4 mr-2" />
                         )}
+
                         <div>
-                          <p className="font-medium text-sm">{profile.label || profile.user_name}</p>
+                          <p className="font-medium text-sm">
+                            {profile.label || profile.user_name}
+                          </p>
+
                           {profile.type === 'associated' && (
                             <p className="text-xs opacity-70">Como responsável</p>
                           )}
@@ -516,7 +629,10 @@ export function Sidebar() {
                   </>
                 )}
 
-                <DropdownMenuItem className="text-red-400 hover:bg-slate-700 cursor-pointer" onClick={handleLogout}>
+                <DropdownMenuItem
+                  className="text-red-400 hover:bg-slate-700 cursor-pointer"
+                  onClick={handleLogout}
+                >
                   <LogOut className="w-4 h-4 mr-2" />
                   {tr('auth.logout', 'Sair')}
                 </DropdownMenuItem>
