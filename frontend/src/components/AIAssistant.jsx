@@ -195,8 +195,8 @@ export function AIAssistant() {
     <>
       {open && (
         <div
-  className="fixed bottom-24 right-6 w-[420px] max-w-[calc(100vw-32px)] h-[620px] max-h-[calc(100vh-140px)] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-  style={{ zIndex: 99999 }}
+  className="fixed top-20 right-6 w-[420px] max-w-[calc(100vw-32px)] h-[620px] max-h-[calc(100vh-120px)] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+  style={{ zIndex: 99999, pointerEvents: 'auto' }}
 >
           <div className="p-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground">
             <div className="flex items-center gap-3">
@@ -292,6 +292,8 @@ export function AIAssistant() {
               <Input
                 ref={inputRef}
                 value={input}
+                onClick={(e) => e.stopPropagation()}
+                onMouseDown={(e) => e.stopPropagation()}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Escreve a tua mensagem..."
