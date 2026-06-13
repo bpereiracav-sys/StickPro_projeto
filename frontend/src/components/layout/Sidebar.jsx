@@ -46,7 +46,7 @@ const StickProLogo = () => (
   <img
     src={CUSTOM_LOGO_URL}
     alt="StickPro"
-    className="h-11 w-auto max-w-[180px] object-contain"
+    className="h-14 w-auto max-w-[240px] object-contain"
     data-testid="stick-pro-logo"
   />
 );
