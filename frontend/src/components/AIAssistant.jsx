@@ -178,12 +178,15 @@ console.log('AI Assistant open:', open);
   return (
     <>
 <Button
-  onClick={() => setOpen((prev) => !prev)}
+  onClick={() => {
+    alert('CLICK');
+    setOpen((prev) => !prev);
+  }}
   className="fixed bottom-6 right-6 h-14 w-14 rounded-full shadow-lg"
   style={{ zIndex: 99999 }}
   size="icon"
   data-testid="ai-assistant-trigger"
-      >
+>
         <Sparkles className="w-6 h-6" />
       </Button>
 
