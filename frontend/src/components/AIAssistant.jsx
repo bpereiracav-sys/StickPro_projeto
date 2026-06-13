@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { aiApi } from '../services/api';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
@@ -22,6 +23,7 @@ import { getInitials } from '../lib/utils';
 
 export function AIAssistant() {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -75,7 +77,7 @@ O que posso ajudar-te hoje?`,
     setLoading(true);
 
     try {
-      const response = await aiApi.chat(userMessage.content, sessionId);
+      const response = await aiApi.chat(userMessage.content, sessionId, language || 'pt');
 
       if (response.data.session_id) {
         setSessionId(response.data.session_id);
