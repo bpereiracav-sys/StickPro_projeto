@@ -16,42 +16,46 @@ import {
 import {
   Building2,
   Users,
-  Baby,
   UserCircle,
   LogOut,
   Settings,
   ChevronDown,
   Check,
+  Bell,
+  Search,
+  Globe2,
+  Plus,
+  Sparkles,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
-import { clubApi } from '../../services/api';
+import { clubApi, dashboardApi } from '../../services/api';
 
-const CUSTOM_LOGO_URL =
-  'https://customer-assets.emergentagent.com/job_roller-hockey-hub-1/artifacts/e8f8q5qy_logoBranco2.png';
+const CUSTOM_LOGO_URL = '/stickpro-logo.png';
 
-const StickProLogo = ({ size = 'md' }) => {
-  const sizes = {
-    sm: { box: 'w-16 h-16' },
-    md: { box: 'w-20 h-20' },
-    lg: { box: 'w-24 h-24' },
-  };
+const StickProLogo = () => (
+  <img
+    src={CUSTOM_LOGO_URL}
+    alt="StickPro"
+    className="h-10 w-auto max-w-[180px] object-contain"
+    data-testid="stick-pro-logo"
+  />
+);
 
-  const s = sizes[size] || sizes.md;
-
-  return (
-    <img
-      src={CUSTOM_LOGO_URL}
-      alt="Logo"
-      className={`${s.box} object-contain`}
-      data-testid="stick-pro-logo"
-    />
-  );
-};
+const LANGUAGES = [
+  { code: 'pt', label: 'PT', name: 'Português', flag: '🇵🇹' },
+  { code: 'en', label: 'EN', name: 'English', flag: '🇬🇧' },
+  { code: 'es', label: 'ES', name: 'Español', flag: '🇪🇸' },
+  { code: 'fr', label: 'FR', name: 'Français', flag: '🇫🇷' },
+  { code: 'it', label: 'IT', name: 'Italiano', flag: '🇮🇹' },
+];
 
 export function TopNavBar() {
   const { user, logout, isAuthenticated, availableProfiles } = useAuth();
-  const { t } = useLanguage();
+
+  const languageContext = useLanguage();
+  const { t, language = 'pt' } = languageContext;
+
   const { teams, selectedTeam, selectTeam, selectAllTeams, isAllTeamsSelected } = useTeam();
   const permissions = usePermissions();
 
@@ -59,18 +63,30 @@ export function TopNavBar() {
   const navigate = useNavigate();
 
   const [club, setClub] = useState(null);
+  const [pendingNotifications, setPendingNotifications] = useState(0);
+
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
 
   useEffect(() => {
     if (isAuthenticated) {
       fetchClub();
-    } else {
-      setClub(null);
+      fetchNotifications();
+
+      const interval = setInterval(fetchNotifications, 60000);
+      return () => clearInterval(interval);
     }
+
+    setClub(null);
+    setPendingNotifications(0);
   }, [isAuthenticated]);
 
   const fetchClub = async () => {
     try {
       const response = await clubApi.getAll();
+
       if (response?.data?.length > 0) {
         setClub(response.data[0]);
       } else {
@@ -79,6 +95,17 @@ export function TopNavBar() {
     } catch (error) {
       console.error('Error fetching club:', error);
       setClub(null);
+    }
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const response = await dashboardApi.get();
+      const pendingCount = response.data?.pending_convocations?.length || 0;
+      setPendingNotifications(pendingCount);
+    } catch (error) {
+      console.error('Error fetching notifications:', error);
+      setPendingNotifications(0);
     }
   };
 
@@ -97,48 +124,58 @@ export function TopNavBar() {
     navigate('/dashboard');
   };
 
+  const handleLanguageChange = (nextLanguage) => {
+    const changeLanguage =
+      languageContext.setLanguage ||
+      languageContext.changeLanguage ||
+      languageContext.updateLanguage ||
+      languageContext.setLocale;
+
+    if (typeof changeLanguage === 'function') {
+      changeLanguage(nextLanguage);
+      return;
+    }
+
+    localStorage.setItem('language', nextLanguage);
+    window.location.reload();
+  };
+
   const hasChildren = useMemo(() => {
     return availableProfiles?.some((profile) => profile.type === 'associated');
   }, [availableProfiles]);
 
-  const teamsLabel =
-    t('nav.teams') !== 'nav.teams' ? t('nav.teams') : 'Equipas';
+  const activeLanguage =
+    LANGUAGES.find((item) => item.code === language) || LANGUAGES[0];
 
-  const myClubLabel =
-    t('nav.myClub') !== 'nav.myClub' ? t('nav.myClub') : 'Meu Clube';
+  const activeContextLabel = selectedTeam
+    ? selectedTeam.name
+    : tr('nav.myClub', 'Meu Clube');
 
-  const myTeamsLabel =
-    t('nav.myTeams') !== 'nav.myTeams' ? t('nav.myTeams') : 'As Minhas Equipas';
+  const activeContextSubtitle = selectedTeam
+    ? `${selectedTeam.category || 'Equipa'}${selectedTeam.season ? ` • ${selectedTeam.season}` : ''}`
+    : club?.name || 'Vista agregada do clube';
 
-  const myProfileLabel =
-    t('nav.myProfile') !== 'nav.myProfile' ? t('nav.myProfile') : 'Meu Perfil';
-
-  const childrenLabel =
-    t('nav.childrenTeams') !== 'nav.childrenTeams'
-      ? t('nav.childrenTeams')
-      : 'Os Meus Filhos';
-
-  const settingsLabel =
-    t('nav.settings') !== 'nav.settings' ? t('nav.settings') : 'Definições';
+  const teamsLabel = tr('nav.teams', 'Equipas');
+  const myTeamsLabel = tr('nav.myTeams', 'As Minhas Equipas');
+  const myProfileLabel = tr('nav.myProfile', 'Meu Perfil');
+  const settingsLabel = tr('nav.settings', 'Definições');
 
   if (!isAuthenticated) {
     return (
-      <header className="bg-white border-b border-border sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+      <header className="sticky top-0 z-50 border-b border-border bg-white">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="flex h-16 items-center justify-between">
             <Link to="/" className="flex items-center gap-3">
-              <StickProLogo size="md" />
-              <span className="font-heading text-xl text-foreground tracking-tight">
-                Stick<span className="text-primary">Pro</span>
-              </span>
+              <StickProLogo />
             </Link>
 
             <div className="flex items-center gap-3">
               <Button variant="ghost" asChild>
-                <Link to="/login">{t('auth.login')}</Link>
+                <Link to="/login">{tr('auth.login', 'Entrar')}</Link>
               </Button>
+
               <Button asChild>
-                <Link to="/register">{t('auth.register')}</Link>
+                <Link to="/register">{tr('auth.register', 'Registar')}</Link>
               </Button>
             </div>
           </div>
@@ -149,158 +186,233 @@ export function TopNavBar() {
 
   return (
     <header
-      className="hidden lg:block bg-white border-b border-border sticky top-0 z-50 lg:ml-64"
+      className="hidden lg:block sticky top-0 z-50 border-b border-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:ml-72"
       data-testid="top-nav-bar"
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link to="/dashboard" className="flex items-center gap-3 min-w-0">
+      <div className="px-6">
+        <div className="flex h-16 items-center justify-between gap-4">
+          <Link to="/dashboard" className="flex min-w-0 items-center gap-3">
             {club?.logo_url ? (
               <img
                 src={club.logo_url}
                 alt={club.name}
-                className="w-10 h-10 object-contain rounded-lg"
+                className="h-10 w-10 rounded-xl object-contain"
                 data-testid="club-logo"
               />
             ) : (
-              <StickProLogo size="md" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                <Building2 className="h-5 w-5 text-primary" />
+              </div>
             )}
 
-            <span className="font-heading text-xl text-foreground tracking-tight hidden sm:block truncate">
-              {club?.name || (
-                <>
-                  Stick<span className="text-primary">Pro</span>
-                </>
-              )}
-            </span>
+            <div className="min-w-0">
+              <p className="truncate font-heading text-lg font-semibold tracking-tight text-slate-950">
+                {club?.name || 'StickPro'}
+              </p>
+              <p className="truncate text-xs text-slate-500">
+                {selectedTeam
+                  ? activeContextSubtitle
+                  : tr('topnav.clubOverview', 'Gestão global do clube')}
+              </p>
+            </div>
           </Link>
 
-          <nav className="hidden lg:flex items-center gap-1">
-            <Button
-              variant="ghost"
-              className={`flex items-center gap-2 ${
-                isAllTeamsSelected ? 'text-primary bg-primary/5' : ''
-              }`}
-              onClick={handleSelectAllTeams}
-              data-testid="nav-my-club"
-            >
-              <Building2 className="w-4 h-4" />
-              {myClubLabel}
-              {isAllTeamsSelected && <Check className="w-3 h-3 ml-1" />}
-            </Button>
-
+          <div className="flex flex-1 items-center justify-center gap-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  variant="ghost"
-                  className={`flex items-center gap-2 ${
-                    selectedTeam ? 'text-primary bg-primary/5' : ''
-                  }`}
-                  data-testid="nav-my-teams"
+                  variant="outline"
+                  className="h-10 min-w-[240px] justify-between rounded-full border-slate-200 bg-slate-50/80 px-4 hover:bg-slate-100"
+                  data-testid="topnav-context-selector"
                 >
-                  <Users className="w-4 h-4" />
-                  {selectedTeam ? selectedTeam.name : myTeamsLabel}
-                  <ChevronDown className="w-4 h-4" />
+                  <span className="flex min-w-0 items-center gap-2">
+                    {selectedTeam ? (
+                      <Users className="h-4 w-4 shrink-0 text-primary" />
+                    ) : (
+                      <Building2 className="h-4 w-4 shrink-0 text-primary" />
+                    )}
+
+                    <span className="truncate font-medium text-slate-800">
+                      {activeContextLabel}
+                    </span>
+                  </span>
+
+                  <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent className="w-64 bg-white">
-                <DropdownMenuLabel>{myTeamsLabel}</DropdownMenuLabel>
+              <DropdownMenuContent className="w-72 bg-white" align="center">
+                <DropdownMenuLabel>
+                  {tr('topnav.activeContext', 'Contexto ativo')}
+                </DropdownMenuLabel>
+
                 <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  onClick={handleSelectAllTeams}
+                  className="flex cursor-pointer items-center justify-between"
+                  data-testid="topnav-select-club"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                      <Building2 className="h-4 w-4 text-primary" />
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-medium">
+                        {tr('nav.myClub', 'Meu Clube')}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {club?.name || tr('topnav.clubOverview', 'Vista agregada')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {isAllTeamsSelected && <Check className="h-4 w-4 text-primary" />}
+                </DropdownMenuItem>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  {myTeamsLabel}
+                </DropdownMenuLabel>
 
                 {teams?.length > 0 ? (
                   teams.map((team) => (
                     <DropdownMenuItem
                       key={team.id}
                       onClick={() => handleSelectTeam(team)}
-                      className="flex items-center justify-between cursor-pointer"
+                      className="flex cursor-pointer items-center justify-between"
+                      data-testid={`topnav-team-${team.id}`}
                     >
-                      <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex min-w-0 items-center gap-2">
                         {team.photo_url ? (
                           <img
                             src={team.photo_url}
                             alt=""
-                            className="w-6 h-6 rounded object-cover"
+                            className="h-8 w-8 rounded-lg object-cover"
                           />
                         ) : (
-                          <div className="w-6 h-6 bg-primary/10 rounded flex items-center justify-center">
-                            <Users className="w-3 h-3 text-primary" />
+                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                            <Users className="h-4 w-4 text-primary" />
                           </div>
                         )}
 
                         <div className="min-w-0">
-                          <span className="font-medium truncate block">{team.name}</span>
-                          <span className="text-xs text-muted-foreground">
+                          <p className="truncate text-sm font-medium">{team.name}</p>
+                          <p className="text-xs text-muted-foreground">
                             {team.category}
-                          </span>
+                          </p>
                         </div>
                       </div>
 
                       {selectedTeam?.id === team.id && (
-                        <Check className="w-4 h-4 text-primary shrink-0" />
+                        <Check className="h-4 w-4 shrink-0 text-primary" />
                       )}
                     </DropdownMenuItem>
                   ))
                 ) : (
                   <DropdownMenuItem disabled>
                     <span className="text-muted-foreground">
-                      {t('common.noData') !== 'common.noData'
-                        ? t('common.noData')
-                        : 'Sem equipas'}
+                      {tr('common.noData', 'Sem equipas')}
                     </span>
                   </DropdownMenuItem>
                 )}
 
-                <DropdownMenuSeparator />
-
-                <DropdownMenuItem asChild>
-                  <Link to="/my-teams" className="flex items-center gap-2 cursor-pointer">
-                    <Users className="w-4 h-4" />
-                    {myTeamsLabel}
-                  </Link>
-                </DropdownMenuItem>
-
                 {permissions.canManageTeam && (
-                  <DropdownMenuItem asChild>
-                    <Link to="/teams" className="flex items-center gap-2 cursor-pointer">
-                      <Settings className="w-4 h-4" />
-                      {teamsLabel}
-                    </Link>
-                  </DropdownMenuItem>
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link to="/teams" className="flex cursor-pointer items-center gap-2">
+                        <Settings className="h-4 w-4" />
+                        {teamsLabel}
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
                 )}
               </DropdownMenuContent>
             </DropdownMenu>
 
-            {hasChildren && (
-              <Button
-                variant="ghost"
-                className="flex items-center gap-2"
-                asChild
-                data-testid="nav-children"
-              >
-                <Link to="/children">
-                  <Baby className="w-4 h-4" />
-                  {childrenLabel}
-                </Link>
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              className="h-10 min-w-[260px] justify-start rounded-full border-slate-200 bg-white px-4 text-slate-400 hover:bg-slate-50"
+              data-testid="topnav-search"
+              type="button"
+            >
+              <Search className="mr-2 h-4 w-4" />
+              {tr('topnav.searchPlaceholder', 'Pesquisar atleta, equipa, evento...')}
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              asChild
+              className="h-10 rounded-full px-4 font-semibold"
+              data-testid="topnav-new-event"
+            >
+              <Link to="/calendar">
+                <Plus className="mr-2 h-4 w-4" />
+                {tr('calendar.newEvent', 'Novo Evento')}
+              </Link>
+            </Button>
 
             <Button
               variant="ghost"
-              className={`flex items-center gap-2 ${
-                location.pathname === '/profile' ? 'text-primary bg-primary/5' : ''
-              }`}
+              className="relative h-10 w-10 rounded-full"
               asChild
-              data-testid="nav-my-profile"
+              data-testid="topnav-notifications"
             >
-              <Link to="/profile">
-                <UserCircle className="w-4 h-4" />
-                {myProfileLabel}
+              <Link to="/convocations">
+                <Bell className="h-5 w-5" />
+                {pendingNotifications > 0 && (
+                  <span className="absolute right-1.5 top-1.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {pendingNotifications > 99 ? '99+' : pendingNotifications}
+                  </span>
+                )}
               </Link>
             </Button>
-          </nav>
 
-          <div className="flex items-center gap-3">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-10 rounded-full px-3"
+                  data-testid="topnav-language-selector"
+                >
+                  <Globe2 className="mr-2 h-4 w-4 text-slate-500" />
+                  <span className="mr-1">{activeLanguage.flag}</span>
+                  <span className="text-sm font-semibold">{activeLanguage.label}</span>
+                  <ChevronDown className="ml-1 h-4 w-4 text-slate-400" />
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent className="w-48 bg-white" align="end">
+                <DropdownMenuLabel>
+                  {tr('settings.language', 'Idioma')}
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                {LANGUAGES.map((item) => (
+                  <DropdownMenuItem
+                    key={item.code}
+                    onClick={() => handleLanguageChange(item.code)}
+                    className="flex cursor-pointer items-center justify-between"
+                    data-testid={`language-${item.code}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>{item.flag}</span>
+                      <span>{item.name}</span>
+                    </span>
+
+                    {activeLanguage.code === item.code && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -320,7 +432,7 @@ export function TopNavBar() {
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent className="w-56 bg-white" align="end">
+              <DropdownMenuContent className="w-60 bg-white" align="end">
                 <DropdownMenuLabel>
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">{user?.name}</p>
@@ -334,7 +446,7 @@ export function TopNavBar() {
 
                 <DropdownMenuItem asChild>
                   <Link to="/profile" className="cursor-pointer">
-                    <UserCircle className="w-4 h-4 mr-2" />
+                    <UserCircle className="mr-2 h-4 w-4" />
                     {myProfileLabel}
                   </Link>
                 </DropdownMenuItem>
@@ -342,7 +454,7 @@ export function TopNavBar() {
                 {(permissions.isAdmin || permissions.canManageClub) && (
                   <DropdownMenuItem asChild>
                     <Link to="/settings" className="cursor-pointer">
-                      <Settings className="w-4 h-4 mr-2" />
+                      <Settings className="mr-2 h-4 w-4" />
                       {settingsLabel}
                     </Link>
                   </DropdownMenuItem>
@@ -351,12 +463,12 @@ export function TopNavBar() {
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem
-                  className="flex items-center gap-2 text-destructive cursor-pointer"
+                  className="flex cursor-pointer items-center gap-2 text-destructive"
                   onClick={handleLogout}
                   data-testid="logout-menu-btn"
                 >
-                  <LogOut className="w-4 h-4" />
-                  {t('auth.logout')}
+                  <LogOut className="h-4 w-4" />
+                  {tr('auth.logout', 'Sair')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
