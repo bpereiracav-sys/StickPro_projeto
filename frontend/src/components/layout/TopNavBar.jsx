@@ -23,24 +23,10 @@ import {
   Check,
   Bell,
   Search,
-  Globe2,
-  Plus,
-  Sparkles,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
 import { clubApi, dashboardApi } from '../../services/api';
-
-const CUSTOM_LOGO_URL = '/stickpro-logo.png';
-
-const StickProLogo = () => (
-  <img
-    src={CUSTOM_LOGO_URL}
-    alt="StickPro"
-    className="h-10 w-auto max-w-[180px] object-contain"
-    data-testid="stick-pro-logo"
-  />
-);
 
 const LANGUAGES = [
   { code: 'pt', label: 'PT', name: 'Português', flag: '🇵🇹' },
@@ -153,7 +139,7 @@ export function TopNavBar() {
 
   const activeContextSubtitle = selectedTeam
     ? `${selectedTeam.category || 'Equipa'}${selectedTeam.season ? ` • ${selectedTeam.season}` : ''}`
-    : club?.name || 'Vista agregada do clube';
+    : club?.name || 'Gestão integrada do Clube';
 
   const teamsLabel = tr('nav.teams', 'Equipas');
   const myTeamsLabel = tr('nav.myTeams', 'As Minhas Equipas');
@@ -166,7 +152,12 @@ export function TopNavBar() {
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             <Link to="/" className="flex items-center gap-3">
-              <StickProLogo />
+              <img
+                src="/stickpro-logo.png"
+                alt="StickPro"
+                className="h-10 w-auto max-w-[180px] object-contain"
+                data-testid="stick-pro-logo"
+              />
             </Link>
 
             <div className="flex items-center gap-3">
@@ -191,7 +182,10 @@ export function TopNavBar() {
     >
       <div className="px-6">
         <div className="flex h-16 items-center justify-between gap-4">
-          <Link to="/dashboard" className="flex min-w-0 items-center gap-3">
+          <Link
+            to="/dashboard"
+            className="flex min-w-[300px] max-w-[440px] items-center gap-3"
+          >
             {club?.logo_url ? (
               <img
                 src={club.logo_url}
@@ -212,7 +206,7 @@ export function TopNavBar() {
               <p className="truncate text-xs text-slate-500">
                 {selectedTeam
                   ? activeContextSubtitle
-                  : tr('topnav.clubOverview', 'Gestão global do clube')}
+                  : tr('topnav.clubOverview', 'Gestão integrada do Clube')}
               </p>
             </div>
           </Link>
@@ -263,7 +257,7 @@ export function TopNavBar() {
                         {tr('nav.myClub', 'Meu Clube')}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {club?.name || tr('topnav.clubOverview', 'Vista agregada')}
+                        {club?.name || tr('topnav.clubOverview', 'Gestão integrada do Clube')}
                       </p>
                     </div>
                   </div>
@@ -335,7 +329,7 @@ export function TopNavBar() {
 
             <Button
               variant="outline"
-              className="h-10 min-w-[260px] justify-start rounded-full border-slate-200 bg-white px-4 text-slate-400 hover:bg-slate-50"
+              className="h-10 min-w-[300px] justify-start rounded-full border-slate-200 bg-white px-4 text-slate-400 hover:bg-slate-50"
               data-testid="topnav-search"
               type="button"
             >
@@ -345,17 +339,6 @@ export function TopNavBar() {
           </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              asChild
-              className="h-10 rounded-full px-4 font-semibold"
-              data-testid="topnav-new-event"
-            >
-              <Link to="/calendar">
-                <Plus className="mr-2 h-4 w-4" />
-                {tr('calendar.newEvent', 'Novo Evento')}
-              </Link>
-            </Button>
-
             <Button
               variant="ghost"
               className="relative h-10 w-10 rounded-full"
@@ -379,7 +362,6 @@ export function TopNavBar() {
                   className="h-10 rounded-full px-3"
                   data-testid="topnav-language-selector"
                 >
-                  <Globe2 className="mr-2 h-4 w-4 text-slate-500" />
                   <span className="mr-1">{activeLanguage.flag}</span>
                   <span className="text-sm font-semibold">{activeLanguage.label}</span>
                   <ChevronDown className="ml-1 h-4 w-4 text-slate-400" />
