@@ -646,6 +646,7 @@ class AIChatMessage(BaseModel):
 class AIChatRequest(BaseModel):
     message: str
     session_id: Optional[str] = None
+    language: Optional[str] = "pt"
 
 # Championship Models
 class ChampionshipCreate(BaseModel):
@@ -7524,33 +7525,69 @@ async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_curre
         raise HTTPException(status_code=500, detail="AI não configurado")
     
     session_id = request.session_id or f"user_{current_user['id']}_{datetime.now().strftime('%Y%m%d')}"
+
+    language_names = {
+        "pt": "Português",
+        "en": "English",
+        "es": "Español",
+        "fr": "Français",
+        "it": "Italiano"
+    }
+
+    selected_language = request.language if request.language in language_names else "pt"
+    selected_language_name = language_names[selected_language]
     
-    # Get chat history for this session
     history = await db.ai_chat_history.find(
         {"session_id": session_id}
     ).sort("timestamp", 1).to_list(50)
     
-    # Build system message
-    system_message = """Tu és o Assistente StickPro, um especialista em hóquei em patins e na aplicação StickPro.
+    system_message = f"""Tu és o Assistente StickPro, um especialista em hóquei em patins e na aplicação StickPro.
+
+IDIOMA DE RESPOSTA:
+- Responde sempre em {selected_language_name}.
+- O idioma foi definido pela aplicação através do campo language="{selected_language}".
+- Nunca mudes de idioma, exceto se o utilizador pedir explicitamente.
 
 SOBRE A APP STICKPRO:
 - Gestão de equipas de hóquei em patins
-- Calendário de eventos (treinos, jogos, torneios)
+- Calendário de eventos: treinos, jogos, torneios, reuniões e eventos do clube
 - Convocatórias e presenças
-- Estatísticas de jogadores (golos, assistências, cartões)
-- Campeonatos (5x5 e 3x3)
+- Estatísticas de jogadores: golos, assistências, cartões e desempenho
+- Campeonatos 5x5 e 3x3
 - Importação de fichas de jogo da APL
-- Gestão de membros e perfis
+- Gestão de membros, atletas, treinadores, encarregados de educação e dirigentes
+- Gestão de clubes, equipas e épocas desportivas
 - Biblioteca de documentos
+- Apoio à organização operacional do clube
 
 SOBRE HÓQUEI EM PATINS:
-- É um desporto com 5 jogadores (4 de campo + 1 guarda-redes)
-- Jogado com patins de 4 rodas, stick e bola
-- Duração: 2 partes de 25 minutos (seniores)
-- Penáltis, livres diretos, cartões (azul, amarelo, vermelho)
-- Principais ligas: Portugal (1ª Divisão), Espanha (OK Liga), Itália (Serie A1)
+- É um desporto coletivo jogado com patins de quatro rodas, stick e bola
+- Cada equipa joga normalmente com 5 jogadores em pista: 4 jogadores de campo e 1 guarda-redes
+- Nos escalões seniores, a duração habitual é de 2 partes de 25 minutos
+- Existem penáltis, livres diretos, faltas de equipa e cartões
+- O cartão azul implica exclusão temporária e pode originar livre direto
+- O cartão vermelho implica expulsão definitiva
+- As regras podem variar conforme escalão, competição e regulamento aplicável
 
-Responde sempre em português de forma clara e útil. Se não souberes a resposta, diz que não tens certeza."""
+ESPECIALIDADES:
+- Explicar como usar a aplicação StickPro
+- Ajudar treinadores, dirigentes e gestores desportivos
+- Apoiar tarefas de gestão de equipas
+- Explicar conceitos de hóquei em patins
+- Apoiar interpretação geral de regulamentos FPP e World Skate
+- Sugerir boas práticas de gestão de clubes
+
+LIMITAÇÕES:
+- Ainda não tens acesso direto aos dados reais do clube, pagamentos, presenças ou estatísticas internas.
+- Ainda não tens acesso documental completo aos regulamentos oficiais carregados em base de conhecimento.
+- Quando não tiveres certeza, deves dizer que não tens certeza.
+- Quando a pergunta depender de regulamentos oficiais, recomenda confirmação no regulamento aplicável.
+
+ESTILO:
+- Responde de forma clara, útil e prática.
+- Usa linguagem simples.
+- Dá passos concretos quando o utilizador perguntar como fazer algo.
+- Evita respostas demasiado longas, salvo se o utilizador pedir detalhe."""
 
     try:
         chat = LlmChat(
@@ -7559,61 +7596,42 @@ Responde sempre em português de forma clara e útil. Se não souberes a respost
             system_message=system_message
         ).with_model("openai", "gpt-4o-mini")
         
-        # Add history to context by directly appending to messages list
-        for msg in history[-10:]:  # Last 10 messages
+        for msg in history[-10:]:
             chat.messages.append({
                 'role': msg['role'],
                 'content': msg['content']
             })
         
-        # Send message
         user_message = UserMessage(text=request.message)
         response = await chat.send_message(user_message)
         
-        # Save to history
         await db.ai_chat_history.insert_one({
             "session_id": session_id,
             "user_id": current_user['id'],
             "role": "user",
             "content": request.message,
+            "language": selected_language,
             "timestamp": datetime.now(timezone.utc)
         })
+
         await db.ai_chat_history.insert_one({
             "session_id": session_id,
             "user_id": current_user['id'],
             "role": "assistant",
             "content": response,
+            "language": selected_language,
             "timestamp": datetime.now(timezone.utc)
         })
         
         return {
             "response": response,
-            "session_id": session_id
+            "session_id": session_id,
+            "language": selected_language
         }
         
     except Exception as e:
         logging.error(f"AI Chat error: {e}")
         raise HTTPException(status_code=500, detail=f"Erro no assistente: {str(e)}")
-
-@api_router.get("/ai/chat/history")
-async def get_ai_chat_history(session_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    """Get chat history for user"""
-    query = {"user_id": current_user['id']}
-    if session_id:
-        query["session_id"] = session_id
-    
-    history = await db.ai_chat_history.find(query, {"_id": 0}).sort("timestamp", -1).to_list(100)
-    return history
-
-@api_router.delete("/ai/chat/history")
-async def clear_ai_chat_history(session_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
-    """Clear chat history"""
-    query = {"user_id": current_user['id']}
-    if session_id:
-        query["session_id"] = session_id
-    
-    await db.ai_chat_history.delete_many(query)
-    return {"message": "Histórico apagado"}
 
 # =====================
 # Push Notifications Endpoints
