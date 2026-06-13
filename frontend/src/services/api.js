@@ -341,10 +341,16 @@ export const libraryApi = {
 
 // AI Assistant API
 export const aiApi = {
-  chat: (message, sessionId) =>
-    api.post('/ai/chat', { message, session_id: sessionId }),
+  chat: (message, sessionId, language = 'pt') =>
+    api.post('/ai/chat', {
+      message,
+      session_id: sessionId,
+      language
+    }),
+
   getHistory: (sessionId) =>
     api.get('/ai/chat/history', { params: { session_id: sessionId } }),
+
   clearHistory: (sessionId) =>
     api.delete('/ai/chat/history', { params: { session_id: sessionId } }),
 };
