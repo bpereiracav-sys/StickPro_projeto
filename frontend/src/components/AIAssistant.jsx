@@ -10,10 +10,12 @@ import { getInitials } from '../lib/utils';
 
 const normalizeLanguage = (language) => {
   const value = (language || 'pt').toLowerCase();
+
   if (value.startsWith('en')) return 'en';
   if (value.startsWith('es')) return 'es';
   if (value.startsWith('fr')) return 'fr';
   if (value.startsWith('it')) return 'it';
+
   return 'pt';
 };
 
@@ -33,21 +35,25 @@ const getWelcomeMessage = (language, firstName) => {
 Sou o Assistente StickPro. Posso ajudar-te com dúvidas sobre a app, gestão do clube e hóquei em patins.
 
 O que posso ajudar-te hoje?`,
+
     en: `Hello${name}! 👋
 
 I am the StickPro Assistant. I can help you with the app, club management and roller hockey.
 
 How can I help you today?`,
+
     es: `Hola${name}! 👋
 
 Soy el Asistente StickPro. Puedo ayudarte con la app, la gestión del club y el hockey sobre patines.
 
 ¿En qué puedo ayudarte hoy?`,
+
     fr: `Bonjour${name} ! 👋
 
 Je suis l’Assistant StickPro. Je peux vous aider avec l’application, la gestion du club et le rink hockey.
 
 Comment puis-je vous aider ?`,
+
     it: `Ciao${name}! 👋
 
 Sono l’Assistente StickPro. Posso aiutarti con l’app, la gestione del club e l’hockey su pista.
@@ -58,8 +64,21 @@ Come posso aiutarti oggi?`,
   return messages[language] || messages.pt;
 };
 
+const getClearMessage = (language) => {
+  const messages = {
+    pt: 'Chat limpo! Como posso ajudar?',
+    en: 'Chat cleared! How can I help?',
+    es: '¡Chat borrado! ¿Cómo puedo ayudarte?',
+    fr: 'Conversation effacée ! Comment puis-je vous aider ?',
+    it: 'Chat cancellata! Come posso aiutarti?',
+  };
+
+  return messages[language] || messages.pt;
+};
+
 export function AIAssistant() {
   const { user } = useAuth();
+
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -70,22 +89,23 @@ export function AIAssistant() {
   const inputRef = useRef(null);
 
   useEffect(() => {
-  const handleToggleAssistant = () => {
-    setOpen((prev) => !prev);
-  };
+    const handleToggleAssistant = () => {
+      setOpen((prev) => !prev);
+    };
 
-  window.addEventListener(
-    'stickpro:toggle-ai-assistant',
-    handleToggleAssistant
-  );
-
-  return () => {
-    window.removeEventListener(
+    window.addEventListener(
       'stickpro:toggle-ai-assistant',
       handleToggleAssistant
     );
-  };
-}, []);
+
+    return () => {
+      window.removeEventListener(
+        'stickpro:toggle-ai-assistant',
+        handleToggleAssistant
+      );
+    };
+  }, []);
+
   useEffect(() => {
     if (open && messages.length === 0) {
       const language = getCurrentLanguage();
@@ -111,7 +131,7 @@ export function AIAssistant() {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, loading]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
@@ -147,28 +167,33 @@ export function AIAssistant() {
           timestamp: new Date(),
         },
       ]);
-   } catch (error) {
-  console.error('AI Chat error:', error);
+    } catch (error) {
+      console.error('AI Chat error:', error);
 
-  const detail =
-    error.response?.data?.detail ||
-    error.message ||
-    'Erro desconhecido ao comunicar com o assistente';
+      const detail =
+        error.response?.data?.detail ||
+        error.message ||
+        'Erro desconhecido ao comunicar com o assistente';
 
-  toast.error(detail);
+      toast.error(detail);
 
-  setMessages((prev) => [
-    ...prev,
-    {
-      role: 'assistant',
-      content: `Erro técnico: ${detail}`,
-      timestamp: new Date(),
-      isError: true,
-    },
-  ]);
-}
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: `Erro técnico: ${detail}`,
+          timestamp: new Date(),
+          isError: true,
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const clearChat = async () => {
+    const language = getCurrentLanguage();
+
     if (sessionId) {
       try {
         await aiApi.clearHistory(sessionId);
@@ -179,6 +204,16 @@ export function AIAssistant() {
 
     setMessages([]);
     setSessionId(null);
+
+    setTimeout(() => {
+      setMessages([
+        {
+          role: 'assistant',
+          content: getClearMessage(language),
+          timestamp: new Date(),
+        },
+      ]);
+    }, 100);
   };
 
   const handleKeyDown = (e) => {
@@ -193,14 +228,14 @@ export function AIAssistant() {
       .split('\n')
       .map((line) => line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>'))
       .join('<br />');
-  
+
   return (
     <>
       {open && (
         <div
-  className="fixed top-20 right-6 w-[420px] max-w-[calc(100vw-32px)] h-[620px] max-h-[calc(100vh-120px)] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
-  style={{ zIndex: 99999, pointerEvents: 'auto' }}
->
+          className="fixed top-20 right-6 w-[420px] max-w-[calc(100vw-32px)] h-[620px] max-h-[calc(100vh-120px)] bg-background border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+          style={{ zIndex: 99999, pointerEvents: 'auto' }}
+        >
           <div className="p-4 border-b border-border flex items-center justify-between bg-primary text-primary-foreground">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-primary-foreground/20 flex items-center justify-center">
@@ -238,7 +273,7 @@ export function AIAssistant() {
             </div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 bg-slate-50">
             <div className="space-y-4">
               {messages.map((msg, index) => (
                 <div
@@ -260,17 +295,19 @@ export function AIAssistant() {
                   )}
 
                   <div
-                    className={`rounded-2xl px-4 py-2 max-w-[85%] ${
+                    className={`rounded-2xl px-4 py-3 max-w-[85%] shadow-sm ${
                       msg.role === 'user'
                         ? 'bg-primary text-primary-foreground rounded-tr-sm'
                         : msg.isError
-                        ? 'bg-destructive/10 text-destructive rounded-tl-sm'
-                        : 'bg-muted rounded-tl-sm'
+                        ? 'bg-red-50 text-red-700 border border-red-200 rounded-tl-sm'
+                        : 'bg-white text-slate-900 border border-slate-100 rounded-tl-sm'
                     }`}
                   >
                     <div
-                      className="text-sm whitespace-pre-wrap"
-                      dangerouslySetInnerHTML={{ __html: formatMessage(msg.content) }}
+                      className="text-sm leading-relaxed whitespace-pre-wrap"
+                      dangerouslySetInnerHTML={{
+                        __html: formatMessage(msg.content),
+                      }}
                     />
                   </div>
                 </div>
@@ -282,15 +319,18 @@ export function AIAssistant() {
                     <Bot className="w-4 h-4 text-primary" />
                   </div>
 
-                  <div className="bg-muted rounded-2xl rounded-tl-sm px-4 py-3">
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                  <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                    <div className="flex items-center gap-2 text-sm text-slate-500">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>A pensar...</span>
+                    </div>
                   </div>
                 </div>
               )}
             </div>
           </div>
 
-          <div className="p-4 border-t border-border bg-background">
+          <div className="p-4 border-t border-border bg-white">
             <div className="flex items-center gap-2">
               <Input
                 ref={inputRef}
@@ -301,7 +341,7 @@ export function AIAssistant() {
                 onKeyDown={handleKeyDown}
                 placeholder="Escreve a tua mensagem..."
                 disabled={loading}
-                className="flex-1"
+                className="flex-1 rounded-full"
                 data-testid="ai-chat-input"
               />
 
@@ -309,6 +349,7 @@ export function AIAssistant() {
                 onClick={sendMessage}
                 disabled={!input.trim() || loading}
                 size="icon"
+                className="rounded-full"
                 data-testid="ai-chat-send"
               >
                 {loading ? (
