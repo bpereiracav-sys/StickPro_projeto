@@ -7514,16 +7514,17 @@ async def delete_library_item(item_id: str, current_user: dict = Depends(get_cur
 # =====================
 # AI Assistant Endpoints
 # =====================
-
 @api_router.post("/ai/chat")
 async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_current_user)):
     """Chat with AI assistant about roller hockey and app help"""
-    from emergentintegrations.llm.chat import LlmChat, UserMessage
-    
-    api_key = os.environ.get('EMERGENT_LLM_KEY')
+    from openai import OpenAI
+
+    api_key = os.environ.get("OPENAI_API_KEY")
     if not api_key:
-        raise HTTPException(status_code=500, detail="AI não configurado")
-    
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY não configurada")
+
+    client = OpenAI(api_key=api_key)
+
     session_id = request.session_id or f"user_{current_user['id']}_{datetime.now().strftime('%Y%m%d')}"
 
     language_names = {
@@ -7531,16 +7532,16 @@ async def ai_chat(request: AIChatRequest, current_user: dict = Depends(get_curre
         "en": "English",
         "es": "Español",
         "fr": "Français",
-        "it": "Italiano"
+        "it": "Italiano",
     }
 
     selected_language = request.language if request.language in language_names else "pt"
     selected_language_name = language_names[selected_language]
-    
+
     history = await db.ai_chat_history.find(
         {"session_id": session_id}
     ).sort("timestamp", 1).to_list(50)
-    
+
     system_message = f"""Tu és o Assistente StickPro, um especialista em hóquei em patins e na aplicação StickPro.
 
 IDIOMA DE RESPOSTA:
@@ -7590,24 +7591,37 @@ ESTILO:
 - Evita respostas demasiado longas, salvo se o utilizador pedir detalhe."""
 
     try:
-        chat = LlmChat(
-            api_key=api_key,
-            session_id=session_id,
-            system_message=system_message
-        ).with_model("openai", "gpt-4o-mini")
-        
+        messages_for_openai = [
+            {"role": "system", "content": system_message}
+        ]
+
         for msg in history[-10:]:
-            chat.messages.append({
-                'role': msg['role'],
-                'content': msg['content']
-            })
-        
-        user_message = UserMessage(text=request.message)
-        response = await chat.send_message(user_message)
-        
+            role = msg.get("role")
+            content = msg.get("content")
+
+            if role in ["user", "assistant"] and content:
+                messages_for_openai.append({
+                    "role": role,
+                    "content": content
+                })
+
+        messages_for_openai.append({
+            "role": "user",
+            "content": request.message
+        })
+
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages_for_openai,
+            temperature=0.4,
+            max_tokens=700,
+        )
+
+        response = completion.choices[0].message.content
+
         await db.ai_chat_history.insert_one({
             "session_id": session_id,
-            "user_id": current_user['id'],
+            "user_id": current_user["id"],
             "role": "user",
             "content": request.message,
             "language": selected_language,
@@ -7616,19 +7630,19 @@ ESTILO:
 
         await db.ai_chat_history.insert_one({
             "session_id": session_id,
-            "user_id": current_user['id'],
+            "user_id": current_user["id"],
             "role": "assistant",
             "content": response,
             "language": selected_language,
             "timestamp": datetime.now(timezone.utc)
         })
-        
+
         return {
             "response": response,
             "session_id": session_id,
             "language": selected_language
         }
-        
+
     except Exception as e:
         logging.error(f"AI Chat error: {e}")
         raise HTTPException(status_code=500, detail=f"Erro no assistente: {str(e)}")
