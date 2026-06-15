@@ -243,7 +243,7 @@ export default function Dashboard() {
 
   return (
     <div
-  className="space-y-7 -mt-4 lg:-mt-5"
+  className="space-y-7 -mt-10 lg:-mt-12"
   data-testid="dashboard-page"
 >
       <section className="relative overflow-hidden rounded-[2rem] border border-slate-200/80 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-7 lg:p-8">
