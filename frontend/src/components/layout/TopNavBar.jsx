@@ -317,7 +317,7 @@ export function TopNavBar() {
           </DropdownMenu>
 
           <div className="flex flex-1 items-center justify-center">
-            <div className="relative w-full max-w-[520px]">
+            <div className="relative w-full max-w-[380px]">
   <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
 
   <input
@@ -333,7 +333,7 @@ export function TopNavBar() {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
-                  className="h-10 rounded-full px-4"
+                  className="h-10 rounded-full px-6 font-medium"
                   data-testid="topnav-new-button"
                 >
                   <Plus className="mr-2 h-4 w-4" />
