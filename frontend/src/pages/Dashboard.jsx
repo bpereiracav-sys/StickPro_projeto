@@ -397,24 +397,12 @@ export default function Dashboard() {
             <div className="p-5 sm:p-7">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <Badge
-                    variant={nextEvent.event_type === 'jogo' ? 'default' : 'secondary'}
-                    className="mb-3"
-                  >
-                    const getTranslatedEventTypeName = (type) => {
-                      const eventTypeMap = {
-                        treino: 'calendar.eventTypes.training',
-                        training: 'calendar.eventTypes.training',
-                        jogo: 'championships.newGame',
-                        game: 'championships.newGame',
-                        championship_game: 'calendar.eventTypes.championshipGame',
-                        friendly_game: 'calendar.eventTypes.friendlyGame',
-                        tournament: 'calendar.eventTypes.tournament',
-                        other: 'calendar.eventTypes.other',
-                      };
-                    
-                      return tr(eventTypeMap[type], getEventTypeName(type));
-                    };
+                  <Badge variant="outline" className="hidden shrink-0 text-xs sm:flex">
+                    {event.event_type === 'treino' || event.event_type === 'training'
+                      ? t('calendar.eventTypes.training')
+                      : event.event_type === 'jogo' || event.event_type === 'game'
+                        ? t('championships.newGame')
+                        : getEventTypeName(event.event_type)}
                   </Badge>
 
                   <h2 className="font-heading text-2xl tracking-tight text-slate-950 sm:text-3xl">
