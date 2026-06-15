@@ -337,7 +337,7 @@ export function TopNavBar() {
                   data-testid="topnav-new-button"
                 >
                   <Plus className="mr-2 h-4 w-4" />
-                  {tr('common.new', 'Novo')}
+                  {tr('topnav.new', 'Novo')}
                 </Button>
               </DropdownMenuTrigger>
 
