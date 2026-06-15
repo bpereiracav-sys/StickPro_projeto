@@ -398,11 +398,11 @@ export default function Dashboard() {
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <Badge variant="outline" className="hidden shrink-0 text-xs sm:flex">
-                    {event.event_type === 'treino' || event.event_type === 'training'
+                    {nextEvent.event_type === 'treino' || nextEvent.event_type === 'training'
                       ? t('calendar.eventTypes.training')
-                      : event.event_type === 'jogo' || event.event_type === 'game'
+                      : nextEvent.event_type === 'jogo' || nextEvent.event_type === 'game'
                         ? t('championships.newGame')
-                        : getEventTypeName(event.event_type)}
+                        : getEventTypeName(nextEvent.event_type)}
                   </Badge>
 
                   <h2 className="font-heading text-2xl tracking-tight text-slate-950 sm:text-3xl">
@@ -506,14 +506,11 @@ export default function Dashboard() {
                     </div>
 
                     <Badge variant="outline" className="hidden shrink-0 text-xs sm:flex">
-                      {tr(
-                        event.event_type === 'treino' || event.event_type === 'training'
-                          ? 'calendar.eventTypes.training'
-                          : event.event_type === 'jogo' || event.event_type === 'game'
-                            ? 'championships.newGame'
-                            : `calendar.eventTypes.${event.event_type}`,
-                        getEventTypeName(event.event_type)
-                      )}
+                      {event.event_type === 'treino' || event.event_type === 'training'
+                        ? t('calendar.eventTypes.training')
+                        : event.event_type === 'jogo' || event.event_type === 'game'
+                          ? t('championships.newGame')
+                          : getEventTypeName(event.event_type)}
                     </Badge>
                   </div>
                 ))}
