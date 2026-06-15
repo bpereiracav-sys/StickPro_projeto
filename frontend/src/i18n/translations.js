@@ -851,6 +851,7 @@ topnav: {
       upcomingEvents: 'Próximos Eventos',
       seeCalendar: 'Ver Calendario',
       convocations: 'Convocatorias',
+      newConvocation: 'Nueva Convocatoria',
       allConvocationsAnswered: '¡Todas las convocatorias respondidas!',
       seeAll: 'Ver Todas',
       today: 'Hoy',
@@ -949,6 +950,7 @@ topnav: {
       editTeam: 'Editar Equipo',
       deleteTeam: 'Eliminar Equipo',
       games: 'Partidos',
+      newGame: 'Nuevo Partido',
       teams: 'Equipos',
       standings: 'Clasificación',
       format: {
@@ -1546,6 +1548,7 @@ topnav: {
       upcomingEvents: 'Événements à Venir',
       seeCalendar: 'Voir le Calendrier',
       convocations: 'Convocations',
+      newConvocation: 'Nouvelle Convocation',
       allConvocationsAnswered: 'Toutes les convocations sont répondues !',
       seeAll: 'Voir Tout',
       today: "Aujourd'hui",
@@ -1646,6 +1649,7 @@ topnav: {
       editTeam: "Modifier l'Équipe",
       deleteTeam: "Supprimer l'Équipe",
       games: 'Matchs',
+      newGame: 'Nouveau Match',
       teams: 'Équipes',
       standings: 'Classement',
       format: {
@@ -2247,6 +2251,7 @@ topnav: {
       upcomingEvents: 'Prossimi Eventi',
       seeCalendar: 'Vedi Calendario',
       convocations: 'Convocazioni',
+      newConvocation: 'Nuova Convocazione',
       allConvocationsAnswered:
         'Tutte le convocazioni sono state risposte!',
       seeAll: 'Vedi Tutto',
@@ -2347,6 +2352,7 @@ topnav: {
       editTeam: 'Modifica Squadra',
       deleteTeam: 'Elimina Squadra',
       games: 'Partite',
+      newGame: 'Nuova Partita',
       teams: 'Squadre',
       standings: 'Classifica',
       format: {
@@ -2946,6 +2952,7 @@ topnav: {
       upcomingEvents: 'Upcoming Events',
       seeCalendar: 'See Calendar',
       convocations: 'Convocations',
+      newConvocation: 'New Call-up',
       allConvocationsAnswered: 'All convocations answered!',
       seeAll: 'See All',
       today: 'Today',
@@ -3043,6 +3050,7 @@ topnav: {
       editTeam: 'Edit Team',
       deleteTeam: 'Delete Team',
       games: 'Matches',
+      newGame: 'New Game',
       teams: 'Teams',
       standings: 'Standings',
       format: {
