@@ -3624,7 +3624,6 @@ topnav: {
           completeButton: 'Complete onboarding',
         },
       },
-    },
 
        payments: {
           statusPaidTitle: 'Payments Up to Date',
