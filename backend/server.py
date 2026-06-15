@@ -6510,6 +6510,120 @@ async def get_my_convocations(current_user: dict = Depends(get_current_user)):
     
     return result
 
+def calculate_commitment_medal(rate: float):
+    if rate >= 100:
+        return "gold"
+    if rate >= 90:
+        return "silver"
+    if rate >= 75:
+        return "bronze"
+    return "none"
+
+
+def calculate_commitment_rate(total: int, confirmed: int):
+    if total <= 0:
+        return 0
+    return round((confirmed / total) * 100)
+
+
+def calculate_missing_for_next_medal(total: int, confirmed: int):
+    if total <= 0:
+        return {
+            "target": "bronze",
+            "missing": 1,
+        }
+
+    current_rate = calculate_commitment_rate(total, confirmed)
+
+    if current_rate >= 100:
+        return {
+            "target": "gold",
+            "missing": 0,
+        }
+
+    if current_rate >= 90:
+        target_rate = 100
+        target = "gold"
+    elif current_rate >= 75:
+        target_rate = 90
+        target = "silver"
+    else:
+        target_rate = 75
+        target = "bronze"
+
+    missing = 0
+    future_confirmed = confirmed
+    future_total = total
+
+    while calculate_commitment_rate(future_total, future_confirmed) < target_rate:
+        future_confirmed += 1
+        future_total += 1
+        missing += 1
+
+        if missing > 50:
+            break
+
+    return {
+        "target": target,
+        "missing": missing,
+    }
+
+
+@api_router.get("/commitment/my")
+async def get_my_commitment(current_user: dict = Depends(get_current_user)):
+    attendances = await db.attendance.find(
+        {"player_id": current_user["id"]},
+        {"_id": 0}
+    ).to_list(1000)
+
+    training_items = [
+        att for att in attendances
+        if att.get("event_type") in ["treino", "training"]
+    ]
+
+    game_items = [
+        att for att in attendances
+        if att.get("event_type") in ["jogo", "game", "championship_game", "friendly_game"]
+    ]
+
+    training_total = len(training_items)
+    training_confirmed = len([
+        att for att in training_items
+        if att.get("status") == "confirmado"
+    ])
+
+    game_total = len(game_items)
+    game_confirmed = len([
+        att for att in game_items
+        if att.get("status") == "confirmado"
+    ])
+
+    training_rate = calculate_commitment_rate(training_total, training_confirmed)
+    game_rate = calculate_commitment_rate(game_total, game_confirmed)
+
+    return {
+        "training": {
+            "total": training_total,
+            "confirmed": training_confirmed,
+            "rate": training_rate,
+            "medal": calculate_commitment_medal(training_rate),
+            "next_goal": calculate_missing_for_next_medal(
+                training_total,
+                training_confirmed
+            ),
+        },
+        "games": {
+            "total": game_total,
+            "confirmed": game_confirmed,
+            "rate": game_rate,
+            "medal": calculate_commitment_medal(game_rate),
+            "next_goal": calculate_missing_for_next_medal(
+                game_total,
+                game_confirmed
+            ),
+        },
+    }
+
 @api_router.put("/attendance/{attendance_id}")
 async def update_attendance(attendance_id: str, update: AttendanceUpdate, current_user: dict = Depends(get_current_user)):
     checker = get_permission_checker(current_user)
