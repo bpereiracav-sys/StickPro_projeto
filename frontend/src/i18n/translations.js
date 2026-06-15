@@ -171,13 +171,27 @@ export const translations = {
       activeSportsStructure: 'Estrutura desportiva ativa',
       upcomingTrainingAndGames: 'Próximos treinos e jogos',
       awaitingResponse: 'A aguardar resposta',
-      recentCommunication: 'Comunicação recente',
+      recentunication: 'Comunicação recente',
       nextEvent: 'Próximo evento',
       group: 'Grupo',
       eventAlreadyPassed: 'Já decorreu',
       daysRemaining: 'Faltam {days} dias',
     },
 
+    commitment: {
+      myCommitment: 'O Meu Compromisso',
+      trainings: 'Treinos',
+      games: 'Jogos',
+      nextGoal: 'Próximo Objetivo',
+      missingToTarget: 'Faltam {missing} presenças para {target}',
+      medals: {
+        gold: 'Ouro',
+        silver: 'Prata',
+        bronze: 'Bronze',
+        none: 'Sem medalha',
+      },
+    },
+    
     calendar: {
       title: 'Calendário',
       subtitle: 'Gerir eventos e treinos',
@@ -726,7 +740,7 @@ export const translations = {
       },
 
   es: {
-    common: {
+    on: {
       save: 'Guardar',
       cancel: 'Cancelar',
       delete: 'Eliminar',
@@ -895,13 +909,27 @@ topnav: {
       activeSportsStructure: 'Estructura deportiva activa',
       upcomingTrainingAndGames: 'Próximos entrenamientos y partidos',
       awaitingResponse: 'A la espera de respuesta',
-      recentCommunication: 'Comunicación reciente',
+      recentunication: 'Comunicación reciente',
       nextEvent: 'Próximo evento',
       group: 'Grupo',
       eventAlreadyPassed: 'Ya finalizado',
       daysRemaining: 'Faltan {days} días',
       },
 
+    commitment: {
+      myCommitment: 'Mi Compromiso',
+      trainings: 'Entrenamientos',
+      games: 'Partidos',
+      nextGoal: 'Próximo Objetivo',
+      missingToTarget: 'Faltan {missing} asistencia(s) para alcanzar {target}',
+      medals: {
+        gold: 'Oro',
+        silver: 'Plata',
+        bronze: 'Bronce',
+        none: 'Sin medalla',
+      },
+    },
+    
     calendar: {
       title: 'Calendario',
       subtitle: 'Gestionar eventos y entrenamientos',
@@ -1452,7 +1480,7 @@ topnav: {
       },
 
   fr: {
-    common: {
+    on: {
       save: 'Enregistrer',
       cancel: 'Annuler',
       delete: 'Supprimer',
@@ -1621,13 +1649,27 @@ topnav: {
       activeSportsStructure: 'Structure sportive active',
       upcomingTrainingAndGames: 'Prochains entraînements et matchs',
       awaitingResponse: 'En attente de réponse',
-      recentCommunication: 'Communication récente',
+      recentunication: 'unication récente',
       nextEvent: 'Prochain événement',
       group: 'Groupe',
       eventAlreadyPassed: 'Déjà passé',
       daysRemaining: 'Encore {days} jours',
        },
 
+    commitment: {
+      myCommitment: 'Mon Engagement',
+      trainings: 'Entraînements',
+      games: 'Matchs',
+      nextGoal: 'Prochain objectif',
+      missingToTarget: 'Il manque {missing} présence(s) pour atteindre {target}',
+      medals: {
+        gold: 'Or',
+        silver: 'Argent',
+        bronze: 'Bronze',
+        none: 'Sans médaille',
+      },
+    },
+    
     calendar: {
       title: 'Calendrier',
       subtitle: 'Gérer les événements et les entraînements',
@@ -1823,7 +1865,7 @@ topnav: {
       sendReminder: 'Envoyer un rappel',
       reminderSent: 'Rappel envoyé aux joueurs en attente',
       reminderMessage: "Merci de confirmer ta présence à l'événement",
-      autoMarkAbsent: 'Marquer comme absent (événement passé)',
+      autoMarkAbsent: 'Marquer e absent (événement passé)',
       statusUpdated: 'Statut mis à jour avec succès',
       statusSynced: 'Présence synchronisée',
       confirmedCount: 'confirmés',
@@ -1918,7 +1960,7 @@ topnav: {
       startDate: 'Date de Début',
       endDate: 'Date de Fin',
       activeSeason: 'Saison Active',
-      setAsActive: 'Définir comme Active',
+      setAsActive: 'Définir e Active',
       noSeasons: 'Aucune saison',
       noSeasonsHint: 'Créez la première saison du club',
       deleteSeason: 'Supprimer la Saison',
@@ -1962,7 +2004,7 @@ topnav: {
       notFound: 'Abonnement non trouvé',
       paymentMethod: 'Méthode de Paiement',
       paymentMethodDescription:
-        'Sélectionnez comment vous souhaitez effectuer les paiements',
+        'Sélectionnez ent vous souhaitez effectuer les paiements',
       creditCard: 'Carte de Crédit',
       bankTransfer: 'Virement Bancaire',
       bankDetails: 'Coordonnées Bancaires',
@@ -2184,7 +2226,7 @@ topnav: {
        },
 
   it: {
-    common: {
+    on: {
       save: 'Salva',
       cancel: 'Annulla',
       delete: 'Elimina',
@@ -2361,6 +2403,20 @@ topnav: {
       daysRemaining: 'Mancano {days} giorni',
       },
 
+    commitment: {
+      myCommitment: 'Il Mio Impegno',
+      trainings: 'Allenamenti',
+      games: 'Partite',
+      nextGoal: 'Prossimo Obiettivo',
+      missingToTarget: 'Mancano {missing} presenze per raggiungere {target}',
+      medals: {
+        gold: 'Oro',
+        silver: 'Argento',
+        bronze: 'Bronzo',
+        none: 'Nessuna medaglia',
+      },
+    },
+    
     calendar: {
       title: 'Calendario',
       subtitle: 'Gestisci eventi e allenamenti',
@@ -3090,6 +3146,20 @@ topnav: {
       daysRemaining: '{days} days remaining',
      },
 
+    commitment: {
+      myCommitment: 'My Commitment',
+      trainings: 'Training Sessions',
+      games: 'Games',
+      nextGoal: 'Next Goal',
+      missingToTarget: '{missing} attendance(s) needed to reach {target}',
+      medals: {
+        gold: 'Gold',
+        silver: 'Silver',
+        bronze: 'Bronze',
+        none: 'No Medal',
+      },
+    },
+    
     calendar: {
       title: 'Calendar',
       subtitle: 'Manage events and training sessions',
