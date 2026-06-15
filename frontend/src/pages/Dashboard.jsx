@@ -320,7 +320,64 @@ const fetchCommitment = async () => {
             </div>
           </div>
         </div>
-      </section>
+           </section>
+
+      {commitment && (
+        <Card className="border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50">
+          <CardContent className="p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-2xl">🏅</span>
+              <h2 className="font-heading text-xl font-semibold">
+                {tr('commitment.myCommitment', 'O Meu Compromisso')}
+              </h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl border bg-white p-4">
+                <p className="text-sm text-slate-500">
+                  {tr('commitment.trainings', 'Treinos')}
+                </p>
+                <p className="mt-2 text-2xl font-bold">
+                  {commitment.training?.rate || 0}%
+                </p>
+                <p className="text-sm text-slate-600 capitalize">
+                  {tr(`commitment.medals.${commitment.training?.medal || 'none'}`, 'Sem medalha')}
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-white p-4">
+                <p className="text-sm text-slate-500">
+                  {tr('commitment.games', 'Jogos')}
+                </p>
+                <p className="mt-2 text-2xl font-bold">
+                  {commitment.games?.rate || 0}%
+                </p>
+                <p className="text-sm text-slate-600 capitalize">
+                  {tr(`commitment.medals.${commitment.games?.medal || 'none'}`, 'Sem medalha')}
+                </p>
+              </div>
+
+              <div className="rounded-xl border bg-white p-4">
+                <p className="text-sm text-slate-500">
+                  {tr('commitment.nextGoal', 'Próximo Objetivo')}
+                </p>
+
+                <p className="mt-2 text-sm font-medium">
+                  {tr('commitment.missingToTarget', 'Faltam {missing} presenças para {target}')
+                    .replace('{missing}', commitment.training?.next_goal?.missing || 0)
+                    .replace(
+                      '{target}',
+                      tr(
+                        `commitment.medals.${commitment.training?.next_goal?.target || 'bronze'}`,
+                        'Bronze'
+                      )
+                    )}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <PaymentStatusCard />
 
@@ -464,56 +521,6 @@ const fetchCommitment = async () => {
         </Card>
       )}
 
-      {commitment && (
-        <Card className="mb-6 border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50">
-          <CardContent className="p-6">
-            <div className="mb-4 flex items-center gap-2">
-              <span className="text-2xl">🏅</span>
-              <h2 className="font-heading text-xl font-semibold">
-                O Meu Compromisso
-              </h2>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="rounded-xl bg-white p-4 border">
-                <p className="text-sm text-slate-500">Treinos</p>
-                <p className="mt-2 text-2xl font-bold">
-                  {commitment.training?.rate || 0}%
-                </p>
-                <p className="text-sm text-slate-600 capitalize">
-                  {commitment.training?.medal || 'none'}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-white p-4 border">
-                <p className="text-sm text-slate-500">Jogos</p>
-                <p className="mt-2 text-2xl font-bold">
-                  {commitment.games?.rate || 0}%
-                </p>
-                <p className="text-sm text-slate-600 capitalize">
-                  {commitment.games?.medal || 'none'}
-                </p>
-              </div>
-
-              <div className="rounded-xl bg-white p-4 border">
-                <p className="text-sm text-slate-500">
-                  Próximo Objetivo
-                </p>
-
-                <p className="mt-2 text-sm font-medium">
-                  Faltam{' '}
-                  {commitment.training?.next_goal?.missing || 0}
-                  {' '}
-                  presenças para
-                  {' '}
-                  {commitment.training?.next_goal?.target || 'bronze'}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <CardWithStripe
           stripeColor="primary"
