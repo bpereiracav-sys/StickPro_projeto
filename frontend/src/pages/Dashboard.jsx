@@ -242,7 +242,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-7" data-testid="dashboard-page">
+    <div
+  className="space-y-7 -mt-4 lg:-mt-5"
+  data-testid="dashboard-page"
+>
       <section className="relative overflow-hidden rounded-[2rem] border border-slate-200/80 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-7 lg:p-8">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.32),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.28),transparent_32%)]"
