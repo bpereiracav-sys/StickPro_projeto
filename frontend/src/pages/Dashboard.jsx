@@ -264,8 +264,7 @@ export default function Dashboard() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-              Gestão centralizada do clube, equipas, eventos, presenças e pagamentos num só
-              painel operacional.
+{t('dashboard.heroSubtitle')}
             </p>
 
             <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-300">
