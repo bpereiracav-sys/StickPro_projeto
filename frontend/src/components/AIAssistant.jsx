@@ -21,7 +21,8 @@ const normalizeLanguage = (language) => {
 
 const getCurrentLanguage = () =>
   normalizeLanguage(
-    localStorage.getItem('language') ||
+    localStorage.getItem('stickpro_language') ||
+      localStorage.getItem('language') ||
       localStorage.getItem('i18nextLng') ||
       'pt'
   );
@@ -243,10 +244,25 @@ export function AIAssistant() {
               </div>
 
               <div>
-                <h3 className="font-heading text-lg">Assistente StickPro</h3>
-                <p className="text-xs text-primary-foreground/70">
-                  Ajuda sobre a app e hóquei
-                </p>
+                <h3 className="font-heading text-lg">
+  {{
+    pt: 'Assistente StickPro',
+    en: 'StickPro Assistant',
+    es: 'Asistente StickPro',
+    fr: 'Assistant StickPro',
+    it: 'Assistente StickPro',
+  }[getCurrentLanguage()]}
+</h3>
+
+<p className="text-xs text-primary-foreground/70">
+  {{
+    pt: 'Ajuda sobre a app e hóquei',
+    en: 'Help about the app and roller hockey',
+    es: 'Ayuda sobre la app y el hockey sobre patines',
+    fr: "Aide sur l'application et le rink hockey",
+    it: "Aiuto sull'app e hockey su pista",
+  }[getCurrentLanguage()]}
+</p>
               </div>
             </div>
 
@@ -256,7 +272,15 @@ export function AIAssistant() {
                 size="icon"
                 className="h-8 w-8 text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
                 onClick={clearChat}
-                title="Limpar conversa"
+               title={
+  {
+    pt: 'Limpar conversa',
+    en: 'Clear conversation',
+    es: 'Borrar conversación',
+    fr: 'Effacer la conversation',
+    it: 'Cancella conversazione',
+  }[getCurrentLanguage()]
+}
               >
                 <Trash2 className="w-4 h-4" />
               </Button>
@@ -266,7 +290,15 @@ export function AIAssistant() {
                 size="icon"
                 className="h-8 w-8 text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10"
                 onClick={() => setOpen(false)}
-                title="Fechar"
+                title={
+  {
+    pt: 'Fechar',
+    en: 'Close',
+    es: 'Cerrar',
+    fr: 'Fermer',
+    it: 'Chiudi',
+  }[getCurrentLanguage()]
+}
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -322,7 +354,15 @@ export function AIAssistant() {
                   <div className="bg-white border border-slate-100 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
                     <div className="flex items-center gap-2 text-sm text-slate-500">
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>A pensar...</span>
+                     <span>
+  {{
+    pt: 'A pensar...',
+    en: 'Thinking...',
+    es: 'Pensando...',
+    fr: 'Réflexion...',
+    it: 'Sto pensando...',
+  }[getCurrentLanguage()]}
+</span>
                     </div>
                   </div>
                 </div>
@@ -339,9 +379,17 @@ export function AIAssistant() {
                 onMouseDown={(e) => e.stopPropagation()}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Escreve a tua mensagem..."
+                placeholder={
+  {
+    pt: 'Escreve a tua mensagem...',
+    en: 'Type your message...',
+    es: 'Escribe tu mensaje...',
+    fr: 'Écrivez votre message...',
+    it: 'Scrivi il tuo messaggio...',
+  }[getCurrentLanguage()]
+}
                 disabled={loading}
-                className="flex-1 rounded-full"
+                className="flex-1 rounded-full h-10"
                 data-testid="ai-chat-input"
               />
 
@@ -349,7 +397,7 @@ export function AIAssistant() {
                 onClick={sendMessage}
                 disabled={!input.trim() || loading}
                 size="icon"
-                className="rounded-full"
+                className="flex-1 rounded-full h-11 border-slate-300"
                 data-testid="ai-chat-send"
               >
                 {loading ? (
@@ -361,7 +409,15 @@ export function AIAssistant() {
             </div>
 
             <p className="text-xs text-muted-foreground mt-2 text-center">
-              Powered by AI • As respostas podem conter erros
+              {
+  {
+    pt: 'Powered by AI • As respostas podem conter erros',
+    en: 'Powered by AI • Responses may contain errors',
+    es: 'Powered by AI • Las respuestas pueden contener errores',
+    fr: 'Powered by AI • Les réponses peuvent contenir des erreurs',
+    it: 'Powered by AI • Le risposte possono contenere errori',
+  }[getCurrentLanguage()]
+}
             </p>
           </div>
         </div>
