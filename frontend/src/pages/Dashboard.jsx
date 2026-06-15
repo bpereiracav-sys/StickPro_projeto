@@ -23,7 +23,6 @@ import {
   CheckCircle,
   XCircle,
   HelpCircle,
-  TrendingUp,
   AlertTriangle,
   Sparkles,
   ShieldCheck,
@@ -45,6 +44,11 @@ export default function Dashboard() {
   const [paymentStatus, setPaymentStatus] = useState(null);
 
   const dateLocale = locales[language] || pt;
+
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
 
   useEffect(() => {
     fetchDashboard();
@@ -94,10 +98,11 @@ export default function Dashboard() {
     if (!date) return '';
     const days = differenceInCalendarDays(new Date(date), new Date());
 
-    if (days < 0) return 'Já decorreu';
-    if (days === 0) return 'Hoje';
-    if (days === 1) return 'Amanhã';
-    return `Faltam ${days} dias`;
+    if (days < 0) return tr('dashboard.eventAlreadyPassed', 'Já decorreu');
+    if (days === 0) return t('time.today');
+    if (days === 1) return t('time.tomorrow');
+
+    return tr('dashboard.daysRemaining', `Faltam ${days} dias`).replace('{days}', days);
   };
 
   const upcomingEvents = useMemo(() => data?.upcoming_events || [], [data]);
@@ -106,6 +111,8 @@ export default function Dashboard() {
 
   const nextEvent = upcomingEvents[0] || null;
   const pendingCount = pendingConvocations.length;
+
+  const dateFormat = language === 'pt' ? "EEEE, d 'de' MMMM" : 'EEEE, d MMMM';
 
   const MetricCard = ({ icon: Icon, label, value, helper, tone = 'primary', to }) => {
     const tones = {
@@ -155,27 +162,33 @@ export default function Dashboard() {
         iconColor: 'text-emerald-600',
         iconBg: 'bg-emerald-100',
         icon: CheckCircle,
-        title: 'Pagamentos em Dia',
-        message: 'Todos os pagamentos estão regularizados',
-        badge: 'Regularizado',
+        title: tr('payments.statusPaidTitle', 'Pagamentos em Dia'),
+        message: tr('payments.statusPaidMessage', 'Todos os pagamentos estão regularizados'),
+        badge: tr('payments.statusPaidBadge', 'Regularizado'),
       },
       pending: {
         color: 'border-amber-200 bg-amber-50/90',
         iconColor: 'text-amber-600',
         iconBg: 'bg-amber-100',
         icon: Clock,
-        title: 'Pagamentos Pendentes',
-        message: `${paymentStatus.pending_count || 0} pagamento(s) por liquidar`,
-        badge: 'Pendente',
+        title: tr('payments.statusPendingTitle', 'Pagamentos Pendentes'),
+        message: tr(
+          'payments.statusPendingMessage',
+          `${paymentStatus.pending_count || 0} pagamento(s) por liquidar`
+        ).replace('{count}', paymentStatus.pending_count || 0),
+        badge: tr('payments.statusPendingBadge', 'Pendente'),
       },
       overdue: {
         color: 'border-red-200 bg-red-50/90',
         iconColor: 'text-red-600',
         iconBg: 'bg-red-100',
         icon: AlertTriangle,
-        title: 'Pagamentos em Atraso',
-        message: `${paymentStatus.overdue_count || 0} pagamento(s) em atraso`,
-        badge: 'Atenção',
+        title: tr('payments.statusOverdueTitle', 'Pagamentos em Atraso'),
+        message: tr(
+          'payments.statusOverdueMessage',
+          `${paymentStatus.overdue_count || 0} pagamento(s) em atraso`
+        ).replace('{count}', paymentStatus.overdue_count || 0),
+        badge: tr('payments.statusOverdueBadge', 'Atenção'),
       },
     };
 
@@ -213,7 +226,8 @@ export default function Dashboard() {
               Number(paymentStatus.total_overdue || 0) > 0 && (
                 <div className="mt-4 rounded-xl border border-red-200 bg-white/65 px-3 py-2">
                   <p className="text-sm font-semibold text-red-700">
-                    Total em atraso: €{Number(paymentStatus.total_overdue || 0).toFixed(2)}
+                    {tr('payments.totalOverdue', 'Total em atraso')}: €
+                    {Number(paymentStatus.total_overdue || 0).toFixed(2)}
                   </p>
                 </div>
               )}
@@ -242,10 +256,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div
-  className="space-y-7 -mt-10 lg:-mt-12"
-  data-testid="dashboard-page"
->
+    <div className="space-y-7 -mt-10 lg:-mt-12" data-testid="dashboard-page">
       <section className="relative overflow-hidden rounded-[2rem] border border-slate-200/80 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-7 lg:p-8">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.32),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.28),transparent_32%)]"
@@ -260,7 +271,7 @@ export default function Dashboard() {
             </Badge>
 
             <h1 className="font-heading text-3xl tracking-tight sm:text-4xl lg:text-5xl">
-              {getGreeting()}, {user?.name?.split(' ')?.[0] || 'Utilizador'}.
+              {getGreeting()}, {user?.name?.split(' ')?.[0] || tr('common.user', 'Utilizador')}.
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
@@ -270,12 +281,12 @@ export default function Dashboard() {
             <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-300">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
                 <Calendar className="h-4 w-4 text-cyan-300" />
-                {format(new Date(), "EEEE, d 'de' MMMM", { locale: dateLocale })}
+                {format(new Date(), dateFormat, { locale: dateLocale })}
               </span>
 
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-300" />
-{t('dashboard.operationalActive')}
+                {t('dashboard.operationalActive')}
               </span>
             </div>
           </div>
@@ -285,10 +296,12 @@ export default function Dashboard() {
               <p className="font-heading text-2xl">{data?.teams_count || 0}</p>
               <p className="text-xs text-slate-300">{t('dashboard.teams')}</p>
             </div>
+
             <div className="rounded-2xl bg-white/10 p-3 text-center">
               <p className="font-heading text-2xl">{upcomingEvents.length}</p>
               <p className="text-xs text-slate-300">{t('dashboard.events')}</p>
             </div>
+
             <div className="rounded-2xl bg-white/10 p-3 text-center">
               <p className="font-heading text-2xl">{pendingCount}</p>
               <p className="text-xs text-slate-300">{t('dashboard.pending')}</p>
@@ -303,32 +316,35 @@ export default function Dashboard() {
         <MetricCard
           icon={Users}
           value={data?.teams_count || 0}
-          label="Equipas"
-          helper="Estrutura desportiva ativa"
+          label={t('dashboard.teams')}
+          helper={tr('dashboard.activeSportsStructure', 'Estrutura desportiva ativa')}
           tone="primary"
           to="/teams"
         />
+
         <MetricCard
           icon={Calendar}
           value={upcomingEvents.length}
-          label="Eventos"
-          helper="Próximos treinos e jogos"
+          label={t('dashboard.events')}
+          helper={tr('dashboard.upcomingTrainingAndGames', 'Próximos treinos e jogos')}
           tone="secondary"
           to="/calendar"
         />
+
         <MetricCard
           icon={ClipboardCheck}
           value={pendingCount}
-          label="Convocatórias"
-          helper="A aguardar resposta"
+          label={t('dashboard.convocations')}
+          helper={tr('dashboard.awaitingResponse', 'A aguardar resposta')}
           tone="amber"
           to="/convocations"
         />
+
         <MetricCard
           icon={MessageSquare}
           value={recentMessages.length}
-          label="Mensagens"
-          helper="Comunicação recente"
+          label={tr('messages.title', 'Mensagens')}
+          helper={tr('dashboard.recentCommunication', 'Comunicação recente')}
           tone="purple"
           to="/messages"
         />
@@ -352,7 +368,7 @@ export default function Dashboard() {
 
               <div className="relative z-10">
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/75">
-                  Próximo evento
+                  {tr('dashboard.nextEvent', 'Próximo evento')}
                 </p>
                 <p className="mt-2 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">
                   {getEventCountdown(nextEvent.start_time)}
@@ -389,7 +405,7 @@ export default function Dashboard() {
                   </Badge>
 
                   <h2 className="font-heading text-2xl tracking-tight text-slate-950 sm:text-3xl">
-                    {nextEvent.title || 'Evento'}
+                    {nextEvent.title || tr('calendar.event', 'Evento')}
                   </h2>
 
                   {nextEvent.opponent && (
@@ -399,7 +415,7 @@ export default function Dashboard() {
 
                 <Button asChild className="shrink-0 rounded-full" data-testid="view-event-btn">
                   <Link to="/calendar">
-                    Ver Detalhes
+                    {tr('common.seeDetails', 'Ver Detalhes')}
                     <ChevronRight className="ml-1 h-4 w-4" />
                   </Link>
                 </Button>
@@ -408,24 +424,26 @@ export default function Dashboard() {
               <div className="mt-6 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <Clock className="mb-2 h-4 w-4 text-primary" />
-                  <p className="font-semibold text-slate-950">{formatTime(nextEvent.start_time)}</p>
-                  <p className="text-xs text-slate-400">Hora</p>
+                  <p className="font-semibold text-slate-950">
+                    {formatTime(nextEvent.start_time)}
+                  </p>
+                  <p className="text-xs text-slate-400">{tr('championships.time', 'Hora')}</p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <MapPin className="mb-2 h-4 w-4 text-primary" />
                   <p className="truncate font-semibold text-slate-950">
-                    {nextEvent.location || 'A definir'}
+                    {nextEvent.location || tr('calendar.toDefine', 'A definir')}
                   </p>
-                  <p className="text-xs text-slate-400">Local</p>
+                  <p className="text-xs text-slate-400">{tr('championships.venue', 'Local')}</p>
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <Users className="mb-2 h-4 w-4 text-primary" />
                   <p className="truncate font-semibold text-slate-950">
-                    {nextEvent.team?.name || 'Equipa'}
+                    {nextEvent.team?.name || tr('common.selectTeam', 'Equipa')}
                   </p>
-                  <p className="text-xs text-slate-400">Grupo</p>
+                  <p className="text-xs text-slate-400">{tr('dashboard.group', 'Grupo')}</p>
                 </div>
               </div>
             </div>
@@ -478,7 +496,7 @@ export default function Dashboard() {
 
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-slate-950 sm:text-base">
-                        {event.title || 'Evento'}
+                        {event.title || tr('calendar.event', 'Evento')}
                       </p>
                       <p className="truncate text-xs text-slate-500 sm:text-sm">
                         {formatTime(event.start_time)}
@@ -545,7 +563,7 @@ export default function Dashboard() {
                     </div>
 
                     <p className="text-sm font-semibold text-slate-950">
-                      {item.event?.title || 'Evento'}
+                      {item.event?.title || tr('calendar.event', 'Evento')}
                     </p>
                     <p className="mt-1 text-xs text-slate-500">
                       {formatTime(item.event?.start_time)}
@@ -560,7 +578,7 @@ export default function Dashboard() {
                       >
                         <Link to="/convocations">
                           <CheckCircle className="mr-1 h-3 w-3" />
-                          Confirmar
+                          {tr('common.confirm', 'Confirmar')}
                         </Link>
                       </Button>
 
@@ -572,7 +590,7 @@ export default function Dashboard() {
                       >
                         <Link to="/convocations">
                           <XCircle className="mr-1 h-3 w-3" />
-                          Indisponível
+                          {tr('attendance.unavailable', 'Indisponível')}
                         </Link>
                       </Button>
                     </div>
