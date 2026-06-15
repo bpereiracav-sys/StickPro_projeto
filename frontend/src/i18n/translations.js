@@ -156,10 +156,17 @@ export const translations = {
       upcomingEvents: 'Próximos Eventos',
       seeCalendar: 'Ver Calendário',
       convocations: 'Convocatórias',
-      newConvocation: "Nova Convocatória" ,
+      newConvocation: 'Nova Convocatória',
       allConvocationsAnswered: 'Todas as convocatórias respondidas!',
       seeAll: 'Ver Todas',
       today: 'Hoje',
+    
+      heroSubtitle:
+        'Gestão centralizada do clube, equipas, eventos, presenças e pagamentos num só painel operacional.',
+      operationalActive: 'Ambiente operacional ativo',
+      teams: 'Equipas',
+      events: 'Eventos',
+      pending: 'Pendentes',
     },
 
     calendar: {
@@ -855,6 +862,13 @@ topnav: {
       allConvocationsAnswered: '¡Todas las convocatorias respondidas!',
       seeAll: 'Ver Todas',
       today: 'Hoy',
+      
+      heroSubtitle:
+        'Gestión centralizada del club, equipos, eventos, asistencias y pagos en un único panel operativo.',
+      operationalActive: 'Entorno operativo activo',
+      teams: 'Equipos',
+      events: 'Eventos',
+      pending: 'Pendientes',
     },
 
     calendar: {
@@ -1552,6 +1566,13 @@ topnav: {
       allConvocationsAnswered: 'Toutes les convocations sont répondues !',
       seeAll: 'Voir Tout',
       today: "Aujourd'hui",
+      
+      heroSubtitle:
+        'Gestion centralisée du club, des équipes, des événements, des présences et des paiements dans un seul tableau de bord opérationnel.',
+      operationalActive: 'Environnement opérationnel actif',
+      teams: 'Équipes',
+      events: 'Événements',
+      pending: 'En attente',
     },
 
     calendar: {
@@ -2256,6 +2277,13 @@ topnav: {
         'Tutte le convocazioni sono state risposte!',
       seeAll: 'Vedi Tutto',
       today: 'Oggi',
+      
+      heroSubtitle:
+        'Gestione centralizzata di club, squadre, eventi, presenze e pagamenti in un unico pannello operativo.',
+      operationalActive: 'Ambiente operativo attivo',
+      teams: 'Squadre',
+      events: 'Eventi',
+      pending: 'In sospeso',
     },
 
     calendar: {
@@ -2956,6 +2984,13 @@ topnav: {
       allConvocationsAnswered: 'All convocations answered!',
       seeAll: 'See All',
       today: 'Today',
+      
+      heroSubtitle:
+        'Centralized management of club, teams, events, attendance and payments in one operational dashboard.',
+      operationalActive: 'Operational environment active',
+      teams: 'Teams',
+      events: 'Events',
+      pending: 'Pending',
     },
 
     calendar: {
