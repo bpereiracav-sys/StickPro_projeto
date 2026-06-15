@@ -355,12 +355,12 @@ export function TopNavBar() {
                   </Link>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem asChild>
-                  <Link to="/convocations" className="cursor-pointer">
-                    <ClipboardList className="mr-2 h-4 w-4" />
-                    tr('dashboard.newConvocation', 'Nova Convocatória')
-                  </Link>
-                </DropdownMenuItem>
+               <DropdownMenuItem asChild>
+  <Link to="/convocations" className="cursor-pointer">
+    <ClipboardList className="mr-2 h-4 w-4" />
+    {tr('dashboard.newConvocation', 'Nova Convocatória')}
+  </Link>
+</DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link to="/competitions" className="cursor-pointer">
