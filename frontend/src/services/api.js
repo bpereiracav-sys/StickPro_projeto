@@ -159,6 +159,11 @@ export const convocationsApi = {
   getMyDetailed: () => api.get('/attendance/my/detailed'),
 };
 
+// Commitment API
+export const commitmentApi = {
+  getMy: () => api.get('/commitment/my'),
+};
+
 // Messages API
 export const messagesApi = {
   getByTeam: (teamId, limit) => api.get(`/messages/${teamId}`, { params: { limit } }),
