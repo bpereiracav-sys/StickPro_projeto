@@ -156,6 +156,7 @@ export const translations = {
       upcomingEvents: 'Próximos Eventos',
       seeCalendar: 'Ver Calendário',
       convocations: 'Convocatórias',
+      newConvocation: "Nova Convocatória" ,
       allConvocationsAnswered: 'Todas as convocatórias respondidas!',
       seeAll: 'Ver Todas',
       today: 'Hoje',
