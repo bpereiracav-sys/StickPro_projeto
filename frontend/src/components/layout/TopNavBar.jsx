@@ -317,15 +317,16 @@ export function TopNavBar() {
           </DropdownMenu>
 
           <div className="flex flex-1 items-center justify-center">
-            <Button
-              variant="outline"
-              className="h-10 w-full max-w-[520px] justify-start rounded-full border-slate-200 bg-white px-4 text-slate-400 hover:bg-slate-50"
-              data-testid="topnav-search"
-              type="button"
-            >
-              <Search className="mr-2 h-4 w-4" />
-              {tr('topnav.searchPlaceholder', 'Pesquisar atleta, equipa, evento...')}
-            </Button>
+            <div className="relative w-full max-w-[520px]">
+  <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+
+  <input
+    type="text"
+    className="h-10 w-full rounded-full border border-slate-200 bg-white pl-10 pr-4 text-sm text-slate-700 outline-none transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20"
+    data-testid="topnav-search"
+    placeholder={tr('topnav.searchPlaceholder', 'Pesquisar atleta, equipa, evento...')}
+  />
+</div>
           </div>
 
           <div className="flex items-center gap-2">
