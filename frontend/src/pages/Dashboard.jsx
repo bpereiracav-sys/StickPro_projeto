@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { dashboardApi, paymentsApi } from '../services/api';
+import { dashboardApi, paymentsApi, commitmentApi } from '../services/api';
 import { Card, CardContent } from '../components/ui/card';
 import {
   CardWithStripe,
@@ -42,7 +42,8 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState(null);
-
+  const [commitment, setCommitment] = useState(null);
+  
   const dateLocale = locales[language] || pt;
 
   const tr = (key, fallback) => {
@@ -50,10 +51,11 @@ export default function Dashboard() {
     return value && value !== key ? value : fallback;
   };
 
-  useEffect(() => {
-    fetchDashboard();
-    fetchPaymentStatus();
-  }, []);
+ useEffect(() => {
+  fetchDashboard();
+  fetchPaymentStatus();
+  fetchCommitment();
+}, []);
 
   const fetchDashboard = async () => {
     try {
@@ -67,6 +69,16 @@ export default function Dashboard() {
     }
   };
 
+const fetchCommitment = async () => {
+  try {
+    const response = await commitmentApi.getMy();
+    setCommitment(response?.data || null);
+  } catch (error) {
+    console.error('Error fetching commitment:', error);
+    setCommitment(null);
+  }
+};
+  
   const fetchPaymentStatus = async () => {
     try {
       const response = await paymentsApi.getStatus();
@@ -452,6 +464,56 @@ export default function Dashboard() {
         </Card>
       )}
 
+      {commitment && (
+        <Card className="mb-6 border border-amber-200 bg-gradient-to-r from-amber-50 to-yellow-50">
+          <CardContent className="p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <span className="text-2xl">🏅</span>
+              <h2 className="font-heading text-xl font-semibold">
+                O Meu Compromisso
+              </h2>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="rounded-xl bg-white p-4 border">
+                <p className="text-sm text-slate-500">Treinos</p>
+                <p className="mt-2 text-2xl font-bold">
+                  {commitment.training?.rate || 0}%
+                </p>
+                <p className="text-sm text-slate-600 capitalize">
+                  {commitment.training?.medal || 'none'}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-white p-4 border">
+                <p className="text-sm text-slate-500">Jogos</p>
+                <p className="mt-2 text-2xl font-bold">
+                  {commitment.games?.rate || 0}%
+                </p>
+                <p className="text-sm text-slate-600 capitalize">
+                  {commitment.games?.medal || 'none'}
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-white p-4 border">
+                <p className="text-sm text-slate-500">
+                  Próximo Objetivo
+                </p>
+
+                <p className="mt-2 text-sm font-medium">
+                  Faltam{' '}
+                  {commitment.training?.next_goal?.missing || 0}
+                  {' '}
+                  presenças para
+                  {' '}
+                  {commitment.training?.next_goal?.target || 'bronze'}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <CardWithStripe
           stripeColor="primary"
