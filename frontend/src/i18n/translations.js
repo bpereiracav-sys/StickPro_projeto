@@ -3625,20 +3625,20 @@ topnav: {
         },
       },
 
-       payments: {
-          statusPaidTitle: 'Payments Up to Date',
-          statusPaidMessage: 'All payments are settled',
-          statusPaidBadge: 'Settled',
-          statusPendingTitle: 'Pending Payments',
-          statusPendingMessage: '{count} payment(s) pending',
-          statusPendingBadge: 'Pending',
-          statusOverdueTitle: 'Overdue Payments',
-          statusOverdueMessage: '{count} overdue payment(s)',
-          statusOverdueBadge: 'Attention',
-          totalOverdue: 'Total overdue',
-        },
-      },
-    };
+           payments: {
+      statusPaidTitle: 'Payments Up to Date',
+      statusPaidMessage: 'All payments are settled',
+      statusPaidBadge: 'Settled',
+      statusPendingTitle: 'Pending Payments',
+      statusPendingMessage: '{count} payment(s) pending',
+      statusPendingBadge: 'Pending',
+      statusOverdueTitle: 'Overdue Payments',
+      statusOverdueMessage: '{count} overdue payment(s)',
+      statusOverdueBadge: 'Attention',
+      totalOverdue: 'Total overdue',
+    },
+  },
+};
 
 export const languageNames = {
   pt: 'Português',
