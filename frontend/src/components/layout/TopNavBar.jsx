@@ -23,6 +23,11 @@ import {
   Check,
   Bell,
   Search,
+  Plus,
+  CalendarPlus,
+  ClipboardList,
+  Trophy,
+  UserPlus,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -135,11 +140,11 @@ export function TopNavBar() {
 
   const activeContextLabel = selectedTeam
     ? selectedTeam.name
-    : tr('nav.myClub', 'Meu Clube');
+    : club?.name || tr('nav.myClub', 'Meu Clube');
 
   const activeContextSubtitle = selectedTeam
     ? `${selectedTeam.category || 'Equipa'}${selectedTeam.season ? ` • ${selectedTeam.season}` : ''}`
-    : club?.name || 'Gestão integrada do Clube';
+    : tr('topnav.clubOverview', 'Gestão integrada do Clube');
 
   const teamsLabel = tr('nav.teams', 'Equipas');
   const myTeamsLabel = tr('nav.myTeams', 'As Minhas Equipas');
@@ -182,164 +187,197 @@ export function TopNavBar() {
     >
       <div className="px-6">
         <div className="flex h-16 items-center justify-between gap-4">
-          <Link
-            to="/dashboard"
-            className="flex min-w-[300px] max-w-[440px] items-center gap-3"
-          >
-            {club?.logo_url ? (
-              <img
-                src={club.logo_url}
-                alt={club.name}
-                className="h-10 w-10 rounded-xl object-contain"
-                data-testid="club-logo"
-              />
-            ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                <Building2 className="h-5 w-5 text-primary" />
-              </div>
-            )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                className="flex h-12 min-w-[260px] max-w-[380px] items-center justify-between gap-3 rounded-2xl px-3 hover:bg-slate-50"
+                data-testid="topnav-club-selector"
+              >
+                <span className="flex min-w-0 items-center gap-3">
+                  {club?.logo_url ? (
+                    <img
+                      src={club.logo_url}
+                      alt={club.name}
+                      className="h-10 w-10 shrink-0 rounded-xl object-contain"
+                      data-testid="club-logo"
+                    />
+                  ) : (
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                      <span className="text-sm font-bold text-primary">
+                        {getInitials(club?.name || 'StickPro')}
+                      </span>
+                    </div>
+                  )}
 
-            <div className="min-w-0">
-              <p className="truncate font-heading text-lg font-semibold tracking-tight text-slate-950">
-                {club?.name || 'StickPro'}
-              </p>
-              <p className="truncate text-xs text-slate-500">
-                {selectedTeam
-                  ? activeContextSubtitle
-                  : tr('topnav.clubOverview', 'Gestão integrada do Clube')}
-              </p>
-            </div>
-          </Link>
-
-          <div className="flex flex-1 items-center justify-center gap-3">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="h-10 min-w-[240px] justify-between rounded-full border-slate-200 bg-slate-50/80 px-4 hover:bg-slate-100"
-                  data-testid="topnav-context-selector"
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    {selectedTeam ? (
-                      <Users className="h-4 w-4 shrink-0 text-primary" />
-                    ) : (
-                      <Building2 className="h-4 w-4 shrink-0 text-primary" />
-                    )}
-
-                    <span className="truncate font-medium text-slate-800">
-                      {activeContextLabel}
+                  <span className="min-w-0 text-left">
+                    <span className="block truncate font-heading text-base font-semibold tracking-tight text-slate-950">
+                      {club?.name || 'StickPro'}
+                    </span>
+                    <span className="block truncate text-xs text-slate-500">
+                      {activeContextSubtitle}
                     </span>
                   </span>
+                </span>
 
-                  <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
-                </Button>
-              </DropdownMenuTrigger>
+                <ChevronDown className="h-4 w-4 shrink-0 text-slate-400" />
+              </Button>
+            </DropdownMenuTrigger>
 
-              <DropdownMenuContent className="w-72 bg-white" align="center">
-                <DropdownMenuLabel>
-                  {tr('topnav.activeContext', 'Contexto ativo')}
-                </DropdownMenuLabel>
+            <DropdownMenuContent className="w-80 bg-white" align="start">
+              <DropdownMenuLabel>
+                {tr('topnav.activeContext', 'Contexto ativo')}
+              </DropdownMenuLabel>
 
-                <DropdownMenuSeparator />
+              <DropdownMenuSeparator />
 
-                <DropdownMenuItem
-                  onClick={handleSelectAllTeams}
-                  className="flex cursor-pointer items-center justify-between"
-                  data-testid="topnav-select-club"
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                      <Building2 className="h-4 w-4 text-primary" />
-                    </div>
-
-                    <div>
-                      <p className="text-sm font-medium">
-                        {tr('nav.myClub', 'Meu Clube')}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {club?.name || tr('topnav.clubOverview', 'Gestão integrada do Clube')}
-                      </p>
-                    </div>
+              <DropdownMenuItem
+                onClick={handleSelectAllTeams}
+                className="flex cursor-pointer items-center justify-between"
+                data-testid="topnav-select-club"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                    <Building2 className="h-4 w-4 text-primary" />
                   </div>
 
-                  {isAllTeamsSelected && <Check className="h-4 w-4 text-primary" />}
-                </DropdownMenuItem>
+                  <div>
+                    <p className="text-sm font-medium">
+                      {club?.name || tr('nav.myClub', 'Meu Clube')}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {tr('topnav.clubOverview', 'Gestão integrada do Clube')}
+                    </p>
+                  </div>
+                </div>
 
-                <DropdownMenuSeparator />
+                {isAllTeamsSelected && <Check className="h-4 w-4 text-primary" />}
+              </DropdownMenuItem>
 
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
-                  {myTeamsLabel}
-                </DropdownMenuLabel>
+              <DropdownMenuSeparator />
 
-                {teams?.length > 0 ? (
-                  teams.map((team) => (
-                    <DropdownMenuItem
-                      key={team.id}
-                      onClick={() => handleSelectTeam(team)}
-                      className="flex cursor-pointer items-center justify-between"
-                      data-testid={`topnav-team-${team.id}`}
-                    >
-                      <div className="flex min-w-0 items-center gap-2">
-                        {team.photo_url ? (
-                          <img
-                            src={team.photo_url}
-                            alt=""
-                            className="h-8 w-8 rounded-lg object-cover"
-                          />
-                        ) : (
-                          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
-                            <Users className="h-4 w-4 text-primary" />
-                          </div>
-                        )}
+              <DropdownMenuLabel className="text-xs text-muted-foreground">
+                {myTeamsLabel}
+              </DropdownMenuLabel>
 
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium">{team.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {team.category}
-                          </p>
+              {teams?.length > 0 ? (
+                teams.map((team) => (
+                  <DropdownMenuItem
+                    key={team.id}
+                    onClick={() => handleSelectTeam(team)}
+                    className="flex cursor-pointer items-center justify-between"
+                    data-testid={`topnav-team-${team.id}`}
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      {team.photo_url ? (
+                        <img
+                          src={team.photo_url}
+                          alt=""
+                          className="h-8 w-8 rounded-lg object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                          <Users className="h-4 w-4 text-primary" />
                         </div>
-                      </div>
-
-                      {selectedTeam?.id === team.id && (
-                        <Check className="h-4 w-4 shrink-0 text-primary" />
                       )}
-                    </DropdownMenuItem>
-                  ))
-                ) : (
-                  <DropdownMenuItem disabled>
-                    <span className="text-muted-foreground">
-                      {tr('common.noData', 'Sem equipas')}
-                    </span>
+
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">{team.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {team.category}
+                        </p>
+                      </div>
+                    </div>
+
+                    {selectedTeam?.id === team.id && (
+                      <Check className="h-4 w-4 shrink-0 text-primary" />
+                    )}
                   </DropdownMenuItem>
-                )}
+                ))
+              ) : (
+                <DropdownMenuItem disabled>
+                  <span className="text-muted-foreground">
+                    {tr('common.noData', 'Sem equipas')}
+                  </span>
+                </DropdownMenuItem>
+              )}
 
-                {permissions.canManageTeam && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem asChild>
-                      <Link to="/teams" className="flex cursor-pointer items-center gap-2">
-                        <Settings className="h-4 w-4" />
-                        {teamsLabel}
-                      </Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+              {permissions.canManageTeam && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/teams" className="flex cursor-pointer items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      {teamsLabel}
+                    </Link>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-           <Button
-        variant="outline"
-        className="h-10 min-w-[300px] justify-start rounded-full border-slate-200 bg-white px-4 text-slate-400 hover:bg-slate-50"
-        data-testid="topnav-search"
-        type="button"
-        onClick={() => window.dispatchEvent(new Event('stickpro:toggle-ai-assistant'))}
-      >
-        <Search className="mr-2 h-4 w-4" />
-        {tr('topnav.searchPlaceholder', 'Pesquisar atleta, equipa, evento...')}
-      </Button>
+          <div className="flex flex-1 items-center justify-center">
+            <Button
+              variant="outline"
+              className="h-10 w-full max-w-[520px] justify-start rounded-full border-slate-200 bg-white px-4 text-slate-400 hover:bg-slate-50"
+              data-testid="topnav-search"
+              type="button"
+            >
+              <Search className="mr-2 h-4 w-4" />
+              {tr('topnav.searchPlaceholder', 'Pesquisar atleta, equipa, evento...')}
+            </Button>
           </div>
 
           <div className="flex items-center gap-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  className="h-10 rounded-full px-4"
+                  data-testid="topnav-new-button"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  {tr('common.new', 'Novo')}
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent className="w-56 bg-white" align="end">
+                <DropdownMenuLabel>
+                  {tr('topnav.createNew', 'Criar novo')}
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem asChild>
+                  <Link to="/calendar" className="cursor-pointer">
+                    <CalendarPlus className="mr-2 h-4 w-4" />
+                    {tr('calendar.newEvent', 'Novo Evento')}
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild>
+                  <Link to="/convocations" className="cursor-pointer">
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    {tr('convocations.newConvocation', 'Nova Convocatória')}
+                  </Link>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem asChild>
+                  <Link to="/competitions" className="cursor-pointer">
+                    <Trophy className="mr-2 h-4 w-4" />
+                    {tr('competitions.newGame', 'Novo Jogo')}
+                  </Link>
+                </DropdownMenuItem>
+
+                {(permissions.canManageTeam || permissions.canManageClub || permissions.isAdmin) && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/members" className="cursor-pointer">
+                      <UserPlus className="mr-2 h-4 w-4" />
+                      {tr('members.newMember', 'Novo Atleta')}
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Button
               variant="ghost"
