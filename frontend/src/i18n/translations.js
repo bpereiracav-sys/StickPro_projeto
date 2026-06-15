@@ -254,6 +254,7 @@ export const translations = {
       editTeam: 'Editar Equipa',
       deleteTeam: 'Eliminar Equipa',
       games: 'Jogos',
+      newGame: 'Novo Jogo',
       teams: 'Equipas',
       standings: 'Classificação',
       format: {
