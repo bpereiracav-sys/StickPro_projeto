@@ -167,6 +167,15 @@ export const translations = {
       teams: 'Equipas',
       events: 'Eventos',
       pending: 'Pendentes',
+
+      activeSportsStructure: 'Estrutura desportiva ativa',
+      upcomingTrainingAndGames: 'Próximos treinos e jogos',
+      awaitingResponse: 'A aguardar resposta',
+      recentCommunication: 'Comunicação recente',
+      nextEvent: 'Próximo evento',
+      group: 'Grupo',
+      eventAlreadyPassed: 'Já decorreu',
+      daysRemaining: 'Faltam {days} dias',
     },
 
     calendar: {
@@ -699,9 +708,22 @@ export const translations = {
           invitesErrorToast: 'Não foi possível enviar os convites',
           completeButton: 'Concluir onboarding',
         },
+       },
       },
-    },
-  },
+        
+        payments: {
+          statusPaidTitle: 'Pagamentos em Dia',
+          statusPaidMessage: 'Todos os pagamentos estão regularizados',
+          statusPaidBadge: 'Regularizado',
+          statusPendingTitle: 'Pagamentos Pendentes',
+          statusPendingMessage: '{count} pagamento(s) por liquidar',
+          statusPendingBadge: 'Pendente',
+          statusOverdueTitle: 'Pagamentos em Atraso',
+          statusOverdueMessage: '{count} pagamento(s) em atraso',
+          statusOverdueBadge: 'Atenção',
+          totalOverdue: 'Total em atraso',
+        },
+      },
 
   es: {
     common: {
@@ -869,7 +891,16 @@ topnav: {
       teams: 'Equipos',
       events: 'Eventos',
       pending: 'Pendientes',
-    },
+
+      activeSportsStructure: 'Estructura deportiva activa',
+      upcomingTrainingAndGames: 'Próximos entrenamientos y partidos',
+      awaitingResponse: 'A la espera de respuesta',
+      recentCommunication: 'Comunicación reciente',
+      nextEvent: 'Próximo evento',
+      group: 'Grupo',
+      eventAlreadyPassed: 'Ya finalizado',
+      daysRemaining: 'Faltan {days} días',
+      },
 
     calendar: {
       title: 'Calendario',
@@ -1403,9 +1434,22 @@ topnav: {
           invitesErrorToast: 'No se pudieron enviar las invitaciones',
           completeButton: 'Finalizar onboarding',
         },
+       },
       },
-    },
-  },
+
+        payments: {
+          statusPaidTitle: 'Pagos al Día',
+          statusPaidMessage: 'Todos los pagos están regularizados',
+          statusPaidBadge: 'Regularizado',
+          statusPendingTitle: 'Pagos Pendientes',
+          statusPendingMessage: '{count} pago(s) pendiente(s)',
+          statusPendingBadge: 'Pendiente',
+          statusOverdueTitle: 'Pagos Vencidos',
+          statusOverdueMessage: '{count} pago(s) atrasado(s)',
+          statusOverdueBadge: 'Atención',
+          totalOverdue: 'Total atrasado',
+        },
+      },
 
   fr: {
     common: {
@@ -1573,7 +1617,16 @@ topnav: {
       teams: 'Équipes',
       events: 'Événements',
       pending: 'En attente',
-    },
+
+      activeSportsStructure: 'Structure sportive active',
+      upcomingTrainingAndGames: 'Prochains entraînements et matchs',
+      awaitingResponse: 'En attente de réponse',
+      recentCommunication: 'Communication récente',
+      nextEvent: 'Prochain événement',
+      group: 'Groupe',
+      eventAlreadyPassed: 'Déjà passé',
+      daysRemaining: 'Encore {days} jours',
+       },
 
     calendar: {
       title: 'Calendrier',
@@ -2112,10 +2165,23 @@ topnav: {
           invitesSentToast: 'Invitations envoyées : {{sent}}, ignorées : {{skipped}}, échouées : {{failed}}',
           invitesErrorToast: 'Impossible d\'envoyer les invitations',
           completeButton: 'Terminer l\'onboarding',
+         },
         },
       },
-    },
-  },
+        
+        payments: {
+          statusPaidTitle: 'Paiements à jour',
+          statusPaidMessage: 'Tous les paiements sont régularisés',
+          statusPaidBadge: 'Régularisé',
+          statusPendingTitle: 'Paiements en attente',
+          statusPendingMessage: '{count} paiement(s) à régler',
+          statusPendingBadge: 'En attente',
+          statusOverdueTitle: 'Paiements en Retard',
+          statusOverdueMessage: '{count} paiement(s) en retard',
+          statusOverdueBadge: 'Attention',
+          totalOverdue: 'Total en retard',
+         },
+       },
 
   it: {
     common: {
@@ -2284,7 +2350,16 @@ topnav: {
       teams: 'Squadre',
       events: 'Eventi',
       pending: 'In sospeso',
-    },
+
+      activeSportsStructure: 'Struttura sportiva attiva',
+      upcomingTrainingAndGames: 'Prossimi allenamenti e partite',
+      awaitingResponse: 'In attesa di risposta',
+      recentCommunication: 'Comunicazione recente',
+      nextEvent: 'Prossimo evento',
+      group: 'Gruppo',
+      eventAlreadyPassed: 'Già terminato',
+      daysRemaining: 'Mancano {days} giorni',
+      },
 
     calendar: {
       title: 'Calendario',
@@ -2824,7 +2899,20 @@ topnav: {
         },
       },
     },
-  },
+
+        payments: {
+          statusPaidTitle: 'Pagamenti in Regola',
+          statusPaidMessage: 'Tutti i pagamenti sono regolarizzati',
+          statusPaidBadge: 'Regolarizzato',
+          statusPendingTitle: 'Pagamenti in Sospeso',
+          statusPendingMessage: '{count} pagamento/i da saldare',
+          statusPendingBadge: 'In sospeso',
+          statusOverdueTitle: 'Pagamenti in Ritardo',
+          statusOverdueMessage: '{count} pagamento/i in ritardo',
+          statusOverdueBadge: 'Attenzione',
+          totalOverdue: 'Totale in ritardo',
+        },
+      },
 
   en: {
     common: {
@@ -2991,7 +3079,16 @@ topnav: {
       teams: 'Teams',
       events: 'Events',
       pending: 'Pending',
-    },
+
+      activeSportsStructure: 'Active sports structure',
+      upcomingTrainingAndGames: 'Upcoming training sessions and games',
+      awaitingResponse: 'Awaiting response',
+      recentCommunication: 'Recent communication',
+      nextEvent: 'Next event',
+      group: 'Group',
+      eventAlreadyPassed: 'Already passed',
+      daysRemaining: '{days} days remaining',
+     },
 
     calendar: {
       title: 'Calendar',
@@ -3528,8 +3625,21 @@ topnav: {
         },
       },
     },
-  },
-};
+
+       payments: {
+          statusPaidTitle: 'Payments Up to Date',
+          statusPaidMessage: 'All payments are settled',
+          statusPaidBadge: 'Settled',
+          statusPendingTitle: 'Pending Payments',
+          statusPendingMessage: '{count} payment(s) pending',
+          statusPendingBadge: 'Pending',
+          statusOverdueTitle: 'Overdue Payments',
+          statusOverdueMessage: '{count} overdue payment(s)',
+          statusOverdueBadge: 'Attention',
+          totalOverdue: 'Total overdue',
+        },
+      },
+    };
 
 export const languageNames = {
   pt: 'Português',
