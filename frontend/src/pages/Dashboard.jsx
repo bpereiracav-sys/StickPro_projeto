@@ -264,7 +264,7 @@ export default function Dashboard() {
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-{t('dashboard.heroSubtitle')}
+              {t('dashboard.heroSubtitle')}
             </p>
 
             <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-300">
@@ -275,7 +275,7 @@ export default function Dashboard() {
 
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                Ambiente operacional ativo
+{t('dashboard.operationalActive')}
               </span>
             </div>
           </div>
@@ -283,15 +283,15 @@ export default function Dashboard() {
           <div className="grid grid-cols-3 gap-3 rounded-3xl border border-white/10 bg-white/10 p-3 backdrop-blur lg:min-w-[360px]">
             <div className="rounded-2xl bg-white/10 p-3 text-center">
               <p className="font-heading text-2xl">{data?.teams_count || 0}</p>
-              <p className="text-xs text-slate-300">Equipas</p>
+              <p className="text-xs text-slate-300">{t('dashboard.teams')}</p>
             </div>
             <div className="rounded-2xl bg-white/10 p-3 text-center">
               <p className="font-heading text-2xl">{upcomingEvents.length}</p>
-              <p className="text-xs text-slate-300">Eventos</p>
+              <p className="text-xs text-slate-300">{t('dashboard.events')}</p>
             </div>
             <div className="rounded-2xl bg-white/10 p-3 text-center">
               <p className="font-heading text-2xl">{pendingCount}</p>
-              <p className="text-xs text-slate-300">Pendentes</p>
+              <p className="text-xs text-slate-300">{t('dashboard.pending')}</p>
             </div>
           </div>
         </div>
