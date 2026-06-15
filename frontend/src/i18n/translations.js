@@ -141,6 +141,14 @@ export const translations = {
       tagline: 'Gestão Desportiva',
     },
 
+    topnav: {
+  searchPlaceholder: 'Pesquisar atleta, equipa, evento...',
+  activeContext: 'Contexto ativo',
+  clubOverview: 'Gestão integrada do Clube',
+  createNew: 'Criar novo',
+  new: 'Novo',
+},
+    
     dashboard: {
       goodMorning: 'Bom dia',
       goodAfternoon: 'Boa tarde',
@@ -826,6 +834,14 @@ export const translations = {
       tagline: 'Gestión Deportiva',
     },
 
+topnav: {
+  searchPlaceholder: 'Buscar atleta, equipo, evento...',
+  activeContext: 'Contexto activo',
+  clubOverview: 'Gestión integrada del club',
+  createNew: 'Crear nuevo',
+  new: 'Nuevo',
+},
+    
     dashboard: {
       goodMorning: 'Buenos días',
       goodAfternoon: 'Buenas tardes',
@@ -1513,6 +1529,14 @@ export const translations = {
       tagline: 'Gestion Sportive',
     },
 
+topnav: {
+  searchPlaceholder: 'Rechercher athlète, équipe, événement...',
+  activeContext: 'Contexte actif',
+  clubOverview: 'Gestion intégrée du club',
+  createNew: 'Créer nouveau',
+  new: 'Nouveau',
+},
+    
     dashboard: {
       goodMorning: 'Bonjour',
       goodAfternoon: 'Bon après-midi',
@@ -2206,6 +2230,14 @@ export const translations = {
       tagline: 'Gestione Sportiva',
     },
 
+topnav: {
+  searchPlaceholder: 'Cerca atleta, squadra, evento...',
+  activeContext: 'Contesto attivo',
+  clubOverview: 'Gestione integrata del club',
+  createNew: 'Crea nuovo',
+  new: 'Nuovo',
+},
+    
     dashboard: {
       goodMorning: 'Buongiorno',
       goodAfternoon: 'Buon pomeriggio',
@@ -2897,6 +2929,14 @@ export const translations = {
       tagline: 'Sports Management',
     },
 
+topnav: {
+  searchPlaceholder: 'Search athlete, team, event...',
+  activeContext: 'Active context',
+  clubOverview: 'Integrated club management',
+  createNew: 'Create new',
+  new: 'New',
+},
+    
     dashboard: {
       goodMorning: 'Good morning',
       goodAfternoon: 'Good afternoon',
