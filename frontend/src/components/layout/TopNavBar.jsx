@@ -365,7 +365,7 @@ export function TopNavBar() {
                 <DropdownMenuItem asChild>
                   <Link to="/competitions" className="cursor-pointer">
                     <Trophy className="mr-2 h-4 w-4" />
-                    tr('championships.addGame', 'Novo Jogo')
+                   {tr('championships.newGame', 'Novo Jogo')}
                   </Link>
                 </DropdownMenuItem>
 
