@@ -43,7 +43,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [commitment, setCommitment] = useState(null);
-  
+
   const dateLocale = locales[language] || pt;
 
   const tr = (key, fallback) => {
@@ -51,11 +51,11 @@ export default function Dashboard() {
     return value && value !== key ? value : fallback;
   };
 
- useEffect(() => {
-  fetchDashboard();
-  fetchPaymentStatus();
-  fetchCommitment();
-}, []);
+  useEffect(() => {
+    fetchDashboard();
+    fetchPaymentStatus();
+    fetchCommitment();
+  }, []);
 
   const fetchDashboard = async () => {
     try {
@@ -69,16 +69,16 @@ export default function Dashboard() {
     }
   };
 
-const fetchCommitment = async () => {
-  try {
-    const response = await commitmentApi.getMy();
-    setCommitment(response?.data || null);
-  } catch (error) {
-    console.error('Error fetching commitment:', error);
-    setCommitment(null);
-  }
-};
-  
+  const fetchCommitment = async () => {
+    try {
+      const response = await commitmentApi.getMy();
+      setCommitment(response?.data || null);
+    } catch (error) {
+      console.error('Error fetching commitment:', error);
+      setCommitment(null);
+    }
+  };
+
   const fetchPaymentStatus = async () => {
     try {
       const response = await paymentsApi.getStatus();
@@ -117,6 +117,18 @@ const fetchCommitment = async () => {
     return tr('dashboard.daysRemaining', `Faltam ${days} dias`).replace('{days}', days);
   };
 
+  const getTranslatedEventType = (type) => {
+    if (type === 'treino' || type === 'training') {
+      return t('calendar.eventTypes.training');
+    }
+
+    if (type === 'jogo' || type === 'game') {
+      return t('championships.newGame');
+    }
+
+    return getEventTypeName(type);
+  };
+
   const upcomingEvents = useMemo(() => data?.upcoming_events || [], [data]);
   const pendingConvocations = useMemo(() => data?.pending_convocations || [], [data]);
   const recentMessages = useMemo(() => data?.recent_messages || [], [data]);
@@ -128,29 +140,52 @@ const fetchCommitment = async () => {
 
   const MetricCard = ({ icon: Icon, label, value, helper, tone = 'primary', to }) => {
     const tones = {
-      primary: 'from-primary/12 to-primary/5 text-primary border-primary/15',
-      secondary: 'from-secondary/12 to-secondary/5 text-secondary border-secondary/15',
-      amber: 'from-amber-100 to-amber-50 text-amber-700 border-amber-200',
-      purple: 'from-purple-100 to-purple-50 text-purple-700 border-purple-200',
+      primary: {
+        card: 'from-cyan-50 to-white border-cyan-100',
+        icon: 'from-cyan-500 to-blue-500 text-white border-white/40',
+      },
+      secondary: {
+        card: 'from-emerald-50 to-white border-emerald-100',
+        icon: 'from-emerald-500 to-teal-500 text-white border-white/40',
+      },
+      amber: {
+        card: 'from-amber-50 to-white border-amber-100',
+        icon: 'from-amber-500 to-yellow-500 text-white border-white/40',
+      },
+      purple: {
+        card: 'from-purple-50 to-white border-purple-100',
+        icon: 'from-purple-500 to-indigo-500 text-white border-white/40',
+      },
     };
 
+    const currentTone = tones[tone] || tones.primary;
+
     const content = (
-      <Card className="group overflow-hidden border border-slate-200/80 bg-white/90 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/70">
-        <CardContent className="p-4 sm:p-5">
+      <Card
+        className={`group relative overflow-hidden border bg-gradient-to-br ${currentTone.card} shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/80`}
+      >
+        <div
+          className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/70 blur-2xl"
+          aria-hidden="true"
+        />
+
+        <CardContent className="relative p-5">
           <div className="flex items-start justify-between gap-3">
-            <div className={`rounded-2xl border bg-gradient-to-br p-3 ${tones[tone]}`}>
+            <div
+              className={`rounded-2xl border bg-gradient-to-br p-3 shadow-lg ${currentTone.icon}`}
+            >
               <Icon className="h-5 w-5" />
             </div>
 
             {to && (
-              <ArrowUpRight className="h-4 w-4 text-slate-300 transition-colors group-hover:text-primary" />
+              <ArrowUpRight className="h-4 w-4 text-slate-300 transition-colors group-hover:text-slate-700" />
             )}
           </div>
 
-          <div className="mt-4">
+          <div className="mt-5">
             <p className="font-heading text-3xl tracking-tight text-slate-950">{value}</p>
-            <p className="mt-1 text-sm font-medium text-slate-600">{label}</p>
-            {helper && <p className="mt-1 text-xs text-slate-400">{helper}</p>}
+            <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>
+            {helper && <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>}
           </div>
         </CardContent>
       </Card>
@@ -170,7 +205,7 @@ const fetchCommitment = async () => {
 
     const statusConfig = {
       paid: {
-        color: 'border-emerald-200 bg-emerald-50/90',
+        color: 'border-emerald-200 bg-gradient-to-r from-emerald-50 to-white',
         iconColor: 'text-emerald-600',
         iconBg: 'bg-emerald-100',
         icon: CheckCircle,
@@ -179,7 +214,7 @@ const fetchCommitment = async () => {
         badge: tr('payments.statusPaidBadge', 'Regularizado'),
       },
       pending: {
-        color: 'border-amber-200 bg-amber-50/90',
+        color: 'border-amber-200 bg-gradient-to-r from-amber-50 to-white',
         iconColor: 'text-amber-600',
         iconBg: 'bg-amber-100',
         icon: Clock,
@@ -191,7 +226,7 @@ const fetchCommitment = async () => {
         badge: tr('payments.statusPendingBadge', 'Pendente'),
       },
       overdue: {
-        color: 'border-red-200 bg-red-50/90',
+        color: 'border-red-200 bg-gradient-to-r from-red-50 to-white',
         iconColor: 'text-red-600',
         iconBg: 'bg-red-100',
         icon: AlertTriangle,
@@ -210,10 +245,10 @@ const fetchCommitment = async () => {
     return (
       <Link to="/payments" className="block">
         <Card
-          className={`overflow-hidden border ${config.color} shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg`}
+          className={`overflow-hidden border ${config.color} shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/70`}
           data-testid="payment-status-card"
         >
-          <CardContent className="p-4 sm:p-5">
+          <CardContent className="p-5">
             <div className="flex items-center gap-4">
               <div
                 className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${config.iconBg}`}
@@ -236,7 +271,7 @@ const fetchCommitment = async () => {
 
             {paymentStatus.status === 'overdue' &&
               Number(paymentStatus.total_overdue || 0) > 0 && (
-                <div className="mt-4 rounded-xl border border-red-200 bg-white/65 px-3 py-2">
+                <div className="mt-4 rounded-xl border border-red-200 bg-white/70 px-3 py-2">
                   <p className="text-sm font-semibold text-red-700">
                     {tr('payments.totalOverdue', 'Total em atraso')}: €
                     {Number(paymentStatus.total_overdue || 0).toFixed(2)}
@@ -246,6 +281,163 @@ const fetchCommitment = async () => {
           </CardContent>
         </Card>
       </Link>
+    );
+  };
+
+  const CommitmentCard = () => {
+    if (!commitment) return null;
+
+    const trainingRate = commitment.training?.rate || 0;
+    const gameRate = commitment.games?.rate || 0;
+    const globalScore = Math.round((trainingRate + gameRate) / 2);
+
+    const getMedal = (medal) => {
+      if (medal === 'gold') return { icon: '🥇', color: '#D4AF37' };
+      if (medal === 'silver') return { icon: '🥈', color: '#C0C0C0' };
+      if (medal === 'bronze') return { icon: '🥉', color: '#CD7F32' };
+      return { icon: '🥅', color: '#94A3B8' };
+    };
+
+    const mainMedal = getMedal(
+      commitment.training?.medal || commitment.games?.medal || 'none'
+    );
+
+    const targetMedal = commitment.training?.next_goal?.target || 'bronze';
+    const missing = commitment.training?.next_goal?.missing || 0;
+
+    return (
+      <section className="relative overflow-hidden rounded-[2rem] border border-amber-200/70 bg-slate-950 p-5 text-white shadow-xl shadow-amber-100/70 sm:p-6 lg:p-7">
+        <div
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.30),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(192,192,192,0.20),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent)]"
+          aria-hidden="true"
+        />
+
+        <div className="relative z-10">
+          <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <Badge className="mb-4 border border-white/15 bg-white/10 px-3 py-1 text-white backdrop-blur">
+                🏅 STICKPro Commitment Program
+              </Badge>
+
+              <h2 className="font-heading text-2xl tracking-tight sm:text-3xl">
+                {tr('commitment.myCommitment', 'O Meu Compromisso')}
+              </h2>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+                {tr(
+                  'commitment.description',
+                  'Compromisso, assiduidade e participação ao longo da época.'
+                )}
+              </p>
+            </div>
+
+            <div className="flex items-center gap-4 rounded-3xl border border-white/10 bg-white/10 px-5 py-4 backdrop-blur">
+              <span className="text-5xl">🛼</span>
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-300">
+                  {tr('commitment.globalScore', 'Score Global')}
+                </p>
+                <p className="font-heading text-4xl leading-none">{globalScore}%</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-6 h-3 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="h-full rounded-full transition-all duration-700"
+              style={{
+                width: `${globalScore}%`,
+                backgroundColor: mainMedal.color,
+              }}
+            />
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/15">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm text-slate-300">
+                  {tr('commitment.trainings', 'Treinos')}
+                </p>
+                <span className="text-3xl">🥅</span>
+              </div>
+
+              <p className="font-heading text-4xl">{trainingRate}%</p>
+
+              <p className="mt-1 text-sm text-slate-300">
+                {getMedal(commitment.training?.medal).icon}{' '}
+                {tr(
+                  `commitment.medals.${commitment.training?.medal || 'none'}`,
+                  'Sem medalha'
+                )}
+              </p>
+
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${trainingRate}%`,
+                    backgroundColor: getMedal(commitment.training?.medal).color,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/15">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm text-slate-300">
+                  {tr('commitment.games', 'Jogos')}
+                </p>
+                <span className="text-3xl">🏒</span>
+              </div>
+
+              <p className="font-heading text-4xl">{gameRate}%</p>
+
+              <p className="mt-1 text-sm text-slate-300">
+                {getMedal(commitment.games?.medal).icon}{' '}
+                {tr(
+                  `commitment.medals.${commitment.games?.medal || 'none'}`,
+                  'Sem medalha'
+                )}
+              </p>
+
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${gameRate}%`,
+                    backgroundColor: getMedal(commitment.games?.medal).color,
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/15">
+              <div className="mb-4 flex items-center justify-between">
+                <p className="text-sm text-slate-300">
+                  {tr('commitment.nextGoal', 'Próximo Objetivo')}
+                </p>
+                <span className="text-3xl">🏆</span>
+              </div>
+
+              <p className="font-heading text-3xl leading-tight">
+                {tr(`commitment.medals.${targetMedal}`, 'Bronze')}
+              </p>
+
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                {tr(
+                  'commitment.missingToTarget',
+                  'Faltam {missing} presenças para {target}'
+                )
+                  .replace('{missing}', missing)
+                  .replace(
+                    '{target}',
+                    tr(`commitment.medals.${targetMedal}`, 'Bronze')
+                  )}
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
     );
   };
 
@@ -320,163 +512,10 @@ const fetchCommitment = async () => {
             </div>
           </div>
         </div>
-           </section>
+      </section>
 
-      {commitment && (() => {
-  const trainingRate = commitment.training?.rate || 0;
-  const gameRate = commitment.games?.rate || 0;
-  const globalScore = Math.round((trainingRate + gameRate) / 2);
+      <CommitmentCard />
 
-  const getMedal = (medal) => {
-    if (medal === 'gold') return { icon: '🥇', color: '#D4AF37' };
-    if (medal === 'silver') return { icon: '🥈', color: '#C0C0C0' };
-    if (medal === 'bronze') return { icon: '🥉', color: '#CD7F32' };
-    return { icon: '🥅', color: '#94A3B8' };
-  };
-
-  const mainMedal =
-    getMedal(commitment.training?.medal || commitment.games?.medal || 'none');
-
-  const targetMedal = commitment.training?.next_goal?.target || 'bronze';
-  const missing = commitment.training?.next_goal?.missing || 0;
-
-  return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-amber-200/70 bg-slate-950 p-5 text-white shadow-xl shadow-amber-100/70 sm:p-6 lg:p-7">
-      <div
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.28),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(192,192,192,0.18),transparent_32%)]"
-        aria-hidden="true"
-      />
-
-      <div className="relative z-10">
-        <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <Badge className="mb-4 border border-white/15 bg-white/10 px-3 py-1 text-white backdrop-blur">
-              🏅 STICKPro Commitment Program
-            </Badge>
-
-            <h2 className="font-heading text-2xl tracking-tight sm:text-3xl">
-              {tr('commitment.myCommitment', 'O Meu Compromisso')}
-            </h2>
-
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
-              Compromisso, assiduidade e participação ao longo da época.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-4 rounded-3xl border border-white/10 bg-white/10 px-5 py-4 backdrop-blur">
-            <span className="text-5xl">{mainMedal.icon}</span>
-            <div>
-              <p className="text-xs uppercase tracking-wide text-slate-300">
-                Score Global
-              </p>
-              <p className="font-heading text-4xl leading-none">
-                {globalScore}%
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div className="mb-6 h-3 overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full rounded-full transition-all duration-700"
-            style={{
-              width: `${globalScore}%`,
-              backgroundColor: mainMedal.color,
-            }}
-          />
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-slate-300">
-                {tr('commitment.trainings', 'Treinos')}
-              </p>
-              <span className="text-3xl">
-                {getMedal(commitment.training?.medal).icon}
-              </span>
-            </div>
-
-            <p className="font-heading text-4xl">{trainingRate}%</p>
-
-            <p className="mt-1 text-sm text-slate-300">
-              {tr(
-                `commitment.medals.${commitment.training?.medal || 'none'}`,
-                'Sem medalha'
-              )}
-            </p>
-
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${trainingRate}%`,
-                  backgroundColor: getMedal(commitment.training?.medal).color,
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-slate-300">
-                {tr('commitment.games', 'Jogos')}
-              </p>
-              <span className="text-3xl">
-                {getMedal(commitment.games?.medal).icon}
-              </span>
-            </div>
-
-            <p className="font-heading text-4xl">{gameRate}%</p>
-
-            <p className="mt-1 text-sm text-slate-300">
-              {tr(
-                `commitment.medals.${commitment.games?.medal || 'none'}`,
-                'Sem medalha'
-              )}
-            </p>
-
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${gameRate}%`,
-                  backgroundColor: getMedal(commitment.games?.medal).color,
-                }}
-              />
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
-            <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-slate-300">
-                {tr('commitment.nextGoal', 'Próximo Objetivo')}
-              </p>
-              <span className="text-3xl">🏒</span>
-            </div>
-
-            <p className="font-heading text-3xl leading-tight">
-              {tr(`commitment.medals.${targetMedal}`, 'Bronze')}
-            </p>
-
-            <p className="mt-3 text-sm leading-6 text-slate-300">
-              {tr(
-                'commitment.missingToTarget',
-                'Faltam {missing} presenças para {target}'
-              )
-                .replace('{missing}', missing)
-                .replace(
-                  '{target}',
-                  tr(`commitment.medals.${targetMedal}`, 'Bronze')
-                )}
-            </p>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-})()}
-      
       <PaymentStatusCard />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -519,7 +558,7 @@ const fetchCommitment = async () => {
 
       {nextEvent && (
         <Card
-          className="overflow-hidden border border-primary/20 bg-white shadow-lg shadow-slate-200/70"
+          className="overflow-hidden border border-primary/20 bg-white shadow-xl shadow-slate-200/70 transition-all duration-300 hover:-translate-y-0.5"
           data-testid="next-event-card"
         >
           <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr]">
@@ -564,12 +603,8 @@ const fetchCommitment = async () => {
             <div className="p-5 sm:p-7">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <Badge variant="outline" className="hidden shrink-0 text-xs sm:flex">
-                    {nextEvent.event_type === 'treino' || nextEvent.event_type === 'training'
-                      ? t('calendar.eventTypes.training')
-                      : nextEvent.event_type === 'jogo' || nextEvent.event_type === 'game'
-                        ? t('championships.newGame')
-                        : getEventTypeName(nextEvent.event_type)}
+                  <Badge variant="outline" className="mb-3">
+                    {getTranslatedEventType(nextEvent.event_type)}
                   </Badge>
 
                   <h2 className="font-heading text-2xl tracking-tight text-slate-950 sm:text-3xl">
@@ -622,7 +657,7 @@ const fetchCommitment = async () => {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <CardWithStripe
           stripeColor="primary"
-          className="lg:col-span-2 card-hover"
+          className="overflow-hidden border border-slate-200 bg-white shadow-xl shadow-slate-200/70 lg:col-span-2"
           data-testid="upcoming-events-section"
         >
           <CardStripeHeader className="flex flex-row items-center justify-between pb-2">
@@ -642,7 +677,7 @@ const fetchCommitment = async () => {
                 {upcomingEvents.slice(0, 5).map((event) => (
                   <div
                     key={event.id}
-                    className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-white p-3 transition-all duration-200 hover:border-primary/40 hover:bg-primary/[0.03] hover:shadow-sm"
+                    className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-gradient-to-r from-white to-slate-50 p-3 transition-all duration-200 hover:border-primary/40 hover:shadow-md"
                     data-testid={`event-row-${event.id}`}
                   >
                     <div
@@ -673,11 +708,7 @@ const fetchCommitment = async () => {
                     </div>
 
                     <Badge variant="outline" className="hidden shrink-0 text-xs sm:flex">
-                      {event.event_type === 'treino' || event.event_type === 'training'
-                        ? t('calendar.eventTypes.training')
-                        : event.event_type === 'jogo' || event.event_type === 'game'
-                          ? t('championships.newGame')
-                          : getEventTypeName(event.event_type)}
+                      {getTranslatedEventType(event.event_type)}
                     </Badge>
                   </div>
                 ))}
@@ -696,7 +727,7 @@ const fetchCommitment = async () => {
 
         <CardWithStripe
           stripeColor="amber"
-          className="card-hover"
+          className="overflow-hidden border border-amber-100 bg-white shadow-xl shadow-slate-200/70"
           data-testid="convocations-section"
         >
           <CardStripeHeader className="flex flex-row items-center justify-between pb-2">
@@ -716,7 +747,7 @@ const fetchCommitment = async () => {
                 {pendingConvocations.slice(0, 4).map((item) => (
                   <div
                     key={item.attendance?.id || item.event?.id}
-                    className="rounded-2xl border border-amber-200 bg-amber-50/80 p-3"
+                    className="rounded-2xl border border-amber-200 bg-gradient-to-r from-amber-50 to-white p-3 shadow-sm"
                     data-testid={`convocation-item-${item.attendance?.id || item.event?.id}`}
                   >
                     <div className="mb-2 flex items-center justify-between gap-2">
