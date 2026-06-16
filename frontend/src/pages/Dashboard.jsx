@@ -202,7 +202,7 @@ export default function Dashboard() {
         aria-hidden="true"
       />
 
-      <CardContent className="relative p-5">
+      <CardContent className="relative p-4 sm:p-5">
         <div className="flex items-start justify-between gap-3">
           <div className={`rounded-2xl bg-gradient-to-br p-3 shadow-lg ${currentTone.icon}`}>
             <Icon className="h-5 w-5" />
