@@ -171,9 +171,6 @@ export const trainingFeedbackApi = {
   getTeam: (teamId) => api.get(`/training-feedback/team/${teamId}`),
 };
 
-// Messages APIetMy: () => api.get('/commitment/my'),
-};
-
 // Messages API
 export const messagesApi = {
   getByTeam: (teamId, limit) => api.get(`/messages/${teamId}`, { params: { limit } }),
