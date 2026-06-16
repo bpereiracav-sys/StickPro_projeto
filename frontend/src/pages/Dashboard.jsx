@@ -322,148 +322,161 @@ const fetchCommitment = async () => {
         </div>
            </section>
 
-      {commitment && (
-  <section className="relative overflow-hidden rounded-[2rem] border border-amber-200/70 bg-slate-950 p-5 text-white shadow-xl shadow-amber-100/70 sm:p-6 lg:p-7">
-    <div
-      className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.28),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(192,192,192,0.18),transparent_32%)]"
-      aria-hidden="true"
-    />
+      {commitment && (() => {
+  const trainingRate = commitment.training?.rate || 0;
+  const gameRate = commitment.games?.rate || 0;
+  const globalScore = Math.round((trainingRate + gameRate) / 2);
 
-    <div className="relative z-10">
-      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <Badge className="mb-3 border border-white/15 bg-white/10 px-3 py-1 text-white backdrop-blur">
-            🏅 STICKPro Commitment Program
-          </Badge>
+  const getMedal = (medal) => {
+    if (medal === 'gold') return { icon: '🥇', color: '#D4AF37' };
+    if (medal === 'silver') return { icon: '🥈', color: '#C0C0C0' };
+    if (medal === 'bronze') return { icon: '🥉', color: '#CD7F32' };
+    return { icon: '🎯', color: '#94A3B8' };
+  };
 
-          <h2 className="font-heading text-2xl tracking-tight sm:text-3xl">
-            {tr('commitment.myCommitment', 'O Meu Compromisso')}
-          </h2>
+  const mainMedal =
+    getMedal(commitment.training?.medal || commitment.games?.medal || 'none');
 
-          <p className="mt-1 text-sm text-slate-300">
-            Compromisso, assiduidade e participação ao longo da época.
-          </p>
-        </div>
+  const targetMedal = commitment.training?.next_goal?.target || 'bronze';
+  const missing = commitment.training?.next_goal?.missing || 0;
 
-        <div className="rounded-2xl border border-white/10 bg-white/10 px-4 py-3 text-center backdrop-blur">
-          <p className="text-xs uppercase tracking-wide text-slate-300">
-            Score Global
-          </p>
-          <p className="font-heading text-3xl">
-            {Math.round(
-              ((commitment.training?.rate || 0) + (commitment.games?.rate || 0)) / 2
-            )}
-            %
-          </p>
-        </div>
-      </div>
+  return (
+    <section className="relative overflow-hidden rounded-[2rem] border border-amber-200/70 bg-slate-950 p-5 text-white shadow-xl shadow-amber-100/70 sm:p-6 lg:p-7">
+      <div
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.28),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(192,192,192,0.18),transparent_32%)]"
+        aria-hidden="true"
+      />
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm text-slate-300">
-              {tr('commitment.trainings', 'Treinos')}
+      <div className="relative z-10">
+        <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <Badge className="mb-4 border border-white/15 bg-white/10 px-3 py-1 text-white backdrop-blur">
+              🏅 STICKPro Commitment Program
+            </Badge>
+
+            <h2 className="font-heading text-2xl tracking-tight sm:text-3xl">
+              {tr('commitment.myCommitment', 'O Meu Compromisso')}
+            </h2>
+
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              Compromisso, assiduidade e participação ao longo da época.
             </p>
-            <span className="text-2xl">
-              {commitment.training?.medal === 'gold'
-                ? '🥇'
-                : commitment.training?.medal === 'silver'
-                  ? '🥈'
-                  : commitment.training?.medal === 'bronze'
-                    ? '🥉'
-                    : '🎯'}
-            </span>
           </div>
 
-          <p className="font-heading text-4xl">
-            {commitment.training?.rate || 0}%
-          </p>
-
-          <p className="mt-1 text-sm text-slate-300">
-            {tr(
-              `commitment.medals.${commitment.training?.medal || 'none'}`,
-              'Sem medalha'
-            )}
-          </p>
-
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-amber-300"
-              style={{ width: `${commitment.training?.rate || 0}%` }}
-            />
+          <div className="flex items-center gap-4 rounded-3xl border border-white/10 bg-white/10 px-5 py-4 backdrop-blur">
+            <span className="text-5xl">{mainMedal.icon}</span>
+            <div>
+              <p className="text-xs uppercase tracking-wide text-slate-300">
+                Score Global
+              </p>
+              <p className="font-heading text-4xl leading-none">
+                {globalScore}%
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm text-slate-300">
-              {tr('commitment.games', 'Jogos')}
-            </p>
-            <span className="text-2xl">
-              {commitment.games?.medal === 'gold'
-                ? '🥇'
-                : commitment.games?.medal === 'silver'
-                  ? '🥈'
-                  : commitment.games?.medal === 'bronze'
-                    ? '🥉'
-                    : '🎯'}
-            </span>
-          </div>
-
-          <p className="font-heading text-4xl">
-            {commitment.games?.rate || 0}%
-          </p>
-
-          <p className="mt-1 text-sm text-slate-300">
-            {tr(
-              `commitment.medals.${commitment.games?.medal || 'none'}`,
-              'Sem medalha'
-            )}
-          </p>
-
-          <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-slate-300"
-              style={{ width: `${commitment.games?.rate || 0}%` }}
-            />
-          </div>
+        <div className="mb-6 h-3 overflow-hidden rounded-full bg-white/10">
+          <div
+            className="h-full rounded-full transition-all duration-700"
+            style={{
+              width: `${globalScore}%`,
+              backgroundColor: mainMedal.color,
+            }}
+          />
         </div>
 
-        <div className="rounded-3xl border border-white/10 bg-white/10 p-4 backdrop-blur">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-sm text-slate-300">
-              {tr('commitment.nextGoal', 'Próximo Objetivo')}
-            </p>
-            <span className="text-2xl">🚀</span>
-          </div>
+        <div className="grid gap-4 md:grid-cols-3">
+          <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-slate-300">
+                {tr('commitment.trainings', 'Treinos')}
+              </p>
+              <span className="text-3xl">
+                {getMedal(commitment.training?.medal).icon}
+              </span>
+            </div>
 
-          <p className="font-heading text-2xl leading-tight">
-            {tr(
-              `commitment.medals.${commitment.training?.next_goal?.target || 'bronze'}`,
-              'Bronze'
-            )}
-          </p>
+            <p className="font-heading text-4xl">{trainingRate}%</p>
 
-          <p className="mt-2 text-sm leading-6 text-slate-300">
-            {tr(
-              'commitment.missingToTarget',
-              'Faltam {missing} presenças para {target}'
-            )
-              .replace('{missing}', commitment.training?.next_goal?.missing || 0)
-              .replace(
-                '{target}',
-                tr(
-                  `commitment.medals.${commitment.training?.next_goal?.target || 'bronze'}`,
-                  'Bronze'
-                )
+            <p className="mt-1 text-sm text-slate-300">
+              {tr(
+                `commitment.medals.${commitment.training?.medal || 'none'}`,
+                'Sem medalha'
               )}
-          </p>
+            </p>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${trainingRate}%`,
+                  backgroundColor: getMedal(commitment.training?.medal).color,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-slate-300">
+                {tr('commitment.games', 'Jogos')}
+              </p>
+              <span className="text-3xl">
+                {getMedal(commitment.games?.medal).icon}
+              </span>
+            </div>
+
+            <p className="font-heading text-4xl">{gameRate}%</p>
+
+            <p className="mt-1 text-sm text-slate-300">
+              {tr(
+                `commitment.medals.${commitment.games?.medal || 'none'}`,
+                'Sem medalha'
+              )}
+            </p>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${gameRate}%`,
+                  backgroundColor: getMedal(commitment.games?.medal).color,
+                }}
+              />
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-slate-300">
+                {tr('commitment.nextGoal', 'Próximo Objetivo')}
+              </p>
+              <span className="text-3xl">🚀</span>
+            </div>
+
+            <p className="font-heading text-3xl leading-tight">
+              {tr(`commitment.medals.${targetMedal}`, 'Bronze')}
+            </p>
+
+            <p className="mt-3 text-sm leading-6 text-slate-300">
+              {tr(
+                'commitment.missingToTarget',
+                'Faltam {missing} presenças para {target}'
+              )
+                .replace('{missing}', missing)
+                .replace(
+                  '{target}',
+                  tr(`commitment.medals.${targetMedal}`, 'Bronze')
+                )}
+            </p>
+          </div>
         </div>
       </div>
-    </div>
-  </section>
-)}
-
+    </section>
+  );
+})()}
+      
       <PaymentStatusCard />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
