@@ -214,7 +214,7 @@ export default function Dashboard() {
         </div>
 
        <div className="mt-5">
-          <p className="font-heading text-5xl tracking-tight text-slate-950">
+          <p className="font-heading text-6xl tracking-tight text-slate-950">
             {value}
           </p>
         
@@ -258,7 +258,7 @@ export default function Dashboard() {
     const missing = commitment.training?.next_goal?.missing || 0;
 
     return (
-      <section className="relative overflow-hidden rounded-[1.75rem] border border-amber-200/70 bg-slate-950 px-4 py-4 text-white shadow-xl shadow-amber-100/60 sm:px-5">
+      <section className="relative overflow-hidden rounded-[1.75rem] border border-amber-200/70 bg-slate-950 px-4 py-3 text-white shadow-xl shadow-amber-100/60 sm:px-5">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.25),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(192,192,192,0.16),transparent_28%)]"
           aria-hidden="true"
@@ -348,16 +348,10 @@ export default function Dashboard() {
               <p className="mt-2 font-heading text-xl leading-none">
                 {tr(`commitment.medals.${targetMedal}`, 'Bronze')}
               </p>
-              <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-300">
-                {tr(
-                  'commitment.missingToTarget',
-                  'Faltam {missing} presenças para {target}'
-                )
-                  .replace('{missing}', missing)
-                  .replace(
-                    '{target}',
-                    tr(`commitment.medals.${targetMedal}`, 'Bronze')
-                  )}
+              <p className="mt-1 text-xs leading-5 text-slate-300">
+                {missing === 1
+                  ? `1 ${tr('commitment.attendance', 'presença')} ${tr('commitment.to', 'para')} ${tr(`commitment.medals.${targetMedal}`, 'Bronze')}`
+                  : `${missing} ${tr('commitment.attendances', 'presenças')} ${tr('commitment.to', 'para')} ${tr(`commitment.medals.${targetMedal}`, 'Bronze')}`}
               </p>
             </div>
           </div>
