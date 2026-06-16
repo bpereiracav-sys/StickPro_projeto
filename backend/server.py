@@ -6477,22 +6477,162 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
                 f"Convocatória: {event.get('title', 'Evento')}",
                 f"<h1>Foste convocado!</h1><p>{conv_data.message or 'Por favor confirma a tua presença.'}</p>"
             )
-    
-    # Send push notifications to convoked players
-    try:
-        await send_push_to_users(
-            user_ids=available_player_ids,
-            title="Nova Convocatória!",
-            body=f"{event.get('title', 'Evento')} - {event_date.strftime('%d/%m às %H:%M')}",
-            url="/attendance"
+
+    @api_router.get("/training-feedback/my-pending")
+async def get_my_pending_training_feedback(current_user: dict = Depends(get_current_user)):
+    now = datetime.now(timezone.utc)
+
+    attendances = await db.attendance.find(
+        {
+            "player_id": current_user["id"],
+            "status": "confirmado",
+            "event_type": {"$in": ["treino", "training"]},
+        },
+        {"_id": 0}
+    ).to_list(1000)
+
+    pending = []
+
+    for attendance in attendances:
+        event = await db.events.find_one({"id": attendance["event_id"]}, {"_id": 0})
+        if not event:
+            continue
+
+        event_time = event.get("end_time") or event.get("start_time")
+
+        if isinstance(event_time, str):
+            event_time = datetime.fromisoformat(event_time.replace("Z", "+00:00"))
+
+        if event_time.tzinfo is None:
+            event_time = event_time.replace(tzinfo=timezone.utc)
+
+        if event_time > now:
+            continue
+
+        existing_feedback = await db.training_feedback.find_one(
+            {
+                "event_id": attendance["event_id"],
+                "player_id": current_user["id"],
+            },
+            {"_id": 0}
         )
-    except Exception as e:
-        logging.error(f"Failed to send push notifications: {e}")
-    
-    # Add info about unavailable players that were skipped
-    conv_dict['skipped_unavailable_players'] = unavailable_player_ids
-    
-    return conv_dict
+
+        if existing_feedback:
+            continue
+
+        pending.append(
+            {
+                "attendance": attendance,
+                "event": event,
+            }
+        )
+
+    return pending
+
+
+@api_router.post("/training-feedback")
+async def create_training_feedback(
+    feedback: TrainingFeedbackCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    attendance = await db.attendance.find_one(
+        {
+            "event_id": feedback.event_id,
+            "player_id": current_user["id"],
+            "status": "confirmado",
+        },
+        {"_id": 0}
+    )
+
+    if not attendance:
+        raise HTTPException(
+            status_code=403,
+            detail="Só é possível dar feedback de treinos em que estiveste presente."
+        )
+
+    if attendance.get("event_type") not in ["treino", "training"]:
+        raise HTTPException(
+            status_code=400,
+            detail="O feedback só está disponível para treinos."
+        )
+
+    existing_feedback = await db.training_feedback.find_one(
+        {
+            "event_id": feedback.event_id,
+            "player_id": current_user["id"],
+        },
+        {"_id": 0}
+    )
+
+    if existing_feedback:
+        raise HTTPException(
+            status_code=400,
+            detail="Já submeteste feedback para este treino."
+        )
+
+    if feedback.rating not in ["positive", "neutral", "negative"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Classificação inválida."
+        )
+
+    feedback_dict = TrainingFeedback(
+        event_id=feedback.event_id,
+        player_id=current_user["id"],
+        team_id=attendance["team_id"],
+        rating=feedback.rating,
+        comment=feedback.comment.strip() if feedback.comment else None,
+    ).model_dump()
+
+    await db.training_feedback.insert_one(feedback_dict)
+    return {
+        "message": "Feedback submetido com sucesso.",
+        "feedback": feedback_dict,
+    }
+
+@api_router.get("/training-feedback/team/{team_id}")
+async def get_team_training_feedback(
+    team_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user.get("role") not in ["admin", "treinador", "delegado", "coordenador_tecnico"]:
+        raise HTTPException(status_code=403, detail="Sem permissões para consultar feedback da equipa.")
+
+    feedbacks = await db.training_feedback.find(
+        {"team_id": team_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+
+    total = len(feedbacks)
+
+    positive = len([f for f in feedbacks if f.get("rating") == "positive"])
+    neutral = len([f for f in feedbacks if f.get("rating") == "neutral"])
+    negative = len([f for f in feedbacks if f.get("rating") == "negative"])
+
+    satisfaction_score = 0
+    if total > 0:
+        satisfaction_score = round(((positive * 100) + (neutral * 50)) / total)
+
+    comments = [
+        {
+            "event_id": f.get("event_id"),
+            "comment": f.get("comment"),
+            "rating": f.get("rating"),
+            "created_at": f.get("created_at"),
+        }
+        for f in feedbacks
+        if f.get("comment")
+    ][:20]
+
+    return {
+        "total": total,
+        "positive": positive,
+        "neutral": neutral,
+        "negative": negative,
+        "satisfaction_score": satisfaction_score,
+        "comments": comments,
+    }
+
 
 @api_router.get("/convocations/my")
 async def get_my_convocations(current_user: dict = Depends(get_current_user)):
