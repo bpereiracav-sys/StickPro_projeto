@@ -2,7 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { dashboardApi, paymentsApi, commitmentApi } from '../services/api';
+import {
+  dashboardApi,
+  paymentsApi,
+  commitmentApi,
+  trainingFeedbackApi,
+} from '../services/api';
 import { Card, CardContent } from '../components/ui/card';
 import {
   CardWithStripe,
@@ -32,6 +37,8 @@ import {
 import { formatTime, getEventTypeName } from '../lib/utils';
 import { format, isToday, isTomorrow, differenceInCalendarDays } from 'date-fns';
 import { pt, es, fr, it, enUS } from 'date-fns/locale';
+import { Textarea } from '../components/ui/textarea';
+import { toast } from 'sonner';
 
 const locales = { pt, es, fr, it, en: enUS };
 
@@ -448,7 +455,69 @@ export default function Dashboard() {
 
       <CommitmentCard />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+{pendingFeedback.length > 0 && (
+  <Card className="overflow-hidden border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/60 to-slate-50 shadow-xl shadow-slate-200/70">
+    <CardContent className="p-5">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-xl">
+          <Badge className="mb-3 bg-cyan-500 text-white">
+            💬 {t('trainingFeedback.title')}
+          </Badge>
+
+          <h2 className="font-heading text-2xl text-slate-950">
+            {t('trainingFeedback.question')}
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-500">
+            {pendingFeedback[0]?.event?.title || t('calendar.event')}
+          </p>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-3">
+          {[
+            { value: 'positive', icon: '🙂', label: t('trainingFeedback.positive') },
+            { value: 'neutral', icon: '😐', label: t('trainingFeedback.neutral') },
+            { value: 'negative', icon: '🙁', label: t('trainingFeedback.negative') },
+          ].map((option) => (
+            <Button
+              key={option.value}
+              type="button"
+              variant={feedbackRating === option.value ? 'default' : 'outline'}
+              className="h-auto rounded-2xl px-4 py-3"
+              onClick={() => setFeedbackRating(option.value)}
+            >
+              <span className="mr-2 text-xl">{option.icon}</span>
+              {option.label}
+            </Button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-5 grid gap-3 lg:grid-cols-[1fr_auto]">
+        <Textarea
+          value={feedbackComment}
+          onChange={(e) => setFeedbackComment(e.target.value)}
+          placeholder={t('trainingFeedback.commentPlaceholder')}
+          rows={2}
+          maxLength={250}
+          className="resize-none rounded-2xl bg-white"
+        />
+
+        <Button
+          onClick={handleSubmitTrainingFeedback}
+          disabled={!feedbackRating || submittingFeedback}
+          className="rounded-2xl px-6"
+        >
+          {submittingFeedback
+            ? t('common.saving')
+            : t('trainingFeedback.submit')}
+        </Button>
+      </div>
+    </CardContent>
+  </Card>
+)}
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
           icon={Users}
           value={data?.teams_count || 0}
