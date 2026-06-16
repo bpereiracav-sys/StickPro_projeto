@@ -331,7 +331,7 @@ const fetchCommitment = async () => {
     if (medal === 'gold') return { icon: '🥇', color: '#D4AF37' };
     if (medal === 'silver') return { icon: '🥈', color: '#C0C0C0' };
     if (medal === 'bronze') return { icon: '🥉', color: '#CD7F32' };
-    return { icon: '🎯', color: '#94A3B8' };
+    return { icon: '🥅', color: '#94A3B8' };
   };
 
   const mainMedal =
@@ -452,7 +452,7 @@ const fetchCommitment = async () => {
               <p className="text-sm text-slate-300">
                 {tr('commitment.nextGoal', 'Próximo Objetivo')}
               </p>
-              <span className="text-3xl">🚀</span>
+              <span className="text-3xl">🏒</span>
             </div>
 
             <p className="font-heading text-3xl leading-tight">
