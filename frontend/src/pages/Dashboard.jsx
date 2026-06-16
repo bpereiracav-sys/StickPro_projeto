@@ -172,67 +172,65 @@ export default function Dashboard() {
   };
 
   const MetricCard = ({ icon: Icon, label, value, helper, tone = 'primary', to }) => {
-    const tones = {
-      primary: {
-        card: 'from-cyan-50 to-white border-cyan-100',
-        icon: 'from-cyan-500 to-blue-500 text-white border-white/40',
-      },
-      secondary: {
-        card: 'from-emerald-50 to-white border-emerald-100',
-        icon: 'from-emerald-500 to-teal-500 text-white border-white/40',
-      },
-      amber: {
-        card: 'from-amber-50 to-white border-amber-100',
-        icon: 'from-amber-500 to-yellow-500 text-white border-white/40',
-      },
-      purple: {
-        card: 'from-purple-50 to-white border-purple-100',
-        icon: 'from-purple-500 to-indigo-500 text-white border-white/40',
-      },
-    };
-
-    const currentTone = tones[tone] || tones.primary;
-
-    const content = (
-      <Card
-        className={`group relative overflow-hidden border bg-gradient-to-br ${currentTone.card} shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/70`}
-      >
-        <div
-          className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-white/70 blur-2xl"
-          aria-hidden="true"
-        />
-
-        <CardContent className="relative p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div
-              className={`rounded-2xl border bg-gradient-to-br p-2.5 shadow-md ${currentTone.icon}`}
-            >
-              <Icon className="h-5 w-5" />
-            </div>
-
-            {to && (
-              <ArrowUpRight className="h-4 w-4 text-slate-300 transition-colors group-hover:text-slate-700" />
-            )}
-          </div>
-
-          <div className="mt-4">
-            <p className="font-heading text-3xl tracking-tight text-slate-950">{value}</p>
-            <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>
-            {helper && <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>}
-          </div>
-        </CardContent>
-      </Card>
-    );
-
-    if (!to) return content;
-
-    return (
-      <Link to={to} className="block">
-        {content}
-      </Link>
-    );
+  const tones = {
+    primary: {
+      card: 'from-white via-cyan-50/70 to-slate-50 border-cyan-100',
+      icon: 'from-cyan-500 to-blue-500 text-white',
+    },
+    secondary: {
+      card: 'from-white via-emerald-50/70 to-slate-50 border-emerald-100',
+      icon: 'from-emerald-500 to-teal-500 text-white',
+    },
+    amber: {
+      card: 'from-white via-amber-50/80 to-slate-50 border-amber-100',
+      icon: 'from-amber-500 to-yellow-500 text-white',
+    },
+    purple: {
+      card: 'from-white via-purple-50/70 to-slate-50 border-purple-100',
+      icon: 'from-purple-500 to-indigo-500 text-white',
+    },
   };
 
+  const currentTone = tones[tone] || tones.primary;
+
+  const content = (
+    <Card
+      className={`group relative overflow-hidden border bg-gradient-to-br ${currentTone.card} shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/80`}
+    >
+      <div
+        className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/80 blur-2xl"
+        aria-hidden="true"
+      />
+
+      <CardContent className="relative p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className={`rounded-2xl bg-gradient-to-br p-3 shadow-lg ${currentTone.icon}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+
+          {to && (
+            <ArrowUpRight className="h-4 w-4 text-slate-300 transition-colors group-hover:text-slate-700" />
+          )}
+        </div>
+
+        <div className="mt-5">
+          <p className="font-heading text-4xl tracking-tight text-slate-950">{value}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>
+          {helper && <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
+  if (!to) return content;
+
+  return (
+    <Link to={to} className="block">
+      {content}
+    </Link>
+  );
+};
+  
   const CommitmentCard = () => {
     if (!commitment) return null;
 
@@ -493,7 +491,7 @@ export default function Dashboard() {
 
       {nextEvent && (
         <Card
-          className="overflow-hidden border border-primary/20 bg-white shadow-xl shadow-slate-200/70 transition-all duration-300 hover:-translate-y-0.5"
+          className="overflow-hidden border-2 border-primary/25 bg-white shadow-xl shadow-slate-200/80 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-2xl"
           data-testid="next-event-card"
         >
           <div className="grid grid-cols-1 lg:grid-cols-[170px_1fr]">
@@ -736,9 +734,20 @@ export default function Dashboard() {
                 ))}
               </div>
             ) : (
-              <div className="py-10 text-center">
-                <CheckCircle className="mx-auto mb-3 h-12 w-12 text-emerald-200" />
-                <p className="text-sm text-slate-500">
+              <div className="flex min-h-[230px] flex-col items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-50 to-white px-6 py-10 text-center">
+                <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-100">
+                  <CheckCircle className="h-9 w-9 text-emerald-500" />
+                </div>
+              
+                <Badge className="mb-3 bg-emerald-500 text-white">
+                  0 {tr('dashboard.pending', 'Pendentes')}
+                </Badge>
+              
+                <p className="font-heading text-lg text-slate-950">
+                  {tr('common.greatJob', 'Bom trabalho!')}
+                </p>
+              
+                <p className="mt-2 max-w-xs text-sm leading-6 text-slate-500">
                   {t('dashboard.allConvocationsAnswered')}
                 </p>
               </div>
