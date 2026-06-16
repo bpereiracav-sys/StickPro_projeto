@@ -213,10 +213,20 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div className="mt-5">
+       <div className="mt-5">
           <p className="font-heading text-5xl tracking-tight text-slate-950">
-          <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>
-          {helper && <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>}
+            {value}
+          </p>
+        
+          <p className="mt-1 text-sm font-semibold text-slate-700">
+            {label}
+          </p>
+        
+          {helper && (
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              {helper}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
