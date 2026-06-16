@@ -264,29 +264,24 @@ export default function Dashboard() {
           aria-hidden="true"
         />
 
-        <div className="relative z-10 grid gap-4 xl:grid-cols-[1fr_2.4fr] xl:items-center">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-3xl backdrop-blur">
-              🛼
-            </div>
-
-            <div className="min-w-0">
-              <Badge className="mb-2 border border-white/15 bg-white/10 px-2.5 py-1 text-xs text-white backdrop-blur">
-                🏅 STICKPro Commitment
-              </Badge>
-              <h2 className="truncate font-heading text-xl tracking-tight sm:text-2xl">
-                {tr('commitment.myCommitment', 'O Meu Compromisso')}
-              </h2>
-              <p className="mt-1 line-clamp-1 text-xs text-slate-300 sm:text-sm">
-                {tr(
-                  'commitment.description',
-                  'Compromisso, assiduidade e participação ao longo da época.'
-                )}
-              </p>
-            </div>
+       <div className="relative z-10 grid gap-4 xl:grid-cols-[1fr_2.4fr] xl:items-center">
+          <div className="flex flex-col justify-center">
+            <Badge
+              variant="outline"
+              className="mb-3 w-fit border-white/20 bg-white/10 text-white"
+            >
+              🏅 STICKPro Commitment
+            </Badge>
+        
+            <h2 className="font-heading text-2xl font-bold text-white">
+              {t('commitment.myCommitment')}
+            </h2>
+        
+            <p className="mt-2 text-sm text-white/70">
+              Compromisso, assiduidade e participação ao longo da época.
+            </p>
           </div>
-
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs uppercase tracking-wide text-slate-300">
