@@ -50,6 +50,10 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState(null);
   const [commitment, setCommitment] = useState(null);
+  const [pendingFeedback, setPendingFeedback] = useState([]);
+  const [feedbackRating, setFeedbackRating] = useState('');
+  const [feedbackComment, setFeedbackComment] = useState('');
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
   const dateLocale = locales[language] || pt;
 
@@ -62,7 +66,8 @@ export default function Dashboard() {
     fetchDashboard();
     fetchPaymentStatus();
     fetchCommitment();
-  }, []);
+    fetchPendingFeedback();
+    }, []);
 
   const fetchDashboard = async () => {
     try {
@@ -77,15 +82,56 @@ export default function Dashboard() {
   };
 
   const fetchCommitment = async () => {
+  try {
+    const response = await commitmentApi.getMy();
+    setCommitment(response?.data || null);
+  } catch (error) {
+    console.error('Error fetching commitment:', error);
+    setCommitment(null);
+  }
+};
+
+  const fetchPendingFeedback = async () => {
     try {
-      const response = await commitmentApi.getMy();
-      setCommitment(response?.data || null);
+      const response = await trainingFeedbackApi.getMyPending();
+      setPendingFeedback(Array.isArray(response?.data) ? response.data : []);
     } catch (error) {
-      console.error('Error fetching commitment:', error);
-      setCommitment(null);
+      console.error('Error fetching pending training feedback:', error);
+      setPendingFeedback([]);
     }
   };
-
+  
+  const handleSubmitTrainingFeedback = async () => {
+    if (!feedbackRating || pendingFeedback.length === 0) return;
+  
+    const item = pendingFeedback[0];
+    const eventId = item?.event?.id || item?.attendance?.event_id;
+  
+    if (!eventId) return;
+  
+    setSubmittingFeedback(true);
+  
+    try {
+      await trainingFeedbackApi.create({
+        event_id: eventId,
+        rating: feedbackRating,
+        comment: feedbackComment,
+      });
+  
+      toast.success(t('trainingFeedback.submitted'));
+  
+      setFeedbackRating('');
+      setFeedbackComment('');
+  
+      await fetchPendingFeedback();
+    } catch (error) {
+      console.error('Error submitting training feedback:', error);
+      toast.error(t('trainingFeedback.error'));
+    } finally {
+      setSubmittingFeedback(false);
+    }
+  };
+  
   const fetchPaymentStatus = async () => {
     try {
       const response = await paymentsApi.getStatus();
