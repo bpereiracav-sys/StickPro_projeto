@@ -314,13 +314,12 @@ export default function Dashboard() {
                 <span className="text-2xl">🥅</span>
               </div>
               <p className="mt-2 font-heading text-2xl leading-none">{trainingRate}%</p>
-              <p className="mt-1 text-xs text-slate-300">
-                {trainingMedal.icon}{' '}
-                {tr(
-                  `commitment.medals.${commitment.training?.medal || 'none'}`,
-                  'Sem medalha'
-                )}
-              </p>
+              {commitment.training?.medal !== 'none' && (
+                <p className="mt-1 text-xs text-slate-300">
+                  {trainingMedal.icon}{' '}
+                  {tr(`commitment.medals.${commitment.training?.medal}`, '')}
+                </p>
+              )}
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
@@ -331,13 +330,12 @@ export default function Dashboard() {
                 <span className="text-2xl">🏒</span>
               </div>
               <p className="mt-2 font-heading text-2xl leading-none">{gameRate}%</p>
-              <p className="mt-1 text-xs text-slate-300">
-                {gamesMedal.icon}{' '}
-                {tr(
-                  `commitment.medals.${commitment.games?.medal || 'none'}`,
-                  'Sem medalha'
-                )}
-              </p>
+              {commitment.games?.medal !== 'none' && (
+                <p className="mt-1 text-xs text-slate-300">
+                  {gamesMedal.icon}{' '}
+                  {tr(`commitment.medals.${commitment.games?.medal}`, '')}
+                </p>
+              )}
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
