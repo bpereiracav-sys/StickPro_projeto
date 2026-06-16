@@ -164,6 +164,16 @@ export const commitmentApi = {
   getMy: () => api.get('/commitment/my'),
 };
 
+// Training Feedback API
+export const trainingFeedbackApi = {
+  getMyPending: () => api.get('/training-feedback/my-pending'),
+  create: (data) => api.post('/training-feedback', data),
+  getTeam: (teamId) => api.get(`/training-feedback/team/${teamId}`),
+};
+
+// Messages APIetMy: () => api.get('/commitment/my'),
+};
+
 // Messages API
 export const messagesApi = {
   getByTeam: (teamId, limit) => api.get(`/messages/${teamId}`, { params: { limit } }),
