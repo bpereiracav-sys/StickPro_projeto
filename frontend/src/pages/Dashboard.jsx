@@ -214,7 +214,7 @@ export default function Dashboard() {
         </div>
 
         <div className="mt-5">
-          <p className="font-heading text-4xl tracking-tight text-slate-950">{value}</p>
+          <p className="font-heading text-5xl tracking-tight text-slate-950">
           <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>
           {helper && <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>}
         </div>
@@ -276,7 +276,7 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2 xl:grid-cols-4">
             <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs uppercase tracking-wide text-slate-300">
@@ -399,7 +399,7 @@ export default function Dashboard() {
               StickPro Club OS
             </Badge>
 
-            <h1 className="font-heading text-3xl tracking-tight sm:text-4xl">
+            <h1 className="font-heading text-3xl tracking-tight sm:text-5xl">
               {getGreeting()}, {user?.name?.split(' ')?.[0] || tr('common.user', 'Utilizador')}.
             </h1>
 
