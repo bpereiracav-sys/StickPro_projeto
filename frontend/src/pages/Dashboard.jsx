@@ -138,6 +138,39 @@ export default function Dashboard() {
 
   const dateFormat = language === 'pt' ? "EEEE, d 'de' MMMM" : 'EEEE, d MMMM';
 
+  const getCommitmentMedal = (medal) => {
+    if (medal === 'gold') return { icon: '🥇', color: '#D4AF37' };
+    if (medal === 'silver') return { icon: '🥈', color: '#C0C0C0' };
+    if (medal === 'bronze') return { icon: '🥉', color: '#CD7F32' };
+    return { icon: '🏆', color: '#94A3B8' };
+  };
+
+  const getPaymentHeroStatus = () => {
+    if (!paymentStatus || paymentStatus.status === 'disabled') return null;
+
+    if (paymentStatus.status === 'overdue') {
+      return {
+        icon: AlertTriangle,
+        text: tr('payments.statusOverdueBadge', 'Atenção'),
+        iconClass: 'text-red-300',
+      };
+    }
+
+    if (paymentStatus.status === 'pending') {
+      return {
+        icon: Clock,
+        text: tr('payments.statusPendingBadge', 'Pendente'),
+        iconClass: 'text-amber-300',
+      };
+    }
+
+    return {
+      icon: CheckCircle,
+      text: tr('payments.statusPaidBadge', 'Regularizado'),
+      iconClass: 'text-emerald-300',
+    };
+  };
+
   const MetricCard = ({ icon: Icon, label, value, helper, tone = 'primary', to }) => {
     const tones = {
       primary: {
@@ -162,17 +195,17 @@ export default function Dashboard() {
 
     const content = (
       <Card
-        className={`group relative overflow-hidden border bg-gradient-to-br ${currentTone.card} shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/80`}
+        className={`group relative overflow-hidden border bg-gradient-to-br ${currentTone.card} shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/70`}
       >
         <div
-          className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/70 blur-2xl"
+          className="pointer-events-none absolute -right-10 -top-10 h-24 w-24 rounded-full bg-white/70 blur-2xl"
           aria-hidden="true"
         />
 
-        <CardContent className="relative p-5">
+        <CardContent className="relative p-4">
           <div className="flex items-start justify-between gap-3">
             <div
-              className={`rounded-2xl border bg-gradient-to-br p-3 shadow-lg ${currentTone.icon}`}
+              className={`rounded-2xl border bg-gradient-to-br p-2.5 shadow-md ${currentTone.icon}`}
             >
               <Icon className="h-5 w-5" />
             </div>
@@ -182,7 +215,7 @@ export default function Dashboard() {
             )}
           </div>
 
-          <div className="mt-5">
+          <div className="mt-4">
             <p className="font-heading text-3xl tracking-tight text-slate-950">{value}</p>
             <p className="mt-1 text-sm font-semibold text-slate-700">{label}</p>
             {helper && <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>}
@@ -200,90 +233,6 @@ export default function Dashboard() {
     );
   };
 
-  const PaymentStatusCard = () => {
-    if (!paymentStatus || paymentStatus.status === 'disabled') return null;
-
-    const statusConfig = {
-      paid: {
-        color: 'border-emerald-200 bg-gradient-to-r from-emerald-50 to-white',
-        iconColor: 'text-emerald-600',
-        iconBg: 'bg-emerald-100',
-        icon: CheckCircle,
-        title: tr('payments.statusPaidTitle', 'Pagamentos em Dia'),
-        message: tr('payments.statusPaidMessage', 'Todos os pagamentos estão regularizados'),
-        badge: tr('payments.statusPaidBadge', 'Regularizado'),
-      },
-      pending: {
-        color: 'border-amber-200 bg-gradient-to-r from-amber-50 to-white',
-        iconColor: 'text-amber-600',
-        iconBg: 'bg-amber-100',
-        icon: Clock,
-        title: tr('payments.statusPendingTitle', 'Pagamentos Pendentes'),
-        message: tr(
-          'payments.statusPendingMessage',
-          `${paymentStatus.pending_count || 0} pagamento(s) por liquidar`
-        ).replace('{count}', paymentStatus.pending_count || 0),
-        badge: tr('payments.statusPendingBadge', 'Pendente'),
-      },
-      overdue: {
-        color: 'border-red-200 bg-gradient-to-r from-red-50 to-white',
-        iconColor: 'text-red-600',
-        iconBg: 'bg-red-100',
-        icon: AlertTriangle,
-        title: tr('payments.statusOverdueTitle', 'Pagamentos em Atraso'),
-        message: tr(
-          'payments.statusOverdueMessage',
-          `${paymentStatus.overdue_count || 0} pagamento(s) em atraso`
-        ).replace('{count}', paymentStatus.overdue_count || 0),
-        badge: tr('payments.statusOverdueBadge', 'Atenção'),
-      },
-    };
-
-    const config = statusConfig[paymentStatus.status] || statusConfig.paid;
-    const StatusIcon = config.icon;
-
-    return (
-      <Link to="/payments" className="block">
-        <Card
-          className={`overflow-hidden border ${config.color} shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/70`}
-          data-testid="payment-status-card"
-        >
-          <CardContent className="p-5">
-            <div className="flex items-center gap-4">
-              <div
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${config.iconBg}`}
-              >
-                <StatusIcon className={`h-6 w-6 ${config.iconColor}`} />
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="font-semibold text-slate-950">{config.title}</p>
-                  <Badge variant="outline" className="border-white/70 bg-white/70 text-xs">
-                    {config.badge}
-                  </Badge>
-                </div>
-                <p className="mt-1 text-sm text-slate-600">{config.message}</p>
-              </div>
-
-              <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" />
-            </div>
-
-            {paymentStatus.status === 'overdue' &&
-              Number(paymentStatus.total_overdue || 0) > 0 && (
-                <div className="mt-4 rounded-xl border border-red-200 bg-white/70 px-3 py-2">
-                  <p className="text-sm font-semibold text-red-700">
-                    {tr('payments.totalOverdue', 'Total em atraso')}: €
-                    {Number(paymentStatus.total_overdue || 0).toFixed(2)}
-                  </p>
-                </div>
-              )}
-          </CardContent>
-        </Card>
-      </Link>
-    );
-  };
-
   const CommitmentCard = () => {
     if (!commitment) return null;
 
@@ -291,14 +240,9 @@ export default function Dashboard() {
     const gameRate = commitment.games?.rate || 0;
     const globalScore = Math.round((trainingRate + gameRate) / 2);
 
-    const getMedal = (medal) => {
-      if (medal === 'gold') return { icon: '🥇', color: '#D4AF37' };
-      if (medal === 'silver') return { icon: '🥈', color: '#C0C0C0' };
-      if (medal === 'bronze') return { icon: '🥉', color: '#CD7F32' };
-      return { icon: '🥅', color: '#94A3B8' };
-    };
-
-    const mainMedal = getMedal(
+    const trainingMedal = getCommitmentMedal(commitment.training?.medal);
+    const gamesMedal = getCommitmentMedal(commitment.games?.medal);
+    const globalMedal = getCommitmentMedal(
       commitment.training?.medal || commitment.games?.medal || 'none'
     );
 
@@ -306,124 +250,104 @@ export default function Dashboard() {
     const missing = commitment.training?.next_goal?.missing || 0;
 
     return (
-      <section className="relative overflow-hidden rounded-[2rem] border border-amber-200/70 bg-slate-950 p-5 text-white shadow-xl shadow-amber-100/70 sm:p-6 lg:p-7">
+      <section className="relative overflow-hidden rounded-[1.75rem] border border-amber-200/70 bg-slate-950 px-4 py-4 text-white shadow-xl shadow-amber-100/60 sm:px-5">
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.30),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(192,192,192,0.20),transparent_32%),linear-gradient(135deg,rgba(255,255,255,0.04),transparent)]"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.25),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(192,192,192,0.16),transparent_28%)]"
           aria-hidden="true"
         />
 
-        <div className="relative z-10">
-          <div className="mb-6 flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <Badge className="mb-4 border border-white/15 bg-white/10 px-3 py-1 text-white backdrop-blur">
-                🏅 STICKPro Commitment Program
-              </Badge>
+        <div className="relative z-10 grid gap-4 xl:grid-cols-[1fr_2.4fr] xl:items-center">
+          <div className="flex items-center gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-3xl backdrop-blur">
+              🛼
+            </div>
 
-              <h2 className="font-heading text-2xl tracking-tight sm:text-3xl">
+            <div className="min-w-0">
+              <Badge className="mb-2 border border-white/15 bg-white/10 px-2.5 py-1 text-xs text-white backdrop-blur">
+                🏅 STICKPro Commitment
+              </Badge>
+              <h2 className="truncate font-heading text-xl tracking-tight sm:text-2xl">
                 {tr('commitment.myCommitment', 'O Meu Compromisso')}
               </h2>
-
-              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300">
+              <p className="mt-1 line-clamp-1 text-xs text-slate-300 sm:text-sm">
                 {tr(
                   'commitment.description',
                   'Compromisso, assiduidade e participação ao longo da época.'
                 )}
               </p>
             </div>
+          </div>
 
-            <div className="flex items-center gap-4 rounded-3xl border border-white/10 bg-white/10 px-5 py-4 backdrop-blur">
-              <span className="text-5xl">🛼</span>
-              <div>
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-xs uppercase tracking-wide text-slate-300">
                   {tr('commitment.globalScore', 'Score Global')}
                 </p>
-                <p className="font-heading text-4xl leading-none">{globalScore}%</p>
+                <span className="text-2xl">🛼</span>
+              </div>
+              <div className="mt-2 flex items-end gap-2">
+                <p className="font-heading text-3xl leading-none">{globalScore}%</p>
+                <span className="text-sm" style={{ color: globalMedal.color }}>
+                  {globalMedal.icon}
+                </span>
+              </div>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${globalScore}%`,
+                    backgroundColor: globalMedal.color,
+                  }}
+                />
               </div>
             </div>
-          </div>
 
-          <div className="mb-6 h-3 overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full transition-all duration-700"
-              style={{
-                width: `${globalScore}%`,
-                backgroundColor: mainMedal.color,
-              }}
-            />
-          </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/15">
-              <div className="mb-4 flex items-center justify-between">
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-sm text-slate-300">
                   {tr('commitment.trainings', 'Treinos')}
                 </p>
-                <span className="text-3xl">🥅</span>
+                <span className="text-2xl">🥅</span>
               </div>
-
-              <p className="font-heading text-4xl">{trainingRate}%</p>
-
-              <p className="mt-1 text-sm text-slate-300">
-                {getMedal(commitment.training?.medal).icon}{' '}
+              <p className="mt-2 font-heading text-2xl leading-none">{trainingRate}%</p>
+              <p className="mt-1 text-xs text-slate-300">
+                {trainingMedal.icon}{' '}
                 {tr(
                   `commitment.medals.${commitment.training?.medal || 'none'}`,
                   'Sem medalha'
                 )}
               </p>
-
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${trainingRate}%`,
-                    backgroundColor: getMedal(commitment.training?.medal).color,
-                  }}
-                />
-              </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/15">
-              <div className="mb-4 flex items-center justify-between">
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-sm text-slate-300">
                   {tr('commitment.games', 'Jogos')}
                 </p>
-                <span className="text-3xl">🏒</span>
+                <span className="text-2xl">🏒</span>
               </div>
-
-              <p className="font-heading text-4xl">{gameRate}%</p>
-
-              <p className="mt-1 text-sm text-slate-300">
-                {getMedal(commitment.games?.medal).icon}{' '}
+              <p className="mt-2 font-heading text-2xl leading-none">{gameRate}%</p>
+              <p className="mt-1 text-xs text-slate-300">
+                {gamesMedal.icon}{' '}
                 {tr(
                   `commitment.medals.${commitment.games?.medal || 'none'}`,
                   'Sem medalha'
                 )}
               </p>
-
-              <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/10">
-                <div
-                  className="h-full rounded-full"
-                  style={{
-                    width: `${gameRate}%`,
-                    backgroundColor: getMedal(commitment.games?.medal).color,
-                  }}
-                />
-              </div>
             </div>
 
-            <div className="rounded-3xl border border-white/10 bg-white/10 p-5 backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-white/15">
-              <div className="mb-4 flex items-center justify-between">
+            <div className="rounded-2xl border border-white/10 bg-white/10 p-3 backdrop-blur">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-sm text-slate-300">
                   {tr('commitment.nextGoal', 'Próximo Objetivo')}
                 </p>
-                <span className="text-3xl">🏆</span>
+                <span className="text-2xl">🏆</span>
               </div>
-
-              <p className="font-heading text-3xl leading-tight">
+              <p className="mt-2 font-heading text-xl leading-none">
                 {tr(`commitment.medals.${targetMedal}`, 'Bronze')}
               </p>
-
-              <p className="mt-3 text-sm leading-6 text-slate-300">
+              <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-300">
                 {tr(
                   'commitment.missingToTarget',
                   'Faltam {missing} presenças para {target}'
@@ -446,10 +370,10 @@ export default function Dashboard() {
       <div className="space-y-6">
         <Skeleton className="h-36 w-full rounded-3xl" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-28 rounded-2xl" />
         </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <Skeleton className="h-72 rounded-3xl lg:col-span-2" />
@@ -459,22 +383,25 @@ export default function Dashboard() {
     );
   }
 
+  const paymentHeroStatus = getPaymentHeroStatus();
+  const PaymentHeroIcon = paymentHeroStatus?.icon;
+
   return (
-    <div className="space-y-7 -mt-10 lg:-mt-12" data-testid="dashboard-page">
-      <section className="relative overflow-hidden rounded-[2rem] border border-slate-200/80 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-7 lg:p-8">
+    <div className="space-y-6 -mt-10 lg:-mt-12" data-testid="dashboard-page">
+      <section className="relative overflow-hidden rounded-[2rem] border border-slate-200/80 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-6 lg:p-6">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.32),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.28),transparent_32%)]"
           aria-hidden="true"
         />
 
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
-            <Badge className="mb-4 border border-white/15 bg-white/10 px-3 py-1 text-white backdrop-blur">
+            <Badge className="mb-3 border border-white/15 bg-white/10 px-3 py-1 text-white backdrop-blur">
               <Sparkles className="mr-1.5 h-3.5 w-3.5" />
               StickPro Club OS
             </Badge>
 
-            <h1 className="font-heading text-3xl tracking-tight sm:text-4xl lg:text-5xl">
+            <h1 className="font-heading text-3xl tracking-tight sm:text-4xl">
               {getGreeting()}, {user?.name?.split(' ')?.[0] || tr('common.user', 'Utilizador')}.
             </h1>
 
@@ -482,7 +409,7 @@ export default function Dashboard() {
               {t('dashboard.heroSubtitle')}
             </p>
 
-            <div className="mt-5 flex flex-wrap items-center gap-3 text-sm text-slate-300">
+            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-300">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
                 <Calendar className="h-4 w-4 text-cyan-300" />
                 {format(new Date(), dateFormat, { locale: dateLocale })}
@@ -492,10 +419,20 @@ export default function Dashboard() {
                 <ShieldCheck className="h-4 w-4 text-emerald-300" />
                 {t('dashboard.operationalActive')}
               </span>
+
+              {paymentHeroStatus && PaymentHeroIcon && (
+                <Link
+                  to="/payments"
+                  className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 transition hover:bg-white/15"
+                >
+                  <PaymentHeroIcon className={`h-4 w-4 ${paymentHeroStatus.iconClass}`} />
+                  {paymentHeroStatus.text}
+                </Link>
+              )}
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 rounded-3xl border border-white/10 bg-white/10 p-3 backdrop-blur lg:min-w-[360px]">
+          <div className="grid grid-cols-3 gap-3 rounded-3xl border border-white/10 bg-white/10 p-3 backdrop-blur lg:min-w-[340px]">
             <div className="rounded-2xl bg-white/10 p-3 text-center">
               <p className="font-heading text-2xl">{data?.teams_count || 0}</p>
               <p className="text-xs text-slate-300">{t('dashboard.teams')}</p>
@@ -515,8 +452,6 @@ export default function Dashboard() {
       </section>
 
       <CommitmentCard />
-
-      <PaymentStatusCard />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <MetricCard
@@ -561,9 +496,9 @@ export default function Dashboard() {
           className="overflow-hidden border border-primary/20 bg-white shadow-xl shadow-slate-200/70 transition-all duration-300 hover:-translate-y-0.5"
           data-testid="next-event-card"
         >
-          <div className="grid grid-cols-1 lg:grid-cols-[180px_1fr]">
+          <div className="grid grid-cols-1 lg:grid-cols-[170px_1fr]">
             <div
-              className={`relative flex min-h-[180px] flex-col justify-between overflow-hidden p-5 text-white ${
+              className={`relative flex min-h-[170px] flex-col justify-between overflow-hidden p-5 text-white ${
                 nextEvent.event_type === 'jogo' ? 'bg-primary' : 'bg-secondary'
               }`}
             >
@@ -600,7 +535,7 @@ export default function Dashboard() {
               </div>
             </div>
 
-            <div className="p-5 sm:p-7">
+            <div className="p-5 sm:p-6">
               <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
                 <div>
                   <Badge variant="outline" className="mb-3">
@@ -624,7 +559,7 @@ export default function Dashboard() {
                 </Button>
               </div>
 
-              <div className="mt-6 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
+              <div className="mt-5 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <Clock className="mb-2 h-4 w-4 text-primary" />
                   <p className="font-semibold text-slate-950">
