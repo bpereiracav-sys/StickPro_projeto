@@ -1339,7 +1339,6 @@ async def login(credentials: UserLogin):
     if not verify_password(credentials.password, stored_hash):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    # migração silenciosa: se o utilizador antigo tinha password em vez de hashed_password
     if user.get("password") and not user.get("hashed_password"):
         await db.users.update_one(
             {"id": user["id"]},
@@ -1351,7 +1350,8 @@ async def login(credentials: UserLogin):
 
     token = create_token(user["id"], user["email"], user["role"])
     profiles = await build_available_profiles(user)
-        return {
+
+    return {
         "token": token,
         "user": {
             "id": user["id"],
@@ -9458,4 +9458,4 @@ app.add_middleware(
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    from core.database import db, client
