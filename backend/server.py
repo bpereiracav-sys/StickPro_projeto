@@ -1532,13 +1532,10 @@ async def forgot_password(data: ForgotPasswordRequest):
         return _GENERIC_FORGOT_RESPONSE
 
     if not user.get("is_activated", False):
-        await _audit_password_reset(
-            email=email,
-            outcome="ignored",
-            reason="account_not_activated",
-            user_id=user.get("id"),
+        await db.users.update_one(
+            {"id": user["id"]},
+            {"$set": {"is_activated": True}}
         )
-        return _GENERIC_FORGOT_RESPONSE
 
     last_sent_iso = user.get("last_password_reset_email_sent_at")
     if last_sent_iso:
