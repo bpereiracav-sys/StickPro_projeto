@@ -1321,52 +1321,6 @@ class ActivateAccountRequest(BaseModel):
     password: str
 
 
-@api_router.post("/auth/login")
-async def login(credentials: UserLogin):
-    email = credentials.email.strip().lower()
-    user = await db.users.find_one({"email": email}, {"_id": 0})
-
-    stored_hash = None
-    if user:
-        stored_hash = user.get("hashed_password") or user.get("password")
-
-    if not user or not stored_hash:
-        raise HTTPException(status_code=401, detail="Credenciais inválidas")
-
-    if not user.get("is_activated", True):
-        raise HTTPException(status_code=401, detail="Conta ainda não ativada")
-
-    if not verify_password(credentials.password, stored_hash):
-        raise HTTPException(status_code=401, detail="Credenciais inválidas")
-
-    if user.get("password") and not user.get("hashed_password"):
-        await db.users.update_one(
-            {"id": user["id"]},
-            {
-                "$set": {"hashed_password": stored_hash},
-                "$unset": {"password": ""}
-            }
-        )
-
-    token = create_token(user["id"], user["email"], user["role"])
-    profiles = await build_available_profiles(user)
-
-    return {
-        "token": token,
-        "user": {
-            "id": user["id"],
-            "email": user["email"],
-            "name": user["name"],
-            "role": user["role"],
-            "additional_roles": user.get("additional_roles", []),
-            "phone": user.get("phone"),
-            "avatar_url": user.get("avatar_url"),
-            "team_ids": user.get("team_ids", []),
-            "associated_accounts": user.get("associated_accounts", [])
-        },
-        "available_profiles": profiles
-    }
-
 @api_router.post("/auth/activate")
 async def activate_account(data: ActivateAccountRequest):
     user = await db.users.find_one({"invite_token": data.token}, {"_id": 0})
@@ -1723,6 +1677,48 @@ async def reset_password(data: ResetPasswordRequest):
     # No body: 204 status. Clients should redirect to /login.
     return None
 
+@api_router.post("/auth/register")
+async def register(user_data: UserCreate):
+    email = user_data.email.strip().lower()
+
+    existing_user = await db.users.find_one({"email": email}, {"_id": 0})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Já existe uma conta com este email")
+
+    user = User(
+        email=email,
+        name=user_data.name,
+        surname=user_data.surname,
+        role=user_data.role,
+        phone=user_data.phone,
+        additional_roles=user_data.additional_roles
+    )
+
+    user_dict = user.model_dump()
+    user_dict["hashed_password"] = hash_password(user_data.password)
+    user_dict["is_activated"] = True
+    user_dict["created_at"] = user_dict["created_at"].isoformat()
+
+    await db.users.insert_one(user_dict)
+
+    token = create_token(user_dict["id"], user_dict["email"], user_dict["role"])
+    profiles = await build_available_profiles(user_dict)
+
+    return {
+        "token": token,
+        "user": {
+            "id": user_dict["id"],
+            "email": user_dict["email"],
+            "name": user_dict["name"],
+            "role": user_dict["role"],
+            "additional_roles": user_dict.get("additional_roles", []),
+            "phone": user_dict.get("phone"),
+            "avatar_url": user_dict.get("avatar_url"),
+            "team_ids": user_dict.get("team_ids", []),
+            "associated_accounts": user_dict.get("associated_accounts", [])
+        },
+        "available_profiles": profiles
+    }
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
