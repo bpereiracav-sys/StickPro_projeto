@@ -1467,7 +1467,7 @@ async def request_new_activation_link(data: RequestActivationLinkRequest):
 #   }
 #
 PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
-PASSWORD_RESET_THROTTLE_SECONDS = 0
+PASSWORD_RESET_THROTTLE_SECONDS = 60
 PASSWORD_RESET_MIN_LEN = 8
 
 _GENERIC_FORGOT_RESPONSE = {
@@ -1532,10 +1532,13 @@ async def forgot_password(data: ForgotPasswordRequest):
         return _GENERIC_FORGOT_RESPONSE
 
     if not user.get("is_activated", False):
-        await db.users.update_one(
-            {"id": user["id"]},
-            {"$set": {"is_activated": True}}
+        await _audit_password_reset(
+            email=email,
+            outcome="ignored",
+            reason="account_not_activated",
+            user_id=user.get("id"),
         )
+        return _GENERIC_FORGOT_RESPONSE
 
     last_sent_iso = user.get("last_password_reset_email_sent_at")
     if last_sent_iso:
@@ -1597,22 +1600,8 @@ async def forgot_password(data: ForgotPasswordRequest):
             user_id=user["id"],
         )
 
-    response = dict(_GENERIC_FORGOT_RESPONSE)
-
-    if os.environ.get("ENVIRONMENT", "development").lower() != "production":
-        frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
-        response["reset_token"] = raw_token
-        response["reset_link"] = (
-            f"{frontend_url}/reset-password?token={raw_token}"
-            if frontend_url
-            else raw_token
-        )
-
-    logging.warning(f"RESET TOKEN = {raw_token}")
-    logging.warning(f"RESET LINK = {response.get('reset_link')}")
+    return _GENERIC_FORGOT_RESPONSE
     
-    return response
-
 @api_router.post("/auth/reset-password", status_code=204)
 async def reset_password(data: ResetPasswordRequest):
     """Consume a reset token and set the new password. Single-use."""
@@ -1737,43 +1726,22 @@ async def register(user_data: UserCreate):
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
-    logging.error("ENTREI NO LOGIN")
-
     email = credentials.email.strip().lower()
     user = await db.users.find_one({"email": email}, {"_id": 0})
-
-    logging.warning(f"LOGIN DEBUG email={email}")
-    logging.warning(f"LOGIN DEBUG user_exists={bool(user)}")
-
-    if user:
-        logging.warning(f"LOGIN DEBUG user_keys={list(user.keys())}")
-        logging.warning(
-            f"LOGIN DEBUG has_hashed_password={bool(user.get('hashed_password'))}"
-        )
-        logging.warning(
-            f"LOGIN DEBUG hash_starts={(user.get('hashed_password') or user.get('password') or '')[:10]}"
-        )
 
     stored_hash = None
     if user:
         stored_hash = user.get("hashed_password") or user.get("password")
 
     if not user or not stored_hash:
-        logging.warning("LOGIN DEBUG failed: user not found or no hash")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
     if not user.get("is_activated", True):
-        logging.warning("LOGIN DEBUG failed: account not activated")
         raise HTTPException(status_code=401, detail="Conta ainda não ativada")
 
-    password_ok = verify_password(credentials.password, stored_hash)
-
-    logging.warning(f"LOGIN DEBUG password_ok={password_ok}")
-
-    if not password_ok:
+    if not verify_password(credentials.password, stored_hash):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    # Migração automática de contas antigas
     if user.get("password") and not user.get("hashed_password"):
         await db.users.update_one(
             {"id": user["id"]},
@@ -6663,19 +6631,31 @@ async def create_training_feedback(
         comment=feedback.comment.strip() if feedback.comment else None,
     ).model_dump()
 
+    feedback_dict["created_at"] = feedback_dict["created_at"].isoformat()
+
     await db.training_feedback.insert_one(feedback_dict)
+
+    feedback_dict.pop("_id", None)
+
     return {
         "message": "Feedback submetido com sucesso.",
         "feedback": feedback_dict,
     }
-
 @api_router.get("/training-feedback/team/{team_id}")
 async def get_team_training_feedback(
     team_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    if current_user.get("role") not in ["admin", "treinador", "delegado", "coordenador_tecnico"]:
-        raise HTTPException(status_code=403, detail="Sem permissões para consultar feedback da equipa.")
+    if current_user.get("role") not in [
+        "admin",
+        "treinador",
+        "delegado",
+        "coordenador_tecnico"
+    ]:
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissões para consultar feedback da equipa."
+        )
 
     feedbacks = await db.training_feedback.find(
         {"team_id": team_id},
@@ -6684,13 +6664,26 @@ async def get_team_training_feedback(
 
     total = len(feedbacks)
 
-    positive = len([f for f in feedbacks if f.get("rating") == "positive"])
-    neutral = len([f for f in feedbacks if f.get("rating") == "neutral"])
-    negative = len([f for f in feedbacks if f.get("rating") == "negative"])
+    positive = len([
+        f for f in feedbacks
+        if f.get("rating") == "positive"
+    ])
+
+    neutral = len([
+        f for f in feedbacks
+        if f.get("rating") == "neutral"
+    ])
+
+    negative = len([
+        f for f in feedbacks
+        if f.get("rating") == "negative"
+    ])
 
     satisfaction_score = 0
     if total > 0:
-        satisfaction_score = round(((positive * 100) + (neutral * 50)) / total)
+        satisfaction_score = round(
+            ((positive * 100) + (neutral * 50)) / total
+        )
 
     comments = [
         {
@@ -6712,6 +6705,93 @@ async def get_team_training_feedback(
         "comments": comments,
     }
 
+
+@api_router.get("/training-feedback/event/{event_id}")
+async def get_event_training_feedback(
+    event_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_admin and not checker.is_coach and not checker.is_staff:
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissões para consultar feedback."
+        )
+
+    event = await db.events.find_one(
+        {"id": event_id},
+        {"_id": 0}
+    )
+
+    if not event:
+        raise HTTPException(
+            status_code=404,
+            detail="Treino não encontrado."
+        )
+
+    if event.get("event_type") not in ["treino", "training"]:
+        raise HTTPException(
+            status_code=400,
+            detail="O feedback só está disponível para treinos."
+        )
+
+    if not checker.is_admin and event.get("team_id"):
+        if not checker.can_access_team(event.get("team_id")):
+            raise HTTPException(
+                status_code=403,
+                detail="Sem acesso a esta equipa."
+            )
+
+    feedbacks = await db.training_feedback.find(
+        {"event_id": event_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+
+    total = len(feedbacks)
+
+    positive = len([
+        f for f in feedbacks
+        if f.get("rating") == "positive"
+    ])
+
+    neutral = len([
+        f for f in feedbacks
+        if f.get("rating") == "neutral"
+    ])
+
+    negative = len([
+        f for f in feedbacks
+        if f.get("rating") == "negative"
+    ])
+
+    satisfaction_score = 0
+    if total > 0:
+        satisfaction_score = round(
+            ((positive * 100) + (neutral * 50)) / total
+        )
+
+    comments = [
+        {
+            "player_id": f.get("player_id"),
+            "rating": f.get("rating"),
+            "comment": f.get("comment"),
+            "created_at": f.get("created_at"),
+        }
+        for f in feedbacks
+        if f.get("comment")
+    ]
+
+    return {
+        "event_id": event_id,
+        "team_id": event.get("team_id"),
+        "total": total,
+        "positive": positive,
+        "neutral": neutral,
+        "negative": negative,
+        "satisfaction_score": satisfaction_score,
+        "comments": comments,
+    }
 
 @api_router.get("/convocations/my")
 async def get_my_convocations(current_user: dict = Depends(get_current_user)):
