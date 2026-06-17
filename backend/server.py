@@ -1760,7 +1760,7 @@ if user:
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
     token = create_token(user["id"], user["email"], user["role"])
-    profiles = await build_available_profiles(user)
+    profiles = (user)
 
     return {
         "token": token,
