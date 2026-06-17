@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from enum import Enum
-from core.database import db
+from core.database import db, client
 import os
 import io
 import logging
@@ -9458,4 +9458,4 @@ app.add_middleware(
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    from core.database import db, client
+    client.close()
