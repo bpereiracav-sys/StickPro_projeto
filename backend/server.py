@@ -4,8 +4,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 from enum import Enum
+from database import db
 import os
 import io
 import logging
@@ -56,11 +56,6 @@ ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
 load_dotenv(ROOT_DIR / '.env')
-
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
 
 # JWT Configuration
 # Security: JWT_SECRET MUST be set in production. In development/testing only,
@@ -1313,33 +1308,48 @@ class ActivateAccountRequest(BaseModel):
 
 @api_router.post("/auth/register")
 async def register(user_data: UserCreate):
-    # Emails duplicados são permitidos (ex: pai com vários filhos)
-    # Cada conta é única pelo ID, não pelo email
-    
+    email = user_data.email.strip().lower()
+
+    existing_user = await db.users.find_one({"email": email}, {"_id": 0})
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Já existe uma conta com este email")
+
     user = User(
-        email=user_data.email,
+        email=email,
         name=user_data.name,
         role=user_data.role,
         phone=user_data.phone,
         additional_roles=user_data.additional_roles
     )
+
     user_dict = user.model_dump()
     user_dict["hashed_password"] = hash_password(user_data.password)
     user_dict["is_activated"] = True
     user_dict["created_at"] = user_dict["created_at"].isoformat()
-    
+
     await db.users.insert_one(user_dict)
-    token = create_token(user.id, user.email, user.role)
-    
+
+    user_dict.pop("_id", None)
     user_dict.pop("hashed_password", None)
+
+    token = create_token(user_dict["id"], user_dict["email"], user_dict["role"])
     profiles = await build_available_profiles(user_dict)
-    
+
     return {
         "token": token,
-        "user": UserResponse(**user.model_dump()).model_dump(),
+        "user": {
+            "id": user_dict["id"],
+            "email": user_dict["email"],
+            "name": user_dict["name"],
+            "role": user_dict["role"],
+            "additional_roles": user_dict.get("additional_roles", []),
+            "phone": user_dict.get("phone"),
+            "avatar_url": user_dict.get("avatar_url"),
+            "team_ids": user_dict.get("team_ids", []),
+            "associated_accounts": user_dict.get("associated_accounts", [])
+        },
         "available_profiles": profiles
     }
-
 
 @api_router.post("/auth/activate")
 async def activate_account(data: ActivateAccountRequest):
@@ -1700,7 +1710,8 @@ async def reset_password(data: ResetPasswordRequest):
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
-    user = await db.users.find_one({"email": credentials.email}, {"_id": 0})
+    email = credentials.email.strip().lower()
+    user = await db.users.find_one({"email": email}, {"_id": 0})
 
     stored_hash = user.get("hashed_password") if user else None
 
@@ -6247,9 +6258,8 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
         event_dict['end_time'] = event_dict['end_time'].isoformat()
     event_dict['created_at'] = event_dict['created_at'].isoformat()
     
-    await db.events.insert_one(event_dict)
-    # Remove MongoDB _id before returning
-    event_dict.pop('_id', None)
+    
+
     
     # Notify guardians (parents) of team members about the new event
     if event_data.team_id:
