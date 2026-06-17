@@ -1925,29 +1925,49 @@ async def patch_onboarding_state(
     return state
 
 
-@api_router.post("/onboarding/complete")
-async def complete_onboarding(current_user: dict = Depends(get_current_user)):
-    """Mark the admin's onboarding wizard as completed.
+@api_router.post("/auth/login")
+async def login(credentials: UserLogin):
+    email = credentials.email.strip().lower()
+    user = await db.users.find_one({"email": email}, {"_id": 0})
 
-    Idempotent: if already completed, returns the existing timestamp without
-    overwriting it, so we keep the original finish date for analytics.
-    """
-    _ensure_onboarding_role(current_user)
+    print("LOGIN DEBUG - email:", email)
+    print("LOGIN DEBUG - user exists:", bool(user))
+    print("LOGIN DEBUG - user keys:", list(user.keys()) if user else None)
+    print("LOGIN DEBUG - has hashed_password:", bool(user.get("hashed_password")) if user else False)
+    print("LOGIN DEBUG - hash starts:", user.get("hashed_password", "")[:7] if user else None)
 
-    existing = current_user.get("onboarding_completed_at")
-    if existing:
-        completed_at_iso = (
-            existing.isoformat() if isinstance(existing, datetime) else existing
-        )
-        return {"completed": True, "completed_at": completed_at_iso}
+    stored_hash = user.get("hashed_password") if user else None
 
-    now = datetime.now(timezone.utc)
-    await db.users.update_one(
-        {"id": current_user["id"]},
-        {"$set": {"onboarding_completed_at": now.isoformat()}},
-    )
-    return {"completed": True, "completed_at": now.isoformat()}
+    if not user or not stored_hash:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
+    if not user.get("is_activated", False):
+        raise HTTPException(status_code=401, detail="Conta ainda não ativada")
+
+    password_ok = verify_password(credentials.password, stored_hash)
+    print("LOGIN DEBUG - password ok:", password_ok)
+
+    if not password_ok:
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+
+    token = create_token(user["id"], user["email"], user["role"])
+    profiles = await build_available_profiles(user)
+
+    return {
+        "token": token,
+        "user": {
+            "id": user["id"],
+            "email": user["email"],
+            "name": user["name"],
+            "role": user["role"],
+            "additional_roles": user.get("additional_roles", []),
+            "phone": user.get("phone"),
+            "avatar_url": user.get("avatar_url"),
+            "team_ids": user.get("team_ids", []),
+            "associated_accounts": user.get("associated_accounts", [])
+        },
+        "available_profiles": profiles
+    }
 
 # ---- Phase O4 — Invitations preview + batch dispatch ---------------------
 
