@@ -1981,6 +1981,38 @@ async def patch_onboarding_state(
     )
     return state
 
+@api_router.post("/onboarding/complete")
+async def complete_onboarding(current_user: dict = Depends(get_current_user)):
+    _ensure_onboarding_role(current_user)
+
+    existing = current_user.get("onboarding_completed_at")
+    if existing:
+        completed_at_iso = (
+            existing.isoformat()
+            if isinstance(existing, datetime)
+            else existing
+        )
+        return {
+            "completed": True,
+            "completed_at": completed_at_iso
+        }
+
+    now = datetime.now(timezone.utc)
+
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {
+            "$set": {
+                "onboarding_completed_at": now.isoformat(),
+                "onboarding_state.completed": True
+            }
+        }
+    )
+
+    return {
+        "completed": True,
+        "completed_at": now.isoformat()
+    }
 
 # ---- Phase O4 — Invitations preview + batch dispatch ---------------------
 
