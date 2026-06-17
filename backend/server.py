@@ -1527,28 +1527,28 @@ async def forgot_password(data: ForgotPasswordRequest):
     email = data.email.strip().lower()
     user = await db.users.find_one({"email": email}, {"_id": 0})
 
-    # Unknown email — log discreetly, return generic.
     if not user:
         await _audit_password_reset(email=email, outcome="ignored", reason="unknown_email")
         return _GENERIC_FORGOT_RESPONSE
 
-    # Not-yet-activated accounts: redirect users to the activation flow
-    # instead of issuing a reset token (no clear identity yet).
     if not user.get("is_activated", False):
         await _audit_password_reset(
-            email=email, outcome="ignored", reason="account_not_activated",
+            email=email,
+            outcome="ignored",
+            reason="account_not_activated",
             user_id=user.get("id"),
         )
         return _GENERIC_FORGOT_RESPONSE
 
-    # Throttle: at most one reset email every 60 s per account.
     last_sent_iso = user.get("last_password_reset_email_sent_at")
     if last_sent_iso:
         try:
             last_sent = datetime.fromisoformat(last_sent_iso)
             if (datetime.now(timezone.utc) - last_sent).total_seconds() < PASSWORD_RESET_THROTTLE_SECONDS:
                 await _audit_password_reset(
-                    email=email, outcome="ignored", reason="throttled",
+                    email=email,
+                    outcome="ignored",
+                    reason="throttled",
                     user_id=user.get("id"),
                 )
                 return _GENERIC_FORGOT_RESPONSE
@@ -1587,16 +1587,31 @@ async def forgot_password(data: ForgotPasswordRequest):
             {"$set": {"last_password_reset_email_sent_at": sent_at_iso}},
         )
         await _audit_password_reset(
-            email=email, outcome="email_sent", reason="", user_id=user["id"],
+            email=email,
+            outcome="email_sent",
+            reason="",
+            user_id=user["id"],
         )
     else:
         await _audit_password_reset(
-            email=email, outcome="email_failed", reason="delivery_failed",
+            email=email,
+            outcome="email_failed",
+            reason="delivery_failed",
             user_id=user["id"],
         )
 
-    return _GENERIC_FORGOT_RESPONSE
+    response = dict(_GENERIC_FORGOT_RESPONSE)
 
+    if os.environ.get("ENVIRONMENT", "development").lower() != "production":
+        frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+        response["reset_token"] = raw_token
+        response["reset_link"] = (
+            f"{frontend_url}/reset-password?token={raw_token}"
+            if frontend_url
+            else raw_token
+        )
+
+    return response
 
 @api_router.post("/auth/reset-password", status_code=204)
 async def reset_password(data: ResetPasswordRequest):
