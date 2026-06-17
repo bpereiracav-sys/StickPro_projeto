@@ -1467,7 +1467,7 @@ async def request_new_activation_link(data: RequestActivationLinkRequest):
 #   }
 #
 PASSWORD_RESET_TOKEN_TTL = timedelta(hours=1)
-PASSWORD_RESET_THROTTLE_SECONDS = 60
+PASSWORD_RESET_THROTTLE_SECONDS = 0
 PASSWORD_RESET_MIN_LEN = 8
 
 _GENERIC_FORGOT_RESPONSE = {
