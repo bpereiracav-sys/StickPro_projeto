@@ -1711,6 +1711,7 @@ async def reset_password(data: ResetPasswordRequest):
 
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
+    logging.error("ENTREI NO LOGIN")
     email = credentials.email.strip().lower()
     user = await db.users.find_one({"email": email}, {"_id": 0})
 
