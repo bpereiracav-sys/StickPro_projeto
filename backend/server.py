@@ -1727,6 +1727,7 @@ async def reset_password(data: ResetPasswordRequest):
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
     logging.error("ENTREI NO LOGIN")
+
     email = credentials.email.strip().lower()
     user = await db.users.find_one({"email": email}, {"_id": 0})
 
@@ -1735,20 +1736,22 @@ async def login(credentials: UserLogin):
 
     if user:
         logging.warning(f"LOGIN DEBUG user_keys={list(user.keys())}")
-        logging.warning(f"LOGIN DEBUG has_hashed_password={bool(user.get('hashed_password'))}")
         logging.warning(
-            f"LOGIN DEBUG hash_starts={(user.get('hashed_password') or '')[:10]}"
+            f"LOGIN DEBUG has_hashed_password={bool(user.get('hashed_password'))}"
+        )
+        logging.warning(
+            f"LOGIN DEBUG hash_starts={(user.get('hashed_password') or user.get('password') or '')[:10]}"
         )
 
     stored_hash = None
-if user:
-    stored_hash = user.get("hashed_password") or user.get("password")
+    if user:
+        stored_hash = user.get("hashed_password") or user.get("password")
 
     if not user or not stored_hash:
         logging.warning("LOGIN DEBUG failed: user not found or no hash")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    if not user.get("is_activated", False):
+    if not user.get("is_activated", True):
         logging.warning("LOGIN DEBUG failed: account not activated")
         raise HTTPException(status_code=401, detail="Conta ainda não ativada")
 
@@ -1759,8 +1762,18 @@ if user:
     if not password_ok:
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
+    # Migração automática de contas antigas
+    if user.get("password") and not user.get("hashed_password"):
+        await db.users.update_one(
+            {"id": user["id"]},
+            {
+                "$set": {"hashed_password": stored_hash},
+                "$unset": {"password": ""}
+            }
+        )
+
     token = create_token(user["id"], user["email"], user["role"])
-    profiles = (user)
+    profiles = await build_available_profiles(user)
 
     return {
         "token": token,
@@ -1777,7 +1790,7 @@ if user:
         },
         "available_profiles": profiles
     }
-
+    
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     profiles = await build_available_profiles(current_user)
