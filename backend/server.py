@@ -6509,7 +6509,10 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
                 f"<h1>Foste convocado!</h1><p>{conv_data.message or 'Por favor confirma a tua presença.'}</p>"
             )
 
-    @api_router.get("/training-feedback/my-pending")
+        return conv_dict
+
+
+@api_router.get("/training-feedback/my-pending")
 async def get_my_pending_training_feedback(current_user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
 
