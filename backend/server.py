@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from enum import Enum
-from backend.database import db
+from database import db
 import os
 import io
 import logging
