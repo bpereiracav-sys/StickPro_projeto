@@ -169,6 +169,7 @@ export const trainingFeedbackApi = {
   getMyPending: () => api.get('/training-feedback/my-pending'),
   create: (data) => api.post('/training-feedback', data),
   getTeam: (teamId) => api.get(`/training-feedback/team/${teamId}`),
+  getEvent: (eventId) => api.get(`/training-feedback/event/${eventId}`),
 };
 
 // Messages API
