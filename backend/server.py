@@ -835,6 +835,21 @@ class Convocation(BaseModel):
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class TrainingFeedbackCreate(BaseModel):
+    event_id: str
+    rating: str
+    comment: Optional[str] = None
+
+
+class TrainingFeedback(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    event_id: str
+    player_id: str
+    team_id: str
+    rating: str
+    comment: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # Unavailability Models
 UnavailabilityReason = Literal["ferias", "doenca", "escola", "outro"]
 
@@ -6481,7 +6496,7 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
                 f"<h1>Foste convocado!</h1><p>{conv_data.message or 'Por favor confirma a tua presença.'}</p>"
             )
 
-        return conv_dict
+    return conv_dict
 
 
 @api_router.get("/training-feedback/my-pending")
