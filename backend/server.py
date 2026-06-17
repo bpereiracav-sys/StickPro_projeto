@@ -1611,6 +1611,9 @@ async def forgot_password(data: ForgotPasswordRequest):
             else raw_token
         )
 
+    logging.warning(f"RESET TOKEN = {raw_token}")
+    logging.warning(f"RESET LINK = {response.get('reset_link')}")
+    
     return response
 
 @api_router.post("/auth/reset-password", status_code=204)
