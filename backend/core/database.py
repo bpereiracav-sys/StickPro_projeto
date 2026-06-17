@@ -7,11 +7,17 @@ import os
 ROOT_DIR = Path(__file__).parent.parent
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
-mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ['DB_NAME']]
+MONGO_URL = os.environ.get("MONGO_URL")
+DB_NAME = os.environ.get("DB_NAME")
+
+if not MONGO_URL:
+    raise RuntimeError("MONGO_URL is not configured")
+
+if not DB_NAME:
+    raise RuntimeError("DB_NAME is not configured")
+
+client = AsyncIOMotorClient(MONGO_URL)
+db = client[DB_NAME]
 
 def get_db():
-    """Get database instance."""
     return db
