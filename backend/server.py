@@ -1327,6 +1327,7 @@ async def register(user_data: UserCreate):
     user_dict["is_activated"] = True
     user_dict["created_at"] = user_dict["created_at"].isoformat()
 
+    print("REGISTER USER:", user_dict)
     await db.users.insert_one(user_dict)
 
     user_dict.pop("_id", None)
