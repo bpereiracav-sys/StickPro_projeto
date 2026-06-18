@@ -1908,8 +1908,8 @@ async def debug_create_team_feedback_test():
         "created_at": now.isoformat()
     }
 
-    await db.events.insert_one(event)
-    await db.training_feedback.insert_one(feedback)
+    await db.events.insert_one(event.copy())
+    await db.training_feedback.insert_one(feedback.copy())
 
     return {
         "message": "Feedback de teste criado para Escolares A.",
