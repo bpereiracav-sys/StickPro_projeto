@@ -6779,7 +6779,9 @@ async def get_my_pending_training_feedback(current_user: dict = Depends(get_curr
         if event_time.tzinfo is None:
             event_time = event_time.replace(tzinfo=timezone.utc)
 
-        if event_time > now:
+        feedback_available_at = event_time + timedelta(minutes=30)
+
+        if feedback_available_at > now:
             continue
 
         existing_feedback = await db.training_feedback.find_one(
