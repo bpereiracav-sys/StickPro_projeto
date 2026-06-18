@@ -530,8 +530,8 @@ export default function Dashboard() {
     : '-';
 
   return (
-    <div className="fixed left-0 top-0 z-[99999] h-screen w-screen overflow-y-auto bg-slate-950/85 px-4 py-6 backdrop-blur-md">
-      <Card className="mx-auto mt-2 mb-8 w-full max-w-2xl overflow-hidden border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/80 to-slate-50 shadow-2xl shadow-cyan-950/30">
+    <div className="fixed inset-0 z-[99999] flex items-start justify-center overflow-y-auto bg-slate-950/85 px-4 pt-20 pb-8 backdrop-blur-md">
+      <Card className="w-full max-w-2xl overflow-hidden border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/80 to-slate-50 shadow-2xl shadow-cyan-950/30">
         <CardContent className="p-4 sm:p-5">
           <div className="text-center">
             <Badge className="mb-4 bg-cyan-500 px-4 py-1.5 text-white">
