@@ -181,13 +181,20 @@ export const translations = {
     trainingFeedback: {
       title: "Feedback do Treino",
       question: "Como foi o treino?",
+      requiredMessage: "Para continuares a utilizar a app, responde primeiro a este feedback. A tua opinião ajuda os treinadores a melhorar os próximos treinos.",
+      event: "Evento",
+      date: "Data",
+      startTime: "Hora Início",
+      endTime: "Hora Fim",
       positive: "Gostei",
       neutral: "Foi normal",
       negative: "Não gostei",
       commentPlaceholder: "Queres deixar algum comentário ao treinador?",
       submit: "Enviar Feedback",
-      success: "Feedback enviado com sucesso"
-    },    
+      success: "Feedback enviado com sucesso",
+      error: "Não foi possível enviar o feedback. Tenta novamente.",
+      morePending: "Ainda tens mais {count} feedback(s) pendente(s)."
+    }, 
     
     commitment: {
       myCommitment: 'O Meu Compromisso',
@@ -928,14 +935,21 @@ topnav: {
       },
 
     trainingFeedback: {
-      title: "Opinión del Entrenamiento",
+      title: "Feedback del Entrenamiento",
       question: "¿Cómo fue el entrenamiento?",
+      requiredMessage: "Para seguir utilizando la aplicación, responde primero a este feedback. Tu opinión ayuda a los entrenadores a mejorar los próximos entrenamientos.",
+      event: "Evento",
+      date: "Fecha",
+      startTime: "Hora de inicio",
+      endTime: "Hora de finalización",
       positive: "Me gustó",
-      neutral: "Estuvo bien",
+      neutral: "Fue normal",
       negative: "No me gustó",
       commentPlaceholder: "¿Quieres dejar algún comentario al entrenador?",
-      submit: "Enviar Opinión",
-      success: "Opinión enviada correctamente"
+      submit: "Enviar Feedback",
+      success: "Feedback enviado correctamente",
+      error: "No fue posible enviar el feedback. Inténtalo de nuevo.",
+      morePending: "Todavía tienes {count} feedback(s) pendiente(s)."
     },  
     
     commitment: {
@@ -1679,14 +1693,21 @@ topnav: {
        },
 
     trainingFeedback: {
-      title: "Retour sur l'Entraînement",
+      title: "Retour d'Entraînement",
       question: "Comment s'est passé l'entraînement ?",
+      requiredMessage: "Pour continuer à utiliser l'application, veuillez d'abord répondre à ce retour. Votre avis aide les entraîneurs à améliorer les prochains entraînements.",
+      event: "Événement",
+      date: "Date",
+      startTime: "Heure de début",
+      endTime: "Heure de fin",
       positive: "J'ai aimé",
-      neutral: "C'était correct",
+      neutral: "C'était normal",
       negative: "Je n'ai pas aimé",
       commentPlaceholder: "Souhaitez-vous laisser un commentaire à l'entraîneur ?",
-      submit: "Envoyer le Retour",
-      success: "Retour envoyé avec succès"
+      submit: "Envoyer le retour",
+      success: "Retour envoyé avec succès",
+      error: "Impossible d'envoyer le retour. Veuillez réessayer.",
+      morePending: "Il vous reste encore {count} retour(s) en attente."
     },
     
     commitment: {
@@ -2439,12 +2460,19 @@ topnav: {
     trainingFeedback: {
       title: "Feedback Allenamento",
       question: "Com'è andato l'allenamento?",
+      requiredMessage: "Per continuare a utilizzare l'app, rispondi prima a questo feedback. La tua opinione aiuta gli allenatori a migliorare i prossimi allenamenti.",
+      event: "Evento",
+      date: "Data",
+      startTime: "Ora di inizio",
+      endTime: "Ora di fine",
       positive: "Mi è piaciuto",
       neutral: "È stato normale",
       negative: "Non mi è piaciuto",
       commentPlaceholder: "Vuoi lasciare un commento all'allenatore?",
       submit: "Invia Feedback",
-      success: "Feedback inviato con successo"
+      success: "Feedback inviato con successo",
+      error: "Impossibile inviare il feedback. Riprova.",
+      morePending: "Hai ancora {count} feedback in sospeso."
     },
     
     commitment: {
@@ -3193,12 +3221,19 @@ topnav: {
     trainingFeedback: {
       title: "Training Feedback",
       question: "How was the training session?",
+      requiredMessage: "To continue using the app, please answer this feedback first. Your opinion helps coaches improve future training sessions.",
+      event: "Event",
+      date: "Date",
+      startTime: "Start Time",
+      endTime: "End Time",
       positive: "I liked it",
       neutral: "It was okay",
       negative: "I didn't like it",
       commentPlaceholder: "Would you like to leave a comment for the coach?",
       submit: "Send Feedback",
-      success: "Feedback submitted successfully"
+      success: "Feedback submitted successfully",
+      error: "Unable to submit feedback. Please try again.",
+      morePending: "You still have {count} pending feedback(s)."
     },
     
     commitment: {
