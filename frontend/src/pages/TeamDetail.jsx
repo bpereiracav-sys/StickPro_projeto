@@ -216,8 +216,17 @@ export default function TeamDetail() {
         {/* Tabs */}
         <Tabs defaultValue="squad" className="space-y-6">
           <TabsList className="bg-muted">
-            <TabsTrigger value="squad" data-testid="tab-squad">Plantel</TabsTrigger>
-            <TabsTrigger value="stats" data-testid="tab-stats">Estatísticas</TabsTrigger>
+            <TabsTrigger value="squad" data-testid="tab-squad">
+              Plantel
+            </TabsTrigger>
+          
+            <TabsTrigger value="stats" data-testid="tab-stats">
+              Estatísticas
+            </TabsTrigger>
+          
+            <TabsTrigger value="feedback" data-testid="tab-feedback">
+              Feedback
+            </TabsTrigger>
           </TabsList>
 
           {/* Squad Tab */}
@@ -316,7 +325,7 @@ export default function TeamDetail() {
               </CardContent>
             </Card>
           </TabsContent>
-
+          
           {/* Stats Tab */}
           <TabsContent value="stats">
             <Card className="border border-border">
@@ -378,8 +387,79 @@ export default function TeamDetail() {
               </CardContent>
             </Card>
           </TabsContent>
-        </Tabs>
 
+        {/* Feedback Tab */}
+          <TabsContent value="feedback">
+            <div className="space-y-6">
+          
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground">
+                      🙂 Satisfação Média
+                    </p>
+                    <p className="text-3xl font-bold mt-2">
+                      --
+                    </p>
+                  </CardContent>
+                </Card>
+          
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground">
+                      💬 Feedbacks
+                    </p>
+                    <p className="text-3xl font-bold mt-2">
+                      --
+                    </p>
+                  </CardContent>
+                </Card>
+          
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground">
+                      📈 Tendência
+                    </p>
+                    <p className="text-3xl font-bold mt-2">
+                      --
+                    </p>
+                  </CardContent>
+                </Card>
+          
+                <Card>
+                  <CardContent className="p-6">
+                    <p className="text-sm text-muted-foreground">
+                      ⚠️ Negativos
+                    </p>
+                    <p className="text-3xl font-bold mt-2">
+                      --
+                    </p>
+                  </CardContent>
+                </Card>
+          
+              </div>
+          
+              <Card>
+                <CardHeader>
+                  <CardTitle>
+                    Feedback dos Atletas
+                  </CardTitle>
+                </CardHeader>
+          
+                <CardContent>
+                  <p className="text-muted-foreground">
+                    Em breve serão apresentados os indicadores de satisfação,
+                    evolução temporal e comentários dos atletas.
+                  </p>
+                </CardContent>
+              </Card>
+              
+            </div>
+          </TabsContent>
+
+          </Tabs>  
+          
         {/* Add Member Dialog */}
         <Dialog open={addMemberDialogOpen} onOpenChange={setAddMemberDialogOpen}>
           <DialogContent className="bg-white">
