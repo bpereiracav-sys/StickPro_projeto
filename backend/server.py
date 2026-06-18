@@ -1876,6 +1876,46 @@ async def debug_list_teams():
     ).to_list(100)
 
     return teams
+
+@api_router.post("/debug/create-team-feedback-test")
+async def debug_create_team_feedback_test():
+    team_id = "de795245-cf52-4c13-8359-60fe7606de5e"
+    player_id = "0b9f6435-2065-43c6-a571-88d0682ca1ff"
+
+    now = datetime.now(timezone.utc)
+    start_time = now - timedelta(hours=2)
+    end_time = now - timedelta(hours=1)
+
+    event_id = str(uuid.uuid4())
+
+    event = {
+        "id": event_id,
+        "title": "Treino Técnico Escolares A",
+        "team_id": team_id,
+        "event_type": "training",
+        "start_time": start_time.isoformat(),
+        "end_time": end_time.isoformat(),
+        "created_at": now.isoformat()
+    }
+
+    feedback = {
+        "id": str(uuid.uuid4()),
+        "event_id": event_id,
+        "player_id": player_id,
+        "team_id": team_id,
+        "rating": "positive",
+        "comment": "Gostei muito dos exercícios e do ritmo do treino.",
+        "created_at": now.isoformat()
+    }
+
+    await db.events.insert_one(event)
+    await db.training_feedback.insert_one(feedback)
+
+    return {
+        "message": "Feedback de teste criado para Escolares A.",
+        "event": event,
+        "feedback": feedback
+    }
     
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
