@@ -1897,6 +1897,12 @@ async def debug_link_player():
         "linked_player_ids": [player_id]
     }
 
+@api_router.get("/debug/current-user")
+async def debug_current_user(
+    current_user: dict = Depends(get_current_user)
+):
+    return current_user
+    
 @api_router.get("/auth/permissions")
 async def get_my_permissions(current_user: dict = Depends(get_current_user)):
     """Get current user's permissions"""
