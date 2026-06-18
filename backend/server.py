@@ -1879,7 +1879,7 @@ async def debug_list_players():
 
 @api_router.post("/debug/link-player")
 async def debug_link_player():
-    parent_user_id = "785d23a7-c495-478d-b4db-a8997dc0ef3d"
+    parent_user_id = "895fc2c9-6fbf-4ee6-a11e-01e4d76e2602"
     player_id = "0b9f6435-2065-43c6-a571-88d0682ca1ff"
 
     await db.users.update_one(
