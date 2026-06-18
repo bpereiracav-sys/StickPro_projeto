@@ -178,6 +178,17 @@ export const translations = {
       daysRemaining: 'Faltam {days} dias',
     },
 
+    trainingFeedback: {
+      title: "Feedback do Treino",
+      question: "Como foi o treino?",
+      positive: "Gostei",
+      neutral: "Foi normal",
+      negative: "Não gostei",
+      commentPlaceholder: "Queres deixar algum comentário ao treinador?",
+      submit: "Enviar Feedback",
+      success: "Feedback enviado com sucesso"
+    },    
+    
     commitment: {
       myCommitment: 'O Meu Compromisso',
       trainings: 'Treinos',
@@ -916,6 +927,17 @@ topnav: {
       daysRemaining: 'Faltan {days} días',
       },
 
+    trainingFeedback: {
+      title: "Opinión del Entrenamiento",
+      question: "¿Cómo fue el entrenamiento?",
+      positive: "Me gustó",
+      neutral: "Estuvo bien",
+      negative: "No me gustó",
+      commentPlaceholder: "¿Quieres dejar algún comentario al entrenador?",
+      submit: "Enviar Opinión",
+      success: "Opinión enviada correctamente"
+    },  
+    
     commitment: {
       myCommitment: 'Mi Compromiso',
       trainings: 'Entrenamientos',
@@ -1656,6 +1678,17 @@ topnav: {
       daysRemaining: 'Encore {days} jours',
        },
 
+    trainingFeedback: {
+      title: "Retour sur l'Entraînement",
+      question: "Comment s'est passé l'entraînement ?",
+      positive: "J'ai aimé",
+      neutral: "C'était correct",
+      negative: "Je n'ai pas aimé",
+      commentPlaceholder: "Souhaitez-vous laisser un commentaire à l'entraîneur ?",
+      submit: "Envoyer le Retour",
+      success: "Retour envoyé avec succès"
+    },
+    
     commitment: {
       myCommitment: 'Mon Engagement',
       trainings: 'Entraînements',
@@ -2403,6 +2436,17 @@ topnav: {
       daysRemaining: 'Mancano {days} giorni',
       },
 
+    trainingFeedback: {
+      title: "Feedback Allenamento",
+      question: "Com'è andato l'allenamento?",
+      positive: "Mi è piaciuto",
+      neutral: "È stato normale",
+      negative: "Non mi è piaciuto",
+      commentPlaceholder: "Vuoi lasciare un commento all'allenatore?",
+      submit: "Invia Feedback",
+      success: "Feedback inviato con successo"
+    },
+    
     commitment: {
       myCommitment: 'Il Mio Impegno',
       trainings: 'Allenamenti',
@@ -3146,6 +3190,17 @@ topnav: {
       daysRemaining: '{days} days remaining',
      },
 
+    trainingFeedback: {
+      title: "Training Feedback",
+      question: "How was the training session?",
+      positive: "I liked it",
+      neutral: "It was okay",
+      negative: "I didn't like it",
+      commentPlaceholder: "Would you like to leave a comment for the coach?",
+      submit: "Send Feedback",
+      success: "Feedback submitted successfully"
+    },
+    
     commitment: {
       myCommitment: 'My Commitment',
       trainings: 'Training Sessions',
