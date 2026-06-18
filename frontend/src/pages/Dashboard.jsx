@@ -530,9 +530,9 @@ export default function Dashboard() {
     : '-';
 
   return (
-    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/85 px-4 py-10 backdrop-blur-md">
-      <Card className="mx-auto mt-4 mb-10 max-h-none w-full max-w-2xl overflow-visible border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/80 to-slate-50 shadow-2xl shadow-cyan-950/30">
-        <CardContent className="p-5 sm:p-6">
+    <div className="fixed left-0 top-0 z-[99999] h-screen w-screen overflow-y-auto bg-slate-950/85 px-4 py-6 backdrop-blur-md">
+      <Card className="mx-auto mt-2 mb-8 w-full max-w-2xl overflow-hidden border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/80 to-slate-50 shadow-2xl shadow-cyan-950/30">
+        <CardContent className="p-4 sm:p-5">
           <div className="text-center">
             <Badge className="mb-4 bg-cyan-500 px-4 py-1.5 text-white">
               💬 {t('trainingFeedback.title')}
@@ -597,7 +597,7 @@ export default function Dashboard() {
             value={feedbackComment}
             onChange={(e) => setFeedbackComment(e.target.value)}
             placeholder={t('trainingFeedback.commentPlaceholder')}
-            className="mt-5 min-h-[100px] w-full rounded-3xl border border-slate-200 bg-white/90 p-4 text-sm outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
+            className="mt-4 min-h-[78px] w-full resize-none rounded-3xl border border-slate-200 bg-white/90 p-4 text-sm outline-none transition focus:border-cyan-400 focus:ring-4 focus:ring-cyan-100"
           />
 
           <Button
