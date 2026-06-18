@@ -228,6 +228,9 @@ class FamilyMember(BaseModel):
     phone: Optional[str] = None
     relationship: str = "pai"  # pai, mae, outro
 
+class LinkPlayerRequest(BaseModel):
+    player_id: str
+    
 # Extended User Profile
 class UserProfile(BaseModel):
     # Identity
