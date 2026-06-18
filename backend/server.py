@@ -6883,7 +6883,8 @@ async def get_team_training_feedback(
         "admin",
         "treinador",
         "delegado",
-        "coordenador_tecnico"
+        "coordenador_tecnico",
+        "gestor_desportivo"
     ]:
         raise HTTPException(
             status_code=403,
@@ -6895,49 +6896,33 @@ async def get_team_training_feedback(
         {"_id": 0}
     ).sort("created_at", -1).to_list(500)
 
-    total = len(feedbacks)
+    enriched_feedbacks = []
 
-    positive = len([
-        f for f in feedbacks
-        if f.get("rating") == "positive"
-    ])
-
-    neutral = len([
-        f for f in feedbacks
-        if f.get("rating") == "neutral"
-    ])
-
-    negative = len([
-        f for f in feedbacks
-        if f.get("rating") == "negative"
-    ])
-
-    satisfaction_score = 0
-    if total > 0:
-        satisfaction_score = round(
-            ((positive * 100) + (neutral * 50)) / total
+    for feedback in feedbacks:
+        event = await db.events.find_one(
+            {"id": feedback.get("event_id")},
+            {"_id": 0}
         )
 
-    comments = [
-        {
-            "event_id": f.get("event_id"),
-            "comment": f.get("comment"),
-            "rating": f.get("rating"),
-            "created_at": f.get("created_at"),
-        }
-        for f in feedbacks
-        if f.get("comment")
-    ][:20]
+        player = await db.users.find_one(
+            {"id": feedback.get("player_id")},
+            {
+                "_id": 0,
+                "id": 1,
+                "name": 1,
+                "surname": 1,
+                "email": 1,
+                "avatar_url": 1
+            }
+        )
 
-    return {
-        "total": total,
-        "positive": positive,
-        "neutral": neutral,
-        "negative": negative,
-        "satisfaction_score": satisfaction_score,
-        "comments": comments,
-    }
+        enriched_feedbacks.append({
+            **feedback,
+            "event": event,
+            "player": player
+        })
 
+    return enriched_feedbacks
 
 @api_router.get("/training-feedback/event/{event_id}")
 async def get_event_training_feedback(
