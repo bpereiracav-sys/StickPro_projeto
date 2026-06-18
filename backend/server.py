@@ -1730,45 +1730,69 @@ async def register(user_data: UserCreate):
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
     email = credentials.email.strip().lower()
-    user = await db.users.find_one({"email": email}, {"_id": 0})
 
-    stored_hash = None
-    if user:
-        stored_hash = user.get("hashed_password") or user.get("password")
+    users = await db.users.find(
+        {
+            "$expr": {
+                "$eq": [
+                    {"$toLower": "$email"},
+                    email
+                ]
+            }
+        },
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
 
-    if not user or not stored_hash:
+    matched_user = None
+    matched_hash = None
+
+    for candidate in users:
+        stored_hash = candidate.get("hashed_password") or candidate.get("password")
+
+        if not stored_hash:
+            continue
+
+        if verify_password(credentials.password, stored_hash):
+            matched_user = candidate
+            matched_hash = stored_hash
+            break
+
+    if not matched_user or not matched_hash:
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    if not user.get("is_activated", True):
+    if not matched_user.get("is_activated", True):
         raise HTTPException(status_code=401, detail="Conta ainda não ativada")
 
-    if not verify_password(credentials.password, stored_hash):
-        raise HTTPException(status_code=401, detail="Credenciais inválidas")
-
-    if user.get("password") and not user.get("hashed_password"):
+    if matched_user.get("password") and not matched_user.get("hashed_password"):
         await db.users.update_one(
-            {"id": user["id"]},
+            {"id": matched_user["id"]},
             {
-                "$set": {"hashed_password": stored_hash},
+                "$set": {"hashed_password": matched_hash},
                 "$unset": {"password": ""}
             }
         )
 
-    token = create_token(user["id"], user["email"], user["role"])
-    profiles = await build_available_profiles(user)
+    token = create_token(
+        matched_user["id"],
+        matched_user["email"],
+        matched_user["role"]
+    )
+
+    profiles = await build_available_profiles(matched_user)
 
     return {
         "token": token,
         "user": {
-            "id": user["id"],
-            "email": user["email"],
-            "name": user["name"],
-            "role": user["role"],
-            "additional_roles": user.get("additional_roles", []),
-            "phone": user.get("phone"),
-            "avatar_url": user.get("avatar_url"),
-            "team_ids": user.get("team_ids", []),
-            "associated_accounts": user.get("associated_accounts", [])
+            "id": matched_user["id"],
+            "email": matched_user["email"],
+            "name": matched_user["name"],
+            "role": matched_user["role"],
+            "additional_roles": matched_user.get("additional_roles", []),
+            "phone": matched_user.get("phone"),
+            "avatar_url": matched_user.get("avatar_url"),
+            "team_ids": matched_user.get("team_ids", []),
+            "associated_accounts": matched_user.get("associated_accounts", []),
+            "linked_player_ids": matched_user.get("linked_player_ids", [])
         },
         "available_profiles": profiles
     }
