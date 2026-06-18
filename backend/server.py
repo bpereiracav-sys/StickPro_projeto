@@ -1898,10 +1898,23 @@ async def debug_link_player():
     }
 
 @api_router.get("/debug/current-user")
-async def debug_current_user(
-    current_user: dict = Depends(get_current_user)
-):
-    return current_user
+async def debug_current_user():
+    users = await db.users.find(
+        {"email": "bpereiracav@gmail.com"},
+        {
+            "_id": 0,
+            "id": 1,
+            "email": 1,
+            "name": 1,
+            "role": 1,
+            "linked_player_ids": 1,
+            "hashed_password": 1,
+            "password": 1,
+            "created_at": 1
+        }
+    ).to_list(100)
+
+    return users
     
 @api_router.get("/auth/permissions")
 async def get_my_permissions(current_user: dict = Depends(get_current_user)):
