@@ -6524,14 +6524,29 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
 
     return conv_dict
 
+def get_accessible_player_ids(current_user: dict):
+    player_ids = [str(current_user["id"])]
+
+    linked_player_id = current_user.get("linked_player_id")
+    if linked_player_id:
+        player_ids.append(str(linked_player_id))
+
+    linked_player_ids = current_user.get("linked_player_ids") or []
+    for player_id in linked_player_ids:
+        if player_id:
+            player_ids.append(str(player_id))
+
+    # remover duplicados
+    return list(set(player_ids))
 
 @api_router.get("/training-feedback/my-pending")
 async def get_my_pending_training_feedback(current_user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
+    player_ids = get_accessible_player_ids(current_user)
 
     attendances = await db.attendance.find(
         {
-            "player_id": current_user["id"],
+            "player_id": {"$in": player_ids},
             "status": "confirmado",
             "event_type": {"$in": ["treino", "training"]},
         },
@@ -6559,7 +6574,7 @@ async def get_my_pending_training_feedback(current_user: dict = Depends(get_curr
         existing_feedback = await db.training_feedback.find_one(
             {
                 "event_id": attendance["event_id"],
-                "player_id": current_user["id"],
+                "player_id": attendance["player_id"],
             },
             {"_id": 0}
         )
@@ -6582,10 +6597,12 @@ async def create_training_feedback(
     feedback: TrainingFeedbackCreate,
     current_user: dict = Depends(get_current_user)
 ):
+    player_ids = get_accessible_player_ids(current_user)
+
     attendance = await db.attendance.find_one(
         {
             "event_id": feedback.event_id,
-            "player_id": current_user["id"],
+            "player_id": {"$in": player_ids},
             "status": "confirmado",
         },
         {"_id": 0}
@@ -6603,10 +6620,12 @@ async def create_training_feedback(
             detail="O feedback só está disponível para treinos."
         )
 
+    real_player_id = attendance["player_id"]
+
     existing_feedback = await db.training_feedback.find_one(
         {
             "event_id": feedback.event_id,
-            "player_id": current_user["id"],
+            "player_id": real_player_id,
         },
         {"_id": 0}
     )
@@ -6625,7 +6644,7 @@ async def create_training_feedback(
 
     feedback_dict = TrainingFeedback(
         event_id=feedback.event_id,
-        player_id=current_user["id"],
+        player_id=real_player_id,
         team_id=attendance["team_id"],
         rating=feedback.rating,
         comment=feedback.comment.strip() if feedback.comment else None,
@@ -6641,6 +6660,7 @@ async def create_training_feedback(
         "message": "Feedback submetido com sucesso.",
         "feedback": feedback_dict,
     }
+    
 @api_router.get("/training-feedback/team/{team_id}")
 async def get_team_training_feedback(
     team_id: str,
