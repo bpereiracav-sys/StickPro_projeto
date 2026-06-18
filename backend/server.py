@@ -1819,6 +1819,47 @@ async def debug_link_valid_player():
         "modified_count": result.modified_count
     }
 
+@api_router.post("/debug/create-feedback-test")
+async def debug_create_feedback_test():
+    player_id = "0b9f6435-2065-43c6-a571-88d0682ca1ff"
+    team_id = "debug-team"
+    
+    now = datetime.now(timezone.utc)
+    start_time = now - timedelta(hours=2)
+    end_time = now - timedelta(hours=1)
+
+    event_id = str(uuid.uuid4())
+
+    event = {
+        "id": event_id,
+        "title": "Treino de Teste Feedback",
+        "team_id": team_id,
+        "event_type": "training",
+        "start_time": start_time.isoformat(),
+        "end_time": end_time.isoformat(),
+        "created_at": now.isoformat()
+    }
+
+    attendance = {
+        "id": str(uuid.uuid4()),
+        "event_id": event_id,
+        "convocation_id": "debug-convocation",
+        "player_id": player_id,
+        "team_id": team_id,
+        "event_type": "training",
+        "event_date": start_time.isoformat(),
+        "status": "confirmado",
+        "updated_at": now.isoformat()
+    }
+
+    await db.events.insert_one(event)
+    await db.attendance.insert_one(attendance)
+
+    return {
+        "message": "Treino de teste criado com presença confirmada.",
+        "event": event,
+        "attendance": attendance
+    }
 
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
