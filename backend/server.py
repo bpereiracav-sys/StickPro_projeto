@@ -1796,7 +1796,30 @@ async def login(credentials: UserLogin):
         },
         "available_profiles": profiles
     }
-    
+
+@api_router.post("/debug/link-valid-player")
+async def debug_link_valid_player():
+    parent_user_id = "895fc2c9-6fbf-4ee6-a11e-01e4d76e2602"
+    player_id = "0b9f6435-2065-43c6-a571-88d0682ca1ff"
+
+    result = await db.users.update_one(
+        {"id": parent_user_id},
+        {
+            "$set": {
+                "linked_player_ids": [player_id]
+            }
+        }
+    )
+
+    return {
+        "message": "Ligação criada com sucesso.",
+        "parent_user_id": parent_user_id,
+        "player_id": player_id,
+        "matched_count": result.matched_count,
+        "modified_count": result.modified_count
+    }
+
+
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     profiles = await build_available_profiles(current_user)
