@@ -1804,6 +1804,62 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "accessible_team_ids": list(checker.team_ids) if not checker.is_admin else None
     }
 
+@api_router.post("/profile/link-player")
+async def link_player_to_current_user(
+    data: LinkPlayerRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    player = await db.users.find_one({"id": data.player_id}, {"_id": 0})
+
+    if not player:
+        raise HTTPException(status_code=404, detail="Atleta não encontrado.")
+
+    if player.get("role") not in ["atleta", "player", "jogador"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Só é possível associar contas de atleta."
+        )
+
+    linked_player_ids = current_user.get("linked_player_ids") or []
+
+    if data.player_id not in linked_player_ids:
+        linked_player_ids.append(data.player_id)
+
+    await db.users.update_one(
+        {"id": current_user["id"]},
+        {
+            "$set": {
+                "linked_player_ids": linked_player_ids
+            }
+        }
+    )
+
+    return {
+        "message": "Atleta associado com sucesso.",
+        "linked_player_ids": linked_player_ids
+    }
+
+
+@api_router.get("/debug/players")
+async def debug_list_players(current_user: dict = Depends(get_current_user)):
+    players = await db.users.find(
+        {
+            "role": {"$in": ["atleta", "player", "jogador"]}
+        },
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "surname": 1,
+            "email": 1,
+            "role": 1,
+            "team_ids": 1,
+            "club_id": 1,
+            "linked_player_ids": 1
+        }
+    ).to_list(100)
+
+    return players
 
 @api_router.get("/auth/permissions")
 async def get_my_permissions(current_user: dict = Depends(get_current_user)):
