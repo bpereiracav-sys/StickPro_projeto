@@ -1841,7 +1841,23 @@ async def link_player_to_current_user(
 
 
 @api_router.get("/debug/players")
-async def debug_list_players(current_user: dict = Depends(get_current_user)):
+async def debug_list_players():
+    players = await db.users.find(
+        {},
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "surname": 1,
+            "email": 1,
+            "role": 1,
+            "team_ids": 1,
+            "club_id": 1,
+            "linked_player_ids": 1
+        }
+    ).to_list(100)
+
+    return players
     players = await db.users.find(
         {
             "role": {"$in": ["atleta", "player", "jogador"]}
