@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { teamsApi, usersApi } from '../services/api';
+import { teamsApi, usersApi, trainingFeedbackApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -49,6 +49,7 @@ export default function TeamDetail() {
   const [team, setTeam] = useState(null);
   const [members, setMembers] = useState([]);
   const [stats, setStats] = useState([]);
+  const [teamFeedback, setTeamFeedback] = useState([]);
   const [availableUsers, setAvailableUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
@@ -67,11 +68,19 @@ export default function TeamDetail() {
         teamsApi.getMembers(teamId),
         teamsApi.getStats(teamId)
       ]);
+  
       setTeam(teamRes.data);
       setMembers(membersRes.data);
       setStats(statsRes.data);
-
-      // Fetch available users for adding
+  
+      try {
+        const feedbackRes = await trainingFeedbackApi.getTeam(teamId);
+        setTeamFeedback(Array.isArray(feedbackRes.data) ? feedbackRes.data : []);
+      } catch (feedbackError) {
+        console.error('Error fetching team feedback:', feedbackError);
+        setTeamFeedback([]);
+      }
+  
       if (canManageTeam) {
         const usersRes = await usersApi.getAll();
         const memberIds = membersRes.data.map(m => m.id);
@@ -142,6 +151,24 @@ export default function TeamDetail() {
   const delegates = members.filter(m => m.team_role === 'delegado');
   const players = members.filter(m => m.team_role === 'jogador');
 
+  const feedbackTotal = teamFeedback.length;
+
+  const positiveCount = teamFeedback.filter(f => f.rating === 'positive').length;
+  const neutralCount = teamFeedback.filter(f => f.rating === 'neutral').length;
+  const negativeCount = teamFeedback.filter(f => f.rating === 'negative').length;
+  
+  const positivePercent = feedbackTotal > 0
+    ? Math.round((positiveCount / feedbackTotal) * 100)
+    : 0;
+  
+  const neutralPercent = feedbackTotal > 0
+    ? Math.round((neutralCount / feedbackTotal) * 100)
+    : 0;
+  
+  const negativePercent = feedbackTotal > 0
+    ? Math.round((negativeCount / feedbackTotal) * 100)
+    : 0;  
+  
   return (
     <div className="space-y-6" data-testid="team-detail-page">
       {/* Back Button */}
@@ -388,76 +415,121 @@ export default function TeamDetail() {
             </Card>
           </TabsContent>
 
-        {/* Feedback Tab */}
-          <TabsContent value="feedback">
-            <div className="space-y-6">
-          
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          
-                <Card>
-                  <CardContent className="p-6">
-                    <p className="text-sm text-muted-foreground">
-                      🙂 Satisfação Média
-                    </p>
-                    <p className="text-3xl font-bold mt-2">
-                      --
-                    </p>
-                  </CardContent>
-                </Card>
-          
-                <Card>
-                  <CardContent className="p-6">
-                    <p className="text-sm text-muted-foreground">
-                      💬 Feedbacks
-                    </p>
-                    <p className="text-3xl font-bold mt-2">
-                      --
-                    </p>
-                  </CardContent>
-                </Card>
-          
-                <Card>
-                  <CardContent className="p-6">
-                    <p className="text-sm text-muted-foreground">
-                      📈 Tendência
-                    </p>
-                    <p className="text-3xl font-bold mt-2">
-                      --
-                    </p>
-                  </CardContent>
-                </Card>
-          
-                <Card>
-                  <CardContent className="p-6">
-                    <p className="text-sm text-muted-foreground">
-                      ⚠️ Negativos
-                    </p>
-                    <p className="text-3xl font-bold mt-2">
-                      --
-                    </p>
-                  </CardContent>
-                </Card>
-          
-              </div>
-          
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    Feedback dos Atletas
-                  </CardTitle>
-                </CardHeader>
-          
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Em breve serão apresentados os indicadores de satisfação,
-                    evolução temporal e comentários dos atletas.
-                  </p>
-                </CardContent>
-              </Card>
-              
-            </div>
-          </TabsContent>
-
+      {/* Feedback Tab */}
+      <TabsContent value="feedback">
+        <div className="space-y-6">
+      
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  🙂 Positivos
+                </p>
+                <p className="text-3xl font-bold mt-2">
+                  {positivePercent}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {positiveCount} respostas
+                </p>
+              </CardContent>
+            </Card>
+      
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  😐 Neutros
+                </p>
+                <p className="text-3xl font-bold mt-2">
+                  {neutralPercent}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {neutralCount} respostas
+                </p>
+              </CardContent>
+            </Card>
+      
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  🙁 Negativos
+                </p>
+                <p className="text-3xl font-bold mt-2">
+                  {negativePercent}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {negativeCount} respostas
+                </p>
+              </CardContent>
+            </Card>
+      
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  💬 Total Feedbacks
+                </p>
+                <p className="text-3xl font-bold mt-2">
+                  {feedbackTotal}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  respostas recebidas
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+      
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Feedback dos Atletas
+              </CardTitle>
+            </CardHeader>
+      
+            <CardContent>
+              {teamFeedback.length > 0 ? (
+                <div className="space-y-3">
+                  {teamFeedback.slice(0, 10).map((feedback) => (
+                    <div
+                      key={feedback.id}
+                      className="rounded-2xl border border-border p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold">
+                            {feedback.event?.title || 'Evento'}
+                          </p>
+      
+                          <p className="text-xs text-muted-foreground">
+                            {feedback.created_at
+                              ? new Date(feedback.created_at).toLocaleDateString()
+                              : ''}
+                          </p>
+                        </div>
+      
+                        <Badge variant="outline">
+                          {feedback.rating === 'positive' && '🙂 Gostei'}
+                          {feedback.rating === 'neutral' && '😐 Foi normal'}
+                          {feedback.rating === 'negative' && '🙁 Não gostei'}
+                        </Badge>
+                      </div>
+      
+                      {feedback.comment && (
+                        <p className="mt-3 text-sm text-muted-foreground">
+                          "{feedback.comment}"
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  Ainda não existem feedbacks registados para esta equipa.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+      
+        </div>
+      </TabsContent>
           </Tabs>  
           
         {/* Add Member Dialog */}
