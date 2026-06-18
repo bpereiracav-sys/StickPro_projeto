@@ -1886,6 +1886,15 @@ async def link_player_to_current_user(
         "linked_player_ids": linked_player_ids
     }
 
+@api_router.get("/debug/attendance/{player_id}")
+async def debug_attendance(player_id: str):
+    attendances = await db.attendance.find(
+        {"player_id": player_id},
+        {"_id": 0}
+    ).to_list(100)
+
+    return attendances
+    
 
 @api_router.get("/debug/players")
 async def debug_list_players():
