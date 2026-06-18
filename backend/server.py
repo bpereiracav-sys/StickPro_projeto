@@ -1877,6 +1877,26 @@ async def debug_list_players():
 
     return players
 
+@api_router.post("/debug/link-player")
+async def debug_link_player():
+    parent_user_id = "785d23a7-c495-478d-b4db-a8997dc0ef3d"
+    player_id = "0b9f6435-2065-43c6-a571-88d0682ca1ff"
+
+    await db.users.update_one(
+        {"id": parent_user_id},
+        {
+            "$set": {
+                "linked_player_ids": [player_id]
+            }
+        }
+    )
+
+    return {
+        "message": "Ligação criada com sucesso.",
+        "parent_user_id": parent_user_id,
+        "linked_player_ids": [player_id]
+    }
+
 @api_router.get("/auth/permissions")
 async def get_my_permissions(current_user: dict = Depends(get_current_user)):
     """Get current user's permissions"""
