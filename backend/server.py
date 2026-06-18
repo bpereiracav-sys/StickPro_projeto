@@ -1861,6 +1861,22 @@ async def debug_create_feedback_test():
         "attendance": attendance
     }
 
+@api_router.get("/debug/teams")
+async def debug_list_teams():
+    teams = await db.teams.find(
+        {},
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "category": 1,
+            "season": 1,
+            "club_id": 1
+        }
+    ).to_list(100)
+
+    return teams
+    
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     profiles = await build_available_profiles(current_user)
