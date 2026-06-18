@@ -530,9 +530,9 @@ export default function Dashboard() {
     : '-';
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-slate-950/80 px-4 py-6 backdrop-blur-md">
-      <Card className="my-auto max-h-[92vh] w-full max-w-2xl overflow-y-auto border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/80 to-slate-50 shadow-2xl shadow-cyan-950/30">
-        <CardContent className="p-5 sm:p-7">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-950/85 px-4 py-10 backdrop-blur-md">
+      <Card className="mx-auto mt-4 mb-10 max-h-none w-full max-w-2xl overflow-visible border border-cyan-100 bg-gradient-to-br from-white via-cyan-50/80 to-slate-50 shadow-2xl shadow-cyan-950/30">
+        <CardContent className="p-5 sm:p-6">
           <div className="text-center">
             <Badge className="mb-4 bg-cyan-500 px-4 py-1.5 text-white">
               💬 {t('trainingFeedback.title')}
