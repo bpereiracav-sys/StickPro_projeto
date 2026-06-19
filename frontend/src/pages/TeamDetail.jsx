@@ -298,14 +298,14 @@ const feedbackByEvent = Object.values(
 const feedbackHeatmap = feedbackByEvent
   .map((event) => {
     let level = 'low';
-    let label = 'Atenção';
+    let label = tr('teamFeedback.attention', 'Atenção');
 
     if (event.satisfaction >= 85) {
       level = 'high';
-      label = 'Muito positivo';
+      label = tr('teamFeedback.veryPositive', 'Muito positivo');
     } else if (event.satisfaction >= 60) {
       level = 'medium';
-      label = 'Estável';
+      label = tr('teamFeedback.stable', 'Estável');
     }
 
     return {
@@ -314,10 +314,8 @@ const feedbackHeatmap = feedbackByEvent
       label,
     };
   })
-  .sort((a, b) => b.satisfaction - a.satisfaction);  
-const getFeedbackScore = (items) => {
-  if (!items.length) return 0;
-
+  .sort((a, b) => b.satisfaction - a.satisfaction);
+  
   const score = items.reduce((acc, feedback) => {
     if (feedback.rating === 'positive') return acc + 100;
     if (feedback.rating === 'neutral') return acc + 50;
@@ -776,7 +774,7 @@ const trendLabel =
         <Card>
           <CardHeader>
             <CardTitle>
-              {tr('teamFeedback.feedbackPerEvent', 'Feedback por Evento')}
+              {tr('teamFeedback.feedbackByEvent', 'Feedback por Evento')}
             </CardTitle>
           </CardHeader>
           <CardContent>
