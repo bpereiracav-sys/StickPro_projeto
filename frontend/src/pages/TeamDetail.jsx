@@ -597,300 +597,226 @@ const trendLabel =
           </TabsContent>
 
       {/* Feedback Tab */}
-      <TabsContent value="feedback">
-        <div className="space-y-6">
-          <Tabs defaultValue="analytics" className="space-y-6">
-            <TabsList className="bg-muted">
-              <TabsTrigger value="analytics">
-                Analytics
-              </TabsTrigger>
-      
-              <TabsTrigger value="comments">
-                Comentários
-              </TabsTrigger>
-            </TabsList>
-      
-            <TabsContent value="analytics" className="space-y-6">
-      
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  😊 Satisfação Global
-                </p>
-                <p className="text-3xl font-bold mt-2">
-                  {positivePercent}%
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  baseado em feedback positivo
-                </p>
-              </CardContent>
-            </Card>
-          
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  💬 Feedbacks Recebidos
-                </p>
-                <p className="text-3xl font-bold mt-2">
-                  {feedbackTotal}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  respostas recebidas
-                </p>
-              </CardContent>
-            </Card>
-          
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  ⚠️ Feedbacks Negativos
-                </p>
-                <p className="text-3xl font-bold mt-2">
-                  {negativeCount}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {negativePercent}% do total
-                </p>
-              </CardContent>
-            </Card>
-          
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  📈 Tendência
-                </p>
-            
-                <p className="text-3xl font-bold mt-2">
-                  {trendLabel}
-                </p>
-            
-                <p className="text-xs text-muted-foreground mt-1">
-                  últimos 30 dias vs 30 dias anteriores
-                </p>
-              </CardContent>
-            </Card>
-            
-            </div>
-            
-            <Card>
-            
-          <Card>
-            <CardContent className="p-4">
-              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          
-                <Select value={feedbackPeriod} onValueChange={setFeedbackPeriod}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Período" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="all">Todos os períodos</SelectItem>
-                    <SelectItem value="7">Últimos 7 dias</SelectItem>
-                    <SelectItem value="30">Últimos 30 dias</SelectItem>
-                    <SelectItem value="90">Últimos 90 dias</SelectItem>
-                  </SelectContent>
-                </Select>
-          
-                <Select value={feedbackPlayer} onValueChange={setFeedbackPlayer}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Atleta" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="all">Todos os atletas</SelectItem>
-          
-                    {uniqueFeedbackPlayers.map((player) => (
-                      <SelectItem
-                        key={player.id}
-                        value={player.id}
-                      >
-                        {player.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-          
-                <Select value={feedbackEvent} onValueChange={setFeedbackEvent}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Evento" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white">
-                    <SelectItem value="all">Todos os eventos</SelectItem>
-          
-                    {uniqueFeedbackEvents.map((event) => (
-                      <SelectItem
-                        key={event.id}
-                        value={event.id}
-                      >
-                        {event.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-          
-              </div>
-            </CardContent>
-          </Card>    
+<TabsContent value="feedback">
+  <div className="space-y-6">
+    <Tabs defaultValue="analytics" className="space-y-6">
+      <TabsList className="bg-muted">
+        <TabsTrigger value="analytics">Analytics</TabsTrigger>
+        <TabsTrigger value="comments">Comentários</TabsTrigger>
+      </TabsList>
 
+      <TabsContent value="analytics" className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
-            <CardHeader>
-              <CardTitle>
-                Evolução da Satisfação
-              </CardTitle>
-            </CardHeader>
-          
-            <CardContent>
-              {satisfactionTimeline.length > 0 ? (
-                <div className="space-y-4">
-                  {satisfactionTimeline.map((item) => (
-                    <div key={item.month} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{item.month}</span>
-                        <span className="text-muted-foreground">
-                          {item.satisfaction}% · {item.total} feedback(s)
-                        </span>
-                      </div>
-          
-                      <div className="h-3 rounded-full bg-muted overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${item.satisfaction}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  Ainda não existem dados suficientes para apresentar a evolução da satisfação.
-                </p>
-              )}
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground">😊 Satisfação Global</p>
+              <p className="text-3xl font-bold mt-2">{positivePercent}%</p>
+              <p className="text-xs text-muted-foreground mt-1">baseado em feedback positivo</p>
             </CardContent>
           </Card>
 
           <Card>
-            <CardHeader>
-              <CardTitle>
-                Feedback por Evento
-              </CardTitle>
-            </CardHeader>
-          
-            <CardContent>
-              {feedbackByEvent.length > 0 ? (
-                <div className="space-y-3">
-                  {feedbackByEvent.map((event) => (
-                    <div
-                      key={event.eventId}
-                      className="rounded-2xl border border-border p-4"
-                    >
-                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                        <div>
-                          <p className="font-semibold">
-                            {event.eventTitle}
-                          </p>
-          
-                          <p className="text-xs text-muted-foreground">
-                            {event.total} feedback(s)
-                          </p>
-                        </div>
-          
-                        <div className="text-right">
-                          <p className="text-2xl font-bold">
-                            {event.satisfaction}%
-                          </p>
-          
-                          <p className="text-xs text-muted-foreground">
-                            🙂 {event.positive} · 😐 {event.neutral} · 🙁 {event.negative}
-                          </p>
-                        </div>
-                      </div>
-          
-                      <div className="mt-3 h-3 overflow-hidden rounded-full bg-muted">
-                        <div
-                          className="h-full rounded-full bg-primary"
-                          style={{ width: `${event.satisfaction}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  Ainda não existem dados suficientes para apresentar feedback por evento.
-                </p>
-              )}
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground">💬 Feedbacks Recebidos</p>
+              <p className="text-3xl font-bold mt-2">{feedbackTotal}</p>
+              <p className="text-xs text-muted-foreground mt-1">respostas recebidas</p>
             </CardContent>
-          </Card>          
+          </Card>
 
-          </TabsContent>
-
-          <TabsContent value="comments" className="space-y-6">
-              
           <Card>
-            <CardHeader>
-              <CardTitle>
-                Feedback dos Atletas
-              </CardTitle>
-            </CardHeader>
-      
-            <CardContent>
-              {filteredTeamFeedback.length > 0 ? (
-                <div className="space-y-3">
-                  {filteredTeamFeedback.slice(0, 10).map((feedback) => (
-                    <div
-                      key={feedback.id}
-                      className="rounded-2xl border border-border p-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">
-                            {user?.role === 'admin'
-                              ? feedback.player?.name || 'Atleta'
-                              : 'Atleta anónimo'}
-                          </p>
-                          
-                          <p className="text-xs text-muted-foreground">
-                            {feedback.event?.title || 'Evento'}
-                          </p>
-      
-                          <p className="text-xs text-muted-foreground">
-                            {feedback.created_at
-                              ? new Date(feedback.created_at).toLocaleDateString()
-                              : ''}
-                          </p>
-                        </div>
-      
-                        <Badge variant="outline">
-                          {feedback.rating === 'positive' && '🙂 Gostei'}
-                          {feedback.rating === 'neutral' && '😐 Foi normal'}
-                          {feedback.rating === 'negative' && '🙁 Não gostei'}
-                        </Badge>
-                      </div>
-      
-                      {feedback.comment && (
-                        <p className="mt-3 text-sm text-muted-foreground">
-                          "{feedback.comment}"
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-muted-foreground">
-                  Ainda não existem feedbacks registados para esta equipa.
-                </p>
-              )}
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground">⚠️ Feedbacks Negativos</p>
+              <p className="text-3xl font-bold mt-2">{negativeCount}</p>
+              <p className="text-xs text-muted-foreground mt-1">{negativePercent}% do total</p>
             </CardContent>
-                    </Card>
+          </Card>
 
-        </TabsContent>
+          <Card>
+            <CardContent className="p-6">
+              <p className="text-sm text-muted-foreground">📈 Tendência</p>
+              <p className="text-3xl font-bold mt-2">{trendLabel}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                últimos 30 dias vs 30 dias anteriores
+              </p>
+            </CardContent>
+          </Card>
+        </div>
 
-      </Tabs>
+        <Card>
+          <CardContent className="p-4">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <Select value={feedbackPeriod} onValueChange={setFeedbackPeriod}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Período" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">Todos os períodos</SelectItem>
+                  <SelectItem value="7">Últimos 7 dias</SelectItem>
+                  <SelectItem value="30">Últimos 30 dias</SelectItem>
+                  <SelectItem value="90">Últimos 90 dias</SelectItem>
+                </SelectContent>
+              </Select>
 
-    </div>
-  </TabsContent>
+              <Select value={feedbackPlayer} onValueChange={setFeedbackPlayer}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Atleta" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">Todos os atletas</SelectItem>
+                  {uniqueFeedbackPlayers.map((player) => (
+                    <SelectItem key={player.id} value={player.id}>
+                      {player.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-</Tabs>
-      
+              <Select value={feedbackEvent} onValueChange={setFeedbackEvent}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Evento" />
+                </SelectTrigger>
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">Todos os eventos</SelectItem>
+                  {uniqueFeedbackEvents.map((event) => (
+                    <SelectItem key={event.id} value={event.id}>
+                      {event.title}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Evolução da Satisfação</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {satisfactionTimeline.length > 0 ? (
+              <div className="space-y-4">
+                {satisfactionTimeline.map((item) => (
+                  <div key={item.month} className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">{item.month}</span>
+                      <span className="text-muted-foreground">
+                        {item.satisfaction}% · {item.total} feedback(s)
+                      </span>
+                    </div>
+                    <div className="h-3 rounded-full bg-muted overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${item.satisfaction}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                Ainda não existem dados suficientes para apresentar a evolução da satisfação.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Feedback por Evento</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {feedbackByEvent.length > 0 ? (
+              <div className="space-y-3">
+                {feedbackByEvent.map((event) => (
+                  <div key={event.eventId} className="rounded-2xl border border-border p-4">
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                      <div>
+                        <p className="font-semibold">{event.eventTitle}</p>
+                        <p className="text-xs text-muted-foreground">{event.total} feedback(s)</p>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-2xl font-bold">{event.satisfaction}%</p>
+                        <p className="text-xs text-muted-foreground">
+                          🙂 {event.positive} · 😐 {event.neutral} · 🙁 {event.negative}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-3 h-3 overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-primary"
+                        style={{ width: `${event.satisfaction}%` }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                Ainda não existem dados suficientes para apresentar feedback por evento.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+
+      <TabsContent value="comments" className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Feedback dos Atletas</CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            {filteredTeamFeedback.length > 0 ? (
+              <div className="space-y-3">
+                {filteredTeamFeedback.slice(0, 10).map((feedback) => (
+                  <div key={feedback.id} className="rounded-2xl border border-border p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-semibold">
+                          {user?.role === 'admin'
+                            ? feedback.player?.name || 'Atleta'
+                            : 'Atleta anónimo'}
+                        </p>
+
+                        <p className="text-xs text-muted-foreground">
+                          {feedback.event?.title || 'Evento'}
+                        </p>
+
+                        <p className="text-xs text-muted-foreground">
+                          {feedback.created_at
+                            ? new Date(feedback.created_at).toLocaleDateString()
+                            : ''}
+                        </p>
+                      </div>
+
+                      <Badge variant="outline">
+                        {feedback.rating === 'positive' && '🙂 Gostei'}
+                        {feedback.rating === 'neutral' && '😐 Foi normal'}
+                        {feedback.rating === 'negative' && '🙁 Não gostei'}
+                      </Badge>
+                    </div>
+
+                    {feedback.comment && (
+                      <p className="mt-3 text-sm text-muted-foreground">
+                        "{feedback.comment}"
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-muted-foreground">
+                Ainda não existem feedbacks registados para esta equipa.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </TabsContent>
+    </Tabs>
+  </div>
+</TabsContent>      
         {/* Add Member Dialog */}
         <Dialog open={addMemberDialogOpen} onOpenChange={setAddMemberDialogOpen}>
           <DialogContent className="bg-white">
