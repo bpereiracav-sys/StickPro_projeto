@@ -372,7 +372,7 @@ const trendLabel =
   currentPeriodFeedback.length === 0
     ? 'Sem dados'
     : previousPeriodFeedback.length === 0
-      ? 'Sem comparação'
+      ? '{tr('teamFeedback.noComparison', 'Sem comparação')}'
       : trendValue > 0
         ? `+${trendValue}%`
         : `${trendValue}%`;
@@ -641,34 +641,52 @@ const trendLabel =
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground">😊 Satisfação Global</p>
-              <p className="text-3xl font-bold mt-2">{positivePercent}%</p>
-              <p className="text-xs text-muted-foreground mt-1">baseado em feedback positivo</p>
+              <p className="text-sm text-muted-foreground">
+                😊 {tr('teamFeedback.globalSatisfaction', 'Satisfação Global')}
+              </p>
+          
+              <p className="text-3xl font-bold mt-2">
+                {positivePercent}%
+              </p>
+          
+              <p className="text-xs text-muted-foreground mt-1">
+                {tr('teamFeedback.basedOnPositiveFeedback', 'baseado em feedback positivo')}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground">💬 Feedbacks Recebidos</p>
+              <p className="text-sm text-muted-foreground">
+                💬 {tr('teamFeedback.receivedFeedbacks', 'Feedbacks Recebidos')}
+              </p>
               <p className="text-3xl font-bold mt-2">{feedbackTotal}</p>
-              <p className="text-xs text-muted-foreground mt-1">respostas recebidas</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {tr('teamFeedback.responsesReceived', 'respostas recebidas')}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground">⚠️ Feedbacks Negativos</p>
+              <p className="text-sm text-muted-foreground">
+                ⚠️ {tr('teamFeedback.negativeFeedbacks', 'Feedbacks Negativos')}
+              </p>
               <p className="text-3xl font-bold mt-2">{negativeCount}</p>
-              <p className="text-xs text-muted-foreground mt-1">{negativePercent}% do total</p>
+              <p className="text-xs text-muted-foreground mt-1">{negativePercent}
+                % {tr('teamFeedback.ofTotal', 'do total')}
+              </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardContent className="p-6">
-              <p className="text-sm text-muted-foreground">📈 Tendência</p>
+              <p className="text-sm text-muted-foreground">
+                📈 {tr('teamFeedback.trend', 'Tendência')}
+              </p>
               <p className="text-3xl font-bold mt-2">{trendLabel}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                últimos 30 dias vs 30 dias anteriores
+                {tr('teamFeedback.trendDescription', 'últimos 30 dias vs 30 dias anteriores')}
               </p>
             </CardContent>
           </Card>
