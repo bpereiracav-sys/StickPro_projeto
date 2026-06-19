@@ -671,6 +671,10 @@ const trendLabel =
               </CardContent>
             </Card>
             
+            </div>
+            
+            <Card>
+            
           <Card>
             <CardContent className="p-4">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
