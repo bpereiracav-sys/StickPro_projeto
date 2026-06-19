@@ -701,10 +701,10 @@ const trendLabel =
                   <SelectValue placeholder="Período" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="all">Todos os períodos</SelectItem>
-                  <SelectItem value="7">Últimos 7 dias</SelectItem>
-                  <SelectItem value="30">Últimos 30 dias</SelectItem>
-                  <SelectItem value="90">Últimos 90 dias</SelectItem>
+                  <SelectItem value="all">{tr('teamFeedback.allPeriods', 'Todos os períodos')}</SelectItem>
+                  <SelectItem value="7">{tr('teamFeedback.last7Days', 'Últimos 7 dias')}</SelectItem>
+                  <SelectItem value="30">{tr('teamFeedback.last30Days', 'Últimos 30 dias')}</SelectItem>
+                  <SelectItem value="90">{tr('teamFeedback.last90Days', 'Últimos 90 dias')}</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -713,7 +713,7 @@ const trendLabel =
                   <SelectValue placeholder="Atleta" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="all">Todos os atletas</SelectItem>
+                  <SelectItem value="all">{tr('teamFeedback.allAthletes', 'Todos os atletas')}</SelectItem>
                   {uniqueFeedbackPlayers.map((player) => (
                     <SelectItem key={player.id} value={player.id}>
                       {player.name}
@@ -727,7 +727,7 @@ const trendLabel =
                   <SelectValue placeholder="Evento" />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="all">Todos os eventos</SelectItem>
+                  <SelectItem value="all">{tr('teamFeedback.allEvents', 'Todos os eventos')}</SelectItem>
                   {uniqueFeedbackEvents.map((event) => (
                     <SelectItem key={event.id} value={event.id}>
                       {event.title}
@@ -754,7 +754,7 @@ const trendLabel =
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{item.month}</span>
                       <span className="text-muted-foreground">
-                        {item.satisfaction}% · {item.total} feedback(s)
+                        {item.satisfaction}% · {item.total} {event.total} {tr('teamFeedback.feedbacks', 'feedback(s)')}
                       </span>
                     </div>
                     <div className="h-3 rounded-full bg-muted overflow-hidden">
