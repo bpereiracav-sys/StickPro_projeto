@@ -849,7 +849,7 @@ const trendLabel =
                 </p>
 
                 <p className="mt-1 text-xs text-slate-500">
-                  {event.total} feedback(s)
+                  {event.total} {tr('teamFeedback.feedbacks', 'feedback(s)')}
                 </p>
               </div>
 
@@ -878,7 +878,7 @@ const trendLabel =
             </div>
 
             <p className="mt-3 text-xs text-slate-500">
-              🙂 {event.positive} positivo · 😐 {event.neutral} neutro · 🙁 {event.negative} negativo
+              🙂 {event.positive} {tr('teamFeedback.positive', 'positivo')} · 😐 {event.neutral} {tr('teamFeedback.neutral', 'neutro')} · 🙁 {event.negative} {tr('teamFeedback.negative', 'negativo')}
             </p>
           </div>
         ))}
@@ -911,7 +911,7 @@ const trendLabel =
                         <p className="font-semibold">
                           {user?.role === 'admin'
                             ? feedback.player?.name || 'Atleta'
-                            : 'Atleta anónimo'}
+                            : tr('teamFeedback.anonymousAthlete', 'Atleta anónimo')}
                         </p>
 
                         <p className="text-xs text-muted-foreground">
@@ -926,9 +926,14 @@ const trendLabel =
                       </div>
 
                       <Badge variant="outline">
-                        {feedback.rating === 'positive' && '🙂 Gostei'}
-                        {feedback.rating === 'neutral' && '😐 Foi normal'}
-                        {feedback.rating === 'negative' && '🙁 Não gostei'}
+                        {feedback.rating === 'positive' &&
+                          `🙂 ${tr('teamFeedback.liked', 'Gostei')}`}
+
+                        {feedback.rating === 'neutral' &&
+                          `😐 ${tr('teamFeedback.normal', 'Foi normal')}`}
+                        
+                        {feedback.rating === 'negative' &&
+                          `🙁 ${tr('teamFeedback.disliked', 'Não gostei')}`}
                       </Badge>
                     </div>
 
@@ -942,7 +947,10 @@ const trendLabel =
               </div>
             ) : (
               <p className="text-muted-foreground">
-                Ainda não existem feedbacks registados para esta equipa.
+                {tr(
+                  'teamFeedback.noFeedbackForTeam',
+                  'Ainda não existem feedbacks registados para esta equipa.'
+                )}
               </p>
             )}
           </CardContent>
