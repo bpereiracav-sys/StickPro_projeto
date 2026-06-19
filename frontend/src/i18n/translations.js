@@ -235,6 +235,7 @@ export const translations = {
     
       veryPositive: "Muito positivo",
       positive: "Positivo",
+      stable: "Estável",
       attention: "Atenção",
       critical: "Crítico",
     
@@ -1041,6 +1042,7 @@ topnav: {
     
       veryPositive: "Muy positivo",
       positive: "Positivo",
+      stable: "Estable",
       attention: "Atención",
       critical: "Crítico",
     
@@ -1849,6 +1851,7 @@ topnav: {
     
       veryPositive: "Très positif",
       positive: "Positif",
+      stable: "Stable",
       attention: "Attention",
       critical: "Critique",
     
@@ -2664,6 +2667,7 @@ topnav: {
     
       veryPositive: "Molto positivo",
       positive: "Positivo",
+      stable: "Stabile",
       attention: "Attenzione",
       critical: "Critico",
     
@@ -3475,7 +3479,8 @@ topnav: {
     
       veryPositive: "Very positive",
       positive: "Positive",
-      attention: "Needs attention",
+      stable: "Stable",
+      attention: "Attention",
       critical: "Critical",
     
       noFeedbackForTeam: "No feedback has been recorded for this team yet.",
