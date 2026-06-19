@@ -286,7 +286,70 @@ const feedbackByEvent = Object.values(
   satisfaction: event.total > 0
     ? Math.round(event.score / event.total)
     : 0,
-}));  
+})); 
+
+const getFeedbackScore = (items) => {
+  if (!items.length) return 0;
+
+  const score = items.reduce((acc, feedback) => {
+    if (feedback.rating === 'positive') return acc + 100;
+    if (feedback.rating === 'neutral') return acc + 50;
+    return acc;
+  }, 0);
+
+  return Math.round(score / items.length);
+};
+
+const nowForTrend = new Date();
+
+const currentPeriodStart = new Date();
+currentPeriodStart.setDate(nowForTrend.getDate() - 30);
+
+const previousPeriodStart = new Date();
+previousPeriodStart.setDate(nowForTrend.getDate() - 60);
+
+const currentPeriodFeedback = teamFeedback.filter((feedback) => {
+  const date = feedback.created_at
+    ? new Date(feedback.created_at)
+    : null;
+
+  return (
+    date &&
+    date >= currentPeriodStart &&
+    date <= nowForTrend
+  );
+});
+
+const previousPeriodFeedback = teamFeedback.filter((feedback) => {
+  const date = feedback.created_at
+    ? new Date(feedback.created_at)
+    : null;
+
+  return (
+    date &&
+    date >= previousPeriodStart &&
+    date < currentPeriodStart
+  );
+});
+
+const currentScore = getFeedbackScore(currentPeriodFeedback);
+const previousScore = getFeedbackScore(previousPeriodFeedback);
+
+const trendValue =
+  currentPeriodFeedback.length > 0 &&
+  previousPeriodFeedback.length > 0
+    ? currentScore - previousScore
+    : 0;
+
+const trendLabel =
+  currentPeriodFeedback.length === 0
+    ? 'Sem dados'
+    : previousPeriodFeedback.length === 0
+      ? 'Sem comparação'
+      : trendValue > 0
+        ? `+${trendValue}%`
+        : `${trendValue}%`;
+  
   return (
     <div className="space-y-6" data-testid="team-detail-page">
       {/* Back Button */}
@@ -595,18 +658,19 @@ const feedbackByEvent = Object.values(
             <Card>
               <CardContent className="p-6">
                 <p className="text-sm text-muted-foreground">
-                  📊 Distribuição
+                  📈 Tendência
                 </p>
-                <p className="text-sm font-semibold mt-2">
-                  🙂 {positivePercent}% · 😐 {neutralPercent}% · 🙁 {negativePercent}%
+            
+                <p className="text-3xl font-bold mt-2">
+                  {trendLabel}
                 </p>
+            
                 <p className="text-xs text-muted-foreground mt-1">
-                  positivo · neutro · negativo
+                  últimos 30 dias vs 30 dias anteriores
                 </p>
               </CardContent>
             </Card>
-          </div>
-
+            
           <Card>
             <CardContent className="p-4">
               <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
