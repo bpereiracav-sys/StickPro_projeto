@@ -315,7 +315,10 @@ const feedbackHeatmap = feedbackByEvent
     };
   })
   .sort((a, b) => b.satisfaction - a.satisfaction);
-  
+
+const getFeedbackScore = (items) => {
+  if (!items.length) return 0;
+
   const score = items.reduce((acc, feedback) => {
     if (feedback.rating === 'positive') return acc + 100;
     if (feedback.rating === 'neutral') return acc + 50;
