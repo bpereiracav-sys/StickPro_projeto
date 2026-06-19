@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { teamsApi, usersApi, trainingFeedbackApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -46,6 +47,12 @@ import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 export default function TeamDetail() {
   const { teamId } = useParams();
   const { canManageTeam, user } = useAuth();
+  const { t } = useLanguage();
+
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
   const [team, setTeam] = useState(null);
   const [members, setMembers] = useState([]);
   const [stats, setStats] = useState([]);
@@ -621,8 +628,13 @@ const trendLabel =
   <div className="space-y-6">
     <Tabs defaultValue="analytics" className="space-y-6">
       <TabsList className="bg-muted">
-        <TabsTrigger value="analytics">Analytics</TabsTrigger>
-        <TabsTrigger value="comments">Comentários</TabsTrigger>
+        <TabsTrigger value="analytics">
+          {tr('teamFeedback.analytics', 'Analytics')}
+        </TabsTrigger>
+        
+        <TabsTrigger value="comments">
+          {tr('teamFeedback.comments', 'Comentários')}
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="analytics" className="space-y-6">
@@ -710,8 +722,11 @@ const trendLabel =
 
         <Card>
           <CardHeader>
-            <CardTitle>Evolução da Satisfação</CardTitle>
+            <CardTitle>
+              {tr('teamFeedback.satisfactionEvolution', 'Evolução da Satisfação')}
+            </CardTitle>
           </CardHeader>
+          
           <CardContent>
             {satisfactionTimeline.length > 0 ? (
               <div className="space-y-4">
@@ -742,7 +757,9 @@ const trendLabel =
 
         <Card>
           <CardHeader>
-            <CardTitle>Feedback por Evento</CardTitle>
+            <CardTitle>
+              {tr('teamFeedback.feedbackPerEvent', 'Feedback por Evento')}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             {feedbackByEvent.length > 0 ? (
@@ -783,7 +800,7 @@ const trendLabel =
         <Card>
           <CardHeader>
             <CardTitle>
-              Heatmap dos Treinos
+              {tr('teamFeedback.trainingHeatmap', 'Heatmap dos Treinos')}
             </CardTitle>
           </CardHeader>
 
@@ -855,7 +872,9 @@ const trendLabel =
 <TabsContent value="comments" className="space-y-6">
   <Card>        
           <CardHeader>
-            <CardTitle>Feedback dos Atletas</CardTitle>
+            <CardTitle>
+              {tr('teamFeedback.athleteFeedback', 'Feedback dos Atletas')}
+            </CardTitle>
           </CardHeader>
 
           <CardContent>
