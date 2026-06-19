@@ -6944,17 +6944,6 @@ async def get_team_training_feedback(
     team_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    if current_user.get("role") not in [
-        "admin",
-        "treinador",
-        "delegado",
-        "coordenador_tecnico",
-        "gestor_desportivo"
-    ]:
-        raise HTTPException(
-            status_code=403,
-            detail="Sem permissões para consultar feedback da equipa."
-        )
 
     feedbacks = await db.training_feedback.find(
         {"team_id": team_id},
