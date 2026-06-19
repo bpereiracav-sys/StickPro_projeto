@@ -195,6 +195,56 @@ export const translations = {
       error: "Não foi possível enviar o feedback. Tenta novamente.",
       morePending: "Ainda tens mais {count} feedback(s) pendente(s)."
     }, 
+
+    teamFeedback: {
+      analytics: "Analytics",
+      comments: "Comentários",
+    
+      globalSatisfaction: "Satisfação Global",
+      receivedFeedbacks: "Feedbacks Recebidos",
+      negativeFeedbacks: "Feedbacks Negativos",
+      distribution: "Distribuição",
+      trend: "Tendência",
+    
+      basedOnPositiveFeedback: "baseado em feedback positivo",
+      responsesReceived: "respostas recebidas",
+      ofTotal: "do total",
+      positiveNeutralNegative: "positivo · neutro · negativo",
+    
+      noComparison: "Sem comparação",
+      trendDescription: "últimos 30 dias vs 30 dias anteriores",
+    
+      allPeriods: "Todos os períodos",
+      last7Days: "Últimos 7 dias",
+      last30Days: "Últimos 30 dias",
+      last90Days: "Últimos 90 dias",
+    
+      allAthletes: "Todos os atletas",
+      allEvents: "Todos os eventos",
+    
+      satisfactionEvolution: "Evolução da Satisfação",
+      feedbackPerEvent: "Feedback por Evento",
+      trainingHeatmap: "Heatmap dos Treinos",
+      athleteFeedback: "Feedback dos Atletas",
+    
+      anonymousAthlete: "Atleta anónimo",
+    
+      liked: "Gostei",
+      normal: "Foi normal",
+      disliked: "Não gostei",
+    
+      veryPositive: "Muito positivo",
+      positive: "Positivo",
+      attention: "Atenção",
+      critical: "Crítico",
+    
+      noFeedbackForTeam: "Ainda não existem feedbacks registados para esta equipa.",
+      noSatisfactionData: "Ainda não existem dados suficientes para apresentar a evolução da satisfação.",
+      noEventData: "Ainda não existem dados suficientes para apresentar feedback por evento.",
+      noHeatmapData: "Ainda não existem dados suficientes para apresentar o heatmap dos treinos.",
+    
+      feedbackCount: "{count} feedback(s)"
+    },   
     
     commitment: {
       myCommitment: 'O Meu Compromisso',
