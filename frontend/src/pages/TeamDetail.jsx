@@ -495,6 +495,10 @@ export default function TeamDetail() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-semibold">
+                            {feedback.player?.name || 'Atleta'}
+                          </p>
+                          
+                          <p className="text-xs text-muted-foreground">
                             {feedback.event?.title || 'Evento'}
                           </p>
       
