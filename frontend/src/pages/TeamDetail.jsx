@@ -423,55 +423,55 @@ export default function TeamDetail() {
             <Card>
               <CardContent className="p-6">
                 <p className="text-sm text-muted-foreground">
-                  🙂 Positivos
+                  😊 Satisfação Global
                 </p>
                 <p className="text-3xl font-bold mt-2">
                   {positivePercent}%
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {positiveCount} respostas
+                  baseado em feedback positivo
                 </p>
               </CardContent>
             </Card>
-      
+          
             <Card>
               <CardContent className="p-6">
                 <p className="text-sm text-muted-foreground">
-                  😐 Neutros
-                </p>
-                <p className="text-3xl font-bold mt-2">
-                  {neutralPercent}%
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {neutralCount} respostas
-                </p>
-              </CardContent>
-            </Card>
-      
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  🙁 Negativos
-                </p>
-                <p className="text-3xl font-bold mt-2">
-                  {negativePercent}%
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {negativeCount} respostas
-                </p>
-              </CardContent>
-            </Card>
-      
-            <Card>
-              <CardContent className="p-6">
-                <p className="text-sm text-muted-foreground">
-                  💬 Total Feedbacks
+                  💬 Feedbacks Recebidos
                 </p>
                 <p className="text-3xl font-bold mt-2">
                   {feedbackTotal}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   respostas recebidas
+                </p>
+              </CardContent>
+            </Card>
+          
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  ⚠️ Feedbacks Negativos
+                </p>
+                <p className="text-3xl font-bold mt-2">
+                  {negativeCount}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {negativePercent}% do total
+                </p>
+              </CardContent>
+            </Card>
+          
+            <Card>
+              <CardContent className="p-6">
+                <p className="text-sm text-muted-foreground">
+                  📊 Distribuição
+                </p>
+                <p className="text-sm font-semibold mt-2">
+                  🙂 {positivePercent}% · 😐 {neutralPercent}% · 🙁 {negativePercent}%
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  positivo · neutro · negativo
                 </p>
               </CardContent>
             </Card>
