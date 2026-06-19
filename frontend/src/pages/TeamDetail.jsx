@@ -816,7 +816,10 @@ const trendLabel =
       </TabsContent>
     </Tabs>
   </div>
-</TabsContent>      
+</TabsContent>
+
+</Tabs>
+        
         {/* Add Member Dialog */}
         <Dialog open={addMemberDialogOpen} onOpenChange={setAddMemberDialogOpen}>
           <DialogContent className="bg-white">
