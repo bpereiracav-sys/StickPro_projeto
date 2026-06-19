@@ -1861,6 +1861,15 @@ async def debug_create_feedback_test():
         "attendance": attendance
     }
 
+@api_router.get("/debug/team-feedback/{team_id}")
+async def debug_team_feedback(team_id: str):
+    feedbacks = await db.training_feedback.find(
+        {"team_id": team_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+
+    return feedbacks
+
 @api_router.get("/debug/teams")
 async def debug_list_teams():
     teams = await db.teams.find(
