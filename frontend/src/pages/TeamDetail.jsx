@@ -370,9 +370,9 @@ const trendValue =
 
 const trendLabel =
   currentPeriodFeedback.length === 0
-    ? 'Sem dados'
+    ? tr('teamFeedback.noData', 'Sem dados')
     : previousPeriodFeedback.length === 0
-      ? {tr('teamFeedback.noComparison', 'Sem comparação')}
+      ? tr('teamFeedback.noComparison', 'Sem comparação')
       : trendValue > 0
         ? `+${trendValue}%`
         : `${trendValue}%`;
