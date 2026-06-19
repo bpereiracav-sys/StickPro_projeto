@@ -238,7 +238,11 @@ export const translations = {
       stable: "Estável",
       attention: "Atenção",
       critical: "Crítico",
-    
+
+      feedbacks: "feedback(s)",
+      neutral: "Neutro",
+      negative: "Negativo",
+      
       noFeedbackForTeam: "Ainda não existem feedbacks registados para esta equipa.",
       noSatisfactionData: "Ainda não existem dados suficientes para apresentar a evolução da satisfação.",
       noEventData: "Ainda não existem dados suficientes para apresentar feedback por evento.",
@@ -1045,7 +1049,11 @@ topnav: {
       stable: "Estable",
       attention: "Atención",
       critical: "Crítico",
-    
+
+      feedbacks: "comentario(s)",
+      neutral: "Neutro",
+      negative: "Negativo",
+      
       noFeedbackForTeam: "Todavía no hay feedback registrado para este equipo.",
       noSatisfactionData: "Todavía no hay datos suficientes para mostrar la evolución de la satisfacción.",
       noEventData: "Todavía no hay datos suficientes para mostrar feedback por evento.",
@@ -1854,7 +1862,11 @@ topnav: {
       stable: "Stable",
       attention: "Attention",
       critical: "Critique",
-    
+
+      feedbacks: "avis",
+      neutral: "Neutre",
+      negative: "Négatif",
+      
       noFeedbackForTeam: "Aucun retour n'a encore été enregistré pour cette équipe.",
       noSatisfactionData: "Données insuffisantes pour afficher l'évolution de la satisfaction.",
       noEventData: "Données insuffisantes pour afficher les retours par événement.",
@@ -2670,7 +2682,11 @@ topnav: {
       stable: "Stabile",
       attention: "Attenzione",
       critical: "Critico",
-    
+
+      feedbacks: "feedback",
+      neutral: "Neutrale",
+      negative: "Negativo",
+      
       noFeedbackForTeam: "Non sono ancora stati registrati feedback per questa squadra.",
       noSatisfactionData: "Non ci sono ancora dati sufficienti per mostrare l'evoluzione della soddisfazione.",
       noEventData: "Non ci sono ancora dati sufficienti per mostrare il feedback per evento.",
@@ -3482,6 +3498,10 @@ topnav: {
       stable: "Stable",
       attention: "Attention",
       critical: "Critical",
+
+      feedbacks: "feedback(s)",
+      neutral: "Neutral",
+      negative: "Negative",      
     
       noFeedbackForTeam: "No feedback has been recorded for this team yet.",
       noSatisfactionData: "There is not enough data yet to display the satisfaction trend.",
