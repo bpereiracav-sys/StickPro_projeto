@@ -210,6 +210,41 @@ export default function TeamDetail() {
   
     return true;
   }); 
+
+  const feedbackByMonth = filteredTeamFeedback.reduce((acc, feedback) => {
+  const date = feedback.created_at ? new Date(feedback.created_at) : null;
+  if (!date) return acc;
+
+  const monthKey = date.toLocaleDateString('pt-PT', {
+    month: 'short',
+    year: '2-digit',
+  });
+
+  if (!acc[monthKey]) {
+    acc[monthKey] = {
+      total: 0,
+      score: 0,
+    };
+  }
+
+  acc[monthKey].total += 1;
+
+  if (feedback.rating === 'positive') acc[monthKey].score += 100;
+  if (feedback.rating === 'neutral') acc[monthKey].score += 50;
+  if (feedback.rating === 'negative') acc[monthKey].score += 0;
+
+  return acc;
+}, {});
+
+const satisfactionTimeline = Object.entries(feedbackByMonth).map(
+  ([month, data]) => ({
+    month,
+    satisfaction: data.total > 0
+      ? Math.round(data.score / data.total)
+      : 0,
+    total: data.total,
+  })
+);  
   
   return (
     <div className="space-y-6" data-testid="team-detail-page">
@@ -574,6 +609,42 @@ export default function TeamDetail() {
               </div>
             </CardContent>
           </Card>    
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Evolução da Satisfação
+              </CardTitle>
+            </CardHeader>
+          
+            <CardContent>
+              {satisfactionTimeline.length > 0 ? (
+                <div className="space-y-4">
+                  {satisfactionTimeline.map((item) => (
+                    <div key={item.month} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="font-medium">{item.month}</span>
+                        <span className="text-muted-foreground">
+                          {item.satisfaction}% · {item.total} feedback(s)
+                        </span>
+                      </div>
+          
+                      <div className="h-3 rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${item.satisfaction}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  Ainda não existem dados suficientes para apresentar a evolução da satisfação.
+                </p>
+              )}
+            </CardContent>
+          </Card>
           
           <Card>
             <CardHeader>
@@ -635,7 +706,7 @@ export default function TeamDetail() {
         </div>
       </TabsContent>
           </Tabs>  
-          
+      
         {/* Add Member Dialog */}
         <Dialog open={addMemberDialogOpen} onOpenChange={setAddMemberDialogOpen}>
           <DialogContent className="bg-white">
