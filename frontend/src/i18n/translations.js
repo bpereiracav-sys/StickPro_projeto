@@ -1001,7 +1001,57 @@ topnav: {
       error: "No fue posible enviar el feedback. Inténtalo de nuevo.",
       morePending: "Todavía tienes {count} feedback(s) pendiente(s)."
     },  
+
+    teamFeedback: {
+      analytics: "Analítica",
+      comments: "Comentarios",
     
+      globalSatisfaction: "Satisfacción Global",
+      receivedFeedbacks: "Feedbacks Recibidos",
+      negativeFeedbacks: "Feedbacks Negativos",
+      distribution: "Distribución",
+      trend: "Tendencia",
+    
+      basedOnPositiveFeedback: "basado en feedback positivo",
+      responsesReceived: "respuestas recibidas",
+      ofTotal: "del total",
+      positiveNeutralNegative: "positivo · neutro · negativo",
+    
+      noComparison: "Sin comparación",
+      trendDescription: "últimos 30 días vs 30 días anteriores",
+    
+      allPeriods: "Todos los períodos",
+      last7Days: "Últimos 7 días",
+      last30Days: "Últimos 30 días",
+      last90Days: "Últimos 90 días",
+    
+      allAthletes: "Todos los atletas",
+      allEvents: "Todos los eventos",
+    
+      satisfactionEvolution: "Evolución de la Satisfacción",
+      feedbackPerEvent: "Feedback por Evento",
+      trainingHeatmap: "Mapa de Calor de Entrenamientos",
+      athleteFeedback: "Feedback de los Atletas",
+    
+      anonymousAthlete: "Atleta anónimo",
+    
+      liked: "Me gustó",
+      normal: "Normal",
+      disliked: "No me gustó",
+    
+      veryPositive: "Muy positivo",
+      positive: "Positivo",
+      attention: "Atención",
+      critical: "Crítico",
+    
+      noFeedbackForTeam: "Todavía no hay feedback registrado para este equipo.",
+      noSatisfactionData: "Todavía no hay datos suficientes para mostrar la evolución de la satisfacción.",
+      noEventData: "Todavía no hay datos suficientes para mostrar feedback por evento.",
+      noHeatmapData: "Todavía no hay datos suficientes para mostrar el mapa de calor de entrenamientos.",
+    
+      feedbackCount: "{count} feedback(s)"
+    },
+
     commitment: {
       myCommitment: 'Mi Compromiso',
       trainings: 'Entrenamientos',
@@ -1758,6 +1808,56 @@ topnav: {
       success: "Retour envoyé avec succès",
       error: "Impossible d'envoyer le retour. Veuillez réessayer.",
       morePending: "Il vous reste encore {count} retour(s) en attente."
+    },
+
+    teamFeedback: {
+      analytics: "Analyse",
+      comments: "Commentaires",
+    
+      globalSatisfaction: "Satisfaction Globale",
+      receivedFeedbacks: "Retours Reçus",
+      negativeFeedbacks: "Retours Négatifs",
+      distribution: "Répartition",
+      trend: "Tendance",
+    
+      basedOnPositiveFeedback: "basé sur les retours positifs",
+      responsesReceived: "réponses reçues",
+      ofTotal: "du total",
+      positiveNeutralNegative: "positif · neutre · négatif",
+    
+      noComparison: "Aucune comparaison",
+      trendDescription: "30 derniers jours vs 30 jours précédents",
+    
+      allPeriods: "Toutes les périodes",
+      last7Days: "7 derniers jours",
+      last30Days: "30 derniers jours",
+      last90Days: "90 derniers jours",
+    
+      allAthletes: "Tous les athlètes",
+      allEvents: "Tous les événements",
+    
+      satisfactionEvolution: "Évolution de la Satisfaction",
+      feedbackPerEvent: "Retours par Événement",
+      trainingHeatmap: "Carte Thermique des Entraînements",
+      athleteFeedback: "Retours des Athlètes",
+    
+      anonymousAthlete: "Athlète anonyme",
+    
+      liked: "J'ai aimé",
+      normal: "C'était normal",
+      disliked: "Je n'ai pas aimé",
+    
+      veryPositive: "Très positif",
+      positive: "Positif",
+      attention: "Attention",
+      critical: "Critique",
+    
+      noFeedbackForTeam: "Aucun retour n'a encore été enregistré pour cette équipe.",
+      noSatisfactionData: "Données insuffisantes pour afficher l'évolution de la satisfaction.",
+      noEventData: "Données insuffisantes pour afficher les retours par événement.",
+      noHeatmapData: "Données insuffisantes pour afficher la carte thermique des entraînements.",
+    
+      feedbackCount: "{count} feedback(s)"
     },
     
     commitment: {
@@ -2524,6 +2624,56 @@ topnav: {
       error: "Impossibile inviare il feedback. Riprova.",
       morePending: "Hai ancora {count} feedback in sospeso."
     },
+
+    teamFeedback: {
+      analytics: "Analisi",
+      comments: "Commenti",
+    
+      globalSatisfaction: "Soddisfazione Generale",
+      receivedFeedbacks: "Feedback Ricevuti",
+      negativeFeedbacks: "Feedback Negativi",
+      distribution: "Distribuzione",
+      trend: "Tendenza",
+    
+      basedOnPositiveFeedback: "basato sui feedback positivi",
+      responsesReceived: "risposte ricevute",
+      ofTotal: "del totale",
+      positiveNeutralNegative: "positivo · neutro · negativo",
+    
+      noComparison: "Nessun confronto",
+      trendDescription: "ultimi 30 giorni vs 30 giorni precedenti",
+    
+      allPeriods: "Tutti i periodi",
+      last7Days: "Ultimi 7 giorni",
+      last30Days: "Ultimi 30 giorni",
+      last90Days: "Ultimi 90 giorni",
+    
+      allAthletes: "Tutti gli atleti",
+      allEvents: "Tutti gli eventi",
+    
+      satisfactionEvolution: "Evoluzione della Soddisfazione",
+      feedbackPerEvent: "Feedback per Evento",
+      trainingHeatmap: "Mappa di Calore degli Allenamenti",
+      athleteFeedback: "Feedback degli Atleti",
+    
+      anonymousAthlete: "Atleta anonimo",
+    
+      liked: "Mi è piaciuto",
+      normal: "Normale",
+      disliked: "Non mi è piaciuto",
+    
+      veryPositive: "Molto positivo",
+      positive: "Positivo",
+      attention: "Attenzione",
+      critical: "Critico",
+    
+      noFeedbackForTeam: "Non sono ancora stati registrati feedback per questa squadra.",
+      noSatisfactionData: "Non ci sono ancora dati sufficienti per mostrare l'evoluzione della soddisfazione.",
+      noEventData: "Non ci sono ancora dati sufficienti per mostrare il feedback per evento.",
+      noHeatmapData: "Non ci sono ancora dati sufficienti per mostrare la mappa di calore degli allenamenti.",
+    
+      feedbackCount: "{count} feedback(s)"
+    },    
     
     commitment: {
       myCommitment: 'Il Mio Impegno',
@@ -3285,7 +3435,56 @@ topnav: {
       error: "Unable to submit feedback. Please try again.",
       morePending: "You still have {count} pending feedback(s)."
     },
+
+    teamFeedback: {
+      analytics: "Analytics",
+      comments: "Comments",
     
+      globalSatisfaction: "Overall Satisfaction",
+      receivedFeedbacks: "Feedback Received",
+      negativeFeedbacks: "Negative Feedback",
+      distribution: "Distribution",
+      trend: "Trend",
+    
+      basedOnPositiveFeedback: "based on positive feedback",
+      responsesReceived: "responses received",
+      ofTotal: "of total",
+      positiveNeutralNegative: "positive · neutral · negative",
+    
+      noComparison: "No comparison",
+      trendDescription: "last 30 days vs previous 30 days",
+    
+      allPeriods: "All periods",
+      last7Days: "Last 7 days",
+      last30Days: "Last 30 days",
+      last90Days: "Last 90 days",
+    
+      allAthletes: "All athletes",
+      allEvents: "All events",
+    
+      satisfactionEvolution: "Satisfaction Trend",
+      feedbackPerEvent: "Feedback by Event",
+      trainingHeatmap: "Training Heatmap",
+      athleteFeedback: "Athlete Feedback",
+    
+      anonymousAthlete: "Anonymous athlete",
+    
+      liked: "I liked it",
+      normal: "It was okay",
+      disliked: "I didn't like it",
+    
+      veryPositive: "Very positive",
+      positive: "Positive",
+      attention: "Needs attention",
+      critical: "Critical",
+    
+      noFeedbackForTeam: "No feedback has been recorded for this team yet.",
+      noSatisfactionData: "There is not enough data yet to display the satisfaction trend.",
+      noEventData: "There is not enough data yet to display feedback by event.",
+      noHeatmapData: "There is not enough data yet to display the training heatmap.",
+    
+      feedbackCount: "{count} feedback(s)"
+    },    
     commitment: {
       myCommitment: 'My Commitment',
       trainings: 'Training Sessions',
