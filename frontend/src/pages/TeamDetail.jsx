@@ -777,7 +777,7 @@ const trendLabel =
         <Card>
           <CardHeader>
             <CardTitle>
-              {tr('teamFeedback.feedbackByEvent', 'Feedback por Evento')}
+              {tr('teamFeedback.feedbackPerEvent', 'Feedback por Evento')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -788,7 +788,9 @@ const trendLabel =
                     <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
                       <div>
                         <p className="font-semibold">{event.eventTitle}</p>
-                        <p className="text-xs text-muted-foreground">{event.total} feedback(s)</p>
+                        <p className="text-xs text-muted-foreground">
+                          {event.total} {tr('teamFeedback.feedbacks', 'feedback(s)')}
+                        </p>
                       </div>
 
                       <div className="text-right">
@@ -810,7 +812,10 @@ const trendLabel =
               </div>
             ) : (
               <p className="text-muted-foreground">
-                Ainda não existem dados suficientes para apresentar feedback por evento.
+                {tr(
+                  'teamFeedback.noEventData',
+                  'Ainda não existem dados suficientes para apresentar feedback por evento.'
+                )}
               </p>
             )}
           </CardContent>
