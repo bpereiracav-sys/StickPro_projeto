@@ -245,7 +245,48 @@ const satisfactionTimeline = Object.entries(feedbackByMonth).map(
     total: data.total,
   })
 );  
-  
+
+const feedbackByEvent = Object.values(
+  filteredTeamFeedback.reduce((acc, feedback) => {
+    const eventId = feedback.event_id || 'unknown';
+    const eventTitle = feedback.event?.title || 'Evento';
+
+    if (!acc[eventId]) {
+      acc[eventId] = {
+        eventId,
+        eventTitle,
+        total: 0,
+        score: 0,
+        positive: 0,
+        neutral: 0,
+        negative: 0,
+      };
+    }
+
+    acc[eventId].total += 1;
+
+    if (feedback.rating === 'positive') {
+      acc[eventId].score += 100;
+      acc[eventId].positive += 1;
+    }
+
+    if (feedback.rating === 'neutral') {
+      acc[eventId].score += 50;
+      acc[eventId].neutral += 1;
+    }
+
+    if (feedback.rating === 'negative') {
+      acc[eventId].negative += 1;
+    }
+
+    return acc;
+  }, {})
+).map((event) => ({
+  ...event,
+  satisfaction: event.total > 0
+    ? Math.round(event.score / event.total)
+    : 0,
+}));  
   return (
     <div className="space-y-6" data-testid="team-detail-page">
       {/* Back Button */}
@@ -645,6 +686,60 @@ const satisfactionTimeline = Object.entries(feedbackByMonth).map(
               )}
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>
+                Feedback por Evento
+              </CardTitle>
+            </CardHeader>
+          
+            <CardContent>
+              {feedbackByEvent.length > 0 ? (
+                <div className="space-y-3">
+                  {feedbackByEvent.map((event) => (
+                    <div
+                      key={event.eventId}
+                      className="rounded-2xl border border-border p-4"
+                    >
+                      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                        <div>
+                          <p className="font-semibold">
+                            {event.eventTitle}
+                          </p>
+          
+                          <p className="text-xs text-muted-foreground">
+                            {event.total} feedback(s)
+                          </p>
+                        </div>
+          
+                        <div className="text-right">
+                          <p className="text-2xl font-bold">
+                            {event.satisfaction}%
+                          </p>
+          
+                          <p className="text-xs text-muted-foreground">
+                            🙂 {event.positive} · 😐 {event.neutral} · 🙁 {event.negative}
+                          </p>
+                        </div>
+                      </div>
+          
+                      <div className="mt-3 h-3 overflow-hidden rounded-full bg-muted">
+                        <div
+                          className="h-full rounded-full bg-primary"
+                          style={{ width: `${event.satisfaction}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-muted-foreground">
+                  Ainda não existem dados suficientes para apresentar feedback por evento.
+                </p>
+              )}
+            </CardContent>
+          </Card>          
           
           <Card>
             <CardHeader>
