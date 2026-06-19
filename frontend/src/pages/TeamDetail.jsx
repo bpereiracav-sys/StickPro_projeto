@@ -288,6 +288,26 @@ const feedbackByEvent = Object.values(
     : 0,
 })); 
 
+const feedbackHeatmap = feedbackByEvent
+  .map((event) => {
+    let level = 'low';
+    let label = 'Atenção';
+
+    if (event.satisfaction >= 85) {
+      level = 'high';
+      label = 'Muito positivo';
+    } else if (event.satisfaction >= 60) {
+      level = 'medium';
+      label = 'Estável';
+    }
+
+    return {
+      ...event,
+      level,
+      label,
+    };
+  })
+  .sort((a, b) => b.satisfaction - a.satisfaction);  
 const getFeedbackScore = (items) => {
   if (!items.length) return 0;
 
@@ -759,10 +779,81 @@ const trendLabel =
             )}
           </CardContent>
         </Card>
-      </TabsContent>
 
-      <TabsContent value="comments" className="space-y-6">
         <Card>
+          <CardHeader>
+            <CardTitle>
+              Heatmap dos Treinos
+            </CardTitle>
+          </CardHeader>
+
+  <CardContent>
+    {feedbackHeatmap.length > 0 ? (
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        {feedbackHeatmap.map((event) => (
+          <div
+            key={event.eventId}
+            className={`rounded-2xl border p-4 ${
+              event.level === 'high'
+                ? 'border-emerald-200 bg-emerald-50'
+                : event.level === 'medium'
+                  ? 'border-amber-200 bg-amber-50'
+                  : 'border-red-200 bg-red-50'
+            }`}
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold text-slate-950">
+                  {event.eventTitle}
+                </p>
+
+                <p className="mt-1 text-xs text-slate-500">
+                  {event.total} feedback(s)
+                </p>
+              </div>
+
+              <div className="text-right">
+                <p className="text-2xl font-bold text-slate-950">
+                  {event.satisfaction}%
+                </p>
+
+                <p className="text-xs text-slate-500">
+                  {event.label}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/70">
+              <div
+                className={`h-full rounded-full ${
+                  event.level === 'high'
+                    ? 'bg-emerald-500'
+                    : event.level === 'medium'
+                      ? 'bg-amber-500'
+                      : 'bg-red-500'
+                }`}
+                style={{ width: `${event.satisfaction}%` }}
+              />
+            </div>
+
+            <p className="mt-3 text-xs text-slate-500">
+              🙂 {event.positive} positivo · 😐 {event.neutral} neutro · 🙁 {event.negative} negativo
+            </p>
+          </div>
+        ))}
+      </div>
+    ) : (
+      <p className="text-muted-foreground">
+        Ainda não existem dados suficientes para apresentar o heatmap dos treinos.
+      </p>
+    )}
+  </CardContent>
+</Card>
+
+</TabsContent>
+
+<TabsContent value="comments" className="space-y-6">
+  <Card>        
           <CardHeader>
             <CardTitle>Feedback dos Atletas</CardTitle>
           </CardHeader>
