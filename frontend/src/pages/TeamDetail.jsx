@@ -536,6 +536,18 @@ const feedbackByEvent = Object.values(
       {/* Feedback Tab */}
       <TabsContent value="feedback">
         <div className="space-y-6">
+          <Tabs defaultValue="analytics" className="space-y-6">
+            <TabsList className="bg-muted">
+              <TabsTrigger value="analytics">
+                Analytics
+              </TabsTrigger>
+      
+              <TabsTrigger value="comments">
+                Comentários
+              </TabsTrigger>
+            </TabsList>
+      
+            <TabsContent value="analytics" className="space-y-6">
       
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <Card>
@@ -740,7 +752,11 @@ const feedbackByEvent = Object.values(
               )}
             </CardContent>
           </Card>          
-          
+
+          </TabsContent>
+
+          <TabsContent value="comments" className="space-y-6">
+              
           <Card>
             <CardHeader>
               <CardTitle>
@@ -796,11 +812,16 @@ const feedbackByEvent = Object.values(
                 </p>
               )}
             </CardContent>
-          </Card>
-      
-        </div>
-      </TabsContent>
-          </Tabs>  
+                    </Card>
+
+        </TabsContent>
+
+      </Tabs>
+
+    </div>
+  </TabsContent>
+
+</Tabs>
       
         {/* Add Member Dialog */}
         <Dialog open={addMemberDialogOpen} onOpenChange={setAddMemberDialogOpen}>
