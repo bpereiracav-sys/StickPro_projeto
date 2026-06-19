@@ -50,6 +50,9 @@ export default function TeamDetail() {
   const [members, setMembers] = useState([]);
   const [stats, setStats] = useState([]);
   const [teamFeedback, setTeamFeedback] = useState([]);
+  const [feedbackPeriod, setFeedbackPeriod] = useState('all');
+  const [feedbackPlayer, setFeedbackPlayer] = useState('all');
+  const [feedbackEvent, setFeedbackEvent] = useState('all');
   const [availableUsers, setAvailableUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [addMemberDialogOpen, setAddMemberDialogOpen] = useState(false);
@@ -168,6 +171,45 @@ export default function TeamDetail() {
   const negativePercent = feedbackTotal > 0
     ? Math.round((negativeCount / feedbackTotal) * 100)
     : 0;  
+  
+  const uniqueFeedbackPlayers = Array.from(
+  new Map(
+    teamFeedback
+      .filter(f => f.player?.id)
+      .map(f => [f.player.id, f.player])
+  ).values()
+);
+
+  const uniqueFeedbackEvents = Array.from(
+    new Map(
+      teamFeedback
+        .filter(f => f.event?.id)
+        .map(f => [f.event.id, f.event])
+    ).values()
+  );
+  
+  const filteredTeamFeedback = teamFeedback.filter((feedback) => {
+    const createdAt = feedback.created_at ? new Date(feedback.created_at) : null;
+    const now = new Date();
+  
+    if (feedbackPeriod !== 'all' && createdAt) {
+      const diffDays = Math.floor((now - createdAt) / (1000 * 60 * 60 * 24));
+  
+      if (feedbackPeriod === '7' && diffDays > 7) return false;
+      if (feedbackPeriod === '30' && diffDays > 30) return false;
+      if (feedbackPeriod === '90' && diffDays > 90) return false;
+    }
+  
+    if (feedbackPlayer !== 'all' && feedback.player_id !== feedbackPlayer) {
+      return false;
+    }
+  
+    if (feedbackEvent !== 'all' && feedback.event_id !== feedbackEvent) {
+      return false;
+    }
+  
+    return true;
+  }); 
   
   return (
     <div className="space-y-6" data-testid="team-detail-page">
@@ -476,7 +518,63 @@ export default function TeamDetail() {
               </CardContent>
             </Card>
           </div>
-      
+
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+          
+                <Select value={feedbackPeriod} onValueChange={setFeedbackPeriod}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Período" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="all">Todos os períodos</SelectItem>
+                    <SelectItem value="7">Últimos 7 dias</SelectItem>
+                    <SelectItem value="30">Últimos 30 dias</SelectItem>
+                    <SelectItem value="90">Últimos 90 dias</SelectItem>
+                  </SelectContent>
+                </Select>
+          
+                <Select value={feedbackPlayer} onValueChange={setFeedbackPlayer}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Atleta" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="all">Todos os atletas</SelectItem>
+          
+                    {uniqueFeedbackPlayers.map((player) => (
+                      <SelectItem
+                        key={player.id}
+                        value={player.id}
+                      >
+                        {player.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+          
+                <Select value={feedbackEvent} onValueChange={setFeedbackEvent}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Evento" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="all">Todos os eventos</SelectItem>
+          
+                    {uniqueFeedbackEvents.map((event) => (
+                      <SelectItem
+                        key={event.id}
+                        value={event.id}
+                      >
+                        {event.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+          
+              </div>
+            </CardContent>
+          </Card>    
+          
           <Card>
             <CardHeader>
               <CardTitle>
@@ -485,9 +583,9 @@ export default function TeamDetail() {
             </CardHeader>
       
             <CardContent>
-              {teamFeedback.length > 0 ? (
+              {filteredTeamFeedback.length > 0 ? (
                 <div className="space-y-3">
-                  {teamFeedback.slice(0, 10).map((feedback) => (
+                  {filteredTeamFeedback.slice(0, 10).map((feedback) => (
                     <div
                       key={feedback.id}
                       className="rounded-2xl border border-border p-4"
