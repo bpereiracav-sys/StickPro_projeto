@@ -213,6 +213,12 @@ export const translations = {
     
       statisticsLegend:
         "J = Jogos | G = Golos | A = Assistências | AM = Amarelos | AZ = Azuis | V = Vermelhos | D = Defesas",
+
+      coachingStaff: "Staff Técnico",
+      noCoachingStaff: "Sem staff técnico",
+      
+      playersTitle: "Jogadores",
+      noPlayersRegistered: "Sem jogadores registados",
     },
     
     teamFeedback: {
@@ -1043,6 +1049,13 @@ topnav: {
     
       statisticsLegend:
         "PJ = Partidos Jugados | G = Goles | A = Asistencias | TA = Tarjetas Amarillas | TAZ = Tarjetas Azules | TR = Tarjetas Rojas | P = Paradas"
+    
+      coachingStaff: "Cuerpo Técnico",
+      noCoachingStaff: "Sin cuerpo técnico",
+      
+      playersTitle: "Jugadores",
+      noPlayersRegistered: "No hay jugadores registrados",
+      
     },    
     
     teamFeedback: {
@@ -1875,6 +1888,12 @@ topnav: {
     
       statisticsLegend:
         "MJ = Matchs Joués | B = Buts | PD = Passes Décisives | CJ = Cartons Jaunes | CB = Cartons Bleus | CR = Cartons Rouges | A = Arrêts"
+    
+      coachingStaff: "Staff Technique",
+      noCoachingStaff: "Aucun staff technique",
+      
+      playersTitle: "Joueurs",
+      noPlayersRegistered: "Aucun joueur enregistré",    
     },
     
     teamFeedback: {
@@ -2714,6 +2733,12 @@ topnav: {
     
       statisticsLegend:
         "PG = Partite Giocate | G = Gol | A = Assist | GA = Cartellini Gialli | BL = Cartellini Blu | R = Cartellini Rossi | P = Parate"
+    
+      coachingStaff: "Staff Tecnico",
+      noCoachingStaff: "Nessuno staff tecnico",
+      
+      playersTitle: "Giocatori",
+      noPlayersRegistered: "Nessun giocatore registrato",    
     },   
     
     teamFeedback: {
@@ -3549,6 +3574,13 @@ topnav: {
     
       statisticsLegend:
         "GP = Games Played | G = Goals | A = Assists | YC = Yellow Cards | BC = Blue Cards | RC = Red Cards | S = Saves"
+    
+      coachingStaff: "Coaching Staff",
+      noCoachingStaff: "No coaching staff",
+      
+      playersTitle: "Players",
+      noPlayersRegistered: "No registered players",
+    
     },
     
     teamFeedback: {
