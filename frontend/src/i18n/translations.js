@@ -179,7 +179,7 @@ export const translations = {
     },
 
     trainingFeedback: {
-      title: "Feedback do Treino",
+      title: " do Treino",
       question: "Como foi o treino?",
       requiredMessage: "Para continuares a utilizar a app, responde primeiro a este feedback. A tua opinião ajuda os treinadores a melhorar os próximos treinos.",
       event: "Evento",
@@ -199,7 +199,7 @@ export const translations = {
     teamDetail: {
       roster: "Plantel",
       statistics: "Estatísticas",
-      feedback: "Feedback"
+      feedback: "Feedback",
       backToTeams: "Voltar às Equipas",
       addMember: "Adicionar Membro",
       roster: "Plantel",
