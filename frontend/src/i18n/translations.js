@@ -1116,7 +1116,7 @@ topnav: {
       noEventData: "Todavía no hay datos suficientes para mostrar feedback por evento.",
       noHeatmapData: "Todavía no hay datos suficientes para mostrar el mapa de calor de entrenamientos.",
     
-      feedbackCount: "{count} feedback(s)"
+      feedbackCount: "{count} feedback(s)",
 
       exportCSV: "Exportar CSV",
       exportDate: "Fecha",
