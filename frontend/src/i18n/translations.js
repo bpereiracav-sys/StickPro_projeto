@@ -275,7 +275,7 @@ export const translations = {
     
       feedbackCount: "{count} feedback(s)",
 
-      exportCSV: "Exportar CSV",
+      exportCSV: "Exportar",
       exportDate: "Data",
       exportAthlete: "Atleta",
       exportEvent: "Evento",
@@ -1120,7 +1120,7 @@ topnav: {
     
       feedbackCount: "{count} feedback(s)",
 
-      exportCSV: "Exportar CSV",
+      exportCSV: "Exportar",
       exportDate: "Fecha",
       exportAthlete: "Atleta",
       exportEvent: "Evento",
@@ -1967,7 +1967,7 @@ topnav: {
     
       feedbackCount: "{count} feedback(s)",
 
-      exportCSV: "Exporter CSV",
+      exportCSV: "Exporter",
       exportDate: "Date",
       exportAthlete: "Athlète",
       exportEvent: "Événement",
@@ -2820,7 +2820,7 @@ topnav: {
     
       feedbackCount: "{count} feedback(s)",
 
-      exportCSV: "Esporta CSV",
+      exportCSV: "Esporta",
       exportDate: "Data",
       exportAthlete: "Atleta",
       exportEvent: "Evento",
@@ -3669,7 +3669,7 @@ topnav: {
     
       feedbackCount: "{count} feedback(s)",
 
-      exportCSV: "Export CSV",
+      exportCSV: "Export",
       exportDate: "Date",
       exportAthlete: "Athlete",
       exportEvent: "Event",
