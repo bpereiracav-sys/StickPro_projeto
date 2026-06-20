@@ -44,6 +44,13 @@ import {
 } from 'lucide-react';
 import { getInitials, getRoleName, getRoleColor } from '../lib/utils';
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu';
+
 export default function TeamDetail() {
   const { teamId } = useParams();
   const { canManageTeam, user } = useAuth();
@@ -720,13 +727,22 @@ const handleExportFeedbackCSV = () => {
             {filteredTeamFeedback.length} {tr('teamFeedback.feedbacks', 'feedback(s)')}
           </p>
       
-          <Button
-            variant="outline"
-            onClick={handleExportFeedbackCSV}
-            disabled={filteredTeamFeedback.length === 0}
-          >
-            {tr('teamFeedback.exportCSV', 'Exportar')}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                disabled={filteredTeamFeedback.length === 0}
+              >
+                {tr('teamFeedback.export', 'Exportar')}
+              </Button>
+            </DropdownMenuTrigger>
+          
+            <DropdownMenuContent align="end" className="bg-white">
+              <DropdownMenuItem onClick={handleExportFeedbackCSV}>
+                CSV
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
