@@ -273,7 +273,7 @@ export const translations = {
       noEventData: "Ainda não existem dados suficientes para apresentar feedback por evento.",
       noHeatmapData: "Ainda não existem dados suficientes para apresentar o heatmap dos treinos.",
     
-      feedbackCount: "{count} feedback(s)"
+      feedbackCount: "{count} feedback(s)",
 
       exportCSV: "Exportar CSV",
       exportDate: "Data",
