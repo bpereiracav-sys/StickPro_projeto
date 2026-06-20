@@ -1048,7 +1048,7 @@ topnav: {
       noSeasonStatistics: "No hay estadísticas registradas esta temporada",
     
       statisticsLegend:
-        "PJ = Partidos Jugados | G = Goles | A = Asistencias | TA = Tarjetas Amarillas | TAZ = Tarjetas Azules | TR = Tarjetas Rojas | P = Paradas"
+        "PJ = Partidos Jugados | G = Goles | A = Asistencias | TA = Tarjetas Amarillas | TAZ = Tarjetas Azules | TR = Tarjetas Rojas | P = Paradas",
     
       coachingStaff: "Cuerpo Técnico",
       noCoachingStaff: "Sin cuerpo técnico",
@@ -1886,7 +1886,7 @@ topnav: {
       noSeasonStatistics: "Aucune statistique enregistrée cette saison",
     
       statisticsLegend:
-        "MJ = Matchs Joués | B = Buts | PD = Passes Décisives | CJ = Cartons Jaunes | CB = Cartons Bleus | CR = Cartons Rouges | A = Arrêts"
+        "MJ = Matchs Joués | B = Buts | PD = Passes Décisives | CJ = Cartons Jaunes | CB = Cartons Bleus | CR = Cartons Rouges | A = Arrêts",
     
       coachingStaff: "Staff Technique",
       noCoachingStaff: "Aucun staff technique",
@@ -2731,7 +2731,7 @@ topnav: {
       noSeasonStatistics: "Nessuna statistica registrata in questa stagione",
     
       statisticsLegend:
-        "PG = Partite Giocate | G = Gol | A = Assist | GA = Cartellini Gialli | BL = Cartellini Blu | R = Cartellini Rossi | P = Parate"
+        "PG = Partite Giocate | G = Gol | A = Assist | GA = Cartellini Gialli | BL = Cartellini Blu | R = Cartellini Rossi | P = Parate",
     
       coachingStaff: "Staff Tecnico",
       noCoachingStaff: "Nessuno staff tecnico",
@@ -3572,7 +3572,7 @@ topnav: {
       noSeasonStatistics: "No statistics recorded this season",
     
       statisticsLegend:
-        "GP = Games Played | G = Goals | A = Assists | YC = Yellow Cards | BC = Blue Cards | RC = Red Cards | S = Saves"
+        "GP = Games Played | G = Goals | A = Assists | YC = Yellow Cards | BC = Blue Cards | RC = Red Cards | S = Saves",
     
       coachingStaff: "Coaching Staff",
       noCoachingStaff: "No coaching staff",
