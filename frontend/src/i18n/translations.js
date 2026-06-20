@@ -1863,7 +1863,7 @@ topnav: {
       attention: "Attention",
       critical: "Critique",
 
-      feedbacks: "Avis"
+      feedbacks: "retour(s)",
       neutral: "Neutre",
       negative: "Négatif",
       
