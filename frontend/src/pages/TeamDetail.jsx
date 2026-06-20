@@ -480,7 +480,7 @@ const trendLabel =
             {/* Staff */}
             <Card className="border border-border">
               <CardHeader>
-                <CardTitle className="font-heading text-xl tracking-tight">Staff Técnico</CardTitle>
+                <CardTitle className="font-heading text-xl tracking-tight">{tr('teamDetail.coachingStaff', 'Staff Técnico')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -515,7 +515,7 @@ const trendLabel =
                     </div>
                   ))}
                   {coaches.length === 0 && delegates.length === 0 && (
-                    <p className="text-muted-foreground col-span-full">Sem staff técnico</p>
+                    <p className="text-muted-foreground col-span-full">{tr('teamDetail.noCoachingStaff', 'Sem staff técnico')}</p>
                   )}
                 </div>
               </CardContent>
@@ -524,7 +524,7 @@ const trendLabel =
             {/* Players */}
             <Card className="border border-border">
               <CardHeader>
-                <CardTitle className="font-heading text-xl tracking-tight">Jogadores</CardTitle>
+                <CardTitle className="font-heading text-xl tracking-tight">{tr('teamDetail.playersTitle', 'Jogadores')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {players.length > 0 ? (
@@ -566,7 +566,7 @@ const trendLabel =
                     ))}
                   </div>
                 ) : (
-                  <p className="text-muted-foreground">Sem jogadores registados</p>
+                  <p className="text-muted-foreground">{tr('teamDetail.noPlayersRegistered', 'Sem jogadores registados')}</p>
                 )}
               </CardContent>
             </Card>
