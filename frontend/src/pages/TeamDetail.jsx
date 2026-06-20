@@ -722,29 +722,7 @@ const handleExportFeedbackCSV = () => {
       </TabsList>
 
       <TabsContent value="analytics" className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            {filteredTeamFeedback.length} {tr('teamFeedback.feedbacks', 'feedback(s)')}
-          </p>
-      
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                disabled={filteredTeamFeedback.length === 0}
-              >
-                {tr('teamFeedback.export', 'Exportar')}
-              </Button>
-            </DropdownMenuTrigger>
-          
-            <DropdownMenuContent align="end" className="bg-white">
-              <DropdownMenuItem onClick={handleExportFeedbackCSV}>
-                CSV
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-
+        
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           
           <Card>
@@ -802,7 +780,7 @@ const handleExportFeedbackCSV = () => {
 
         <Card>
           <CardContent className="p-4">
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
               <Select value={feedbackPeriod} onValueChange={setFeedbackPeriod}>
                 <SelectTrigger>
                   <SelectValue placeholder="Período" />
@@ -814,7 +792,7 @@ const handleExportFeedbackCSV = () => {
                   <SelectItem value="90">{tr('teamFeedback.last90Days', 'Últimos 90 dias')}</SelectItem>
                 </SelectContent>
               </Select>
-
+        
               <Select value={feedbackPlayer} onValueChange={setFeedbackPlayer}>
                 <SelectTrigger>
                   <SelectValue placeholder="Atleta" />
@@ -828,7 +806,7 @@ const handleExportFeedbackCSV = () => {
                   ))}
                 </SelectContent>
               </Select>
-
+        
               <Select value={feedbackEvent} onValueChange={setFeedbackEvent}>
                 <SelectTrigger>
                   <SelectValue placeholder="Evento" />
@@ -842,6 +820,24 @@ const handleExportFeedbackCSV = () => {
                   ))}
                 </SelectContent>
               </Select>
+        
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    disabled={filteredTeamFeedback.length === 0}
+                  >
+                    {tr('teamFeedback.export', 'Exportar')}
+                  </Button>
+                </DropdownMenuTrigger>
+        
+                <DropdownMenuContent align="end" className="bg-white">
+                  <DropdownMenuItem onClick={handleExportFeedbackCSV}>
+                    CSV
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </CardContent>
         </Card>
@@ -852,7 +848,6 @@ const handleExportFeedbackCSV = () => {
               {tr('teamFeedback.satisfactionEvolution', 'Evolução da Satisfação')}
             </CardTitle>
           </CardHeader>
-          
           <CardContent>
             {satisfactionTimeline.length > 0 ? (
               <div className="space-y-4">
@@ -861,7 +856,7 @@ const handleExportFeedbackCSV = () => {
                     <div className="flex items-center justify-between text-sm">
                       <span className="font-medium">{item.month}</span>
                       <span className="text-muted-foreground">
-                        {item.satisfaction}% · {item.total} {event.total} {tr('teamFeedback.feedbacks', 'feedback(s)')}
+                        {item.satisfaction}% · {item.total} {tr('teamFeedback.feedbacks', 'feedback(s)')}
                       </span>
                     </div>
                     <div className="h-3 rounded-full bg-muted overflow-hidden">
