@@ -377,6 +377,64 @@ const trendLabel =
       : trendValue > 0
         ? `+${trendValue}%`
         : `${trendValue}%`;
+
+const handleExportFeedbackCSV = () => {
+  const headers = [
+    tr('teamFeedback.exportDate', 'Data'),
+    tr('teamFeedback.exportAthlete', 'Atleta'),
+    tr('teamFeedback.exportEvent', 'Evento'),
+    tr('teamFeedback.exportRating', 'Avaliação'),
+    tr('teamFeedback.exportComment', 'Comentário'),
+  ];
+
+  const getRatingLabel = (rating) => {
+    if (rating === 'positive') return tr('teamFeedback.liked', 'Gostei');
+    if (rating === 'neutral') return tr('teamFeedback.normal', 'Foi normal');
+    if (rating === 'negative') return tr('teamFeedback.disliked', 'Não gostei');
+    return rating || '';
+  };
+
+  const rows = filteredTeamFeedback.map((feedback) => [
+    feedback.created_at
+      ? new Date(feedback.created_at).toLocaleDateString()
+      : '',
+    user?.role === 'admin'
+      ? feedback.player?.name || tr('teamFeedback.anonymousAthlete', 'Atleta')
+      : tr('teamFeedback.anonymousAthlete', 'Atleta anónimo'),
+    feedback.event?.title || tr('trainingFeedback.event', 'Evento'),
+    getRatingLabel(feedback.rating),
+    feedback.comment || '',
+  ]);
+
+  const csvContent = [headers, ...rows]
+    .map((row) =>
+      row
+        .map((value) => {
+          const safeValue = String(value ?? '').replace(/"/g, '""');
+          return `"${safeValue}"`;
+        })
+        .join(';')
+    )
+    .join('\n');
+
+  const blob = new Blob([`\uFEFF${csvContent}`], {
+    type: 'text/csv;charset=utf-8;',
+  });
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+
+  const safeTeamName = (team?.name || 'equipa')
+    .toLowerCase()
+    .replace(/\s+/g, '-')
+    .replace(/[^a-z0-9-]/gi, '');
+
+  link.href = url;
+  link.download = `feedback-${safeTeamName}.csv`;
+  link.click();
+
+  URL.revokeObjectURL(url);
+};
   
   return (
     <div className="space-y-6" data-testid="team-detail-page">
@@ -657,7 +715,22 @@ const trendLabel =
       </TabsList>
 
       <TabsContent value="analytics" className="space-y-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-muted-foreground">
+            {filteredTeamFeedback.length} {tr('teamFeedback.feedbacks', 'feedback(s)')}
+          </p>
+      
+          <Button
+            variant="outline"
+            onClick={handleExportFeedbackCSV}
+            disabled={filteredTeamFeedback.length === 0}
+          >
+            {tr('teamFeedback.exportCSV', 'Exportar CSV')}
+          </Button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          
           <Card>
             <CardContent className="p-6">
               <p className="text-sm text-muted-foreground">
