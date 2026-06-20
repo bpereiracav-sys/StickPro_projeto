@@ -200,13 +200,20 @@ export const translations = {
       roster: "Plantel",
       statistics: "Estatísticas",
       feedback: "Feedback",
+    
       backToTeams: "Voltar às Equipas",
       addMember: "Adicionar Membro",
-      roster: "Plantel",
+    
       players: "jogadores",
       totalGoals: "Total Golos",
       totalAssists: "Total Assistências",
-        },
+    
+      seasonStatistics: "Estatísticas da Época",
+      noSeasonStatistics: "Sem estatísticas registadas esta época",
+    
+      statisticsLegend:
+        "J = Jogos | G = Golos | A = Assistências | AM = Amarelos | AZ = Azuis | V = Vermelhos | D = Defesas",
+    },
     
     teamFeedback: {
       analytics: "Analytics",
@@ -1020,14 +1027,22 @@ topnav: {
     },  
 
     teamDetail: {
-      backToTeams: "Volver a Equipos",
-      addMember: "Añadir Miembro",
       roster: "Plantilla",
       statistics: "Estadísticas",
-      feedback: "Feedback",
+      feedback: "Comentarios",
+    
+      backToTeams: "Volver a los Equipos",
+      addMember: "Añadir Miembro",
+    
       players: "jugadores",
-      totalGoals: "Total de Goles",
-      totalAssists: "Total de Asistencias"
+      totalGoals: "Total Goles",
+      totalAssists: "Total Asistencias",
+    
+      seasonStatistics: "Estadísticas de la Temporada",
+      noSeasonStatistics: "No hay estadísticas registradas esta temporada",
+    
+      statisticsLegend:
+        "PJ = Partidos Jugados | G = Goles | A = Asistencias | TA = Tarjetas Amarillas | TAZ = Tarjetas Azules | TR = Tarjetas Rojas | P = Paradas"
     },    
     
     teamFeedback: {
@@ -1846,13 +1861,20 @@ topnav: {
     teamDetail: {
       roster: "Effectif",
       statistics: "Statistiques",
-      feedback: "Feedback",
+      feedback: "Retours",
+    
       backToTeams: "Retour aux Équipes",
       addMember: "Ajouter un Membre",
-      roster: "Effectif",
+    
       players: "joueurs",
-      totalGoals: "Total Buts",
-      totalAssists: "Total Passes",      
+      totalGoals: "Total des Buts",
+      totalAssists: "Total des Passes Décisives",
+    
+      seasonStatistics: "Statistiques de la Saison",
+      noSeasonStatistics: "Aucune statistique enregistrée cette saison",
+    
+      statisticsLegend:
+        "MJ = Matchs Joués | B = Buts | PD = Passes Décisives | CJ = Cartons Jaunes | CB = Cartons Bleus | CR = Cartons Rouges | A = Arrêts"
     },
     
     teamFeedback: {
@@ -2676,14 +2698,22 @@ topnav: {
     },
 
     teamDetail: {
-      backToTeams: "Torna alle Squadre",
-      addMember: "Aggiungi Membro",
       roster: "Rosa",
       statistics: "Statistiche",
       feedback: "Feedback",
+    
+      backToTeams: "Torna alle Squadre",
+      addMember: "Aggiungi Membro",
+    
       players: "giocatori",
       totalGoals: "Totale Gol",
-      totalAssists: "Totale Assist"
+      totalAssists: "Totale Assist",
+    
+      seasonStatistics: "Statistiche della Stagione",
+      noSeasonStatistics: "Nessuna statistica registrata in questa stagione",
+    
+      statisticsLegend:
+        "PG = Partite Giocate | G = Gol | A = Assist | GA = Cartellini Gialli | BL = Cartellini Blu | R = Cartellini Rossi | P = Parate"
     },   
     
     teamFeedback: {
@@ -3503,15 +3533,22 @@ topnav: {
     },
 
     teamDetail: {
-      roster: "Squad",
+      roster: "Roster",
       statistics: "Statistics",
       feedback: "Feedback",
+    
       backToTeams: "Back to Teams",
       addMember: "Add Member",
-      roster: "Squad",
+    
       players: "players",
       totalGoals: "Total Goals",
       totalAssists: "Total Assists",
+    
+      seasonStatistics: "Season Statistics",
+      noSeasonStatistics: "No statistics recorded this season",
+    
+      statisticsLegend:
+        "GP = Games Played | G = Goals | A = Assists | YC = Yellow Cards | BC = Blue Cards | RC = Red Cards | S = Saves"
     },
     
     teamFeedback: {
