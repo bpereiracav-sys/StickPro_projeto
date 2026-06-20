@@ -416,8 +416,13 @@ const trendLabel =
                 <Users className="w-6 h-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Plantel</p>
-                <p className="text-2xl font-heading">{players.length} jogadores</p>
+                <p className="text-sm text-muted-foreground">
+                  {tr('teamDetail.roster', 'Plantel')}
+                </p>
+                
+                <p className="text-2xl font-heading">
+                  {players.length} {tr('teamDetail.players', 'jogadores')}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -453,17 +458,18 @@ const trendLabel =
         <Tabs defaultValue="squad" className="space-y-6">
           <TabsList className="bg-muted">
             <TabsTrigger value="squad" data-testid="tab-squad">
-              Plantel
-            </TabsTrigger>
+            {tr('teamDetail.roster', 'Plantel')}
+          </TabsTrigger>
           
-            <TabsTrigger value="stats" data-testid="tab-stats">
-              Estatísticas
-            </TabsTrigger>
+          <TabsTrigger value="stats" data-testid="tab-stats">
+            {tr('teamDetail.statistics', 'Estatísticas')}
+          </TabsTrigger>
           
-            <TabsTrigger value="feedback" data-testid="tab-feedback">
-              Feedback
-            </TabsTrigger>
-          </TabsList>
+          <TabsTrigger value="feedback" data-testid="tab-feedback">
+            {tr('teamDetail.feedback', 'Feedback')}
+          </TabsTrigger>
+            
+        </TabsList>
 
           {/* Squad Tab */}
           <TabsContent value="squad" className="space-y-6">
