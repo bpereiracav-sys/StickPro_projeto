@@ -196,6 +196,12 @@ export const translations = {
       morePending: "Ainda tens mais {count} feedback(s) pendente(s)."
     }, 
 
+    teamDetail: {
+      roster: "Plantel",
+      statistics: "Estatísticas",
+      feedback: "Feedback"
+    },
+    
     teamFeedback: {
       analytics: "Analytics",
       comments: "Comentários",
@@ -1007,6 +1013,12 @@ topnav: {
       morePending: "Todavía tienes {count} feedback(s) pendiente(s)."
     },  
 
+    teamDetail: {
+      roster: "Plantilla",
+      statistics: "Estadísticas",
+      feedback: "Feedback"
+    },    
+    
     teamFeedback: {
       analytics: "Analítica",
       comments: "Comentarios",
@@ -1820,6 +1832,12 @@ topnav: {
       morePending: "Il vous reste encore {count} retour(s) en attente."
     },
 
+    teamDetail: {
+      roster: "Effectif",
+      statistics: "Statistiques",
+      feedback: "Feedback"
+    },
+    
     teamFeedback: {
       analytics: "Analyse",
       comments: "Commentaires",
@@ -2640,6 +2658,12 @@ topnav: {
       morePending: "Hai ancora {count} feedback in sospeso."
     },
 
+    teamDetail: {
+      roster: "Rosa",
+      statistics: "Statistiche",
+      feedback: "Feedback"
+    },    
+    
     teamFeedback: {
       analytics: "Analisi",
       comments: "Commenti",
@@ -3456,6 +3480,12 @@ topnav: {
       morePending: "You still have {count} pending feedback(s)."
     },
 
+    teamDetail: {
+      roster: "Squad",
+      statistics: "Statistics",
+      feedback: "Feedback"
+    },
+    
     teamFeedback: {
       analytics: "Analytics",
       comments: "Comments",
