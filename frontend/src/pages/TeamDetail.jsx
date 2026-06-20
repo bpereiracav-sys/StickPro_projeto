@@ -725,7 +725,7 @@ const handleExportFeedbackCSV = () => {
             onClick={handleExportFeedbackCSV}
             disabled={filteredTeamFeedback.length === 0}
           >
-            {tr('teamFeedback.exportCSV', 'Exportar CSV')}
+            {tr('teamFeedback.exportCSV', 'Exportar')}
           </Button>
         </div>
 
