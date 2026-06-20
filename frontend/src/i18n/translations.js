@@ -1961,7 +1961,7 @@ topnav: {
       noEventData: "Données insuffisantes pour afficher les retours par événement.",
       noHeatmapData: "Données insuffisantes pour afficher la carte thermique des entraînements.",
     
-      feedbackCount: "{count} feedback(s)"
+      feedbackCount: "{count} feedback(s)",
 
       exportCSV: "Exporter CSV",
       exportDate: "Date",
@@ -2813,7 +2813,7 @@ topnav: {
       noEventData: "Non ci sono ancora dati sufficienti per mostrare il feedback per evento.",
       noHeatmapData: "Non ci sono ancora dati sufficienti per mostrare la mappa di calore degli allenamenti.",
     
-      feedbackCount: "{count} feedback(s)"
+      feedbackCount: "{count} feedback(s)",
 
       exportCSV: "Esporta CSV",
       exportDate: "Data",
@@ -3661,7 +3661,7 @@ topnav: {
       noEventData: "There is not enough data yet to display feedback by event.",
       noHeatmapData: "There is not enough data yet to display the training heatmap.",
     
-      feedbackCount: "{count} feedback(s)"
+      feedbackCount: "{count} feedback(s)",
 
       exportCSV: "Export CSV",
       exportDate: "Date",
