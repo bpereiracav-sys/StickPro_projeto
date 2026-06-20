@@ -200,7 +200,13 @@ export const translations = {
       roster: "Plantel",
       statistics: "Estatísticas",
       feedback: "Feedback"
-    },
+      backToTeams: "Voltar às Equipas",
+      addMember: "Adicionar Membro",
+      roster: "Plantel",
+      players: "jogadores",
+      totalGoals: "Total Golos",
+      totalAssists: "Total Assistências",
+        },
     
     teamFeedback: {
       analytics: "Analytics",
@@ -1014,9 +1020,14 @@ topnav: {
     },  
 
     teamDetail: {
+      backToTeams: "Volver a Equipos",
+      addMember: "Añadir Miembro",
       roster: "Plantilla",
       statistics: "Estadísticas",
-      feedback: "Feedback"
+      feedback: "Feedback",
+      players: "jugadores",
+      totalGoals: "Total de Goles",
+      totalAssists: "Total de Asistencias"
     },    
     
     teamFeedback: {
@@ -1836,6 +1847,12 @@ topnav: {
       roster: "Effectif",
       statistics: "Statistiques",
       feedback: "Feedback"
+      backToTeams: "Retour aux Équipes",
+      addMember: "Ajouter un Membre",
+      roster: "Effectif",
+      players: "joueurs",
+      totalGoals: "Total Buts",
+      totalAssists: "Total Passes",      
     },
     
     teamFeedback: {
@@ -2659,10 +2676,15 @@ topnav: {
     },
 
     teamDetail: {
+      backToTeams: "Torna alle Squadre",
+      addMember: "Aggiungi Membro",
       roster: "Rosa",
       statistics: "Statistiche",
-      feedback: "Feedback"
-    },    
+      feedback: "Feedback",
+      players: "giocatori",
+      totalGoals: "Totale Gol",
+      totalAssists: "Totale Assist"
+    },   
     
     teamFeedback: {
       analytics: "Analisi",
@@ -3484,6 +3506,12 @@ topnav: {
       roster: "Squad",
       statistics: "Statistics",
       feedback: "Feedback"
+      backToTeams: "Back to Teams",
+      addMember: "Add Member",
+      roster: "Squad",
+      players: "players",
+      totalGoals: "Total Goals",
+      totalAssists: "Total Assists",
     },
     
     teamFeedback: {
