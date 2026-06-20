@@ -274,6 +274,13 @@ export const translations = {
       noHeatmapData: "Ainda não existem dados suficientes para apresentar o heatmap dos treinos.",
     
       feedbackCount: "{count} feedback(s)"
+
+      exportCSV: "Exportar CSV",
+      exportDate: "Data",
+      exportAthlete: "Atleta",
+      exportEvent: "Evento",
+      exportRating: "Avaliação",
+      exportComment: "Comentário",      
     },   
     
     commitment: {
@@ -1110,6 +1117,13 @@ topnav: {
       noHeatmapData: "Todavía no hay datos suficientes para mostrar el mapa de calor de entrenamientos.",
     
       feedbackCount: "{count} feedback(s)"
+
+      exportCSV: "Exportar CSV",
+      exportDate: "Fecha",
+      exportAthlete: "Atleta",
+      exportEvent: "Evento",
+      exportRating: "Valoración",
+      exportComment: "Comentario",      
     },
 
     commitment: {
@@ -1948,6 +1962,13 @@ topnav: {
       noHeatmapData: "Données insuffisantes pour afficher la carte thermique des entraînements.",
     
       feedbackCount: "{count} feedback(s)"
+
+      exportCSV: "Exporter CSV",
+      exportDate: "Date",
+      exportAthlete: "Athlète",
+      exportEvent: "Événement",
+      exportRating: "Évaluation",
+      exportComment: "Commentaire",      
     },
     
     commitment: {
@@ -2793,6 +2814,13 @@ topnav: {
       noHeatmapData: "Non ci sono ancora dati sufficienti per mostrare la mappa di calore degli allenamenti.",
     
       feedbackCount: "{count} feedback(s)"
+
+      exportCSV: "Esporta CSV",
+      exportDate: "Data",
+      exportAthlete: "Atleta",
+      exportEvent: "Evento",
+      exportRating: "Valutazione",
+      exportComment: "Commento",      
     },    
     
     commitment: {
@@ -3634,6 +3662,14 @@ topnav: {
       noHeatmapData: "There is not enough data yet to display the training heatmap.",
     
       feedbackCount: "{count} feedback(s)"
+
+      exportCSV: "Export CSV",
+      exportDate: "Date",
+      exportAthlete: "Athlete",
+      exportEvent: "Event",
+      exportRating: "Rating",
+      exportComment: "Comment",
+      
     },    
     commitment: {
       myCommitment: 'My Commitment',
