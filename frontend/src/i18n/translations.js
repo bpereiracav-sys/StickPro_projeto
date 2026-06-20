@@ -280,7 +280,9 @@ export const translations = {
       exportAthlete: "Atleta",
       exportEvent: "Evento",
       exportRating: "Avaliação",
-      exportComment: "Comentário",      
+      exportComment: "Comentário",
+
+      export: "Exportar",
     },   
     
     commitment: {
@@ -1123,7 +1125,9 @@ topnav: {
       exportAthlete: "Atleta",
       exportEvent: "Evento",
       exportRating: "Valoración",
-      exportComment: "Comentario",      
+      exportComment: "Comentario",
+      export: "Exportar",
+      
     },
 
     commitment: {
@@ -1968,7 +1972,8 @@ topnav: {
       exportAthlete: "Athlète",
       exportEvent: "Événement",
       exportRating: "Évaluation",
-      exportComment: "Commentaire",      
+      exportComment: "Commentaire",
+      export: "Exporter",      
     },
     
     commitment: {
@@ -2820,7 +2825,8 @@ topnav: {
       exportAthlete: "Atleta",
       exportEvent: "Evento",
       exportRating: "Valutazione",
-      exportComment: "Commento",      
+      exportComment: "Commento",
+      export: "Esporta",      
     },    
     
     commitment: {
@@ -3669,7 +3675,7 @@ topnav: {
       exportEvent: "Event",
       exportRating: "Rating",
       exportComment: "Comment",
-      
+      export: "Export",
     },    
     commitment: {
       myCommitment: 'My Commitment',
