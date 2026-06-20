@@ -150,7 +150,7 @@ export default function TeamDetail() {
           <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
           <h2 className="font-heading text-2xl">Equipa não encontrada</h2>
           <Button asChild className="mt-4">
-            <Link to="/teams">Voltar às Equipas</Link>
+            <Link to="/teams">{tr('teamDetail.backToTeams', 'Voltar às Equipas')}</Link>
           </Button>
         </div>
       </div>
@@ -387,7 +387,7 @@ const trendLabel =
         data-testid="back-to-teams"
       >
         <ArrowLeft className="w-4 h-4" />
-        Voltar às Equipas
+        {tr('teamDetail.backToTeams', 'Voltar às Equipas')}
       </Link>
 
         {/* Team Header */}
@@ -403,7 +403,7 @@ const trendLabel =
           {canManageTeam && (
             <Button onClick={() => setAddMemberDialogOpen(true)} data-testid="add-member-btn">
               <Plus className="w-4 h-4 mr-2" />
-              Adicionar Membro
+              {tr('teamDetail.addMember', 'Adicionar Membro')}
             </Button>
           )}
         </div>
@@ -432,7 +432,9 @@ const trendLabel =
                 <Trophy className="w-6 h-6 text-secondary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Golos</p>
+                <p className="text-sm text-muted-foreground">
+                  {tr('teamDetail.totalGoals', 'Total Golos')}
+                </p>
                 <p className="text-2xl font-heading font-mono">
                   {stats.reduce((acc, s) => acc + (s.goals || 0), 0)}
                 </p>
@@ -445,7 +447,9 @@ const trendLabel =
                 <Target className="w-6 h-6 text-amber-600" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Assistências</p>
+                <p className="text-sm text-muted-foreground">
+                  {tr('teamDetail.totalAssists', 'Total Assistências')}
+                </p>
                 <p className="text-2xl font-heading font-mono">
                   {stats.reduce((acc, s) => acc + (s.assists || 0), 0)}
                 </p>
@@ -972,7 +976,7 @@ const trendLabel =
         <Dialog open={addMemberDialogOpen} onOpenChange={setAddMemberDialogOpen}>
           <DialogContent className="bg-white">
             <DialogHeader>
-              <DialogTitle className="font-heading text-xl tracking-tight">Adicionar Membro</DialogTitle>
+              <DialogTitle className="font-heading text-xl tracking-tight">{tr('teamDetail.addMember', 'Adicionar Membro')}</DialogTitle>
               <DialogDescription>
                 Adicione um utilizador existente à equipa
               </DialogDescription>
