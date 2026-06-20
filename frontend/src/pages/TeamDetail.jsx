@@ -576,7 +576,7 @@ const trendLabel =
           <TabsContent value="stats">
             <Card className="border border-border">
               <CardHeader>
-                <CardTitle className="font-heading text-xl tracking-tight">Estatísticas da Época</CardTitle>
+                <CardTitle className="font-heading text-xl tracking-tight">{tr('teamDetail.seasonStatistics', 'Estatísticas da Época')}</CardTitle>
               </CardHeader>
               <CardContent>
                 {stats.length > 0 ? (
@@ -624,11 +624,20 @@ const trendLabel =
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-center py-8">
-                    Sem estatísticas registadas esta época
+                    <p className="text-muted-foreground">
+                      {tr(
+                        'teamDetail.noSeasonStatistics',
+                        'Sem estatísticas registadas esta época'
+                      )}
+                    </p>
+                    registadas esta época
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground mt-4">
-                  J = Jogos | G = Golos | A = Assistências | AM = Amarelos | AZ = Azuis | V = Vermelhos | D = Defesas
+                  {tr(
+                    'teamDetail.statisticsLegend',
+                    'J = Jogos | G = Golos | A = Assistências | AM = Amarelos | AZ = Azuis | V = Vermelhos | D = Defesas'
+                  )}
                 </p>
               </CardContent>
             </Card>
