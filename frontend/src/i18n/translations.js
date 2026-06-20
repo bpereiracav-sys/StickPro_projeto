@@ -1055,7 +1055,6 @@ topnav: {
       
       playersTitle: "Jugadores",
       noPlayersRegistered: "No hay jugadores registrados",
-      
     },    
     
     teamFeedback: {
@@ -3580,7 +3579,6 @@ topnav: {
       
       playersTitle: "Players",
       noPlayersRegistered: "No registered players",
-    
     },
     
     teamFeedback: {
