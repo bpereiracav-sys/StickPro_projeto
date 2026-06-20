@@ -624,24 +624,23 @@ const trendLabel =
                   </div>
                 ) : (
                   <p className="text-muted-foreground text-center py-8">
-                    <p className="text-muted-foreground">
-                      {tr(
-                        'teamDetail.noSeasonStatistics',
-                        'Sem estatísticas registadas esta época'
-                      )}
-                    </p>
-                    registadas esta época
+                    {tr(
+                      'teamDetail.noSeasonStatistics',
+                      'Sem estatísticas registadas esta época'
+                    )}
                   </p>
                 )}
+                
                 <p className="text-xs text-muted-foreground mt-4">
                   {tr(
                     'teamDetail.statisticsLegend',
                     'J = Jogos | G = Golos | A = Assistências | AM = Amarelos | AZ = Azuis | V = Vermelhos | D = Defesas'
                   )}
                 </p>
-              </CardContent>
-            </Card>
-          </TabsContent>
+                
+                </CardContent>
+                </Card>
+                </TabsContent>
 
       {/* Feedback Tab */}
 <TabsContent value="feedback">
