@@ -1846,7 +1846,7 @@ topnav: {
     teamDetail: {
       roster: "Effectif",
       statistics: "Statistiques",
-      feedback: "Feedback"
+      feedback: "Feedback",
       backToTeams: "Retour aux Équipes",
       addMember: "Ajouter un Membre",
       roster: "Effectif",
@@ -3505,7 +3505,7 @@ topnav: {
     teamDetail: {
       roster: "Squad",
       statistics: "Statistics",
-      feedback: "Feedback"
+      feedback: "Feedback",
       backToTeams: "Back to Teams",
       addMember: "Add Member",
       roster: "Squad",
