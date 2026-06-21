@@ -54,7 +54,10 @@ export default function MemberProfilePage() {
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('identity');
   const [showAddFamilyModal, setShowAddFamilyModal] = useState(false);
-
+  
+  const [editingFamilyMember, setEditingFamilyMember] = useState(null);
+  const [showEditFamilyModal, setShowEditFamilyModal] = useState(false);
+  
   const [newFamilyMember, setNewFamilyMember] = useState({
     first_name: '',
     surname: '',
@@ -190,7 +193,38 @@ export default function MemberProfilePage() {
       toast.error(error.response?.data?.detail || 'Erro ao adicionar familiar');
     }
   };
+
+  const handleEditFamilyMember = async () => {
+    if (!editingFamilyMember?.first_name) {
+      toast.error('Nome é obrigatório');
+      return;
+    }
   
+    try {
+      const response = await usersApi.updateFamilyMember(
+        memberId,
+        editingFamilyMember.id,
+        editingFamilyMember
+      );
+  
+      const updatedFamilyMember = response.data.family_member;
+  
+      setFormData((prev) => ({
+        ...prev,
+        family_members: prev.family_members.map((m) =>
+          m.id === updatedFamilyMember.id ? updatedFamilyMember : m
+        ),
+      }));
+  
+      setShowEditFamilyModal(false);
+      setEditingFamilyMember(null);
+  
+      toast.success('Familiar atualizado');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao atualizar familiar');
+    }
+  };
+
   const handleRemoveFamilyMember = (familyMemberId) => {
     setFormData((prev) => ({
       ...prev,
@@ -516,6 +550,18 @@ export default function MemberProfilePage() {
                       </div>
 
                       {canEdit && (
+                        <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => {
+                            setEditingFamilyMember({ ...familyMember });
+                            setShowEditFamilyModal(true);
+                          }}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                      
                         <Button
                           variant="ghost"
                           size="icon"
@@ -524,6 +570,7 @@ export default function MemberProfilePage() {
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
+                      </div>
                       )}
                     </div>
                   ))}
@@ -766,6 +813,125 @@ export default function MemberProfilePage() {
         </TabsContent>
       </Tabs>
 
+      <Dialog open={showEditFamilyModal} onOpenChange={setShowEditFamilyModal}>
+        <DialogContent className="bg-white">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl tracking-tight">
+              Editar Familiar
+            </DialogTitle>
+            <DialogDescription>
+              Atualizar dados do familiar ou responsável
+            </DialogDescription>
+          </DialogHeader>
+      
+          {editingFamilyMember && (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nome *</Label>
+                  <Input
+                    value={editingFamilyMember.first_name}
+                    onChange={(e) =>
+                      setEditingFamilyMember((prev) => ({
+                        ...prev,
+                        first_name: e.target.value,
+                      }))
+                    }
+                    placeholder="Maria"
+                  />
+                </div>
+      
+                <div className="space-y-2">
+                  <Label>Apelido</Label>
+                  <Input
+                    value={editingFamilyMember.surname}
+                    onChange={(e) =>
+                      setEditingFamilyMember((prev) => ({
+                        ...prev,
+                        surname: e.target.value,
+                      }))
+                    }
+                    placeholder="Silva"
+                  />
+                </div>
+              </div>
+      
+              <div className="space-y-2">
+                <Label>Parentesco</Label>
+                <Select
+                  value={editingFamilyMember.relationship}
+                  onValueChange={(value) =>
+                    setEditingFamilyMember((prev) => ({
+                      ...prev,
+                      relationship: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white">
+                    <SelectItem value="pai">Pai</SelectItem>
+                    <SelectItem value="mae">Mãe</SelectItem>
+                    <SelectItem value="avo">Avô</SelectItem>
+                    <SelectItem value="ava">Avó</SelectItem>
+                    <SelectItem value="tutor">Tutor</SelectItem>
+                    <SelectItem value="outro">Outro Familiar</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+      
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Email</Label>
+                  <Input
+                    type="email"
+                    value={editingFamilyMember.email || ''}
+                    onChange={(e) =>
+                      setEditingFamilyMember((prev) => ({
+                        ...prev,
+                        email: e.target.value,
+                      }))
+                    }
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+      
+                <div className="space-y-2">
+                  <Label>Telefone</Label>
+                  <Input
+                    value={editingFamilyMember.phone || ''}
+                    onChange={(e) =>
+                      setEditingFamilyMember((prev) => ({
+                        ...prev,
+                        phone: e.target.value,
+                      }))
+                    }
+                    placeholder="+351 912 345 678"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+      
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditFamilyModal(false);
+                setEditingFamilyMember(null);
+              }}
+            >
+              Cancelar
+            </Button>
+      
+            <Button onClick={handleEditFamilyMember}>
+              Guardar Alterações
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>      
+      
       <Dialog open={showAddFamilyModal} onOpenChange={setShowAddFamilyModal}>
         <DialogContent className="bg-white">
           <DialogHeader>
