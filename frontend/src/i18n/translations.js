@@ -387,14 +387,6 @@ export const translations = {
       emailRequiredForStaff: 'O email é obrigatório para funções técnicas e administrativas',
       playerNeedsEmailOrGuardian: 'Para criar um atleta sem email próprio, indique o email de um responsável',
       },
-      
-    relationships: {
-      father: 'Pai',
-      mother: 'Mãe',
-      grandparent: 'Avô/Avó',
-      tutor: 'Tutor',
-      other: 'Outro',     
-    },
 
     roles: {
       admin: 'Administrador',
@@ -406,6 +398,14 @@ export const translations = {
       responsavel: 'Responsável',
     },
 
+    relationships: {
+      father: 'Pai',
+      mother: 'Mãe',
+      grandparent: 'Avô/Avó',
+      tutor: 'Tutor',
+      other: 'Outro',     
+    },
+    
     groups: {
       players: 'Jogadores',
       staff: 'Staff',
@@ -1276,14 +1276,6 @@ topnav: {
      
     },
 
-    relationships: {
-      father: 'Padre',
-      mother: 'Madre',
-      grandparent: 'Abuelo/Abuela',
-      tutor: 'Tutor',
-      other: 'Otro',
-    },
-
     roles: {
       admin: 'Administrador',
       gestor_desportivo: 'Gestor Deportivo',
@@ -1294,6 +1286,14 @@ topnav: {
       responsavel: 'Responsable',
     },
 
+    relationships: {
+      father: 'Padre',
+      mother: 'Madre',
+      grandparent: 'Abuelo/Abuela',
+      tutor: 'Tutor',
+      other: 'Otro',
+    },
+    
     groups: {
       players: 'Jugadores',
       staff: 'Staff',
@@ -2165,14 +2165,6 @@ topnav: {
         'Pour créer un athlète sans email personnel, veuillez fournir l’email d’un tuteur',
       
     },
-
-    relationships: {
-      father: 'Père',
-      mother: 'Mère',
-      grandparent: 'Grand-parent',
-      tutor: 'Tuteur',
-      other: 'Autre',
-    },
     
     roles: {
       admin: 'Administrateur',
@@ -2184,6 +2176,14 @@ topnav: {
       responsavel: 'Responsable',
     },
 
+    relationships: {
+      father: 'Père',
+      mother: 'Mère',
+      grandparent: 'Grand-parent',
+      tutor: 'Tuteur',
+      other: 'Autre',
+    },
+    
     groups: {
       players: 'Joueurs',
       staff: 'Staff',
@@ -3059,14 +3059,6 @@ topnav: {
         'Per creare un atleta senza email personale, inserisci l’email di un tutore',
       
     },
-
-    relationships: {
-      father: 'Padre',
-      mother: 'Madre',
-      grandparent: 'Nonno/Nonna',
-      tutor: 'Tutore',
-      other: 'Altro',
-    },
     
     roles: {
       admin: 'Amministratore',
@@ -3078,6 +3070,14 @@ topnav: {
       responsavel: 'Responsabile',
     },
 
+    relationships: {
+      father: 'Padre',
+      mother: 'Madre',
+      grandparent: 'Nonno/Nonna',
+      tutor: 'Tutore',
+      other: 'Altro',
+    },
+    
     groups: {
       players: 'Giocatori',
       staff: 'Staff',
@@ -3947,14 +3947,6 @@ topnav: {
         'To create an athlete without a personal email, please provide a guardian email',
       
           },
-
-    relationships: {
-      father: 'Father',
-      mother: 'Mother',
-      grandparent: 'Grandparent',
-      tutor: 'Guardian',
-      other: 'Other',
-    },
     
     roles: {
       admin: 'Administrator',
@@ -3966,6 +3958,15 @@ topnav: {
       responsavel: 'Guardian',
     },
 
+    
+    relationships: {
+      father: 'Father',
+      mother: 'Mother',
+      grandparent: 'Grandparent',
+      tutor: 'Guardian',
+      other: 'Other',
+    },
+    
     groups: {
       players: 'Players',
       staff: 'Staff',
