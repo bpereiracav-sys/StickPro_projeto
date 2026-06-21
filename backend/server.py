@@ -3654,41 +3654,38 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
         "guardian_relationship": data.guardian_relationship,
         "guardian_emails": [guardian_email] if guardian_email else [],
         "profile": {
-        "photo_url": None,
-        "first_name": data.name,
-        "surname": None,
-        "nickname": None,
-        "birth_date": None,
-        "gender": None,
-        "nationality": data.nationalities[0] if data.nationalities else None,
-        "nationalities": data.nationalities or [],
-        "fpp_license": None,
-    
-        "family_members": [
-            {
-                "id": str(uuid.uuid4()),
-                "first_name": data.guardian_name or "",
-                "surname": "",
-                "email": guardian_email,
-                "phone": "",
-                "relationship": data.guardian_relationship or "pai"
-            }
-        ] if guardian_email else [],
-    
-        "weight": None,
-        "height": None,
-        "shoe_size": None,
-        "year_joined_club": None,
-        "fpp_number": None,
-        "function": data.role,
-        "position": data.position or None,
-        "jersey_number": data.jersey_number or None,
-        "training_kit_size": None,
-        "tracksuit_size": None,
-        "polo_size": None,
-        "training_sock_size": None
-    }
-        
+            "photo_url": "",
+            "first_name": data.name,
+            "surname": "",
+            "nickname": "",
+            "birth_date": "",
+            "gender": "",
+            "nationality": data.nationalities[0] if data.nationalities else "",
+            "nationalities": data.nationalities or [],
+            "fpp_license": "",
+            "family_members": [
+                {
+                    "id": str(uuid.uuid4()),
+                    "first_name": data.guardian_name or "",
+                    "surname": "",
+                    "email": guardian_email,
+                    "phone": "",
+                    "relationship": data.guardian_relationship or "pai"
+                }
+            ] if guardian_email else [],
+            "weight": "",
+            "height": "",
+            "shoe_size": "",
+            "year_joined_club": "",
+            "fpp_number": "",
+            "function": data.role,
+            "position": data.position or "",
+            "jersey_number": data.jersey_number or "",
+            "training_kit_size": "",
+            "tracksuit_size": "",
+            "polo_size": "",
+            "training_sock_size": ""
+        },
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
