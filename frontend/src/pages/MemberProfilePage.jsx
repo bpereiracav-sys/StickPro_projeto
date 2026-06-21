@@ -203,9 +203,12 @@ export default function MemberProfilePage() {
     const labels = {
       pai: 'Pai',
       mae: 'Mãe',
+      avo: 'Avô',
+      ava: 'Avó',
+      tutor: 'Tutor',
       outro: 'Outro Familiar',
     };
-
+  
     return labels[relationship] || relationship;
   };
 
@@ -808,10 +811,13 @@ export default function MemberProfilePage() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="pai">Pai</SelectItem>
-                  <SelectItem value="mae">Mãe</SelectItem>
-                  <SelectItem value="outro">Outro Familiar</SelectItem>
-                </SelectContent>
+                <SelectItem value="pai">Pai</SelectItem>
+                <SelectItem value="mae">Mãe</SelectItem>
+                <SelectItem value="avo">Avô</SelectItem>
+                <SelectItem value="ava">Avó</SelectItem>
+                <SelectItem value="tutor">Tutor</SelectItem>
+                <SelectItem value="outro">Outro Familiar</SelectItem>
+              </SelectContent>
               </Select>
             </div>
 
