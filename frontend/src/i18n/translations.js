@@ -364,6 +364,36 @@ export const translations = {
       importErrors: 'erros',
       importWarnings: 'avisos',
       tempPasswords: 'Passwords temporárias',
+      createMemberDescription: 'Criar novo membro e adicionar à equipa',
+      name: 'Nome',
+      email: 'Email',
+      role: 'Função',
+      phone: 'Telefone',
+      nationality: 'Nacionalidade',
+      jerseyNumber: 'Número',
+      position: 'Posição',
+      goalkeeper: 'Guarda-Redes',
+      fieldPlayer: 'Jogador de Campo',
+      fullNamePlaceholder: 'Nome completo',
+      nationalityPlaceholder: 'Portuguesa',
+      emailOptionalForPlayers: 'Para atletas menores, o email do atleta pode ficar vazio se existir um responsável associado.',
+      guardianSection: 'Responsável / Tutor',
+      guardianSectionDescription: 'Associe um familiar ao atleta. Este acesso não consome licença adicional.',
+      guardianName: 'Nome do responsável',
+      guardianEmail: 'Email do responsável',
+      guardianRelationship: 'Parentesco',
+      guardianNamePlaceholder: 'Nome do pai, mãe ou tutor',
+      nameRequired: 'Preencha o nome do membro',
+      emailRequiredForStaff: 'O email é obrigatório para funções técnicas e administrativas',
+      playerNeedsEmailOrGuardian: 'Para criar um atleta sem email próprio, indique o email de um responsável',
+      },
+      
+    relationships: {
+      father: 'Pai',
+      mother: 'Mãe',
+      grandparent: 'Avô/Avó',
+      tutor: 'Tutor',
+      other: 'Outro',     
     },
 
     roles: {
@@ -1210,6 +1240,48 @@ topnav: {
       importErrors: 'errores',
       importWarnings: 'avisos',
       tempPasswords: 'Contraseñas temporales',
+      guardianSection: 'Padre / Tutor',
+      guardianSectionDescription: 'Asocie un familiar al deportista. Este acceso no consume una licencia adicional.',
+      guardianName: 'Nombre del tutor',
+      guardianEmail: 'Correo electrónico del tutor',
+      guardianRelationship: 'Parentesco',
+      guardianNamePlaceholder: 'Nombre del padre, madre o tutor',
+      
+      createMemberDescription: 'Crear un nuevo miembro y añadirlo al equipo',
+      
+      name: 'Nombre',
+      email: 'Correo electrónico',
+      role: 'Función',
+      phone: 'Teléfono',
+      nationality: 'Nacionalidad',
+      jerseyNumber: 'Número',
+      position: 'Posición',
+      
+      goalkeeper: 'Portero',
+      fieldPlayer: 'Jugador de campo',
+      
+      fullNamePlaceholder: 'Nombre completo',
+      nationalityPlaceholder: 'Nacionalidad',
+      
+      emailOptionalForPlayers:
+        'Para deportistas menores, el correo electrónico del atleta puede quedar vacío si existe un tutor asociado.',
+      
+      nameRequired: 'Introduzca el nombre del miembro',
+      
+      emailRequiredForStaff:
+        'El correo electrónico es obligatorio para funciones técnicas y administrativas',
+      
+      playerNeedsEmailOrGuardian:
+        'Para crear un deportista sin correo propio, indique el correo electrónico de un tutor',
+     
+    },
+
+    relationships: {
+      father: 'Padre',
+      mother: 'Madre',
+      grandparent: 'Abuelo/Abuela',
+      tutor: 'Tutor',
+      other: 'Otro',
     },
 
     roles: {
@@ -2058,8 +2130,50 @@ topnav: {
       importErrors: 'erreurs',
       importWarnings: 'avertissements',
       tempPasswords: 'Mots de passe temporaires',
+      guardianSection: 'Parent / Tuteur',
+      guardianSectionDescription: 'Associez un membre de la famille à l’athlète. Cet accès ne consomme pas de licence supplémentaire.',
+      guardianName: 'Nom du tuteur',
+      guardianEmail: 'Email du tuteur',
+      guardianRelationship: 'Lien de parenté',
+      guardianNamePlaceholder: 'Nom du parent ou du tuteur',
+      
+      createMemberDescription: 'Créer un nouveau membre et l’ajouter à l’équipe',
+      
+      name: 'Nom',
+      email: 'Email',
+      role: 'Fonction',
+      phone: 'Téléphone',
+      nationality: 'Nationalité',
+      jerseyNumber: 'Numéro',
+      position: 'Position',
+      
+      goalkeeper: 'Gardien',
+      fieldPlayer: 'Joueur de champ',
+      
+      fullNamePlaceholder: 'Nom complet',
+      nationalityPlaceholder: 'Nationalité',
+      
+      emailOptionalForPlayers:
+        'Pour les jeunes athlètes, l’email du joueur peut rester vide si un tuteur est associé.',
+      
+      nameRequired: 'Veuillez saisir le nom du membre',
+      
+      emailRequiredForStaff:
+        'L’email est obligatoire pour les fonctions techniques et administratives',
+      
+      playerNeedsEmailOrGuardian:
+        'Pour créer un athlète sans email personnel, veuillez fournir l’email d’un tuteur',
+      
     },
 
+    relationships: {
+      father: 'Père',
+      mother: 'Mère',
+      grandparent: 'Grand-parent',
+      tutor: 'Tuteur',
+      other: 'Autre',
+    },
+    
     roles: {
       admin: 'Administrateur',
       gestor_desportivo: 'Responsable Sportif',
@@ -2910,8 +3024,50 @@ topnav: {
       importErrors: 'errori',
       importWarnings: 'avvisi',
       tempPasswords: 'Password temporanee',
+      guardianSection: 'Genitore / Tutore',
+      guardianSectionDescription: 'Associa un familiare all’atleta. Questo accesso non consuma una licenza aggiuntiva.',
+      guardianName: 'Nome del tutore',
+      guardianEmail: 'Email del tutore',
+      guardianRelationship: 'Relazione',
+      guardianNamePlaceholder: 'Nome del genitore o tutore',
+      
+      createMemberDescription: 'Crea un nuovo membro e aggiungilo alla squadra',
+      
+      name: 'Nome',
+      email: 'Email',
+      role: 'Ruolo',
+      phone: 'Telefono',
+      nationality: 'Nazionalità',
+      jerseyNumber: 'Numero',
+      position: 'Posizione',
+      
+      goalkeeper: 'Portiere',
+      fieldPlayer: 'Giocatore di movimento',
+      
+      fullNamePlaceholder: 'Nome completo',
+      nationalityPlaceholder: 'Nazionalità',
+      
+      emailOptionalForPlayers:
+        'Per gli atleti minorenni, l’email dell’atleta può rimanere vuota se è associato un tutore.',
+      
+      nameRequired: 'Inserisci il nome del membro',
+      
+      emailRequiredForStaff:
+        'L’email è obbligatoria per ruoli tecnici e amministrativi',
+      
+      playerNeedsEmailOrGuardian:
+        'Per creare un atleta senza email personale, inserisci l’email di un tutore',
+      
     },
 
+    relationships: {
+      father: 'Padre',
+      mother: 'Madre',
+      grandparent: 'Nonno/Nonna',
+      tutor: 'Tutore',
+      other: 'Altro',
+    },
+    
     roles: {
       admin: 'Amministratore',
       gestor_desportivo: 'Responsabile Sportivo',
@@ -3756,8 +3912,50 @@ topnav: {
       importErrors: 'errors',
       importWarnings: 'warnings',
       tempPasswords: 'Temporary passwords',
-    },
+      guardianSection: 'Parent / Guardian',
+      guardianSectionDescription: 'Associate a family member with the athlete. This access does not consume an additional license.',
+      guardianName: 'Guardian name',
+      guardianEmail: 'Guardian email',
+      guardianRelationship: 'Relationship',
+      guardianNamePlaceholder: 'Parent or guardian name',
+      
+      createMemberDescription: 'Create a new member and add them to the team',
+      
+      name: 'Name',
+      email: 'Email',
+      role: 'Role',
+      phone: 'Phone',
+      nationality: 'Nationality',
+      jerseyNumber: 'Jersey Number',
+      position: 'Position',
+      
+      goalkeeper: 'Goalkeeper',
+      fieldPlayer: 'Field Player',
+      
+      fullNamePlaceholder: 'Full name',
+      nationalityPlaceholder: 'Nationality',
+      
+      emailOptionalForPlayers:
+        'For youth athletes, the athlete email can remain empty if a guardian email is provided.',
+      
+      nameRequired: 'Please enter the member name',
+      
+      emailRequiredForStaff:
+        'Email is required for coaching and administrative roles',
+      
+      playerNeedsEmailOrGuardian:
+        'To create an athlete without a personal email, please provide a guardian email',
+      
+          },
 
+    relationships: {
+      father: 'Father',
+      mother: 'Mother',
+      grandparent: 'Grandparent',
+      tutor: 'Guardian',
+      other: 'Other',
+    },
+    
     roles: {
       admin: 'Administrator',
       gestor_desportivo: 'Sports Manager',
