@@ -609,7 +609,7 @@ export default function Members() {
         team_id: isAllTeamsSelected ? null : selectedTeamId,
       });
 
-      toast.success(`Membro criado! Password temporária: ${response.data.temp_password}`);
+      toast.success(t('members.memberCreatedSuccess') || 'Membro criado com sucesso');
       setCreateDialogOpen(false);
       setNewMember({
         name: '',
