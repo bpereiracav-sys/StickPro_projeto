@@ -587,30 +587,42 @@ export default function Members() {
 
   const handleCreateMember = async () => {
     if (!newMember.name) {
-      toast.error(t('members.nameRequired'));
+      toast.error(t('members.nameRequired') || 'Preencha o nome do membro');
       return;
     }
   
     if (newMember.role !== 'jogador' && !newMember.email) {
-      toast.error(t('members.emailRequiredForStaff'));
+      toast.error(t('members.emailRequiredForStaff') || 'O email é obrigatório para funções técnicas e administrativas');
       return;
     }
   
     if (newMember.role === 'jogador' && !newMember.email && !newMember.guardian_email) {
-      toast.error(t('members.playerNeedsEmailOrGuardian'));
+      toast.error(t('members.playerNeedsEmailOrGuardian') || 'Para criar um atleta sem email próprio, indique o email de um responsável');
       return;
     }
-
+  
     setAdding(true);
+  
     try {
-      const response = await membersApi.create({
+      const payload = {
         ...newMember,
+        email: newMember.email || undefined,
+        guardian_email: newMember.guardian_email || undefined,
+        guardian_name: newMember.guardian_name || undefined,
+        guardian_relationship: newMember.guardian_relationship || undefined,
         club_id: club?.id,
         team_id: isAllTeamsSelected ? null : selectedTeamId,
-      });
-
+        nationalities: newMember.nationality
+          ? [newMember.nationality]
+          : newMember.nationalities || [],
+      };
+  
+      await membersApi.create(payload);
+  
       toast.success(t('members.memberCreatedSuccess') || 'Membro criado com sucesso');
+  
       setCreateDialogOpen(false);
+  
       setNewMember({
         name: '',
         email: '',
@@ -620,16 +632,20 @@ export default function Members() {
         phone: '',
         nationality: '',
         nationalities: [],
+        guardian_name: '',
+        guardian_email: '',
+        guardian_relationship: '',
       });
-
+  
       refreshMembers();
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Erro ao criar membro');
+      console.error('Create member error:', error);
+      toast.error(error.response?.data?.detail || t('members.createMemberError') || 'Erro ao criar membro');
     } finally {
       setAdding(false);
     }
   };
-
+  
   const handleAddMembersToTeam = async () => {
     if (selectedMembersToAdd.length === 0 || !selectedTeamId) {
       toast.error('Selecione membros e uma equipa');
