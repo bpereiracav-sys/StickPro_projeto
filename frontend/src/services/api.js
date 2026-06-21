@@ -202,6 +202,9 @@ export const usersApi = {
   linkPlayer: (playerId) => api.post('/users/link-player', { player_id: playerId }),
   linkPlayers: (playerIds) => api.post('/users/link-players', { player_ids: playerIds }),
   unlinkPlayer: () => api.delete('/users/link-player'),
+
+  addFamilyMember: (memberId, data) =>
+    api.post(`/members/${memberId}/family`, data),  
 };
 
 // Auth API
