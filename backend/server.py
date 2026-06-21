@@ -33,6 +33,7 @@ from permissions import PermissionChecker, get_permission_checker, Role, ROLE_PE
 # Phase E2: new modular activation email helper (services.emails-backed).
 # Imported lazily-friendly so app boot fails loudly if services/ is missing.
 from services.activation_emails import send_activation_email
+from services.family_invitation_emails import send_family_invitation_email
 
 # Phase E3: password reset email helper.
 from services.password_reset_emails import send_password_reset_email
