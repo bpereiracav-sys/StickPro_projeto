@@ -154,33 +154,43 @@ export default function MemberProfilePage() {
     }
   };
 
-  const handleAddFamilyMember = () => {
-    if (!newFamilyMember.first_name || !newFamilyMember.surname) {
-      toast.error('Nome e apelido são obrigatórios');
+  const handleAddFamilyMember = async () => {
+    if (!newFamilyMember.first_name) {
+      toast.error('Nome é obrigatório');
       return;
     }
-
-    const familyMember = {
-      id: Date.now().toString(),
-      ...newFamilyMember,
-    };
-
-    setFormData((prev) => ({
-      ...prev,
-      family_members: [...prev.family_members, familyMember],
-    }));
-
-    setNewFamilyMember({
-      first_name: '',
-      surname: '',
-      email: '',
-      phone: '',
-      relationship: 'pai',
-    });
-    setShowAddFamilyModal(false);
-    toast.success('Familiar adicionado');
+  
+    try {
+      const response = await usersApi.addFamilyMember(memberId, {
+        first_name: newFamilyMember.first_name,
+        surname: newFamilyMember.surname || '',
+        email: newFamilyMember.email || undefined,
+        phone: newFamilyMember.phone || '',
+        relationship: newFamilyMember.relationship || 'pai',
+      });
+  
+      const familyMember = response.data.family_member;
+  
+      setFormData((prev) => ({
+        ...prev,
+        family_members: [...prev.family_members, familyMember],
+      }));
+  
+      setNewFamilyMember({
+        first_name: '',
+        surname: '',
+        email: '',
+        phone: '',
+        relationship: 'pai',
+      });
+  
+      setShowAddFamilyModal(false);
+      toast.success('Familiar adicionado');
+    } catch (error) {
+      toast.error(error.response?.data?.detail || 'Erro ao adicionar familiar');
+    }
   };
-
+  
   const handleRemoveFamilyMember = (familyMemberId) => {
     setFormData((prev) => ({
       ...prev,
