@@ -3691,6 +3691,33 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     
     await db.users.insert_one(user)
 
+    if data.role == "jogador" and guardian_email:
+        guardian_link = {
+            "id": str(uuid.uuid4()),
+            "player_id": user_id,
+            "player_name": data.name,
+            "guardian_user_id": None,
+            "guardian_name": data.guardian_name or "",
+            "guardian_email": guardian_email,
+            "relationship": data.guardian_relationship or "pai",
+            "status": "pending",
+            "is_primary": True,
+            "club_id": club_id,
+            "team_id": data.team_id,
+            "permissions": {
+                "receive_notifications": True,
+                "respond_convocations": True,
+                "justify_absences": True,
+                "view_calendar": True,
+                "view_feedback": True,
+                "view_evaluations": True,
+                "edit_player_profile": False
+            },
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        await db.guardian_links.insert_one(guardian_link)
+            
     if data.team_id:
         field_map = {
             "treinador": "coach_ids",
