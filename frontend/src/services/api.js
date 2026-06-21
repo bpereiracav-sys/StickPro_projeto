@@ -204,7 +204,10 @@ export const usersApi = {
   unlinkPlayer: () => api.delete('/users/link-player'),
 
   addFamilyMember: (memberId, data) =>
-    api.post(`/members/${memberId}/family`, data),  
+    api.post(`/members/${memberId}/family`, data), 
+
+  updateFamilyMember: (memberId, familyMemberId, data) =>
+    api.put(`/members/${memberId}/family/${familyMemberId}`, data),
 };
 
 // Auth API
