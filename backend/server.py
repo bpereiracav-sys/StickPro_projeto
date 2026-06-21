@@ -3602,28 +3602,57 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
         if club:
             club_id = club["id"]
 
-    existing_user = await db.users.find_one({"email": data.email.strip().lower()}, {"_id": 0})
-    if existing_user:
+    member_email = data.email.strip().lower() if data.email else None
+
+    if data.role != "jogador" and not member_email:
         raise HTTPException(
             status_code=400,
-            detail="Já existe um utilizador com este email. Use 'Adicionar membros do clube'."
+            detail="O email é obrigatório para funções técnicas e administrativas"
         )
-
+    
+    if data.role == "jogador" and not member_email and not data.guardian_email:
+        raise HTTPException(
+            status_code=400,
+            detail="Para criar um atleta sem email próprio, indique o email de um responsável"
+        )
+    
+    if member_email:
+        existing_user = await db.users.find_one({"email": member_email}, {"_id": 0})
+        if existing_user:
+            raise HTTPException(
+                status_code=400,
+                detail="Já existe um utilizador com este email. Use 'Adicionar membros do clube'."
+            )
+    
     user_id = str(uuid.uuid4())
+    
+    # Email técnico interno para atletas menores sem email próprio.
+    # Não deve ser usado para login nem enviado ao utilizador.
+    if not member_email:
+        member_email = f"player-{user_id}@stickpro.local"
+    
     invite_token = secrets.token_urlsafe(32)
     invite_expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
-
+    
+    guardian_email = data.guardian_email.strip().lower() if data.guardian_email else None
+    
     user = {
         "id": user_id,
         "name": data.name,
-        "email": data.email.strip().lower(),
+        "email": member_email,
+        "has_real_email": bool(data.email),
+        "login_enabled": bool(data.email),
         "hashed_password": None,
         "role": data.role,
         "club_id": club_id,
         "team_ids": [data.team_id] if data.team_id else [],
         "is_activated": False,
-        "invite_token": invite_token,
-        "invite_expires_at": invite_expires_at,
+        "invite_token": invite_token if data.email else None,
+        "invite_expires_at": invite_expires_at if data.email else None,
+        "guardian_name": data.guardian_name,
+        "guardian_email": guardian_email,
+        "guardian_relationship": data.guardian_relationship,
+        "guardian_emails": [guardian_email] if guardian_email else [],
         "profile": {
             "sports_info": {
                 "jersey_number": data.jersey_number or "",
@@ -3635,7 +3664,7 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
         },
         "created_at": datetime.now(timezone.utc).isoformat()
     }
-
+    
     await db.users.insert_one(user)
 
     if data.team_id:
@@ -3656,7 +3685,7 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
     # Phase O3: the onboarding wizard sets ``suppress_invite=True`` so the
     # email is not fired here — it is dispatched later by the Invitations
     # step (O4). The activation token is still persisted on the user.
-    if not data.suppress_invite:
+    if not data.suppress_invite and data.email:
         try:
             await send_activation_email(
                 to_email=user["email"],
