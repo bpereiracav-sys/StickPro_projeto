@@ -308,3 +308,49 @@ class Attendance(BaseModel):
     note: Optional[str] = None
     responded_at: Optional[datetime] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class UserProfileMembership(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+    user_id: str
+
+    profile_type: str
+
+    athlete_id: Optional[str] = None
+
+    club_id: Optional[str] = None
+
+    team_id: Optional[str] = None
+
+    role: Optional[UserRole] = None
+
+    display_name: str
+
+    is_default: bool = False
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+class GuardianLink(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+    athlete_id: str
+
+    guardian_user_id: str
+
+    relationship: str
+
+    can_view_calendar: bool = True
+
+    can_view_feedback: bool = True
+
+    can_view_evaluations: bool = True
+
+    can_respond_convocations: bool = True
+
+    can_justify_absences: bool = True
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
