@@ -4700,6 +4700,64 @@ async def add_family_member(member_id: str, data: FamilyMemberCreate, current_us
         "guardian_link": guardian_link
     }
 
+@api_router.put("/members/{member_id}/family/{family_member_id}")
+async def update_family_member(
+    member_id: str,
+    family_member_id: str,
+    data: FamilyMemberCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Update a family member/responsible contact."""
+    checker = get_permission_checker(current_user)
+
+    member = await db.users.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+
+    can_edit = checker.is_admin
+
+    if not can_edit and checker.is_staff:
+        member_teams = set(member.get("team_ids", []))
+        user_teams = set(checker.team_ids)
+        can_edit = bool(member_teams.intersection(user_teams))
+
+    if not can_edit:
+        raise HTTPException(status_code=403, detail="Sem permissão para editar familiares deste atleta")
+
+    updated_family_member = {
+        "id": family_member_id,
+        "first_name": data.first_name,
+        "surname": data.surname or "",
+        "email": data.email.strip().lower() if data.email else "",
+        "phone": data.phone or "",
+        "relationship": data.relationship or "pai"
+    }
+
+    result = await db.users.update_one(
+        {"id": member_id, "profile.family_members.id": family_member_id},
+        {"$set": {"profile.family_members.$": updated_family_member}}
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Familiar não encontrado")
+
+    if data.email:
+        guardian_email = data.email.strip().lower()
+        await db.guardian_links.update_one(
+            {"player_id": member_id, "guardian_email": guardian_email},
+            {
+                "$set": {
+                    "guardian_name": f"{data.first_name} {data.surname or ''}".strip(),
+                    "relationship": data.relationship or "pai",
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+            }
+        )
+
+    return {
+        "message": "Familiar atualizado",
+        "family_member": updated_family_member
+    }
     
 @api_router.post("/members/{member_id}/archive")
 async def archive_member(member_id: str, current_user: dict = Depends(get_current_user)):
