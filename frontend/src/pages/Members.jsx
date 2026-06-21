@@ -347,7 +347,6 @@ export default function Members() {
   const [exporting, setExporting] = useState(false);
 
   const perPage = 20;
-
   const [newMember, setNewMember] = useState({
     name: '',
     email: '',
@@ -357,7 +356,10 @@ export default function Members() {
     phone: '',
     nationality: '',
     nationalities: [],
-  });
+    guardian_name: '',
+    guardian_email: '',
+    guardian_relationship: '',
+});
 
   const currentTeam = teams.find((team) => team.id === selectedTeamId);
 
@@ -584,8 +586,18 @@ export default function Members() {
   };
 
   const handleCreateMember = async () => {
-    if (!newMember.name || !newMember.email) {
-      toast.error('Preencha nome e email');
+    if (!newMember.name) {
+      toast.error(t('members.nameRequired'));
+      return;
+    }
+  
+    if (newMember.role !== 'jogador' && !newMember.email) {
+      toast.error(t('members.emailRequiredForStaff'));
+      return;
+    }
+  
+    if (newMember.role === 'jogador' && !newMember.email && !newMember.guardian_email) {
+      toast.error(t('members.playerNeedsEmailOrGuardian'));
       return;
     }
 
@@ -1329,28 +1341,32 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
       </Dialog>
 
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="bg-white">
+        <DialogContent className="bg-white max-w-3xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">
               {t('members.newMember')}
             </DialogTitle>
-            <DialogDescription>Criar novo membro e adicionar à equipa</DialogDescription>
+            <DialogDescription>
+              {t('members.createMemberDescription')}
+            </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4 py-4">
+      
+          <div className="space-y-5 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Nome *</Label>
+                <Label>{t('members.name')} *</Label>
                 <Input
-                  placeholder="Nome completo"
+                  placeholder={t('members.fullNamePlaceholder')}
                   value={newMember.name}
                   onChange={(e) => setNewMember({ ...newMember, name: e.target.value })}
                   data-testid="new-member-name"
                 />
               </div>
-
+      
               <div className="space-y-2">
-                <Label>Email *</Label>
+                <Label>
+                  {t('members.email')} {newMember.role === 'jogador' ? `(${t('common.optional')})` : '*'}
+                </Label>
                 <Input
                   type="email"
                   placeholder="email@exemplo.com"
@@ -1358,12 +1374,17 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                   onChange={(e) => setNewMember({ ...newMember, email: e.target.value })}
                   data-testid="new-member-email"
                 />
+                {newMember.role === 'jogador' && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('members.emailOptionalForPlayers')}
+                  </p>
+                )}
               </div>
             </div>
-
+      
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Função</Label>
+                <Label>{t('members.role')}</Label>
                 <Select
                   value={newMember.role}
                   onValueChange={(v) => setNewMember({ ...newMember, role: v })}
@@ -1372,62 +1393,115 @@ Teresa,Pais,1982-11-25,teresa@exemplo.com,responsavel,,,918888888,Portuguesa,Fem
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    <SelectItem value="jogador">Jogador</SelectItem>
-                    <SelectItem value="treinador">Treinador Principal</SelectItem>
-                    <SelectItem value="treinador_adjunto">Treinador Adjunto</SelectItem>
-                    <SelectItem value="delegado">Delegado</SelectItem>
-                    <SelectItem value="responsavel">Responsável/Familiar</SelectItem>
+                    <SelectItem value="jogador">{t('roles.jogador')}</SelectItem>
+                    <SelectItem value="treinador">{t('roles.treinador')}</SelectItem>
+                    <SelectItem value="treinador_adjunto">{t('roles.treinador_adjunto')}</SelectItem>
+                    <SelectItem value="delegado">{t('roles.delegado')}</SelectItem>
+                    <SelectItem value="responsavel">{t('roles.responsavel')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-
+      
               <div className="space-y-2">
-                <Label>Número</Label>
+                <Label>{t('members.jerseyNumber')}</Label>
                 <Input
                   placeholder="10"
                   value={newMember.jersey_number}
                   onChange={(e) => setNewMember({ ...newMember, jersey_number: e.target.value })}
                 />
               </div>
-
+      
               <div className="space-y-2">
-                <Label>Posição</Label>
+                <Label>{t('members.position')}</Label>
                 <Select
                   value={newMember.position}
                   onValueChange={(v) => setNewMember({ ...newMember, position: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Selecione" />
+                    <SelectValue placeholder={t('common.select')} />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
-                    <SelectItem value="GR">Guarda-Redes</SelectItem>
-                    <SelectItem value="JC">Jogador de Campo</SelectItem>
+                    <SelectItem value="GR">{t('members.goalkeeper')}</SelectItem>
+                    <SelectItem value="JC">{t('members.fieldPlayer')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
-
+      
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Telefone</Label>
+                <Label>{t('members.phone')}</Label>
                 <Input
                   placeholder="912345678"
                   value={newMember.phone}
                   onChange={(e) => setNewMember({ ...newMember, phone: e.target.value })}
                 />
               </div>
-
+      
               <div className="space-y-2">
-                <Label>Nacionalidade</Label>
+                <Label>{t('members.nationality')}</Label>
                 <Input
-                  placeholder="Portuguesa"
+                  placeholder={t('members.nationalityPlaceholder')}
                   value={newMember.nationality || ''}
                   onChange={(e) => setNewMember({ ...newMember, nationality: e.target.value })}
                 />
               </div>
             </div>
+      
+            {newMember.role === 'jogador' && (
+              <div className="rounded-xl border border-cyan-100 bg-cyan-50/50 p-4 space-y-4">
+                <div>
+                  <h3 className="font-semibold text-slate-900">
+                    {t('members.guardianSection')}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {t('members.guardianSectionDescription')}
+                  </p>
+                </div>
+      
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label>{t('members.guardianName')}</Label>
+                    <Input
+                      placeholder={t('members.guardianNamePlaceholder')}
+                      value={newMember.guardian_name}
+                      onChange={(e) => setNewMember({ ...newMember, guardian_name: e.target.value })}
+                    />
+                  </div>
+      
+                  <div className="space-y-2">
+                    <Label>{t('members.guardianEmail')}</Label>
+                    <Input
+                      type="email"
+                      placeholder="responsavel@email.com"
+                      value={newMember.guardian_email}
+                      onChange={(e) => setNewMember({ ...newMember, guardian_email: e.target.value })}
+                    />
+                  </div>
+      
+                  <div className="space-y-2">
+                    <Label>{t('members.guardianRelationship')}</Label>
+                    <Select
+                      value={newMember.guardian_relationship}
+                      onValueChange={(v) => setNewMember({ ...newMember, guardian_relationship: v })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder={t('common.select')} />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white">
+                        <SelectItem value="pai">{t('relationships.father')}</SelectItem>
+                        <SelectItem value="mae">{t('relationships.mother')}</SelectItem>
+                        <SelectItem value="avo">{t('relationships.grandparent')}</SelectItem>
+                        <SelectItem value="tutor">{t('relationships.tutor')}</SelectItem>
+                        <SelectItem value="outro">{t('relationships.other')}</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
-
+      
           <DialogFooter>
             <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>
               {t('common.cancel')}
