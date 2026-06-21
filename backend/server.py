@@ -3551,7 +3551,7 @@ async def get_team_members(team_id: str, current_user: dict = Depends(get_curren
 
 class MemberCreate(BaseModel):
     name: str
-    email: EmailStr
+    email: Optional[EmailStr] = None
     role: UserRole = "jogador"
     team_id: Optional[str] = None
     club_id: Optional[str] = None
@@ -3559,6 +3559,12 @@ class MemberCreate(BaseModel):
     position: Optional[str] = None
     phone: Optional[str] = None
     nationalities: Optional[List[str]] = None
+
+    # StickPro v2.0 — responsável / tutor associado ao atleta
+    guardian_name: Optional[str] = None
+    guardian_email: Optional[EmailStr] = None
+    guardian_relationship: Optional[str] = None
+
     # Phase O3 — onboarding wizard sets this to True so the activation
     # email is deferred to the Invitations step. Default keeps historical
     # behaviour for every other caller.
