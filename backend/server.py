@@ -3570,6 +3570,12 @@ class MemberCreate(BaseModel):
     # behaviour for every other caller.
     suppress_invite: bool = False
 
+class FamilyMemberCreate(BaseModel):
+    first_name: str
+    surname: Optional[str] = ""
+    email: Optional[EmailStr] = None
+    phone: Optional[str] = ""
+    relationship: str = "pai"
 
 class MemberUpdate(BaseModel):
     name: Optional[str] = None
@@ -4601,17 +4607,100 @@ async def update_member(member_id: str, data: MemberUpdate, current_user: dict =
     
     # Update profile fields
     if data.jersey_number is not None:
-        update_data["profile.sports_info.jersey_number"] = data.jersey_number
+        update_data["profile.jersey_number"] = data.jersey_number
     if data.position is not None:
-        update_data["profile.sports_info.position"] = data.position
+        update_data["profile.position"] = data.position
     if data.phone is not None:
-        update_data["profile.identity.phone"] = data.phone
+        update_data["phone"] = data.phone
     
     if update_data:
         await db.users.update_one({"id": member_id}, {"$set": update_data})
     
     return {"message": "Membro atualizado"}
 
+@api_router.post("/members/{member_id}/family")
+async def add_family_member(member_id: str, data: FamilyMemberCreate, current_user: dict = Depends(get_current_user)):
+    """Add a family member/responsible contact to an athlete profile and create guardian link if email exists."""
+    checker = get_permission_checker(current_user)
+
+    member = await db.users.find_one({"id": member_id}, {"_id": 0})
+    if not member:
+        raise HTTPException(status_code=404, detail="Membro não encontrado")
+
+    if member.get("role") != "jogador":
+        raise HTTPException(status_code=400, detail="Familiares só podem ser associados a atletas")
+
+    can_edit = checker.is_admin
+
+    if not can_edit and checker.is_staff:
+        member_teams = set(member.get("team_ids", []))
+        user_teams = set(checker.team_ids)
+        can_edit = bool(member_teams.intersection(user_teams))
+
+    if not can_edit and member_id == current_user.get("id"):
+        can_edit = True
+
+    if not can_edit:
+        raise HTTPException(status_code=403, detail="Sem permissão para editar familiares deste atleta")
+
+    family_member = {
+        "id": str(uuid.uuid4()),
+        "first_name": data.first_name,
+        "surname": data.surname or "",
+        "email": data.email.strip().lower() if data.email else "",
+        "phone": data.phone or "",
+        "relationship": data.relationship or "pai"
+    }
+
+    await db.users.update_one(
+        {"id": member_id},
+        {"$addToSet": {"profile.family_members": family_member}}
+    )
+
+    guardian_link = None
+
+    if data.email:
+        guardian_email = data.email.strip().lower()
+
+        existing_link = await db.guardian_links.find_one({
+            "player_id": member_id,
+            "guardian_email": guardian_email
+        })
+
+        if not existing_link:
+            guardian_link = {
+                "id": str(uuid.uuid4()),
+                "player_id": member_id,
+                "player_name": member.get("name"),
+                "guardian_user_id": None,
+                "guardian_name": f"{data.first_name} {data.surname or ''}".strip(),
+                "guardian_email": guardian_email,
+                "relationship": data.relationship or "pai",
+                "status": "pending",
+                "is_primary": False,
+                "club_id": member.get("club_id"),
+                "team_id": member.get("team_ids", [None])[0] if member.get("team_ids") else None,
+                "permissions": {
+                    "receive_notifications": True,
+                    "respond_convocations": True,
+                    "justify_absences": True,
+                    "view_calendar": True,
+                    "view_feedback": True,
+                    "view_evaluations": True,
+                    "edit_player_profile": False
+                },
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+
+            await db.guardian_links.insert_one(guardian_link)
+
+    return {
+        "message": "Familiar adicionado",
+        "family_member": family_member,
+        "guardian_link": guardian_link
+    }
+
+    
 @api_router.post("/members/{member_id}/archive")
 async def archive_member(member_id: str, current_user: dict = Depends(get_current_user)):
     """Archive a member without deleting statistics - admin only"""
