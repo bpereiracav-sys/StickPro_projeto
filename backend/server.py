@@ -1760,6 +1760,7 @@ async def get_family_invitation(token: str):
 
     return {
         "player_name": guardian_link.get("player_name"),
+        "guardian_name": guardian_link.get("guardian_name"),        
         "guardian_email": guardian_link.get("guardian_email"),
         "relationship": guardian_link.get("relationship"),
         "status": guardian_link.get("status"),
