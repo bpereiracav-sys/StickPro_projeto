@@ -348,7 +348,6 @@ class UserResponse(BaseModel):
     team_roles: Dict[str, UserRole] = {}  # NEW
     club_id: Optional[str] = None
     associated_accounts: List[str] = []
-    parent_a@api_router.post("/auth/register")ccount_id: Optional[str] = None
     linked_player_id: Optional[str] = None
     linked_player_ids: List[str] = []  # NEW
     profile: Optional[UserProfile] = None
