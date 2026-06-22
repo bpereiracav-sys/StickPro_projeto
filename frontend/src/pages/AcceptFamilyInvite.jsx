@@ -7,21 +7,20 @@ import { Label } from '../components/ui/label';
 import { usersApi } from '../services/api';
 import { toast } from 'sonner';
 import { Loader2, ShieldCheck, Users } from 'lucide-react';
-
-const relationshipLabels = {
-  pai: 'Pai',
-  mae: 'Mãe',
-  avo: 'Avô',
-  ava: 'Avó',
-  tutor: 'Tutor',
-  outro: 'Familiar',
-};
+import { useLanguage } from '../context/LanguageContext';
 
 export default function AcceptFamilyInvite() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const token = searchParams.get('token');
 
+  const { t } = useLanguage();
+
+  const tr = (key, fallback) => {
+    const value = t(key);
+    return value && value !== key ? value : fallback;
+  };
+  
   const [invite, setInvite] = useState(null);
   const [loadingInvite, setLoadingInvite] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -104,8 +103,12 @@ export default function AcceptFamilyInvite() {
     }
   };
 
-  const relationshipLabel =
-    relationshipLabels[invite?.relationship] || invite?.relationship || 'Familiar';
+  const relationshipLabel = invite?.relationship
+    ? tr(
+        `familyInvite.relationship.${invite.relationship}`,
+        invite.relationship
+      )
+    : tr('familyInvite.relationship.outro', 'Familiar');
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-950 via-slate-950 to-slate-900 flex items-center justify-center p-4">
@@ -206,7 +209,7 @@ export default function AcceptFamilyInvite() {
                   {submitting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    t('familyInvite.createFreeAccount')
+                    tr('familyInvite.createFreeAccount', 'Criar conta gratuita')
                   )}
                 </Button>
               </form>
