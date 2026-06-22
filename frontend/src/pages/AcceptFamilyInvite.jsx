@@ -42,7 +42,15 @@ export default function AcceptFamilyInvite() {
 
       try {
         const response = await usersApi.getFamilyInvite(token);
+
         setInvite(response.data);
+        
+        if (response.data?.guardian_name) {
+          setFormData((prev) => ({
+            ...prev,
+            name: response.data.guardian_name,
+          }));
+        }
       } catch (error) {
         toast.error(error.response?.data?.detail || 'Convite inválido ou expirado');
       } finally {
