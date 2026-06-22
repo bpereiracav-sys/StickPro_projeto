@@ -309,7 +309,7 @@ export default function Members() {
   const { user } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const { canManageTeam, canImportData, isAdmin } = usePermissions();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const [teams, setTeams] = useState([]);
   const [club, setClub] = useState(null);
@@ -612,6 +612,9 @@ export default function Members() {
         guardian_relationship: newMember.guardian_relationship || undefined,
         club_id: club?.id,
         team_id: isAllTeamsSelected ? null : selectedTeamId,
+        
+        language,
+        
         nationalities: newMember.nationality
           ? [newMember.nationality]
           : newMember.nationalities || [],
