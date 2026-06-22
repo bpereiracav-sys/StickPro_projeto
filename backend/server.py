@@ -1763,6 +1763,7 @@ async def get_family_invitation(token: str):
         "guardian_name": guardian_link.get("guardian_name"),
         "guardian_email": guardian_link.get("guardian_email"),
         "relationship": guardian_link.get("relationship"),
+        "language": guardian_link.get("language", "pt"),
         "status": guardian_link.get("status"),
         "expires_at": guardian_link.get("invite_expires_at")
     }
@@ -3736,6 +3737,7 @@ class MemberCreate(BaseModel):
     guardian_name: Optional[str] = None
     guardian_email: Optional[EmailStr] = None
     guardian_relationship: Optional[str] = None
+    language: Optional[str] = "pt"
 
     # Phase O3 — onboarding wizard sets this to True so the activation
     # email is deferred to the Invitations step. Default keeps historical
@@ -3885,6 +3887,7 @@ async def create_member(data: MemberCreate, current_user: dict = Depends(get_cur
             "guardian_name": data.guardian_name or "",
             "guardian_email": guardian_email,
             "relationship": data.guardian_relationship or "pai",
+            "language": data.language or "pt",
             "status": "pending",
             "is_primary": True,
             "club_id": club_id,
