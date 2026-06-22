@@ -2038,6 +2038,35 @@ async def debug_create_team_feedback_test():
         "feedback": feedback
     }
     
+@api_router.get("/debug/latest-family-invite")
+async def debug_latest_family_invite(current_user: dict = Depends(get_current_user)):
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Apenas administradores")
+
+    invite = await db.guardian_links.find_one(
+        {"status": "pending", "invite_token": {"$exists": True}},
+        {"_id": 0},
+        sort=[("created_at", -1)]
+    )
+
+    if not invite:
+        raise HTTPException(status_code=404, detail="Nenhum convite pendente encontrado")
+
+    frontend_url = os.environ.get("FRONTEND_URL", "").rstrip("/")
+    accept_link = f"{frontend_url}/accept-family-invite?token={invite['invite_token']}"
+
+    return {
+        "player_name": invite.get("player_name"),
+        "guardian_email": invite.get("guardian_email"),
+        "relationship": invite.get("relationship"),
+        "token": invite.get("invite_token"),
+        "accept_link": accept_link,
+        "expires_at": invite.get("invite_expires_at"),
+        "status": invite.get("status")
+    }
+
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     profiles = await build_available_profiles(current_user)
