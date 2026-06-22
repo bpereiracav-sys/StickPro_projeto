@@ -1769,7 +1769,7 @@ async def accept_family_invitation(data: AcceptFamilyInviteRequest):
 
     if existing_user:
         guardian_user_id = existing_user["id"]
-
+    
         await db.users.update_one(
             {"id": guardian_user_id},
             {
@@ -1779,8 +1779,11 @@ async def accept_family_invitation(data: AcceptFamilyInviteRequest):
                 }
             }
         )
-
-        user_response = existing_user
+    
+        user_response = await db.users.find_one(
+            {"id": guardian_user_id},
+            {"_id": 0, "hashed_password": 0, "password": 0}
+        )
 
     else:
         guardian_user_id = str(uuid.uuid4())
