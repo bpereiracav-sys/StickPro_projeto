@@ -190,6 +190,7 @@ export const usersApi = {
   getMatchStats: (id, championshipId) =>
     api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } }),
 
+  
   // Associated accounts
   getAssociated: () => api.get('/users/associated'),
   searchToAssociate: (email) =>
@@ -202,13 +203,15 @@ export const usersApi = {
   linkPlayer: (playerId) => api.post('/users/link-player', { player_id: playerId }),
   linkPlayers: (playerIds) => api.post('/users/link-players', { player_ids: playerIds }),
   unlinkPlayer: () => api.delete('/users/link-player'),
-
+  
   addFamilyMember: (memberId, data) =>
-    api.post(`/members/${memberId}/family`, data), 
-
+    api.post(`/members/${memberId}/family`, data),
+  
   updateFamilyMember: (memberId, familyMemberId, data) =>
     api.put(`/members/${memberId}/family/${familyMemberId}`, data),
-};
+  
+  acceptFamilyInvite: (data) =>
+    api.post('/family-invitations/accept', data),
 
 // Auth API
 export const authApi = {
