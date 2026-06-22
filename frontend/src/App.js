@@ -22,6 +22,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ActivateAccount from "./pages/ActivateAccount";
 import ForgotPassword from "./pages/ForgotPassword";
+import AcceptFamilyInvite from "./pages/AcceptFamilyInvite";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import TeamDetail from "./pages/TeamDetail";
@@ -171,6 +172,14 @@ function AppRoutes() {
           </PublicRoute>
         }
       />
+      <Route
+        path="/accept-family-invite"
+        element={
+          <PublicRoute>
+            <AcceptFamilyInvite />
+          </PublicRoute>
+        }
+      />        
       <Route
         path="/forgot-password"
         element={
