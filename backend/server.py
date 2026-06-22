@@ -2039,11 +2039,7 @@ async def debug_create_team_feedback_test():
     }
     
 @api_router.get("/debug/latest-family-invite")
-async def debug_latest_family_invite(current_user: dict = Depends(get_current_user)):
-    checker = get_permission_checker(current_user)
-
-    if not checker.is_admin:
-        raise HTTPException(status_code=403, detail="Apenas administradores")
+async def debug_latest_family_invite():
 
     invite = await db.guardian_links.find_one(
         {"status": "pending", "invite_token": {"$exists": True}},
