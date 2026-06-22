@@ -348,7 +348,7 @@ class UserResponse(BaseModel):
     team_roles: Dict[str, UserRole] = {}  # NEW
     club_id: Optional[str] = None
     associated_accounts: List[str] = []
-    parent_account_id: Optional[str] = None
+    parent_a@api_router.post("/auth/register")ccount_id: Optional[str] = None
     linked_player_id: Optional[str] = None
     linked_player_ids: List[str] = []  # NEW
     profile: Optional[UserProfile] = None
@@ -356,6 +356,11 @@ class UserResponse(BaseModel):
     # Phase O1 — surfaced so the frontend can route admins to /onboarding
     # on first login without an extra request.
     onboarding_completed_at: Optional[datetime] = None
+
+class AcceptFamilyInviteRequest(BaseModel):
+    token: str
+    name: str
+    password: str
 
 class AssociateAccountRequest(BaseModel):
     child_user_id: str
@@ -1726,6 +1731,110 @@ async def register(user_data: UserCreate):
             "associated_accounts": user_dict.get("associated_accounts", [])
         },
         "available_profiles": profiles
+    }
+
+@api_router.post("/family-invitations/accept")
+async def accept_family_invitation(data: AcceptFamilyInviteRequest):
+    """Accept a family invitation, create guardian user account and link to athlete."""
+    if not data.token:
+        raise HTTPException(status_code=400, detail="Token de convite inválido")
+
+    guardian_link = await db.guardian_links.find_one(
+        {
+            "invite_token": data.token,
+            "status": "pending"
+        },
+        {"_id": 0}
+    )
+
+    if not guardian_link:
+        raise HTTPException(status_code=404, detail="Convite não encontrado ou já utilizado")
+
+    expires_at = guardian_link.get("invite_expires_at")
+    if expires_at:
+        try:
+            expires_dt = datetime.fromisoformat(expires_at)
+            if expires_dt < datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="Convite expirado")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Convite inválido")
+
+    guardian_email = guardian_link.get("guardian_email")
+    if not guardian_email:
+        raise HTTPException(status_code=400, detail="Convite sem email associado")
+
+    existing_user = await db.users.find_one(
+        {"email": guardian_email},
+        {"_id": 0}
+    )
+
+    if existing_user:
+        guardian_user_id = existing_user["id"]
+
+        await db.users.update_one(
+            {"id": guardian_user_id},
+            {
+                "$addToSet": {
+                    "linked_player_ids": guardian_link["player_id"],
+                    "associated_accounts": guardian_link["player_id"]
+                }
+            }
+        )
+
+        user_response = existing_user
+
+    else:
+        guardian_user_id = str(uuid.uuid4())
+
+        user = {
+            "id": guardian_user_id,
+            "name": data.name,
+            "email": guardian_email,
+            "hashed_password": hash_password(data.password),
+            "role": "responsavel",
+            "additional_roles": [],
+            "club_id": guardian_link.get("club_id"),
+            "team_ids": [],
+            "linked_player_ids": [guardian_link["player_id"]],
+            "associated_accounts": [guardian_link["player_id"]],
+            "is_activated": True,
+            "login_enabled": True,
+            "has_real_email": True,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        await db.users.insert_one(user)
+        user_response = user
+
+    await db.guardian_links.update_one(
+        {"id": guardian_link["id"]},
+        {
+            "$set": {
+                "guardian_user_id": guardian_user_id,
+                "status": "accepted",
+                "accepted_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+
+    token = create_token(
+        guardian_user_id,
+        guardian_email,
+        "responsavel"
+    )
+
+    profiles = await build_available_profiles(user_response)
+
+    safe_user = {
+        k: v for k, v in user_response.items()
+        if k not in ("hashed_password", "password", "_id")
+    }
+
+    return {
+        "token": token,
+        "user": safe_user,
+        "available_profiles": profiles,
+        "message": "Convite aceite com sucesso"
     }
 
 @api_router.post("/auth/login")
