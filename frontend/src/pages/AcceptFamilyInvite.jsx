@@ -154,26 +154,26 @@ export default function AcceptFamilyInvite() {
 
   const { t } = useLanguage();
 
-  const inviteLanguage = invite?.language || 'pt';
-  const inviteText = inviteTranslations[inviteLanguage] || inviteTranslations.pt;
-  
-  const tr = (key, fallback) => {
-    const parts = key.replace('familyInvite.', '').split('.');
-    let value = inviteText;
-  
-    for (const part of parts) {
-      value = value?.[part];
-    }
-  
-    if (typeof value === 'string') return value;
-  
-    const globalValue = t(key);
-    return globalValue && globalValue !== key ? globalValue : fallback;
-  };
-  
   const [invite, setInvite] = useState(null);
   const [loadingInvite, setLoadingInvite] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+
+  const inviteLanguage = invite?.language || 'pt';
+  const inviteText = inviteTranslations[inviteLanguage] || inviteTranslations.pt;
+
+  const tr = (key, fallback) => {
+    const parts = key.replace('familyInvite.', '').split('.');
+    let value = inviteText;
+
+    for (const part of parts) {
+      value = value?.[part];
+    }
+
+    if (typeof value === 'string') return value;
+
+    const globalValue = t(key);
+    return globalValue && globalValue !== key ? globalValue : fallback;
+  };
 
   const [formData, setFormData] = useState({
     name: '',
