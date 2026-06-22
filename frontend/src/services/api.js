@@ -189,7 +189,7 @@ export const usersApi = {
   getConsolidatedStats: (id) => api.get(`/player-stats/${id}/consolidated`),
   getMatchStats: (id, championshipId) =>
     api.get(`/players/${id}/match-stats`, { params: { championship_id: championshipId } }),
-
+  
   
   // Associated accounts
   getAssociated: () => api.get('/users/associated'),
@@ -212,6 +212,9 @@ export const usersApi = {
 
   acceptFamilyInvite: (data) =>
     api.post('/family-invitations/accept', data),
+
+  getFamilyInvite: (token) =>
+  api.get(`/family-invitations/${token}`),
 };
 
 // Auth API
