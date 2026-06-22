@@ -1732,6 +1732,40 @@ async def register(user_data: UserCreate):
         "available_profiles": profiles
     }
 
+@api_router.get("/family-invitations/{token}")
+async def get_family_invitation(token: str):
+    """Get public family invitation details for the accept page."""
+    if not token:
+        raise HTTPException(status_code=400, detail="Token de convite inválido")
+
+    guardian_link = await db.guardian_links.find_one(
+        {
+            "invite_token": token,
+            "status": "pending"
+        },
+        {"_id": 0}
+    )
+
+    if not guardian_link:
+        raise HTTPException(status_code=404, detail="Convite não encontrado ou já utilizado")
+
+    expires_at = guardian_link.get("invite_expires_at")
+    if expires_at:
+        try:
+            expires_dt = datetime.fromisoformat(expires_at)
+            if expires_dt < datetime.now(timezone.utc):
+                raise HTTPException(status_code=400, detail="Convite expirado")
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Convite inválido")
+
+    return {
+        "player_name": guardian_link.get("player_name"),
+        "guardian_email": guardian_link.get("guardian_email"),
+        "relationship": guardian_link.get("relationship"),
+        "status": guardian_link.get("status"),
+        "expires_at": guardian_link.get("invite_expires_at")
+    }
+    
 @api_router.post("/family-invitations/accept")
 async def accept_family_invitation(data: AcceptFamilyInviteRequest):
     """Accept a family invitation, create guardian user account and link to athlete."""
