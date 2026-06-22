@@ -206,7 +206,7 @@ export default function AcceptFamilyInvite() {
                   {submitting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    '{t('familyInvite.createFreeAccount')}'
+                    {t('familyInvite.createFreeAccount')}
                   )}
                 </Button>
               </form>
