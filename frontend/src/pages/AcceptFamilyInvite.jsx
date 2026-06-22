@@ -36,7 +36,7 @@ export default function AcceptFamilyInvite() {
     const loadInvite = async () => {
       if (!token) {
         setLoadingInvite(false);
-        toast.error('Convite inválido');
+        toast.error(t('familyInvite.invalidInvite'));
         return;
       }
 
@@ -52,7 +52,7 @@ export default function AcceptFamilyInvite() {
           }));
         }
       } catch (error) {
-        toast.error(error.response?.data?.detail || 'Convite inválido ou expirado');
+        toast.error(error.response?.data?.detail || t('familyInvite.invalidOrExpired'));
       } finally {
         setLoadingInvite(false);
       }
@@ -65,22 +65,22 @@ export default function AcceptFamilyInvite() {
     e.preventDefault();
 
     if (!token) {
-      toast.error('Convite inválido');
+      toast.error(t('familyInvite.invalidInvite'));
       return;
     }
 
     if (!formData.name.trim()) {
-      toast.error('Indique o seu nome completo');
+      toast.error(t('familyInvite.requiredName'));
       return;
     }
 
     if (formData.password.length < 6) {
-      toast.error('A palavra-passe deve ter pelo menos 6 caracteres');
+      toast.error(t('familyInvite.passwordMin'));
       return;
     }
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error('As palavras-passe não coincidem');
+      toast.error(t('familyInvite.passwordMismatch'));
       return;
     }
 
@@ -95,10 +95,10 @@ export default function AcceptFamilyInvite() {
 
       localStorage.setItem('token', response.data.token);
 
-      toast.success(response.data.message || 'Convite aceite com sucesso');
+      toast.success(response.data.message || t('familyInvite.success'));
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Erro ao aceitar convite');
+      toast.error(error.response?.data?.detail || t('familyInvite.acceptError'));
     } finally {
       setSubmitting(false);
     }
@@ -122,11 +122,11 @@ export default function AcceptFamilyInvite() {
           </div>
 
           <h1 className="font-heading text-2xl font-bold tracking-tight">
-            Convite StickPro
+            {t('familyInvite.title')}
           </h1>
 
           <p className="mt-2 text-sm text-emerald-50">
-            Foi convidado para acompanhar um atleta na plataforma.
+            {t('familyInvite.subtitle')}
           </p>
         </div>
 
@@ -146,15 +146,13 @@ export default function AcceptFamilyInvite() {
 
                     <div>
                       <p className="font-semibold text-slate-950">
-                        Está a associar-se à conta de {invite.player_name}
+                        {t('familyInvite.associatingWith')} {invite.player_name}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
-                        Função familiar: <strong>{relationshipLabel}</strong>
+                        {t('familyInvite.familyRole')}: <strong>{relationshipLabel}</strong>
                       </p>
                       <p className="mt-2 text-sm text-slate-600">
-                        Este acesso é gratuito e permite acompanhar calendário,
-                        convocatórias, presenças, avaliações e comunicações
-                        associadas ao atleta.
+                        {t('familyInvite.freeAccessText')}
                       </p>
                     </div>
                   </div>
@@ -163,18 +161,18 @@ export default function AcceptFamilyInvite() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>Nome completo</Label>
+                  <Label>{t('familyInvite.fullName')}</Label>
                   <Input
                     value={formData.name}
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, name: e.target.value }))
                     }
-                    placeholder="Nome completo"
+                    placeholder="{t('familyInvite.fullName')}"
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Palavra-passe</Label>
+                  <Label>{t('familyInvite.password')}</Label>
                   <Input
                     type="password"
                     value={formData.password}
@@ -186,7 +184,7 @@ export default function AcceptFamilyInvite() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Confirmar palavra-passe</Label>
+                  <Label>{t('familyInvite.confirmPassword')}</Label>
                   <Input
                     type="password"
                     value={formData.confirmPassword}
@@ -208,7 +206,7 @@ export default function AcceptFamilyInvite() {
                   {submitting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    'Criar conta gratuita'
+                    '{t('familyInvite.createFreeAccount')}'
                   )}
                 </Button>
               </form>
