@@ -204,14 +204,15 @@ export const usersApi = {
   linkPlayers: (playerIds) => api.post('/users/link-players', { player_ids: playerIds }),
   unlinkPlayer: () => api.delete('/users/link-player'),
   
-  addFamilyMember: (memberId, data) =>
+    addFamilyMember: (memberId, data) =>
     api.post(`/members/${memberId}/family`, data),
-  
+
   updateFamilyMember: (memberId, familyMemberId, data) =>
     api.put(`/members/${memberId}/family/${familyMemberId}`, data),
-  
+
   acceptFamilyInvite: (data) =>
     api.post('/family-invitations/accept', data),
+};
 
 // Auth API
 export const authApi = {
