@@ -139,6 +139,15 @@ export const translations = {
 
     sidebar: {
       tagline: 'Gestão Desportiva',
+      operations: 'Operações',
+      sport: 'Desportivo',
+      management: 'Gestão',
+    },
+    
+    profiles: {
+      switchProfile: 'Mudar perfil',
+      viewingAsGuardianOf: 'A ver como responsável de',
+      backToMyProfile: 'Voltar',
     },
 
     topnav: {
@@ -1041,6 +1050,15 @@ export const translations = {
 
     sidebar: {
       tagline: 'Gestión Deportiva',
+      operations: 'Operaciones',
+      sport: 'Deportivo',
+      management: 'Gestión',
+    },
+    
+    profiles: {
+      switchProfile: 'Cambiar perfil',
+      viewingAsGuardianOf: 'Viendo como responsable de',
+      backToMyProfile: 'Volver',
     },
 
 topnav: {
@@ -1957,6 +1975,15 @@ topnav: {
 
     sidebar: {
       tagline: 'Gestion Sportive',
+      operations: 'Opérations',
+      sport: 'Sport',
+      management: 'Gestion',
+    },
+    
+    profiles: {
+      switchProfile: 'Changer de profil',
+      viewingAsGuardianOf: 'Affichage en tant que responsable de',
+      backToMyProfile: 'Retour',
     },
 
 topnav: {
@@ -2877,6 +2904,15 @@ topnav: {
 
     sidebar: {
       tagline: 'Gestione Sportiva',
+      operations: 'Operazioni',
+      sport: 'Sport',
+      management: 'Gestione',
+    },
+    
+    profiles: {
+      switchProfile: 'Cambia profilo',
+      viewingAsGuardianOf: 'Visualizzazione come responsabile di',
+      backToMyProfile: 'Indietro',
     },
 
 topnav: {
@@ -3796,6 +3832,15 @@ topnav: {
 
     sidebar: {
       tagline: 'Sports Management',
+      operations: 'Operations',
+      sport: 'Sport',
+      management: 'Management',
+    },
+    
+    profiles: {
+      switchProfile: 'Switch profile',
+      viewingAsGuardianOf: 'Viewing as guardian of',
+      backToMyProfile: 'Back',
     },
 
 topnav: {
