@@ -1797,7 +1797,7 @@ async def get_family_invitation(token: str):
     
 @api_router.post("/family-invitations/accept")
 async def accept_family_invitation(data: AcceptFamilyInviteRequest):
-    """Accept a family invitation, create guardian user account and link to athlete."""
+    """Accept a family invitation, create or reuse guardian user account and link to athlete."""
     if not data.token:
         raise HTTPException(status_code=400, detail="Token de convite inválido")
 
@@ -1825,6 +1825,12 @@ async def accept_family_invitation(data: AcceptFamilyInviteRequest):
     if not guardian_email:
         raise HTTPException(status_code=400, detail="Convite sem email associado")
 
+    guardian_email = guardian_email.strip().lower()
+    player_id = guardian_link.get("player_id")
+
+    if not player_id:
+        raise HTTPException(status_code=400, detail="Convite sem atleta associado")
+
     existing_user = await db.users.find_one(
         {"email": guardian_email},
         {"_id": 0}
@@ -1832,17 +1838,20 @@ async def accept_family_invitation(data: AcceptFamilyInviteRequest):
 
     if existing_user:
         guardian_user_id = existing_user["id"]
-    
+
         await db.users.update_one(
             {"id": guardian_user_id},
             {
                 "$addToSet": {
-                    "linked_player_ids": guardian_link["player_id"],
-                    "associated_accounts": guardian_link["player_id"]
+                    "linked_player_ids": player_id,
+                    "associated_accounts": player_id
+                },
+                "$set": {
+                    "updated_at": datetime.now(timezone.utc).isoformat()
                 }
             }
         )
-    
+
         user_response = await db.users.find_one(
             {"id": guardian_user_id},
             {"_id": 0, "hashed_password": 0, "password": 0}
@@ -1860,22 +1869,28 @@ async def accept_family_invitation(data: AcceptFamilyInviteRequest):
             "additional_roles": [],
             "club_id": guardian_link.get("club_id"),
             "team_ids": [],
-            "linked_player_ids": [guardian_link["player_id"]],
-            "associated_accounts": [guardian_link["player_id"]],
+            "linked_player_ids": [player_id],
+            "associated_accounts": [player_id],
             "is_activated": True,
             "login_enabled": True,
             "has_real_email": True,
-            "created_at": datetime.now(timezone.utc).isoformat()
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": datetime.now(timezone.utc).isoformat()
         }
 
         await db.users.insert_one(user)
-        user_response = user
+
+        user_response = {
+            k: v for k, v in user.items()
+            if k not in ("hashed_password", "password", "_id")
+        }
 
     await db.guardian_links.update_one(
         {"id": guardian_link["id"]},
         {
             "$set": {
                 "guardian_user_id": guardian_user_id,
+                "guardian_email": guardian_email,
                 "status": "accepted",
                 "accepted_at": datetime.now(timezone.utc).isoformat()
             }
@@ -1885,7 +1900,7 @@ async def accept_family_invitation(data: AcceptFamilyInviteRequest):
     token = create_token(
         guardian_user_id,
         guardian_email,
-        "responsavel"
+        user_response.get("role", "responsavel")
     )
 
     profiles = await build_available_profiles(user_response)
@@ -1901,7 +1916,6 @@ async def accept_family_invitation(data: AcceptFamilyInviteRequest):
         "available_profiles": profiles,
         "message": "Convite aceite com sucesso"
     }
-
 @api_router.post("/auth/login")
 async def login(credentials: UserLogin):
     email = credentials.email.strip().lower()
