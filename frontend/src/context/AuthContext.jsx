@@ -53,8 +53,19 @@ export function AuthProvider({ children }) {
           const parsedProfile = JSON.parse(savedProfile);
           const normalizedProfile = normalizeProfile(parsedProfile);
 
+          const profileStillExists = normalizedAvailableProfiles.some(
+            (profile) =>
+              profile.profile_id === normalizedProfile?.profile_id ||
+              (
+                profile.type === normalizedProfile?.type &&
+                profile.user_id === normalizedProfile?.user_id &&
+                profile.role === normalizedProfile?.role
+              )
+          );
+          
           if (
             normalizedProfile &&
+            profileStillExists &&
             (normalizedProfile.type === 'self' || normalizedProfile.type === 'associated')
           ) {
             setActiveProfile(normalizedProfile);
@@ -65,31 +76,34 @@ export function AuthProvider({ children }) {
               setViewingAs(null);
             }
           } else {
-            const fallbackProfile = {
-              type: 'self',
-              user_id: userData.id,
-              role: normalizeRole(userData.role),
-            };
+            const fallbackProfile =
+              normalizedAvailableProfiles[0] || {
+                type: 'self',
+                user_id: userData.id,
+                role: normalizeRole(userData.role),
+              };
             setActiveProfile(fallbackProfile);
             setViewingAs(null);
             localStorage.setItem('activeProfile', JSON.stringify(fallbackProfile));
           }
         } catch (error) {
-          const fallbackProfile = {
-            type: 'self',
-            user_id: userData.id,
-            role: normalizeRole(userData.role),
-          };
+          const fallbackProfile =
+            normalizedAvailableProfiles[0] || {
+              type: 'self',
+              user_id: userData.id,
+              role: normalizeRole(userData.role),
+            };
           setActiveProfile(fallbackProfile);
           setViewingAs(null);
           localStorage.setItem('activeProfile', JSON.stringify(fallbackProfile));
         }
       } else {
-        const defaultProfile = {
-          type: 'self',
-          user_id: userData.id,
-          role: normalizeRole(userData.role),
-        };
+        const defaultProfile =
+          normalizedAvailableProfiles[0] || {
+            type: 'self',
+            user_id: userData.id,
+            role: normalizeRole(userData.role),
+          };
         setActiveProfile(defaultProfile);
         setViewingAs(null);
       }
@@ -206,8 +220,8 @@ export function AuthProvider({ children }) {
   };
 
   const effectiveRole = useMemo(() => {
-    return normalizeRole(viewingAs?.role || user?.role);
-  }, [viewingAs?.role, user?.role]);
+    return normalizeRole(activeProfile?.role || viewingAs?.role || user?.role);
+  }, [activeProfile?.role, viewingAs?.role, user?.role]);
 
   const isAdmin = ADMIN_ROLES.includes(effectiveRole);
   const isCoach = effectiveRole === 'treinador';
