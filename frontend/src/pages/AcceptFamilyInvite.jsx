@@ -185,7 +185,7 @@ export default function AcceptFamilyInvite() {
     const loadInvite = async () => {
       if (!token) {
         setLoadingInvite(false);
-        toast.error(t('familyInvite.invalidInvite'));
+        toast.error(tr('familyInvite.invalidInvite'));
         return;
       }
 
@@ -201,7 +201,7 @@ export default function AcceptFamilyInvite() {
           }));
         }
       } catch (error) {
-        toast.error(error.response?.data?.detail || t('familyInvite.invalidOrExpired'));
+        toast.error(error.response?.data?.detail || tr('familyInvite.invalidOrExpired'));
       } finally {
         setLoadingInvite(false);
       }
@@ -214,17 +214,17 @@ export default function AcceptFamilyInvite() {
     e.preventDefault();
 
     if (!token) {
-      toast.error(t('familyInvite.invalidInvite'));
+      toast.error(tr('familyInvite.invalidInvite'));
       return;
     }
 
     if (!formData.name.trim()) {
-      toast.error(t('familyInvite.requiredName'));
+      toast.error(tr('familyInvite.requiredName'));
       return;
     }
 
     if (formData.password.length < 6) {
-      toast.error(t('familyInvite.passwordMin'));
+      toast.error(tr('familyInvite.passwordMin'));
       return;
     }
 
@@ -244,10 +244,10 @@ export default function AcceptFamilyInvite() {
 
       localStorage.setItem('token', response.data.token);
 
-      toast.success(response.data.message || t('familyInvite.success'));
+      toast.success(response.data.message || tr('familyInvite.success'));
       navigate('/dashboard');
     } catch (error) {
-      toast.error(error.response?.data?.detail || t('familyInvite.acceptError'));
+      toast.error(error.response?.data?.detail || tr('familyInvite.acceptError'));
     } finally {
       setSubmitting(false);
     }
@@ -275,11 +275,14 @@ export default function AcceptFamilyInvite() {
           </div>
 
           <h1 className="font-heading text-2xl font-bold tracking-tight">
-            {t('familyInvite.title')}
+            {tr('familyInvite.title', 'Convite StickPro')}
           </h1>
 
           <p className="mt-2 text-sm text-emerald-50">
-            {t('familyInvite.subtitle')}
+            {tr(
+              'familyInvite.subtitle',
+              'Foi convidado para acompanhar um atleta na plataforma.'
+            )}
           </p>
         </div>
 
@@ -299,13 +302,13 @@ export default function AcceptFamilyInvite() {
 
                     <div>
                       <p className="font-semibold text-slate-950">
-                        {t('familyInvite.associatingWith')} {invite.player_name}
+                        {tr('familyInvite.associatingWith', 'Está a associar-se à conta de')} {invite.player_name}
                       </p>
                       <p className="mt-1 text-sm text-slate-600">
-                        {t('familyInvite.familyRole')}: <strong>{relationshipLabel}</strong>
+                        {tr('familyInvite.familyRole', 'Função familiar')}: <strong>{relationshipLabel}</strong>
                       </p>
                       <p className="mt-2 text-sm text-slate-600">
-                        {t('familyInvite.freeAccessText')}
+                        {tr('familyInvite.freeAccessText', 'Este acesso é gratuito e permite acompanhar calendário, convocatórias, presenças, avaliações e comunicações associadas ao atleta.')}
                       </p>
                     </div>
                   </div>
@@ -314,30 +317,30 @@ export default function AcceptFamilyInvite() {
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="space-y-2">
-                  <Label>{t('familyInvite.fullName')}</Label>
+                  <Label>{tr('familyInvite.fullName', 'Nome completo')}</Label>
                   <Input
                     value={formData.name}
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, name: e.target.value }))
                     }
-                    placeholder="{t('familyInvite.fullName')}"
+                    placeholder={tr('familyInvite.fullName', 'Nome completo')}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>{t('familyInvite.password')}</Label>
+                  <Label>{tr('familyInvite.password', 'Palavra-passe')}</Label>
                   <Input
                     type="password"
                     value={formData.password}
                     onChange={(e) =>
                       setFormData((prev) => ({ ...prev, password: e.target.value }))
                     }
-                    placeholder="Defina a sua palavra-passe"
+                    placeholder={tr('familyInvite.password', 'Palavra-passe')}
                   />
                 </div>
 
                 <div className="space-y-2">
-                  <Label>{t('familyInvite.confirmPassword')}</Label>
+                  <Label>{tr('familyInvite.confirmPassword', 'Confirmar palavra-passe')}</Label>
                   <Input
                     type="password"
                     value={formData.confirmPassword}
@@ -347,7 +350,7 @@ export default function AcceptFamilyInvite() {
                         confirmPassword: e.target.value,
                       }))
                     }
-                    placeholder="Confirme a palavra-passe"
+                    placeholder={tr('familyInvite.confirmPassword', 'Confirmar palavra-passe')}
                   />
                 </div>
 
