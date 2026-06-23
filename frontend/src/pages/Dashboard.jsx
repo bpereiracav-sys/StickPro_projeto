@@ -72,19 +72,20 @@ export default function Dashboard() {
     fetchPaymentStatus();
     fetchCommitment();
     fetchPendingFeedback();
-    }, []);
+  }, [activeProfile]);
 
-  const fetchDashboard = async () => {
-    try {
-      dashboardApi.get(activeProfile)
-      setData(response?.data || {});
-    } catch (error) {
-      console.error('Error fetching dashboard:', error);
-      setData({});
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchDashboard = async () => {
+  try {
+    setLoading(true);
+    const response = await dashboardApi.get(activeProfile);
+    setData(response?.data || {});
+  } catch (error) {
+    console.error('Error fetching dashboard:', error);
+    setData({});
+  } finally {
+    setLoading(false);
+  }
+};
 
   const fetchCommitment = async () => {
   try {
