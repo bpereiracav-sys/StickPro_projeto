@@ -28,6 +28,8 @@ import {
   ClipboardList,
   Trophy,
   UserPlus,
+  ShieldCheck,
+  UserRoundCheck,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -42,7 +44,14 @@ const LANGUAGES = [
 ];
 
 export function TopNavBar() {
-  const { user, logout, isAuthenticated, availableProfiles } = useAuth();
+  const {
+  user,
+  logout,
+  isAuthenticated,
+  availableProfiles,
+  activeProfile,
+  switchProfile,
+} = useAuth();
 
   const languageContext = useLanguage();
   const { t, language = 'pt' } = languageContext;
@@ -100,6 +109,28 @@ export function TopNavBar() {
     }
   };
 
+  cconst handleSwitchProfile = async (profile) => {
+    try {
+      await switchProfile(profile);
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error switching profile:', error);
+    }
+  };
+  
+  const getProfileIcon = (profile) => {
+    if (profile.type === 'associated') {
+      return UserRoundCheck;
+    }
+  
+    return ShieldCheck;
+  };
+  
+  const activeProfileLabel =
+    activeProfile?.label ||
+    activeProfile?.description ||
+    getRoleName(user?.role);
+  
   const handleLogout = () => {
     logout();
     navigate('/');
@@ -460,20 +491,75 @@ export function TopNavBar() {
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium">{user?.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {getRoleName(user?.role)}
+                      {activeProfileLabel}
                     </p>
                   </div>
                 </DropdownMenuLabel>
-
+              
                 <DropdownMenuSeparator />
-
+              
+                {availableProfiles?.length > 1 && (
+                  <>
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                      {tr('profiles.switchProfile', 'Mudar perfil')}
+                    </DropdownMenuLabel>
+              
+                    {availableProfiles.map((profile) => {
+                      const ProfileIcon = getProfileIcon(profile);
+              
+                      const isActive =
+                        activeProfile?.profile_id === profile.profile_id ||
+                        (
+                          activeProfile?.type === profile.type &&
+                          activeProfile?.user_id === profile.user_id &&
+                          activeProfile?.role === profile.role
+                        );
+              
+                      return (
+                        <DropdownMenuItem
+                          key={
+                            profile.profile_id ||
+                            `${profile.type}-${profile.user_id}-${profile.role}`
+                          }
+                          onClick={() => handleSwitchProfile(profile)}
+                          className="flex cursor-pointer items-center justify-between"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                              <ProfileIcon className="h-4 w-4 text-primary" />
+                            </div>
+              
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {profile.label || profile.user_name}
+                              </p>
+              
+                              <p className="truncate text-xs text-muted-foreground">
+                                {profile.description ||
+                                  profile.role_name ||
+                                  getRoleName(profile.role)}
+                              </p>
+                            </div>
+                          </div>
+              
+                          {isActive && (
+                            <Check className="h-4 w-4 shrink-0 text-primary" />
+                          )}
+                        </DropdownMenuItem>
+                      );
+                    })}
+              
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+              
                 <DropdownMenuItem asChild>
                   <Link to="/profile" className="cursor-pointer">
                     <UserCircle className="mr-2 h-4 w-4" />
                     {myProfileLabel}
                   </Link>
                 </DropdownMenuItem>
-
+              
                 {(permissions.isAdmin || permissions.canManageClub) && (
                   <DropdownMenuItem asChild>
                     <Link to="/settings" className="cursor-pointer">
@@ -482,9 +568,9 @@ export function TopNavBar() {
                     </Link>
                   </DropdownMenuItem>
                 )}
-
+              
                 <DropdownMenuSeparator />
-
+              
                 <DropdownMenuItem
                   className="flex cursor-pointer items-center gap-2 text-destructive"
                   onClick={handleLogout}
@@ -494,12 +580,5 @@ export function TopNavBar() {
                   {tr('auth.logout', 'Sair')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </div>
-    </header>
-  );
-}
 
 export default TopNavBar;
