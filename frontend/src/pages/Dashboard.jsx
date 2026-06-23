@@ -42,7 +42,7 @@ import { toast } from 'sonner';
 const locales = { pt, es, fr, it, en: enUS };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const { user, activeProfile } = useAuth();
   const { t, language } = useLanguage();
 
   const [data, setData] = useState(null);
@@ -56,6 +56,12 @@ export default function Dashboard() {
 
   const dateLocale = locales[language] || pt;
 
+  const displayName =
+  activeProfile?.user_name ||
+  activeProfile?.label ||
+  user?.name ||
+  '';
+  
   const tr = (key, fallback) => {
     const value = t(key);
     return value && value !== key ? value : fallback;
@@ -449,7 +455,7 @@ export default function Dashboard() {
             </Badge>
 
             <h1 className="font-heading text-3xl tracking-tight sm:text-5xl">
-              {getGreeting()}, {user?.name?.split(' ')?.[0] || tr('common.user', 'Utilizador')}.
+              {getGreeting()}, {displayName?.split(' ')?.[0] || tr('common.user', 'Utilizador')}.
             </h1>
 
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
