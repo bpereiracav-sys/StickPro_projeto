@@ -76,7 +76,7 @@ export default function Dashboard() {
 
   const fetchDashboard = async () => {
     try {
-      const response = await dashboardApi.get();
+      dashboardApi.get(activeProfile)
       setData(response?.data || {});
     } catch (error) {
       console.error('Error fetching dashboard:', error);
