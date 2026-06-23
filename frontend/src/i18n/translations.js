@@ -49,6 +49,8 @@ export const translations = {
       inactive: 'Inativo',
       archived: 'Arquivado',
       restore: 'Restaurar',
+      playerProfile: 'Atleta'
+      
     },
 
     auth: {
@@ -959,6 +961,7 @@ export const translations = {
       selectTeam: 'Seleccionar Equipo',
       viewProfile: 'Ver Perfil',
       viewStats: 'Ver Estadísticas',
+      playerProfile: 'Jugador'
     },
 
     auth: {
@@ -1884,6 +1887,7 @@ topnav: {
       selectTeam: 'Sélectionner l\'équipe',
       viewProfile: 'Voir le profil',
       viewStats: 'Voir les statistiques',
+      playerProfile: 'Athlète'      
     },
 
     auth: {
@@ -2813,6 +2817,7 @@ topnav: {
       selectTeam: 'Seleziona Squadra',
       viewProfile: 'Vedi Profilo',
       viewStats: 'Vedi Statistiche',
+      playerProfile: 'Atleta'
     },
 
     auth: {
@@ -3742,6 +3747,7 @@ topnav: {
       selectTeam: 'Select Team',
       viewProfile: 'View Profile',
       viewStats: 'View Stats',
+      playerProfile: 'Athlete'
     },
 
     auth: {
