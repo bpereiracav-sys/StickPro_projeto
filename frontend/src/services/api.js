@@ -353,7 +353,16 @@ export const membersApi = {
 
 // Dashboard API
 export const dashboardApi = {
-  get: () => api.get('/dashboard'),
+  get: (activeProfile = null) =>
+  api.get('/dashboard', {
+    params: activeProfile?.user_id
+      ? {
+          profile_type: activeProfile.type,
+          profile_user_id: activeProfile.user_id,
+          profile_role: activeProfile.role,
+        }
+      : {},
+  }),
 };
 
 // Library API
