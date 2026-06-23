@@ -362,7 +362,7 @@ export function Sidebar() {
                   data-testid="switch-to-self-btn"
                 >
                   <RefreshCw className="w-3 h-3 mr-1" />
-                  {tr('common.back', 'Voltar')}
+                  {tr('common.back', 'TESTE')}
                 </Button>
               </div>
 
