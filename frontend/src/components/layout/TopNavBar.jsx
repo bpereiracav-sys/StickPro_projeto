@@ -580,5 +580,12 @@ export function TopNavBar() {
                   {tr('auth.logout', 'Sair')}
                 </DropdownMenuItem>
               </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
 
 export default TopNavBar;
