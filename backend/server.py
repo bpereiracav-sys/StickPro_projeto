@@ -1269,56 +1269,83 @@ async def notify_guardians_of_team_event(team_id: str, event_title: str, event_t
 # ==================== AUTH ROUTES ====================
 
 async def build_available_profiles(user: dict) -> List[dict]:
-    """Build list of all profiles a user can access"""
+    """Build list of all profiles a user can access."""
     profiles = []
-    
-    # Own profile with all roles
-    all_roles = [user["role"]] + user.get("additional_roles", [])
-    for role in all_roles:
-        # Get teams for this role
-        user_teams = []
-        for team_id in user.get("team_ids", []):
+
+    async def get_teams(team_ids: list) -> list:
+        teams = []
+        for team_id in team_ids or []:
             team = await db.teams.find_one({"id": team_id}, {"_id": 0})
             if team:
-                user_teams.append(team)
-        
+                teams.append(team)
+        return teams
+
+    user_teams = await get_teams(user.get("team_ids", []))
+
+    # Own profiles: main role + additional roles
+    all_roles = []
+    if user.get("role"):
+        all_roles.append(user["role"])
+
+    for role in user.get("additional_roles", []):
+        if role not in all_roles:
+            all_roles.append(role)
+
+    for role in all_roles:
+        role_name = getRoleNamePt(role)
+
         profiles.append({
+            "profile_id": f"self:{user['id']}:{role}",
             "type": "self",
             "user_id": user["id"],
-            "user_name": user["name"],
+            "user_name": user.get("name", ""),
             "role": role,
-            "label": f'{user["name"]} ({getRoleNamePt(role)})',
-            "teams": user_teams
+            "role_name": role_name,
+            "label": f"{role_name}",
+            "description": user.get("name", ""),
+            "teams": user_teams,
+            "team_ids": [team.get("id") for team in user_teams if team.get("id")]
         })
-    
-    # Associated accounts (e.g., children)
-    for assoc_id in user.get("associated_accounts", []):
-        assoc_user = await db.users.find_one({"id": assoc_id}, {"_id": 0, "hashed_password": 0})
-        if assoc_user:
-            assoc_teams = []
-            for team_id in assoc_user.get("team_ids", []):
-                team = await db.teams.find_one({"id": team_id}, {"_id": 0})
-                if team:
-                    assoc_teams.append(team)
-            
-            profiles.append({
-                "type": "associated",
-                "user_id": assoc_user["id"],
-                "user_name": assoc_user["name"],
-                "role": "responsavel",
-                "label": f'Responsável de {assoc_user["name"]}',
-                "teams": assoc_teams
-            })
-    
-    return profiles
 
+    # Associated profiles: children / athletes linked to this account
+    for assoc_id in user.get("associated_accounts", []):
+        assoc_user = await db.users.find_one(
+            {"id": assoc_id},
+            {"_id": 0, "hashed_password": 0}
+        )
+
+        if not assoc_user:
+            continue
+
+        assoc_teams = await get_teams(assoc_user.get("team_ids", []))
+
+        relationship = assoc_user.get("relationship") or "responsavel"
+
+        profiles.append({
+            "profile_id": f"associated:{assoc_user['id']}:responsavel",
+            "type": "associated",
+            "user_id": assoc_user["id"],
+            "user_name": assoc_user.get("name", ""),
+            "role": "responsavel",
+            "role_name": "Responsável",
+            "relationship": relationship,
+            "label": assoc_user.get("name", ""),
+            "description": f"Responsável de {assoc_user.get('name', '')}",
+            "teams": assoc_teams,
+            "team_ids": [team.get("id") for team in assoc_teams if team.get("id")]
+        })
+
+    return profiles
 
 def getRoleNamePt(role: str) -> str:
     roles = {
         "admin": "Administrador",
+        "gestor_desportivo": "Gestor Desportivo",
+        "diretor_tecnico": "Diretor Técnico",
         "treinador": "Treinador",
         "delegado": "Delegado",
-        "jogador": "Jogador",
+        "jogador": "Atleta",
+        "atleta": "Atleta",
         "responsavel": "Responsável"
     }
     return roles.get(role, role)
