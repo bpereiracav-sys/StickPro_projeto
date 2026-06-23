@@ -434,6 +434,7 @@ export const translations = {
       delegado: 'Delegado',
       jogador: 'Jogador',
       responsavel: 'Responsável',
+      player: 'Atleta',
     },
 
     relationships: {
@@ -1359,6 +1360,7 @@ topnav: {
       delegado: 'Delegado',
       jogador: 'Jugador',
       responsavel: 'Responsable',
+      player: 'Jugador',
     },
 
     relationships: {
@@ -2285,6 +2287,7 @@ topnav: {
       delegado: 'Délégué',
       jogador: 'Joueur',
       responsavel: 'Responsable',
+      player: 'Athlète',
     },
 
     relationships: {
@@ -3216,6 +3219,7 @@ topnav: {
       delegado: 'Delegato',
       jogador: 'Giocatore',
       responsavel: 'Responsabile',
+      player: 'Atleta',
     },
 
     relationships: {
@@ -4141,6 +4145,7 @@ topnav: {
       delegado: 'Delegate',
       jogador: 'Player',
       responsavel: 'Guardian',
+      player: 'Athlete',
     },
 
     
