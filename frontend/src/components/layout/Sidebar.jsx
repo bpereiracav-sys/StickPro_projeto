@@ -573,7 +573,9 @@ export function Sidebar() {
                       className="text-xs"
                       style={{ color: 'hsl(var(--sidebar-muted))' }}
                     >
-                      {getRoleName(displayRole)}
+                      {isViewingAsAssociated
+                        ? tr('roles.player', 'Atleta')
+                        : getRoleName(displayRole)}
                     </p>
                   </div>
 
@@ -619,7 +621,9 @@ export function Sidebar() {
                           </p>
 
                           {profile.type === 'associated' && (
-                            <p className="text-xs opacity-70">Como responsável</p>
+                            <p className="text-xs opacity-70">
+                              {tr('roles.player', 'Atleta')}
+                            </p>
                           )}
                         </div>
                       </DropdownMenuItem>
