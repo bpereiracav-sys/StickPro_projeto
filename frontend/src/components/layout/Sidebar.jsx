@@ -349,7 +349,7 @@ export function Sidebar() {
                 <div className="flex items-center gap-2">
                   <Shield className="w-4 h-4 text-amber-400" />
                   <span className="text-xs text-amber-200">
-                    A ver como responsável de
+                    {tr('profiles.viewingAsGuardianOf', 'A ver como responsável de')}
                   </span>
                 </div>
 
@@ -362,7 +362,7 @@ export function Sidebar() {
                   data-testid="switch-to-self-btn"
                 >
                   <RefreshCw className="w-3 h-3 mr-1" />
-                  Voltar
+                  {tr('common.back', 'Voltar')}
                 </Button>
               </div>
 
