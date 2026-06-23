@@ -125,6 +125,14 @@ export function TopNavBar() {
   
     return ShieldCheck;
   };
+
+  const getProfileDisplayRole = (profile) => {
+    if (profile?.type === 'associated') {
+      return tr('roles.player', 'Atleta');
+    }
+  
+    return getRoleName(profile?.role);
+  };  
   
   const activeProfileLabel =
     activeProfile?.label ||
@@ -535,9 +543,11 @@ export function TopNavBar() {
                               </p>
               
                               <p className="truncate text-xs text-muted-foreground">
-                                {profile.description ||
-                                  profile.role_name ||
-                                  getRoleName(profile.role)}
+                                {profile.type === 'associated'
+                                  ? getProfileDisplayRole(profile)
+                                  : profile.description ||
+                                    profile.role_name ||
+                                    getProfileDisplayRole(profile)}
                               </p>
                             </div>
                           </div>
