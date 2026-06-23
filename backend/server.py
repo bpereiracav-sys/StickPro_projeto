@@ -8420,17 +8420,53 @@ async def get_members_for_message(team_id: str, current_user: dict = Depends(get
 # ==================== DASHBOARD ROUTE ====================
 
 @api_router.get("/dashboard")
-async def get_dashboard(current_user: dict = Depends(get_current_user)):
+async def get_dashboard(
+    profile_type: Optional[str] = None,
+    profile_user_id: Optional[str] = None,
+    profile_role: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
     """
     Get dashboard data filtered by user role:
     - Admin/Gestor Desportivo: ALL club events
     - Coach/Delegate/Player: ONLY events from their teams
     - Parent/Guardian: Events of their linked children
     """
-    user_role = current_user.get('role')
-    user_teams = current_user.get('team_ids', [])
-    linked_player_ids = current_user.get('linked_player_ids', [])
-    linked_player_id = current_user.get('linked_player_id')
+        
+    effective_user = current_user
+
+    if profile_type == "associated" and profile_user_id:
+        allowed_accounts = current_user.get("associated_accounts", [])
+    
+        if profile_user_id not in allowed_accounts:
+            raise HTTPException(status_code=403, detail="Perfil associado não autorizado")
+    
+        associated_user = await db.users.find_one(
+            {"id": profile_user_id},
+            {"_id": 0, "hashed_password": 0, "password": 0}
+        )
+    
+        if not associated_user:
+            raise HTTPException(status_code=404, detail="Perfil associado não encontrado")
+    
+        effective_user = {
+            **associated_user,
+            "role": "responsavel",
+            "linked_player_id": associated_user["id"],
+            "linked_player_ids": [associated_user["id"]],
+            "team_ids": associated_user.get("team_ids", [])
+        }
+    
+    elif profile_type == "self" and profile_role:
+        effective_user = {
+            **current_user,
+            "role": profile_role
+        }
+        
+    user_role = effective_user.get('role')
+    user_teams = effective_user.get('team_ids', [])
+    linked_player_ids = effective_user.get('linked_player_ids', [])
+    linked_player_id = effective_user.get('linked_player_id')
     
     # Build event query based on role
     now = datetime.now(timezone.utc).isoformat()
@@ -8475,9 +8511,9 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
     attendance_query = {"status": "pendente"}
     if user_role == 'responsavel' and (linked_player_ids or linked_player_id):
         all_linked = linked_player_ids if linked_player_ids else ([linked_player_id] if linked_player_id else [])
-        attendance_query["player_id"] = {"$in": [current_user['id']] + all_linked}
+        attendance_query["player_id"] = {"$in": [effective_user['id']] + all_linked}
     else:
-        attendance_query["player_id"] = current_user['id']
+        attendance_query["player_id"] = effective_user['id']
     
     pending_attendances = await db.attendance.find(attendance_query, {"_id": 0}).to_list(10)
     
