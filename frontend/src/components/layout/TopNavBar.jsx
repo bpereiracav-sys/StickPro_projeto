@@ -109,7 +109,7 @@ export function TopNavBar() {
     }
   };
 
-  cconst handleSwitchProfile = async (profile) => {
+  const handleSwitchProfile = async (profile) => {
     try {
       await switchProfile(profile);
       navigate('/dashboard');
