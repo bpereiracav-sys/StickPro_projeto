@@ -916,7 +916,7 @@ export const translations = {
       },
 
   es: {
-    on: {
+    common: {
       save: 'Guardar',
       cancel: 'Cancelar',
       delete: 'Eliminar',
@@ -1843,7 +1843,7 @@ topnav: {
       },
 
   fr: {
-    on: {
+    common: {
       save: 'Enregistrer',
       cancel: 'Annuler',
       delete: 'Supprimer',
@@ -2774,7 +2774,7 @@ topnav: {
        },
 
   it: {
-    on: {
+    common: {
       save: 'Salva',
       cancel: 'Annulla',
       delete: 'Elimina',
