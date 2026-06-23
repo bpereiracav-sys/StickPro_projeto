@@ -476,11 +476,11 @@ export function TopNavBar() {
                 >
                   <Avatar className="h-10 w-10 border-2 border-primary">
                     <AvatarImage
-                      src={user?.avatar_url || user?.profile?.photo_url}
-                      alt={user?.name}
+                      src={activeProfile?.avatar_url || user?.avatar_url || user?.profile?.photo_url}
+                      alt={activeProfile?.user_name || user?.name}
                     />
                     <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                      {getInitials(user?.name)}
+                      {getInitials(activeProfile?.user_name || activeProfile?.label || user?.name)}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
