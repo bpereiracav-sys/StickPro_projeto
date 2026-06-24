@@ -31,13 +31,18 @@ export function LanguageProvider({ children }) {
   const t = useCallback(
     (path, params = {}) => {
       let text = getTranslation(language, path);
-
-      if (typeof text === 'string' && Object.keys(params).length > 0) {
+  
+      if (typeof params === 'string') {
+        return text && text !== path ? text : params;
+      }
+  
+      if (typeof text === 'string' && params && Object.keys(params).length > 0) {
         Object.entries(params).forEach(([key, value]) => {
-          text = text.replace(new RegExp(`{${key}}`, 'g'), String(value));
+          const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          text = text.replace(new RegExp(`\\{${escapedKey}\\}`, 'g'), String(value));
         });
       }
-
+  
       return text;
     },
     [language]
