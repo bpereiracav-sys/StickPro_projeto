@@ -969,20 +969,20 @@ export default function CalendarPage() {
                   
                     const eventCard = (
                       <div
-                        className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                        className="group relative overflow-hidden rounded-md border border-slate-200 bg-white px-2 py-1 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className={`absolute left-0 top-0 h-full w-1 ${eventType.color}`} />
                   
                         <div className="flex min-w-0 items-center gap-1.5 pl-1">
-                          <EventIcon className={`h-3.5 w-3.5 shrink-0 ${eventType.textColor}`} />
+                          <EventIcon className={`h-3 w-3 shrink-0 ${eventType.textColor}`} />
                   
-                          <p className="truncate text-[11px] font-semibold text-slate-900">
+                          <p className="truncate text-[10px] font-semibold text-slate-900">
                             {event.title}
                           </p>
                         </div>
                   
-                        <div className="mt-0.5 flex min-w-0 items-center gap-1 pl-1 text-[10px] text-slate-500">
+                        <div className="flex min-w-0 items-center gap-1 pl-1 text-[9px] text-slate-500">
                           {eventTime && <span>{eventTime}</span>}
                   
                           {eventTeam?.name && (
