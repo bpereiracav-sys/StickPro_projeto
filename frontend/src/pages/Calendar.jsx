@@ -1032,26 +1032,16 @@ export default function CalendarPage() {
     <div className="space-y-6" data-testid="calendar-page">
       {/* Header Premium */}
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/70 p-5 shadow-xl shadow-slate-200/70">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               <CalendarIcon className="h-4 w-4" />
               {t('calendar.title', 'Calendário')}
             </div>
       
-            <h1 className="mt-3 font-heading text-3xl tracking-tight text-slate-950 sm:text-4xl">
-              {t('calendar.operationalCenter', 'Centro operacional do clube')}
-            </h1>
-      
-            <p className="mt-1 max-w-2xl text-sm text-slate-500">
-              {t(
-                'calendar.subtitle',
-                'Gerir treinos, jogos, torneios, indisponibilidades e convocatórias por equipa.'
-              )}
-            </p>
           </div>
       
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
               <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
                 <SelectTrigger className="h-10 min-w-[220px] rounded-2xl bg-white shadow-sm">
