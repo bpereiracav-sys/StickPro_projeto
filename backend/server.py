@@ -7059,22 +7059,11 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
     }
     
     event = Event(**event_payload_for_model, created_by=current_user['id'])
-    event_dict = event.model_dump()
+
+    # mode="json" converte datetime e enums para formatos compatíveis com MongoDB
+    event_dict = event.model_dump(mode="json")
     
     event_dict["team_ids"] = team_ids
-    
-    event_dict['start_time'] = event_dict['start_time'].isoformat()
-    
-    if event_dict.get('end_time'):
-        event_dict['end_time'] = event_dict['end_time'].isoformat()
-    
-    if event_dict.get('postponed_to_start_time'):
-        event_dict['postponed_to_start_time'] = event_dict['postponed_to_start_time'].isoformat()
-    
-    if event_dict.get('postponed_to_end_time'):
-        event_dict['postponed_to_end_time'] = event_dict['postponed_to_end_time'].isoformat()
-    
-    event_dict['created_at'] = event_dict['created_at'].isoformat()
     
     await db.events.insert_one(event_dict)    
 
