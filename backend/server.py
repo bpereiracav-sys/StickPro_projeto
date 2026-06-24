@@ -7049,16 +7049,31 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
             if team_id and not checker.is_admin and not checker.can_access_team(team_id):
                 raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
     
-    event_payload["team_ids"] = team_ids
-
     if team_ids and not event_payload.get("team_id"):
         event_payload["team_id"] = team_ids[0]
+
+    event_payload_for_model = {
+        key: value
+        for key, value in event_payload.items()
+        if key != "team_ids"
+    }
     
-    event = Event(**event_payload, created_by=current_user['id'])
+    event = Event(**event_payload_for_model, created_by=current_user['id'])
     event_dict = event.model_dump()
+    
+    event_dict["team_ids"] = team_ids
+    
     event_dict['start_time'] = event_dict['start_time'].isoformat()
-    if event_dict['end_time']:
+    
+    if event_dict.get('end_time'):
         event_dict['end_time'] = event_dict['end_time'].isoformat()
+    
+    if event_dict.get('postponed_to_start_time'):
+        event_dict['postponed_to_start_time'] = event_dict['postponed_to_start_time'].isoformat()
+    
+    if event_dict.get('postponed_to_end_time'):
+        event_dict['postponed_to_end_time'] = event_dict['postponed_to_end_time'].isoformat()
+    
     event_dict['created_at'] = event_dict['created_at'].isoformat()
     
     await db.events.insert_one(event_dict)    
