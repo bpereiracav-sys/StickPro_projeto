@@ -273,10 +273,12 @@ export default function CalendarPage() {
         unavailabilitiesApi.getMy().catch(() => ({ data: [] }))
       ]);
       
-      // Filter events by selected team
-      let filteredEvents = eventsRes.data;
-      if (selectedTeam) {
-        filteredEvents = eventsRes.data.filter(e => e.team_id === selectedTeam.id);
+      let filteredEvents = eventsRes.data || [];
+
+      if (selectedStatusFilter !== 'all') {
+        filteredEvents = filteredEvents.filter(
+          (event) => event.status === selectedStatusFilter
+        );
       }
       
       setEvents(filteredEvents);
@@ -284,14 +286,16 @@ export default function CalendarPage() {
       setUnavailabilities(unavailRes.data || []);
       
       // Set default team for form
-      if (selectedTeam) {
+      if (selectedTeamFilter && selectedTeamFilter !== 'all') {
+        setFormData(prev => ({ ...prev, team_id: selectedTeamFilter }));
+      } else if (selectedTeam?.id) {
         setFormData(prev => ({ ...prev, team_id: selectedTeam.id }));
       } else if (teamsRes.data.length > 0 && !formData.team_id) {
         setFormData(prev => ({ ...prev, team_id: teamsRes.data[0].id }));
       }
     } catch (error) {
       console.error('Error fetching data:', error);
-      toast.error('Erro ao carregar dados');
+      toast.error(t('common.loadError', 'Erro ao carregar dados'));
     } finally {
       setLoading(false);
     }
@@ -359,8 +363,18 @@ export default function CalendarPage() {
   };
 
   const handleCreateEvent = async () => {
-    if (!formData.team_id || !formData.title || !formData.date) {
-      toast.error('Preencha todos os campos obrigatórios');
+    if (!formData.team_id) {
+      toast.error(t('calendar.selectTeam', 'Selecione uma equipa'));
+      return;
+    }
+    
+    if (!formData.title) {
+      toast.error(t('calendar.enterTitle', 'Introduza um título'));
+      return;
+    }
+    
+    if (!formData.date) {
+      toast.error(t('calendar.selectDate', 'Selecione uma data'));
       return;
     }
 
@@ -1016,41 +1030,105 @@ export default function CalendarPage() {
 
   return (
     <div className="space-y-6" data-testid="calendar-page">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight flex items-center gap-3">
-            <CalendarIcon className="w-8 h-8 text-primary" />
-            Calendário
-          </h1>
-          <p className="text-muted-foreground mt-1">Eventos e atividades</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Unavailability */}
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setUnavailabilityDialogOpen(true)} 
-            data-testid="create-unavailability-btn"
-          >
-            <CalendarOff className="w-4 h-4 mr-2" />
-            Indisponibilidade
-          </Button>
-          
-          {/* Export/Print */}
-          <Button variant="outline" size="sm" onClick={handleExportPDF} data-testid="export-pdf-btn">
-            <Download className="w-4 h-4 mr-2" />
-            Exportar
-          </Button>
-          
-          {/* Create Event */}
-          {canManageEvents && (
-            <Button onClick={() => setCreateDialogOpen(true)} data-testid="create-event-btn">
-              <Plus className="w-4 h-4 mr-2" />
-              Novo Evento
-            </Button>
-          )}
+      {/* Header Premium */}
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/70 p-5 shadow-xl shadow-slate-200/70">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+              <CalendarIcon className="h-4 w-4" />
+              {t('calendar.title', 'Calendário')}
+            </div>
+      
+            <h1 className="mt-3 font-heading text-3xl tracking-tight text-slate-950 sm:text-4xl">
+              {t('calendar.operationalCenter', 'Centro operacional do clube')}
+            </h1>
+      
+            <p className="mt-1 max-w-2xl text-sm text-slate-500">
+              {t(
+                'calendar.subtitle',
+                'Gerir treinos, jogos, torneios, indisponibilidades e convocatórias por equipa.'
+              )}
+            </p>
+          </div>
+      
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
+                <SelectTrigger className="h-10 min-w-[220px] rounded-2xl bg-white shadow-sm">
+                  <SelectValue placeholder={t('calendar.allTeams', 'Todas as equipas')} />
+                </SelectTrigger>
+      
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">
+                    {t('calendar.allTeams', 'Todas as equipas')}
+                  </SelectItem>
+      
+                  {teams.map((team) => (
+                    <SelectItem key={team.id} value={team.id}>
+                      {team.name}
+                      {team.category ? ` • ${team.category}` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+      
+              <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
+                <SelectTrigger className="h-10 min-w-[180px] rounded-2xl bg-white shadow-sm">
+                  <SelectValue placeholder={t('calendar.allStatuses', 'Todos os estados')} />
+                </SelectTrigger>
+      
+                <SelectContent className="bg-white">
+                  <SelectItem value="all">
+                    {t('calendar.allStatuses', 'Todos os estados')}
+                  </SelectItem>
+                  <SelectItem value="scheduled">
+                    {t('calendar.statusScheduled', 'Agendado')}
+                  </SelectItem>
+                  <SelectItem value="postponed">
+                    {t('calendar.statusPostponed', 'Adiado')}
+                  </SelectItem>
+                  <SelectItem value="cancelled">
+                    {t('calendar.statusCancelled', 'Cancelado')}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+      
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setUnavailabilityDialogOpen(true)}
+                data-testid="create-unavailability-btn"
+                className="rounded-2xl bg-white"
+              >
+                <CalendarOff className="w-4 h-4 mr-2" />
+                {t('calendar.unavailability', 'Indisponibilidade')}
+              </Button>
+      
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPDF}
+                data-testid="export-pdf-btn"
+                className="rounded-2xl bg-white"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                {t('common.export', 'Exportar')}
+              </Button>
+      
+              {canManageEvents && (
+                <Button
+                  onClick={() => setCreateDialogOpen(true)}
+                  data-testid="create-event-btn"
+                  className="rounded-2xl shadow-lg shadow-primary/20"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  {t('calendar.newEvent', 'Novo Evento')}
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1125,20 +1203,20 @@ export default function CalendarPage() {
         <DialogContent className="bg-white max-w-lg" data-testid="create-event-dialog">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">
-              CRIAR EVENTO
+              {t('calendar.createEvent', 'Criar evento')}
             </DialogTitle>
             <DialogDescription>
-              Adicione um novo evento ao calendário
+              {t('calendar.createEventDescription', 'Adicione um novo evento ao calendário')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Equipa *</Label>
+                <Label>{t('calendar.team', 'Equipa')} *</Label>
                 <Select value={formData.team_id} onValueChange={(v) => setFormData(prev => ({ ...prev, team_id: v }))}>
                   <SelectTrigger data-testid="event-team-select">
-                    <SelectValue placeholder="Selecione" />
+                    <SelectValue placeholder={t('common.select', 'Selecione')} />
                   </SelectTrigger>
                   <SelectContent className="bg-white">
                     {teams.map(team => (
@@ -1148,7 +1226,7 @@ export default function CalendarPage() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Tipo de Evento *</Label>
+                <Label>{t('calendar.eventType', 'Tipo de Evento')} *</Label>
                 <Select value={formData.event_type} onValueChange={(v) => setFormData(prev => ({ ...prev, event_type: v }))}>
                   <SelectTrigger data-testid="event-type-select">
                     <SelectValue />
