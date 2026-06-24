@@ -924,6 +924,7 @@ export default function CalendarPage() {
         </div>
       </div>
     );
+  };
 
   // Render day view
   const renderDayView = () => {
