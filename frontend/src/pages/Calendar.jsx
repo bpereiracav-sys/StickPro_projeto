@@ -758,90 +758,172 @@ export default function CalendarPage() {
       <div
         key={event.id}
         className={`
-          group relative p-2 rounded-sm border-l-4 ${eventType.color} bg-white border border-border
-          ${isPostponed ? 'opacity-60' : ''} ${isCancelled ? 'opacity-40 line-through' : ''}
-          hover:shadow-md transition-shadow cursor-pointer
+          group relative rounded-2xl border border-slate-200 bg-white p-4
+          shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5
+          ${isPostponed ? 'opacity-60' : ''}
+          ${isCancelled ? 'opacity-40' : ''}
         `}
         onClick={() => openEditDialog(event)}
       >
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-start gap-2 min-w-0">
-            <Icon className={`w-4 h-4 mt-0.5 ${eventType.textColor} shrink-0`} />
-            <div className="min-w-0">
-              <p className="font-medium text-sm truncate text-foreground">
-                {event.title}
-              </p>
-              {!compact && (
-                <>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                    <Clock className="w-3 h-3" />
-                    {event.start_time && format(parseISO(event.start_time), 'HH:mm')}
-                    {event.end_time && ` - ${format(parseISO(event.end_time), 'HH:mm')}`}
-                  </p>
-                  {event.location && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <MapPin className="w-3 h-3" />
-                      {event.location}
-                    </p>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
+        <div className="flex items-start justify-between">
           
-          {/* Show action menu only if user can manage events AND has access to this event's team */}
-          {canManageEvents && (isAdmin || canAccessTeam(event.team_id)) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-6 w-6 opacity-0 group-hover:opacity-100">
-                  <MoreVertical className="w-3 h-3" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="bg-white" align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openEditDialog(event); }}>
-                  <Edit className="w-4 h-4 mr-2" />
-                  Editar
-                </DropdownMenuItem>
-                {canCreateConvocations && (
-                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openConvocationDialog(event); }}>
-                    <Users className="w-4 h-4 mr-2" />
-                    Convocar Jogadores
-                  </DropdownMenuItem>
+          <div className="flex-1">
+            
+            <div className="mb-3">
+              <Badge
+                className={`${eventType.color} text-white border-0`}
+              >
+                <Icon className="mr-1 h-3 w-3" />
+                {eventType.label}
+              </Badge>
+            </div>
+    
+            <h3
+              className={`
+                text-lg font-semibold text-slate-900
+                ${isCancelled ? 'line-through' : ''}
+              `}
+            >
+              {event.title}
+            </h3>
+    
+            {!compact && (
+              <div className="mt-3 space-y-2 text-sm text-slate-500">
+    
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
+                  {event.start_time &&
+                    format(parseISO(event.start_time), 'HH:mm')}
+                  {event.end_time &&
+                    ` - ${format(parseISO(event.end_time), 'HH:mm')}`}
+                </div>
+    
+                {event.location && (
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4" />
+                    {event.location}
+                  </div>
                 )}
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); openConvocationStatusDialog(event); }}>
-                  <ClipboardCheck className="w-4 h-4 mr-2" />
-                  Ver Estado Convocatória
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedEvent(event); handlePostponeEvent(); }}>
-                  <PauseCircle className="w-4 h-4 mr-2" />
-                  Adiar
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setSelectedEvent(event); handleCancelEvent(); }}>
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Cancelar
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  className="text-destructive"
-                  onClick={(e) => { e.stopPropagation(); setSelectedEvent(event); setDeleteDialogOpen(true); }}
+    
+                {event.team?.name && (
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4" />
+                    {event.team.name}
+                  </div>
+                )}
+    
+              </div>
+            )}
+    
+            {(isPostponed || isCancelled) && (
+              <Badge
+                variant="outline"
+                className={`mt-4 ${
+                  isCancelled
+                    ? 'border-red-500 text-red-500'
+                    : 'border-amber-500 text-amber-500'
+                }`}
+              >
+                {isCancelled ? 'Cancelado' : 'Adiado'}
+              </Badge>
+            )}
+          </div>
+    
+          {canManageEvents &&
+            (isAdmin || canAccessTeam(event.team_id)) && (
+              <DropdownMenu>
+                <DropdownMenuTrigger
+                  asChild
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Eliminar
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+    
+                <DropdownMenuContent
+                  className="bg-white"
+                  align="end"
+                >
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditDialog(event);
+                    }}
+                  >
+                    <Edit className="w-4 h-4 mr-2" />
+                    Editar
+                  </DropdownMenuItem>
+    
+                  {canCreateConvocations && (
+                    <DropdownMenuItem
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openConvocationDialog(event);
+                      }}
+                    >
+                      <Users className="w-4 h-4 mr-2" />
+                      Convocar Jogadores
+                    </DropdownMenuItem>
+                  )}
+    
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openConvocationStatusDialog(event);
+                    }}
+                  >
+                    <ClipboardCheck className="w-4 h-4 mr-2" />
+                    Ver Estado Convocatória
+                  </DropdownMenuItem>
+    
+                  <DropdownMenuSeparator />
+    
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEvent(event);
+                      handlePostponeEvent();
+                    }}
+                  >
+                    <PauseCircle className="w-4 h-4 mr-2" />
+                    Adiar
+                  </DropdownMenuItem>
+    
+                  <DropdownMenuItem
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEvent(event);
+                      handleCancelEvent();
+                    }}
+                  >
+                    <XCircle className="w-4 h-4 mr-2" />
+                    Cancelar
+                  </DropdownMenuItem>
+    
+                  <DropdownMenuSeparator />
+    
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedEvent(event);
+                      setDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Eliminar
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
           )}
         </div>
-        
-        {(isPostponed || isCancelled) && (
-          <Badge variant="outline" className={`mt-1 text-xs ${isCancelled ? 'border-destructive text-destructive' : 'border-amber-500 text-amber-500'}`}>
-            {isCancelled ? 'Cancelado' : 'Adiado'}
-          </Badge>
-        )}
       </div>
     );
-  };
 
   // Render day view
   const renderDayView = () => {
