@@ -212,6 +212,14 @@ export default function CalendarPage() {
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(false);
   const [sendingReminder, setSendingReminder] = useState(false);
+  const [postponeDialogOpen, setPostponeDialogOpen] = useState(false);
+  const [postponingEvent, setPostponingEvent] = useState(false);
+  const [postponeData, setPostponeData] = useState({
+    date: format(new Date(), 'yyyy-MM-dd'),
+    start_time: '18:00',
+    end_time: '20:00',
+    reason: '',
+  });
   
   // Unavailability state
   const [unavailabilities, setUnavailabilities] = useState([]);
@@ -528,6 +536,55 @@ export default function CalendarPage() {
     }
   };
 
+  const handleConfirmPostpone = async () => {
+    if (!selectedEvent) return;
+  
+    if (!postponeData.date || !postponeData.start_time) {
+      toast.error(t('calendar.selectDate', 'Selecione uma data'));
+      return;
+    }
+  
+    setPostponingEvent(true);
+  
+    try {
+      const postponedStart = `${postponeData.date}T${postponeData.start_time}:00`;
+      const postponedEnd = postponeData.end_time
+        ? `${postponeData.date}T${postponeData.end_time}:00`
+        : null;
+  
+      await eventsApi.update(selectedEvent.id, {
+        status: 'postponed',
+        postponed_to_start_time: postponedStart,
+        postponed_to_end_time: postponedEnd,
+        postponement_reason: postponeData.reason || '',
+      });
+  
+      await eventsApi.create({
+        team_id: selectedEvent.team_id,
+        event_type: selectedEvent.event_type,
+        title: selectedEvent.title,
+        description: selectedEvent.description || '',
+        location: selectedEvent.location || '',
+        start_time: postponedStart,
+        end_time: postponedEnd,
+        opponent: selectedEvent.opponent || '',
+        championship_id: selectedEvent.championship_id || null,
+        status: 'scheduled',
+        original_event_id: selectedEvent.id,
+      });
+  
+      setPostponeDialogOpen(false);
+      setSelectedEvent(null);
+      toast.success(t('calendar.eventPostponed', 'Evento adiado com sucesso'));
+      fetchData();
+    } catch (error) {
+      console.error('Error postponing event:', error);
+      toast.error(t('calendar.postponeError', 'Erro ao adiar evento'));
+    } finally {
+      setPostponingEvent(false);
+    }
+  };
+  
   const handleCancelEvent = async (event = null) => {
     const targetEvent = event || selectedEvent;
     if (!targetEvent) return;
@@ -925,7 +982,7 @@ export default function CalendarPage() {
                     onClick={(e) => {
                       e.stopPropagation();
                       setSelectedEvent(event);
-                      handlePostponeEvent();
+                      openPostponeDialog(event);
                     }}
                   >
                     <PauseCircle className="w-4 h-4 mr-2" />
@@ -1092,20 +1149,33 @@ export default function CalendarPage() {
                       <div
                         className="group relative overflow-hidden rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                         onClick={(e) => e.stopPropagation()}
+                        title={
+                          event.status === 'postponed'
+                            ? `${t('calendar.statusPostponed', 'Adiado')}${
+                                event.postponed_to_start_time
+                                  ? ` para ${format(parseISO(event.postponed_to_start_time), 'dd/MM/yyyy HH:mm')}`
+                                  : ''
+                              }${event.postponement_reason ? ` — ${event.postponement_reason}` : ''}`
+                            : event.status === 'cancelled'
+                              ? t('calendar.statusCancelled', 'Cancelado')
+                              : event.title
+                        }
                       >
                         <div className={`absolute left-0 top-0 h-full w-1 ${eventType.color}`} />
-                  
+                    
                         <div className="flex min-w-0 items-center gap-1.5 pl-1">
                           <EventIcon className={`h-3 w-3 shrink-0 ${eventType.textColor}`} />
-                  
+                    
                           <p className="truncate text-[9px] font-semibold text-slate-900">
+                            {event.status === 'cancelled' && '❌ '}
+                            {event.status === 'postponed' && '⏳ '}
                             {event.title}
                           </p>
                         </div>
-                  
+                    
                         <div className="flex min-w-0 items-center gap-1 pl-1 text-[9px] text-slate-500">
                           {eventTime && <span>{eventTime}</span>}
-                  
+                    
                           {eventTeam?.name && (
                             <>
                               {eventTime && <span>•</span>}
@@ -1142,7 +1212,7 @@ export default function CalendarPage() {
                   
                           <DropdownMenuSeparator />
                   
-                          <DropdownMenuItem onClick={() => handlePostponeEvent(event)}>
+                          <DropdownMenuItem onClick={() => openPostponeDialog(event)}>
                             <PauseCircle className="w-4 h-4 mr-2" />
                             {t('calendar.postpone', 'Adiar')}
                           </DropdownMenuItem>
@@ -1699,6 +1769,84 @@ export default function CalendarPage() {
         </DialogContent>
       </Dialog>
 
+      <Dialog open={postponeDialogOpen} onOpenChange={setPostponeDialogOpen}>
+        <DialogContent className="bg-white max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {t('calendar.postponeEvent', 'Adiar evento')}
+            </DialogTitle>
+            <DialogDescription>
+              {t('calendar.postponeEventDescription', 'Defina a nova data e hora do evento.')}
+            </DialogDescription>
+          </DialogHeader>
+      
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>{t('calendar.newDate', 'Nova data')} *</Label>
+              <Input
+                type="date"
+                value={postponeData.date}
+                onChange={(e) =>
+                  setPostponeData((prev) => ({ ...prev, date: e.target.value }))
+                }
+              />
+            </div>
+      
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>{t('calendar.startTime', 'Hora início')} *</Label>
+                <Input
+                  type="time"
+                  value={postponeData.start_time}
+                  onChange={(e) =>
+                    setPostponeData((prev) => ({ ...prev, start_time: e.target.value }))
+                  }
+                />
+              </div>
+      
+              <div className="space-y-2">
+                <Label>{t('calendar.endTime', 'Hora fim')}</Label>
+                <Input
+                  type="time"
+                  value={postponeData.end_time}
+                  onChange={(e) =>
+                    setPostponeData((prev) => ({ ...prev, end_time: e.target.value }))
+                  }
+                />
+              </div>
+            </div>
+      
+            <div className="space-y-2">
+              <Label>{t('calendar.reason', 'Motivo')}</Label>
+              <Textarea
+                value={postponeData.reason}
+                onChange={(e) =>
+                  setPostponeData((prev) => ({ ...prev, reason: e.target.value }))
+                }
+                placeholder={t('calendar.postponeReasonPlaceholder', 'Ex.: indisponibilidade do pavilhão')}
+              />
+            </div>
+          </div>
+      
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPostponeDialogOpen(false)}>
+              {t('common.cancel', 'Cancelar')}
+            </Button>
+      
+            <Button onClick={handleConfirmPostpone} disabled={postponingEvent}>
+              {postponingEvent ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {t('common.loading', 'A carregar...')}
+                </>
+              ) : (
+                t('calendar.confirmPostpone', 'Confirmar adiamento')
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       {/* Convocation Dialog */}
       <Dialog open={convocationDialogOpen} onOpenChange={setConvocationDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
