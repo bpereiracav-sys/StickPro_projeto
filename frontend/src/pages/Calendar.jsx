@@ -1032,93 +1032,110 @@ export default function CalendarPage() {
     <div className="space-y-6" data-testid="calendar-page">
       {/* Header Premium */}
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/70 p-5 shadow-xl shadow-slate-200/70">
-        <div className="flex flex-col gap-5">
-          {/* Linha 1: título à esquerda + ações à direita */}
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              <CalendarIcon className="h-4 w-4" />
-              {t('calendar.title', 'Calendário')}
-            </div>
       
-            <div className="flex flex-wrap items-center justify-center gap-2 lg:ml-auto">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setUnavailabilityDialogOpen(true)}
-                data-testid="create-unavailability-btn"
-                className="rounded-2xl bg-white"
-              >
-                <CalendarOff className="w-4 h-4 mr-2" />
-                {t('calendar.unavailability', 'Indisponibilidade')}
-              </Button>
+        {/* Linha superior */}
+        <div className="flex items-center justify-between mb-4">
       
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportPDF}
-                data-testid="export-pdf-btn"
-                className="rounded-2xl bg-white"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                {t('common.export', 'Exportar')}
-              </Button>
-      
-              {canManageEvents && (
-                <Button
-                  onClick={() => setCreateDialogOpen(true)}
-                  data-testid="create-event-btn"
-                  className="rounded-2xl shadow-lg shadow-primary/20"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  {t('calendar.newEvent', 'Novo Evento')}
-                </Button>
-              )}
-            </div>
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <CalendarIcon className="h-4 w-4" />
+            {t('calendar.title', 'Calendário')}
           </div>
       
-          {/* Linha 2: filtros à esquerda */}
-          <div className="flex flex-wrap gap-3">
-            <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
-              <SelectTrigger className="h-10 min-w-[220px] rounded-2xl bg-white shadow-sm">
-                <SelectValue placeholder={t('calendar.allTeams', 'Todas as equipas')} />
-              </SelectTrigger>
+          <div className="flex items-center gap-2">
       
-              <SelectContent className="bg-white">
-                <SelectItem value="all">
-                  {t('calendar.allTeams', 'Todas as equipas')}
-                </SelectItem>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setUnavailabilityDialogOpen(true)}
+              data-testid="create-unavailability-btn"
+              className="rounded-2xl bg-white"
+            >
+              <CalendarOff className="w-4 h-4 mr-2" />
+              {t('calendar.unavailability', 'Indisponibilidade')}
+            </Button>
       
-                {teams.map((team) => (
-                  <SelectItem key={team.id} value={team.id}>
-                    {team.name}
-                    {team.category ? ` • ${team.category}` : ''}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPDF}
+              data-testid="export-pdf-btn"
+              className="rounded-2xl bg-white"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              {t('common.export', 'Exportar')}
+            </Button>
       
-            <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
-              <SelectTrigger className="h-10 min-w-[220px] rounded-2xl bg-white shadow-sm">
-                <SelectValue placeholder={t('calendar.allStatuses', 'Todos os estados')} />
-              </SelectTrigger>
+            {canManageEvents && (
+              <Button
+                onClick={() => setCreateDialogOpen(true)}
+                data-testid="create-event-btn"
+                className="rounded-2xl shadow-lg shadow-primary/20"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                {t('calendar.newEvent', 'Novo Evento')}
+              </Button>
+            )}
       
-              <SelectContent className="bg-white">
-                <SelectItem value="all">
-                  {t('calendar.allStatuses', 'Todos os estados')}
-                </SelectItem>
-                <SelectItem value="scheduled">
-                  {t('calendar.statusScheduled', 'Agendado')}
-                </SelectItem>
-                <SelectItem value="postponed">
-                  {t('calendar.statusPostponed', 'Adiado')}
-                </SelectItem>
-                <SelectItem value="cancelled">
-                  {t('calendar.statusCancelled', 'Cancelado')}
-                </SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </div>
+      
+        {/* Linha inferior */}
+        <div className="flex flex-wrap items-center gap-3">
+      
+          <Select
+            value={selectedTeamFilter}
+            onValueChange={setSelectedTeamFilter}
+          >
+            <SelectTrigger className="w-[260px] h-11 rounded-2xl bg-white shadow-sm">
+              <SelectValue
+                placeholder={t('calendar.allTeams', 'Todas as equipas')}
+              />
+            </SelectTrigger>
+      
+            <SelectContent className="bg-white">
+              <SelectItem value="all">
+                {t('calendar.allTeams', 'Todas as equipas')}
+              </SelectItem>
+      
+              {teams.map((team) => (
+                <SelectItem key={team.id} value={team.id}>
+                  {team.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+      
+          <Select
+            value={selectedStatusFilter}
+            onValueChange={setSelectedStatusFilter}
+          >
+            <SelectTrigger className="w-[220px] h-11 rounded-2xl bg-white shadow-sm">
+              <SelectValue
+                placeholder={t('calendar.allStatuses', 'Todos os estados')}
+              />
+            </SelectTrigger>
+      
+            <SelectContent className="bg-white">
+              <SelectItem value="all">
+                {t('calendar.allStatuses', 'Todos os estados')}
+              </SelectItem>
+      
+              <SelectItem value="scheduled">
+                {t('calendar.statusScheduled', 'Agendado')}
+              </SelectItem>
+      
+              <SelectItem value="postponed">
+                {t('calendar.statusPostponed', 'Adiado')}
+              </SelectItem>
+      
+              <SelectItem value="cancelled">
+                {t('calendar.statusCancelled', 'Cancelado')}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+      
+        </div>
+      
       </div>
       
       {/* View Controls */}
