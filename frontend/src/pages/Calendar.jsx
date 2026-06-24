@@ -848,16 +848,21 @@ export default function CalendarPage() {
               </div>
             )}
     
-            {(isPostponed || isCancelled) && (
+            {isCancelled && (
               <Badge
                 variant="outline"
-                className={`mt-4 ${
-                  isCancelled
-                    ? 'border-red-500 text-red-500'
-                    : 'border-amber-500 text-amber-500'
-                }`}
+                className="mt-4 border-red-500 bg-red-50 text-red-600"
               >
-                {isCancelled ? 'Cancelado' : 'Adiado'}
+                ❌ {t('calendar.statusCancelled', 'Cancelado')}
+              </Badge>
+            )}
+            
+            {isPostponed && (
+              <Badge
+                variant="outline"
+                className="mt-4 border-amber-500 bg-amber-50 text-amber-600"
+              >
+                ⏳ {t('calendar.statusPostponed', 'Adiado')}
               </Badge>
             )}
           </div>
