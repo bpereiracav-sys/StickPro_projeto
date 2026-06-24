@@ -7253,6 +7253,10 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
         'status',
         'team_id',
         'team_ids'
+        'postponed_to_start_time',
+        'postponed_to_end_time',
+        'postponement_reason',
+        'original_event_id' 
     ]
     filtered_updates = {}
     
