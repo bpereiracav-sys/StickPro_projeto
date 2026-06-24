@@ -451,27 +451,56 @@ export default function CalendarPage() {
 
   const handleUpdateEvent = async () => {
     if (!selectedEvent) return;
-
+  
+    if (!formData.title) {
+      toast.error(t('calendar.enterTitle', 'Introduza um título'));
+      return;
+    }
+  
+    if (!formData.date) {
+      toast.error(t('calendar.selectDate', 'Selecione uma data'));
+      return;
+    }
+  
     setUpdating(true);
+  
     try {
       const eventData = {
-        ...formData,
+        event_type: formData.event_type,
+        title: formData.title,
+        description: formData.description || '',
+        location: formData.location || '',
         start_time: `${formData.date}T${formData.start_time}:00`,
-        end_time: `${formData.date}T${formData.end_time}:00`
+        end_time: formData.end_time
+          ? `${formData.date}T${formData.end_time}:00`
+          : null,
+        opponent: formData.opponent || '',
+        status: formData.status || 'scheduled',
       };
-      
+  
       await eventsApi.update(selectedEvent.id, eventData);
-      setEvents(prev => prev.map(e => e.id === selectedEvent.id ? { ...e, ...eventData } : e));
+  
+      setEvents((prev) =>
+        prev.map((event) =>
+          event.id === selectedEvent.id
+            ? {
+                ...event,
+                ...eventData,
+              }
+            : event
+        )
+      );
+  
       setEditDialogOpen(false);
       setSelectedEvent(null);
-      toast.success('Evento atualizado!');
+      toast.success(t('calendar.eventUpdated', 'Evento atualizado!'));
     } catch (error) {
-      toast.error('Erro ao atualizar evento');
+      console.error('Error updating event:', error);
+      toast.error(t('calendar.updateError', 'Erro ao atualizar evento'));
     } finally {
       setUpdating(false);
     }
   };
-
   const handleDeleteEvent = async () => {
     if (!selectedEvent) return;
 
