@@ -7080,13 +7080,48 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
     return event_dict
 
 @api_router.get("/events")
-async def get_events(team_id: Optional[str] = None, event_type: Optional[str] = None, championship_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+async def get_events(
+    team_id: Optional[str] = None,
+    event_type: Optional[str] = None,
+    championship_id: Optional[str] = None,
+    profile_type: Optional[str] = None,
+    profile_user_id: Optional[str] = None,
+    profile_role: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
     checker = get_permission_checker(current_user)
     query = {}
+
+    effective_user = current_user
+    effective_checker = checker
+    
+    if profile_type == "associated" and profile_user_id:
+        allowed_accounts = current_user.get("associated_accounts", [])
+    
+        if profile_user_id not in allowed_accounts:
+            raise HTTPException(status_code=403, detail="Perfil associado não autorizado")
+    
+        associated_user = await db.users.find_one(
+            {"id": profile_user_id},
+            {"_id": 0, "hashed_password": 0, "password": 0}
+        )
+    
+        if not associated_user:
+            raise HTTPException(status_code=404, detail="Perfil associado não encontrado")
+    
+        effective_user = associated_user
+        effective_checker = get_permission_checker(effective_user)
+    
+    elif profile_type == "self" and profile_role:
+        effective_user = {
+            **current_user,
+            "role": profile_role
+        }
+        effective_checker = get_permission_checker(effective_user)
     
     if team_id:
         # Verify user can access the requested team
-        if not checker.is_admin and not checker.can_access_team(team_id):
+        if not effective_checker.is_admin and not effective_checker.can_access_team(team_id):
             raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
     
         query["$or"] = [
@@ -7095,9 +7130,9 @@ async def get_events(team_id: Optional[str] = None, event_type: Optional[str] = 
             {"team_ids": {"$in": [team_id]}}
         ]
     
-    elif not checker.is_admin:
+    elif not effective_checker.is_admin:
         # Filter by user's accessible teams
-        user_teams = list(checker.team_ids)
+        user_teams = list(effective_checker.team_ids)
     
         if user_teams:
             query["$or"] = [
