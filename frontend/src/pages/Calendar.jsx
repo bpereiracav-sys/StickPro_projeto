@@ -1032,59 +1032,15 @@ export default function CalendarPage() {
     <div className="space-y-6" data-testid="calendar-page">
       {/* Header Premium */}
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/70 p-5 shadow-xl shadow-slate-200/70">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+        <div className="flex flex-col gap-5">
+          {/* Linha 1: título à esquerda + ações à direita */}
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="inline-flex w-fit items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
               <CalendarIcon className="h-4 w-4" />
               {t('calendar.title', 'Calendário')}
             </div>
       
-          </div>
-      
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
-                <SelectTrigger className="h-10 min-w-[220px] rounded-2xl bg-white shadow-sm">
-                  <SelectValue placeholder={t('calendar.allTeams', 'Todas as equipas')} />
-                </SelectTrigger>
-      
-                <SelectContent className="bg-white">
-                  <SelectItem value="all">
-                    {t('calendar.allTeams', 'Todas as equipas')}
-                  </SelectItem>
-      
-                  {teams.map((team) => (
-                    <SelectItem key={team.id} value={team.id}>
-                      {team.name}
-                      {team.category ? ` • ${team.category}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-      
-              <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
-                <SelectTrigger className="h-10 min-w-[180px] rounded-2xl bg-white shadow-sm">
-                  <SelectValue placeholder={t('calendar.allStatuses', 'Todos os estados')} />
-                </SelectTrigger>
-      
-                <SelectContent className="bg-white">
-                  <SelectItem value="all">
-                    {t('calendar.allStatuses', 'Todos os estados')}
-                  </SelectItem>
-                  <SelectItem value="scheduled">
-                    {t('calendar.statusScheduled', 'Agendado')}
-                  </SelectItem>
-                  <SelectItem value="postponed">
-                    {t('calendar.statusPostponed', 'Adiado')}
-                  </SelectItem>
-                  <SelectItem value="cancelled">
-                    {t('calendar.statusCancelled', 'Cancelado')}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-      
-            <div className="flex flex-wrap items-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 lg:ml-auto">
               <Button
                 variant="outline"
                 size="sm"
@@ -1119,9 +1075,52 @@ export default function CalendarPage() {
               )}
             </div>
           </div>
+      
+          {/* Linha 2: filtros à esquerda */}
+          <div className="flex flex-wrap gap-3">
+            <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
+              <SelectTrigger className="h-10 min-w-[220px] rounded-2xl bg-white shadow-sm">
+                <SelectValue placeholder={t('calendar.allTeams', 'Todas as equipas')} />
+              </SelectTrigger>
+      
+              <SelectContent className="bg-white">
+                <SelectItem value="all">
+                  {t('calendar.allTeams', 'Todas as equipas')}
+                </SelectItem>
+      
+                {teams.map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.name}
+                    {team.category ? ` • ${team.category}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+      
+            <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
+              <SelectTrigger className="h-10 min-w-[220px] rounded-2xl bg-white shadow-sm">
+                <SelectValue placeholder={t('calendar.allStatuses', 'Todos os estados')} />
+              </SelectTrigger>
+      
+              <SelectContent className="bg-white">
+                <SelectItem value="all">
+                  {t('calendar.allStatuses', 'Todos os estados')}
+                </SelectItem>
+                <SelectItem value="scheduled">
+                  {t('calendar.statusScheduled', 'Agendado')}
+                </SelectItem>
+                <SelectItem value="postponed">
+                  {t('calendar.statusPostponed', 'Adiado')}
+                </SelectItem>
+                <SelectItem value="cancelled">
+                  {t('calendar.statusCancelled', 'Cancelado')}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
-
+      
       {/* View Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         {/* Navigation */}
