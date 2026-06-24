@@ -784,7 +784,11 @@ class EventCreate(BaseModel):
     opponent: Optional[str] = None
     championship_id: Optional[str] = None
     status: Optional[str] = "scheduled"  # scheduled, postponed, cancelled
-
+    postponed_to_start_time: Optional[datetime] = None
+    postponed_to_end_time: Optional[datetime] = None
+    postponement_reason: Optional[str] = None
+    original_event_id: Optional[str] = None
+    
 class Event(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -799,6 +803,10 @@ class Event(BaseModel):
     championship_id: Optional[str] = None
     championship_match_id: Optional[str] = None
     status: str = "scheduled"  # scheduled, postponed, cancelled
+    postponed_to_start_time: Optional[datetime] = None
+    postponed_to_end_time: Optional[datetime] = None
+    postponement_reason: Optional[str] = None
+    original_event_id: Optional[str] = None
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
@@ -7252,7 +7260,7 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
         'opponent',
         'status',
         'team_id',
-        'team_ids'
+        'team_ids',
         'postponed_to_start_time',
         'postponed_to_end_time',
         'postponement_reason',
@@ -7262,7 +7270,12 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
     
     for key, value in updates.items():
         if key in allowed_fields:
-            if key in ['start_time', 'end_time'] and value:
+            if key in [
+                'start_time',
+                'end_time',
+                'postponed_to_start_time',
+                'postponed_to_end_time'
+            ] and value:
                 if isinstance(value, str):
                     filtered_updates[key] = value
                 else:
