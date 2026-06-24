@@ -7059,13 +7059,12 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
     }
     
     event = Event(**event_payload_for_model, created_by=current_user['id'])
-
-    # mode="json" converte datetime e enums para formatos compatíveis com MongoDB
     event_dict = event.model_dump(mode="json")
-    
     event_dict["team_ids"] = team_ids
     
-    await db.events.insert_one(event_dict)    
+    await db.events.insert_one(event_dict)
+    
+    return event_dict    
 
     
     # Notify guardians (parents) of team members about the new event
