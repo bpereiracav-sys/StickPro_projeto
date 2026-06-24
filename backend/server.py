@@ -7061,7 +7061,7 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
         event_dict['end_time'] = event_dict['end_time'].isoformat()
     event_dict['created_at'] = event_dict['created_at'].isoformat()
     
-    
+    await db.events.insert_one(event_dict)    
 
     
     # Notify guardians (parents) of team members about the new event
