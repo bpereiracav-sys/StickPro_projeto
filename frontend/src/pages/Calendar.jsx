@@ -980,24 +980,24 @@ export default function CalendarPage() {
     
                   <DropdownMenuItem
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
-                      setSelectedEvent(event);
                       openPostponeDialog(event);
                     }}
                   >
                     <PauseCircle className="w-4 h-4 mr-2" />
-                    Adiar
+                    {t('calendar.postpone', 'Adiar')}
                   </DropdownMenuItem>
     
                   <DropdownMenuItem
                     onClick={(e) => {
+                      e.preventDefault();
                       e.stopPropagation();
-                      setSelectedEvent(event);
-                      handleCancelEvent();
+                      handleCancelEvent(event);
                     }}
                   >
                     <XCircle className="w-4 h-4 mr-2" />
-                    Cancelar
+                    {t('calendar.cancelEvent', 'Cancelar')}
                   </DropdownMenuItem>
     
                   <DropdownMenuSeparator />
