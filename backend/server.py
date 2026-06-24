@@ -7028,12 +7028,25 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
     if not checker.can_manage_events:
         raise HTTPException(status_code=403, detail="Sem permissão para criar eventos")
     
-    # Check team access if team_id is provided
-    if event_data.team_id and not checker.is_admin:
-        if not checker.can_access_team(event_data.team_id):
-            raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+    # Calendar V2 compatibility: support both team_id and team_ids
+    event_payload = event_data.model_dump()
     
-    event = Event(**event_data.model_dump(), created_by=current_user['id'])
+    team_ids = event_payload.get("team_ids") or []
+    
+    if not team_ids and event_payload.get("team_id"):
+        team_ids = [event_payload.get("team_id")]
+    
+    if team_ids:
+        for team_id in team_ids:
+            if team_id and not checker.is_admin and not checker.can_access_team(team_id):
+                raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+    
+    event_payload["team_ids"] = team_ids
+
+    if team_ids and not event_payload.get("team_id"):
+        event_payload["team_id"] = team_ids[0]
+    
+    event = Event(**event_payload, created_by=current_user['id'])
     event_dict = event.model_dump()
     event_dict['start_time'] = event_dict['start_time'].isoformat()
     if event_dict['end_time']:
@@ -7044,7 +7057,7 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
 
     
     # Notify guardians (parents) of team members about the new event
-    if event_data.team_id:
+    if team_ids:
         # Format event time for notification
         event_time = event_dict['start_time']
         if isinstance(event_time, str):
@@ -7056,12 +7069,13 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
         
         # Run notification in background (don't block response)
         import asyncio
-        asyncio.create_task(notify_guardians_of_team_event(
-            team_id=event_data.team_id,
-            event_title=event_data.title,
-            event_type=event_data.event_type,
-            event_time=event_time
-        ))
+        for team_id in team_ids:
+            asyncio.create_task(notify_guardians_of_team_event(
+                team_id=team_id,
+                event_title=event_data.title,
+                event_type=event_data.event_type,
+                event_time=event_time
+            ))
     
     return event_dict
 
@@ -7074,14 +7088,24 @@ async def get_events(team_id: Optional[str] = None, event_type: Optional[str] = 
         # Verify user can access the requested team
         if not checker.is_admin and not checker.can_access_team(team_id):
             raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
-        query["team_id"] = team_id
+    
+        query["$or"] = [
+            {"team_id": team_id},
+            {"team_ids": team_id},
+            {"team_ids": {"$in": [team_id]}}
+        ]
+    
     elif not checker.is_admin:
         # Filter by user's accessible teams
         user_teams = list(checker.team_ids)
+    
         if user_teams:
-            query["team_id"] = {"$in": user_teams}
+            query["$or"] = [
+                {"team_id": {"$in": user_teams}},
+                {"team_ids": {"$in": user_teams}}
+            ]
         else:
-            return []  # No team access, no events
+            return []
     
     if event_type:
         query["event_type"] = event_type
@@ -7093,10 +7117,28 @@ async def get_events(team_id: Optional[str] = None, event_type: Optional[str] = 
     for event in events:
         if isinstance(event.get('start_time'), str):
             event['start_time'] = datetime.fromisoformat(event['start_time'])
+    
         if event.get('end_time') and isinstance(event['end_time'], str):
             event['end_time'] = datetime.fromisoformat(event['end_time'])
     
+        team_ids = event.get("team_ids") or []
+    
+        if not team_ids and event.get("team_id"):
+            team_ids = [event.get("team_id")]
+    
+        event["team_ids"] = team_ids
+    
+        event["teams"] = []
+        for team_id_item in team_ids:
+            team = await db.teams.find_one({"id": team_id_item}, {"_id": 0})
+            if team:
+                event["teams"].append(team)
+    
+        if not event.get("team") and event["teams"]:
+            event["team"] = event["teams"][0]
+    
     return events
+
 
 # NOTE: This route MUST be defined BEFORE /events/{event_id} to avoid route conflicts
 @api_router.get("/events/upcoming-without-convocation")
@@ -7142,9 +7184,15 @@ async def get_event(event_id: str, current_user: dict = Depends(get_current_user
         raise HTTPException(status_code=404, detail="Evento não encontrado")
     
     # Check team access
-    event_team_id = event.get('team_id')
-    if event_team_id and not checker.is_admin and not checker.can_access_team(event_team_id):
-        raise HTTPException(status_code=403, detail="Sem acesso a este evento")
+    event_team_ids = event.get("team_ids") or []
+
+    if not event_team_ids and event.get("team_id"):
+        event_team_ids = [event.get("team_id")]
+    
+    if event_team_ids and not checker.is_admin:
+        has_access = any(checker.can_access_team(team_id) for team_id in event_team_ids)
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Sem acesso a este evento")
     
     return event
 
@@ -7159,7 +7207,18 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
     if not event:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
     
-    allowed_fields = ['event_type', 'title', 'description', 'location', 'start_time', 'end_time', 'opponent', 'status']
+    allowed_fields = [
+        'event_type',
+        'title',
+        'description',
+        'location',
+        'start_time',
+        'end_time',
+        'opponent',
+        'status',
+        'team_id',
+        'team_ids'
+    ]
     filtered_updates = {}
     
     for key, value in updates.items():
@@ -7189,8 +7248,15 @@ async def delete_event(event_id: str, current_user: dict = Depends(get_current_u
         raise HTTPException(status_code=404, detail="Evento não encontrado")
     
     # Check team access
-    if not checker.is_admin and event.get('team_id') and not checker.can_access_team(event.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a este evento")
+    event_team_ids = event.get("team_ids") or []
+
+    if not event_team_ids and event.get("team_id"):
+        event_team_ids = [event.get("team_id")]
+    
+    if event_team_ids and not checker.is_admin:
+        has_access = any(checker.can_access_team(team_id) for team_id in event_team_ids)
+        if not has_access:
+            raise HTTPException(status_code=403, detail="Sem acesso a este evento")
     
     await db.events.delete_one({"id": event_id})
     await db.convocations.delete_many({"event_id": event_id})
