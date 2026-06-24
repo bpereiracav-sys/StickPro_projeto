@@ -809,7 +809,7 @@ export default function CalendarPage() {
     
             <h3
               className={`
-                text-lg font-semibold text-slate-900
+                text-base font-semibold text-slate-900
                 ${isCancelled ? 'line-through' : ''}
               `}
             >
@@ -817,7 +817,7 @@ export default function CalendarPage() {
             </h3>
     
             {!compact && (
-              <div className="mt-3 space-y-2 text-sm text-slate-500">
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
     
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
@@ -833,13 +833,17 @@ export default function CalendarPage() {
                     {event.location}
                   </div>
                 )}
-    
-                {event.team?.name && (
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4" />
-                    {event.team.name}
+
+                {event.description && (
+                  <div className="text-xs text-slate-500 border-t pt-2 mt-2">
+                    {event.description}
                   </div>
                 )}
+                
+                <div className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  {teams.find(t => t.id === event.team_id)?.name || 'Equipa'}
+                </div>
     
               </div>
             )}
