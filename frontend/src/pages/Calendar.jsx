@@ -184,12 +184,14 @@ function PlayerStatusRow({ player, canEdit, onUpdateStatus, updating, t }) {
 }
 
 export default function CalendarPage() {
-  const { user } = useAuth();
+  const { user, activeProfile } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const { canManageEvents, canCreateConvocations, canAccessTeam, isAdmin, isCoach } = usePermissions();
   const { t } = useLanguage();
   const [events, setEvents] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
@@ -220,7 +222,7 @@ export default function CalendarPage() {
   const [convocationVisibility, setConvocationVisibility] = useState('all'); // players, delegates, all
   
   const [formData, setFormData] = useState({
-    team_id: '',
+    team_id: selectedTeam?.id || '',
     event_type: 'treino',
     title: '',
     description: '',
@@ -229,7 +231,7 @@ export default function CalendarPage() {
     start_time: '18:00',
     end_time: '20:00',
     opponent: '',
-    status: 'scheduled' // scheduled, postponed, cancelled
+    status: 'scheduled'
   });
 
   // Recurring event state
@@ -247,16 +249,26 @@ export default function CalendarPage() {
     { value: 0, label: 'Dom', fullLabel: 'Domingo' }
   ];
 
-  // Fetch events when selected team changes
+  // Calendar V2 - refresh when team filter or profile changes
   useEffect(() => {
     fetchData();
-  }, [selectedTeam]);
+  }, [selectedTeam, activeProfile, selectedTeamFilter]);
 
   const fetchData = async () => {
     setLoading(true);
     try {
+      const teamFilter =
+        selectedTeamFilter && selectedTeamFilter !== 'all'
+          ? selectedTeamFilter
+          : null;
+      
       const [eventsRes, teamsRes, unavailRes] = await Promise.all([
-        eventsApi.getAll(),
+        eventsApi.getAll({
+          team_id: teamFilter,
+          profile_type: activeProfile?.type,
+          profile_user_id: activeProfile?.user_id,
+          profile_role: activeProfile?.role,
+        }),
         teamsApi.getAll(),
         unavailabilitiesApi.getMy().catch(() => ({ data: [] }))
       ]);
