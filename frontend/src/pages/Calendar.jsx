@@ -969,7 +969,7 @@ export default function CalendarPage() {
                   
                     const eventCard = (
                       <div
-                        className="group relative overflow-hidden rounded-md border border-slate-200 bg-white px-2 py-1 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                        className="group relative overflow-hidden rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className={`absolute left-0 top-0 h-full w-1 ${eventType.color}`} />
@@ -977,7 +977,7 @@ export default function CalendarPage() {
                         <div className="flex min-w-0 items-center gap-1.5 pl-1">
                           <EventIcon className={`h-3 w-3 shrink-0 ${eventType.textColor}`} />
                   
-                          <p className="truncate text-[10px] font-semibold text-slate-900">
+                          <p className="truncate text-[9px] font-semibold text-slate-900">
                             {event.title}
                           </p>
                         </div>
@@ -1076,7 +1076,7 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6" data-testid="calendar-page">
       {/* Header Premium */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/70 p-5 shadow-xl shadow-slate-200/70">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/70 p-4 shadow-xl shadow-slate-200/70">
       
         {/* Linha superior */}
         <div className="flex items-center justify-between mb-4">
@@ -1114,7 +1114,7 @@ export default function CalendarPage() {
               <Button
                 onClick={() => setCreateDialogOpen(true)}
                 data-testid="create-event-btn"
-                className="rounded-2xl shadow-lg shadow-primary/20"
+                className="h-10 rounded-2xl shadow-lg shadow-primary/20"
               >
                 <Plus className="w-4 h-4 mr-2" />
                 {t('calendar.newEvent', 'Novo Evento')}
@@ -1125,23 +1125,18 @@ export default function CalendarPage() {
         </div>
       
         {/* Linha inferior */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-3">
       
-          <Select
-            value={selectedTeamFilter}
-            onValueChange={setSelectedTeamFilter}
-          >
-            <SelectTrigger className="w-[260px] h-11 rounded-2xl bg-white shadow-sm">
-              <SelectValue
-                placeholder={t('calendar.allTeams', 'Todas as equipas')}
-              />
+          <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
+            <SelectTrigger className="h-9 w-[220px] rounded-2xl bg-white shadow-sm">
+              <SelectValue placeholder={t('calendar.allTeams', 'Todas as equipas')} />
             </SelectTrigger>
-      
+          
             <SelectContent className="bg-white">
               <SelectItem value="all">
                 {t('calendar.allTeams', 'Todas as equipas')}
               </SelectItem>
-      
+          
               {teams.map((team) => (
                 <SelectItem key={team.id} value={team.id}>
                   {team.name}
@@ -1149,36 +1144,30 @@ export default function CalendarPage() {
               ))}
             </SelectContent>
           </Select>
-      
-          <Select
-            value={selectedStatusFilter}
-            onValueChange={setSelectedStatusFilter}
-          >
-            <SelectTrigger className="w-[220px] h-11 rounded-2xl bg-white shadow-sm">
-              <SelectValue
-                placeholder={t('calendar.allStatuses', 'Todos os estados')}
-              />
+          
+          <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
+            <SelectTrigger className="h-9 w-[190px] rounded-2xl bg-white shadow-sm">
+              <SelectValue placeholder={t('calendar.allStatuses', 'Todos os estados')} />
             </SelectTrigger>
-      
+          
             <SelectContent className="bg-white">
               <SelectItem value="all">
                 {t('calendar.allStatuses', 'Todos os estados')}
               </SelectItem>
-      
+          
               <SelectItem value="scheduled">
                 {t('calendar.statusScheduled', 'Agendado')}
               </SelectItem>
-      
+          
               <SelectItem value="postponed">
                 {t('calendar.statusPostponed', 'Adiado')}
               </SelectItem>
-      
+          
               <SelectItem value="cancelled">
                 {t('calendar.statusCancelled', 'Cancelado')}
               </SelectItem>
             </SelectContent>
-          </Select>
-      
+          </Select>      
         </div>
       
       </div>
