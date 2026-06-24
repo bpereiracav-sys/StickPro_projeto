@@ -949,62 +949,107 @@ export default function CalendarPage() {
                 <div className="space-y-0.5">
                   {dayEvents.slice(0, 2).map(event => {
                     const eventType = EVENT_TYPES[event.event_type] || EVENT_TYPES.outro;
-                    const canManageThisEvent = canManageEvents && (isAdmin || canAccessTeam(event.team_id));
-                    
+                    const EventIcon = eventType.icon || CalendarIcon;
+                    const canManageThisEvent =
+                      canManageEvents && (isAdmin || canAccessTeam(event.team_id));
+                  
+                    const eventTeam =
+                      teams.find((team) => team.id === event.team_id) ||
+                      event.team ||
+                      null;
+                  
+                    const eventTime = event.start_time
+                      ? format(
+                          typeof event.start_time === 'string'
+                            ? parseISO(event.start_time)
+                            : event.start_time,
+                          'HH:mm'
+                        )
+                      : '';
+                  
+                    const eventCard = (
+                      <div
+                        className="group relative overflow-hidden rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className={`absolute left-0 top-0 h-full w-1 ${eventType.color}`} />
+                  
+                        <div className="flex min-w-0 items-center gap-1.5 pl-1">
+                          <EventIcon className={`h-3.5 w-3.5 shrink-0 ${eventType.textColor}`} />
+                  
+                          <p className="truncate text-[11px] font-semibold text-slate-900">
+                            {event.title}
+                          </p>
+                        </div>
+                  
+                        <div className="mt-0.5 flex min-w-0 items-center gap-1 pl-1 text-[10px] text-slate-500">
+                          {eventTime && <span>{eventTime}</span>}
+                  
+                          {eventTeam?.name && (
+                            <>
+                              {eventTime && <span>•</span>}
+                              <span className="truncate">{eventTeam.name}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  
                     return canManageThisEvent ? (
                       <DropdownMenu key={event.id}>
                         <DropdownMenuTrigger asChild>
-                          <div
-                            className={`text-xs truncate px-1 py-0.5 rounded-sm ${eventType.color} text-white cursor-pointer hover:opacity-90`}
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            {event.title}
-                          </div>
+                          {eventCard}
                         </DropdownMenuTrigger>
+                  
                         <DropdownMenuContent className="bg-white" align="start">
                           <DropdownMenuItem onClick={() => openEditDialog(event)}>
                             <Edit className="w-4 h-4 mr-2" />
-                            Editar
+                            {t('common.edit', 'Editar')}
                           </DropdownMenuItem>
+                  
                           {canCreateConvocations && (
                             <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
                               <Users className="w-4 h-4 mr-2" />
-                              Convocar Jogadores
+                              {t('convocations.callPlayers', 'Convocar Jogadores')}
                             </DropdownMenuItem>
                           )}
+                  
                           <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
                             <ClipboardCheck className="w-4 h-4 mr-2" />
-                            Ver Estado Convocatória
+                            {t('convocations.viewStatus', 'Ver Estado Convocatória')}
                           </DropdownMenuItem>
+                  
                           <DropdownMenuSeparator />
+                  
                           <DropdownMenuItem onClick={() => handlePostponeEvent(event)}>
                             <PauseCircle className="w-4 h-4 mr-2" />
-                            Adiar
+                            {t('calendar.postpone', 'Adiar')}
                           </DropdownMenuItem>
+                  
                           <DropdownMenuItem onClick={() => handleCancelEvent(event)}>
                             <XCircle className="w-4 h-4 mr-2" />
-                            Cancelar
+                            {t('calendar.cancelEvent', 'Cancelar')}
                           </DropdownMenuItem>
+                  
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem 
+                  
+                          <DropdownMenuItem
                             className="text-destructive focus:text-destructive"
-                            onClick={() => { setSelectedEvent(event); setDeleteDialogOpen(true); }}
+                            onClick={() => {
+                              setSelectedEvent(event);
+                              setDeleteDialogOpen(true);
+                            }}
                           >
                             <Trash2 className="w-4 h-4 mr-2" />
-                            Eliminar
+                            {t('common.delete', 'Eliminar')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     ) : (
-                      <div
-                        key={event.id}
-                        className={`text-xs truncate px-1 py-0.5 rounded-sm ${eventType.color} text-white`}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {event.title}
-                      </div>
+                      <div key={event.id}>{eventCard}</div>
                     );
                   })}
+                  
                   {dayEvents.length > 2 && (
                     <p className="text-xs text-muted-foreground px-1">
                       +{dayEvents.length - 2}
