@@ -375,88 +375,102 @@ export default function CalendarPage() {
       toast.error(t('calendar.selectTeam', 'Selecione uma equipa'));
       return;
     }
-    
+  
     if (!formData.title) {
       toast.error(t('calendar.enterTitle', 'Introduza um título'));
       return;
     }
-    
+  
     if (!formData.date) {
       toast.error(t('calendar.selectDate', 'Selecione uma data'));
       return;
     }
-
-    // Validate recurring events
+  
     if (isRecurring) {
       if (recurringDays.length === 0) {
-        toast.error('Selecione pelo menos um dia da semana');
+        toast.error(t('calendar.selectWeekday', 'Selecione pelo menos um dia da semana'));
         return;
       }
+  
       if (!recurringEndDate) {
-        toast.error('Selecione a data de fim do período');
+        toast.error(t('calendar.selectEndDate', 'Selecione a data de fim do período'));
         return;
       }
     }
-
+  
     setCreating(true);
+  
     try {
+      const buildEventPayload = (date) => ({
+        team_id: formData.team_id,
+        event_type: formData.event_type,
+        title: formData.title,
+        description: formData.description || '',
+        location: formData.location || '',
+        start_time: `${date}T${formData.start_time}:00`,
+        end_time: formData.end_time ? `${date}T${formData.end_time}:00` : null,
+        opponent: formData.opponent || '',
+        championship_id: formData.championship_id || null,
+        status: formData.status || 'scheduled',
+      });
+  
       if (isRecurring && recurringDays.length > 0 && recurringEndDate) {
-        // Generate all dates for recurring events
-        const dates = generateRecurringDates(formData.date, recurringEndDate, recurringDays);
-        
+        const dates = generateRecurringDates(
+          formData.date,
+          recurringEndDate,
+          recurringDays
+        );
+  
         if (dates.length === 0) {
-          toast.error('Nenhuma data encontrada para os dias selecionados');
+          toast.error(t('calendar.noRecurringDates', 'Nenhuma data encontrada para os dias selecionados'));
           setCreating(false);
           return;
         }
-
+  
         if (dates.length > 100) {
-          toast.error(`Demasiados eventos (${dates.length}). Limite máximo: 100`);
+          toast.error(
+            t(
+              'calendar.tooManyEvents',
+              `Demasiados eventos (${dates.length}). Limite máximo: 100`
+            )
+          );
           setCreating(false);
           return;
         }
-
-        // Create events for all dates
-        const createdEvents = [];
+  
         for (const date of dates) {
-          const eventData = {
-            ...formData,
-            date: date,
-            start_time: `${date}T${formData.start_time}:00`,
-            end_time: `${date}T${formData.end_time}:00`
-          };
-          
-          const response = await eventsApi.create(eventData);
-          createdEvents.push(response.data);
+          await eventsApi.create(buildEventPayload(date));
         }
-        
-        setEvents(prev => [...prev, ...createdEvents]);
-        toast.success(`${createdEvents.length} eventos criados com sucesso!`);
+  
+        toast.success(
+          t(
+            'calendar.eventsCreated',
+            `${dates.length} eventos criados com sucesso!`
+          )
+        );
       } else {
-        // Single event
-        const eventData = {
-          ...formData,
-          start_time: `${formData.date}T${formData.start_time}:00`,
-          end_time: `${formData.date}T${formData.end_time}:00`
-        };
-        
-        const response = await eventsApi.create(eventData);
-        setEvents(prev => [...prev, response.data]);
-        toast.success('Evento criado com sucesso!');
+        await eventsApi.create(buildEventPayload(formData.date));
+        toast.success(t('calendar.eventCreated', 'Evento criado com sucesso!'));
       }
-      
+  
+      await fetchData();
+  
       setCreateDialogOpen(false);
       resetForm();
     } catch (error) {
-      const message = typeof error.response?.data?.detail === 'string' 
-        ? error.response.data.detail 
-        : 'Erro ao criar evento';
+      console.error('Error creating event:', error);
+  
+      const message =
+        typeof error.response?.data?.detail === 'string'
+          ? error.response.data.detail
+          : t('calendar.createError', 'Erro ao criar evento');
+  
       toast.error(message);
     } finally {
       setCreating(false);
     }
   };
-
+  
   const handleUpdateEvent = async () => {
     if (!selectedEvent) return;
   
@@ -1212,7 +1226,13 @@ export default function CalendarPage() {
                   
                           <DropdownMenuSeparator />
                   
-                          <DropdownMenuItem onClick={() => openPostponeDialog(event)}>
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openPostponeDialog(event);
+                            }}
+                          >
                             <PauseCircle className="w-4 h-4 mr-2" />
                             {t('calendar.postpone', 'Adiar')}
                           </DropdownMenuItem>
