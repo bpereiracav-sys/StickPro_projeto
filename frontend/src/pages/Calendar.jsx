@@ -103,8 +103,7 @@ import {
   subWeeks,
   subMonths,
   isToday,
-  isSameMonth,
-  Cake,
+  isSameMonth
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -124,7 +123,7 @@ const EVENT_TYPES = {
   
   birthday: {
     label: 'Aniversário',
-    icon: Cake,
+    icon: CalendarIcon,
     color: 'bg-pink-500',
     textColor: 'text-pink-600',
   },
