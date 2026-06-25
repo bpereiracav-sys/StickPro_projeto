@@ -104,7 +104,7 @@ import {
   subMonths,
   isToday,
   isSameMonth,
-  Cake
+  Cake,
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
