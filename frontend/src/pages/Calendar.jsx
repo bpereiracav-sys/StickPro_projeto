@@ -103,7 +103,9 @@ import {
   subWeeks,
   subMonths,
   isToday,
-  isSameMonth
+  isSameMonth,
+  Cake,
+  ClipboardList,
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -113,7 +115,20 @@ const EVENT_TYPES = {
   jogo_campeonato: { label: 'Jogo Campeonato', icon: Trophy, color: 'bg-amber-500', textColor: 'text-amber-600' },
   jogo_amigavel: { label: 'Jogo Amigável', icon: Swords, color: 'bg-green-500', textColor: 'text-green-600' },
   torneio: { label: 'Torneio', icon: Flag, color: 'bg-purple-500', textColor: 'text-purple-600' },
-  outro: { label: 'Outro', icon: HelpCircle, color: 'bg-gray-500', textColor: 'text-gray-600' }
+  outro: { label: 'Outro', icon: HelpCircle, color: 'bg-gray-500', textColor: 'text-gray-600' },
+  evento_administrativo: {
+    label: 'Administrativo',
+    icon: ClipboardList,
+    color: 'bg-violet-600',
+    textColor: 'text-violet-600',
+  },
+  
+  birthday: {
+    label: 'Aniversário',
+    icon: Cake,
+    color: 'bg-pink-500',
+    textColor: 'text-pink-600',
+  },
 };
 
 const VIEW_MODES = {
@@ -196,7 +211,15 @@ export default function CalendarPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('month');
-  const [visibleEventTypes, setVisibleEventTypes] = useState(['treino', 'jogo_campeonato', 'jogo_amigavel', 'torneio', 'outro']);
+  const [visibleEventTypes, setVisibleEventTypes] = useState([
+    'treino',
+    'jogo_campeonato',
+    'jogo_amigavel',
+    'torneio',
+    'evento_administrativo',
+    'birthday',
+    'outro'
+  ]);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [convocationDialogOpen, setConvocationDialogOpen] = useState(false);
