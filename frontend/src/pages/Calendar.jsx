@@ -629,6 +629,27 @@ export default function CalendarPage() {
     }
   };
 
+  const handleRestoreEvent = async (event = null) => {
+    const targetEvent = event || selectedEvent;
+    if (!targetEvent) return;
+  
+    try {
+      await eventsApi.update(targetEvent.id, {
+        status: 'scheduled',
+        postponed_to_start_time: null,
+        postponed_to_end_time: null,
+        postponement_reason: '',
+      });
+  
+      await fetchData();
+  
+      toast.success(t('calendar.eventRestored', 'Evento reativado com sucesso!'));
+    } catch (error) {
+      console.error('Error restoring event:', error);
+      toast.error(t('calendar.restoreError', 'Erro ao reativar evento'));
+    }
+  };
+  
   const openEditDialog = (event) => {
     const startDate = event.start_time ? parseISO(event.start_time) : new Date();
     const endDate = event.end_time ? parseISO(event.end_time) : new Date();
@@ -1028,7 +1049,21 @@ export default function CalendarPage() {
                     <XCircle className="w-4 h-4 mr-2" />
                     {t('calendar.cancelEvent', 'Cancelar')}
                   </DropdownMenuItem>
-    
+
+                  {(event.status === 'cancelled' || event.status === 'postponed') && (
+                    <DropdownMenuItem
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        handleRestoreEvent(event);
+                      }}
+                    >
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      {event.status === 'postponed'
+                        ? t('calendar.undoPostpone', 'Anular adiamento')
+                        : t('calendar.restoreEvent', 'Reativar evento')}
+                    </DropdownMenuItem>
+                  )}
+                  
                   <DropdownMenuSeparator />
     
                   <DropdownMenuItem
@@ -1255,7 +1290,21 @@ export default function CalendarPage() {
                             <XCircle className="w-4 h-4 mr-2" />
                             {t('calendar.cancelEvent', 'Cancelar')}
                           </DropdownMenuItem>
-                  
+
+                          {(event.status === 'cancelled' || event.status === 'postponed') && (
+                            <DropdownMenuItem
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                handleRestoreEvent(event);
+                              }}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-2" />
+                              {event.status === 'postponed'
+                                ? t('calendar.undoPostpone', 'Anular adiamento')
+                                : t('calendar.restoreEvent', 'Reativar evento')}
+                            </DropdownMenuItem>
+                          )}
+                          
                           <DropdownMenuSeparator />
                   
                           <DropdownMenuItem
@@ -1708,7 +1757,7 @@ export default function CalendarPage() {
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="max-h-[68vh] overflow-y-auto space-y-4 py-4 pr-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>Tipo de Evento</Label>
