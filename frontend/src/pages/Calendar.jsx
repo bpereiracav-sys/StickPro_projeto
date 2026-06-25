@@ -387,18 +387,20 @@ export default function CalendarPage() {
     }
   
     if (isRecurring) {
+      console.log('isRecurring:', isRecurring);
+      console.log('recurringDays:', recurringDays);
+      console.log('recurringEndDate:', recurringEndDate);
+    
       if (recurringDays.length === 0) {
         toast.error(t('calendar.selectWeekday', 'Selecione pelo menos um dia da semana'));
         return;
       }
-  
+    
       if (!recurringEndDate) {
         toast.error(t('calendar.selectEndDate', 'Selecione a data de fim do período'));
         return;
       }
     }
-  
-    setCreating(true);
   
     try {
       const buildEventPayload = (date) => ({
@@ -550,6 +552,19 @@ export default function CalendarPage() {
     }
   };
 
+  const openPostponeDialog = (event) => {
+    setSelectedEvent(event);
+  
+    const start = event.start_time ? parseISO(event.start_time) : new Date();
+    const end = event.end_time ? parseISO(event.end_time) : null;
+  
+    setPostponeData({
+      date: format(start, 'yyyy-MM-dd'),
+      start_time: format(start, 'HH:mm'),
+      end_time: end ? format(end, 'HH:mm') : '',
+      reason: '',
+    });
+  
   const handleConfirmPostpone = async () => {
     if (!selectedEvent) return;
   
@@ -993,9 +1008,8 @@ export default function CalendarPage() {
                   <DropdownMenuSeparator />
     
                   <DropdownMenuItem
-                    onClick={(e) => {
+                    onSelect={(e) => {
                       e.preventDefault();
-                      e.stopPropagation();
                       openPostponeDialog(event);
                     }}
                   >
@@ -1004,9 +1018,8 @@ export default function CalendarPage() {
                   </DropdownMenuItem>
     
                   <DropdownMenuItem
-                    onClick={(e) => {
+                    onSelect={(e) => {
                       e.preventDefault();
-                      e.stopPropagation();
                       handleCancelEvent(event);
                     }}
                   >
@@ -1227,9 +1240,8 @@ export default function CalendarPage() {
                           <DropdownMenuSeparator />
                   
                           <DropdownMenuItem
-                            onClick={(e) => {
+                            onSelect={(e) => {
                               e.preventDefault();
-                              e.stopPropagation();
                               openPostponeDialog(event);
                             }}
                           >
@@ -1245,14 +1257,13 @@ export default function CalendarPage() {
                           <DropdownMenuSeparator />
                   
                           <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onClick={() => {
-                              setSelectedEvent(event);
-                              setDeleteDialogOpen(true);
+                            onSelect={(e) => {
+                              e.preventDefault();
+                              handleCancelEvent(event);
                             }}
                           >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            {t('common.delete', 'Eliminar')}
+                            <XCircle className="w-4 h-4 mr-2" />
+                            {t('calendar.cancelEvent', 'Cancelar')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1581,7 +1592,13 @@ export default function CalendarPage() {
                   </div>
                   <Switch
                     checked={isRecurring}
-                    onCheckedChange={setIsRecurring}
+                    onCheckedChange={(checked) => {
+                      setIsRecurring(checked);
+                    
+                      if (checked && !recurringEndDate) {
+                        setRecurringEndDate(formData.date);
+                      }
+                    }}
                     data-testid="recurring-switch"
                   />
                 </div>
