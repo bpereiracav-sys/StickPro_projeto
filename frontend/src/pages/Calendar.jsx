@@ -105,7 +105,7 @@ import {
   isToday,
   isSameMonth,
   Cake,
-  ClipboardList,
+  ClipboardList
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
