@@ -117,7 +117,7 @@ const EVENT_TYPES = {
   outro: { label: 'Outro', icon: HelpCircle, color: 'bg-gray-500', textColor: 'text-gray-600' },
   evento_administrativo: {
     label: 'Administrativo',
-    icon: icon: ClipboardCheck,
+    icon: ClipboardCheck,
     color: 'bg-violet-600',
     textColor: 'text-violet-600',
   },
