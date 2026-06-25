@@ -116,7 +116,7 @@ const EVENT_TYPES = {
   torneio: { label: 'Torneio', icon: Flag, color: 'bg-purple-500', textColor: 'text-purple-600' },
   outro: { label: 'Outro', icon: HelpCircle, color: 'bg-gray-500', textColor: 'text-gray-600' },
   evento_administrativo: {
-    label: 'Administrativo',
+    label: 'Evento Administrativo',
     icon: ClipboardCheck,
     color: 'bg-violet-600',
     textColor: 'text-violet-600',
