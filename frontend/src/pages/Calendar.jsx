@@ -1464,7 +1464,10 @@ export default function CalendarPage() {
 
       {/* Create Event Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="bg-white max-w-lg" data-testid="create-event-dialog">
+        <DialogContent
+          className="bg-white max-w-lg max-h-[90vh] overflow-hidden"
+          data-testid="create-event-dialog"
+        >
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">
               {t('calendar.createEvent', 'Criar evento')}
@@ -1474,7 +1477,7 @@ export default function CalendarPage() {
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4">
+          <div className="max-h-[68vh] overflow-y-auto space-y-4 py-4 pr-2">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('calendar.team', 'Equipa')} *</Label>
