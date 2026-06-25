@@ -96,7 +96,7 @@ logger = logging.getLogger(__name__)
 # ==================== MODELS ====================
 
 UserRole = Literal["admin", "gestor_desportivo", "treinador", "treinador_adjunto", "delegado", "jogador", "responsavel"]
-EventType = Literal["treino", "jogo_campeonato", "jogo_amigavel", "torneio", "outro"]
+EventType = Literal["treino", "jogo_campeonato", "jogo_amigavel", "torneio", "evento_administrativo","birthday","outro"]
 AttendanceStatus = Literal["confirmado", "ausente", "pendente", "faltou_sem_aviso"]
 MatchLocation = Literal["casa", "fora", "neutro"]
 PlayerPosition = Literal["GR", "JC"]
