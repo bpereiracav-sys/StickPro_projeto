@@ -7062,7 +7062,9 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
     event_dict = event.model_dump(mode="json")
     event_dict["team_ids"] = team_ids
     
-    await db.events.insert_one(event_dict)
+    result = await db.events.insert_one(event_dict)
+
+    event_dict["_id"] = str(result.inserted_id)
     
     return event_dict 
 
