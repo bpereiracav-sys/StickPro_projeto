@@ -7064,7 +7064,7 @@ async def create_event(event_data: EventCreate, current_user: dict = Depends(get
     
     await db.events.insert_one(event_dict)
     
-    return event_dict    
+    return event_dict 
 
     
     # Notify guardians (parents) of team members about the new event
