@@ -926,7 +926,7 @@ export default function CalendarPage() {
             </h3>
     
             {!compact && (
-              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-500">
+              <div className="mt-2 grid grid-cols-1 gap-3 text-xs text-slate-500 md:grid-cols-[1fr_auto]">
     
                 <div className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
@@ -944,7 +944,10 @@ export default function CalendarPage() {
                 )}
 
                 {event.description && (
-                  <div className="text-xs text-slate-500 border-t pt-2 mt-2">
+                  <div className="ml-auto max-w-sm rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                    <span className="font-semibold text-slate-700">
+                      {t('calendar.notes', 'Observações')}:
+                    </span>{' '}
                     {event.description}
                   </div>
                 )}
@@ -1304,17 +1307,19 @@ export default function CalendarPage() {
                                 : t('calendar.restoreEvent', 'Reativar evento')}
                             </DropdownMenuItem>
                           )}
-                          
-                          <DropdownMenuSeparator />
                   
+                          <DropdownMenuSeparator />
+
                           <DropdownMenuItem
+                            className="text-destructive focus:text-destructive"
                             onSelect={(e) => {
                               e.preventDefault();
-                              handleCancelEvent(event);
+                              setSelectedEvent(event);
+                              setDeleteDialogOpen(true);
                             }}
                           >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            {t('calendar.cancelEvent', 'Cancelar')}
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            {t('common.delete', 'Eliminar')}
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -1473,7 +1478,10 @@ export default function CalendarPage() {
                 variant={viewMode === key ? 'default' : 'ghost'}
                 size="sm"
                 className="rounded-none first:rounded-l-sm last:rounded-r-sm"
-                onClick={() => setViewMode(key)}
+                onClick={() => {
+                  setSelectedDate(new Date());
+                  setViewMode(key);
+                }}
                 data-testid={`view-${key}-btn`}
               >
                 <Icon className="w-4 h-4 mr-1" />
@@ -1650,7 +1658,12 @@ export default function CalendarPage() {
                       setIsRecurring(checked);
                     
                       if (checked && !recurringEndDate) {
-                        setRecurringEndDate(formData.date);
+                        setRecurringEndDate(
+                          format(
+                            addMonths(parseISO(formData.date), 1),
+                            'yyyy-MM-dd'
+                          )
+                        );
                       }
                     }}
                     data-testid="recurring-switch"
