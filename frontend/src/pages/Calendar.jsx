@@ -564,6 +564,8 @@ export default function CalendarPage() {
       end_time: end ? format(end, 'HH:mm') : '',
       reason: '',
     });
+    setPostponeDialogOpen(true);
+  };
   
   const handleConfirmPostpone = async () => {
     if (!selectedEvent) return;
