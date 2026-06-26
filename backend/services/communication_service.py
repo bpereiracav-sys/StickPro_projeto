@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 import resend
 from services.template_service import TemplateService
-
+from models.communication_models import CommunicationLog, Notification
 
 class CommunicationService:
     def __init__(self, db):
@@ -16,21 +16,57 @@ class CommunicationService:
         recipient_email: Optional[str],
         subject: str,
         status: str = "pending",
+        channel: str = "email",
         metadata: Optional[Dict[str, Any]] = None,
     ):
-        log = {
-            "notification_type": notification_type,
-            "recipient_user_id": recipient_user_id,
-            "recipient_email": recipient_email,
-            "subject": subject,
-            "status": status,
-            "metadata": metadata or {},
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }
+        log = CommunicationLog(
+            notification_type=notification_type,
+            channel=channel,
+            subject=subject,
+            recipient_user_id=recipient_user_id,
+            recipient_email=recipient_email,
+            status=status,
+            metadata=metadata or {},
+        )
+    
+        log_dict = log.model_dump(mode="json")
+    
+        await self.db.communication_logs.insert_one(log_dict)
+    
+        return log_dict
 
-        await self.db.notification_logs.insert_one(log)
-        return log
-
+    async def create_in_app_notification(
+        self,
+        user_id: str,
+        title: str,
+        message: str,
+        notification_type: str,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
+        notification = Notification(
+            user_id=user_id,
+            title=title,
+            message=message,
+            notification_type=notification_type,
+            metadata=metadata or {},
+        )
+    
+        notification_dict = notification.model_dump(mode="json")
+    
+        await self.db.notifications.insert_one(notification_dict)
+    
+        await self.log_notification(
+            notification_type=notification_type,
+            recipient_user_id=user_id,
+            recipient_email=None,
+            subject=title,
+            status="sent",
+            channel="in_app",
+            metadata=metadata,
+        )
+    
+        return notification_dict
+    
     async def send_email(
         self,
         to_email: str,
@@ -57,7 +93,7 @@ class CommunicationService:
                 "html": html,
             })
 
-            await self.db.notification_logs.update_one(
+            await self.db.communication_logs.update_one(
                 {"created_at": log["created_at"], "recipient_email": to_email},
                 {
                     "$set": {
@@ -70,7 +106,7 @@ class CommunicationService:
             return {"status": "sent"}
 
         except Exception as error:
-            await self.db.notification_logs.update_one(
+            await self.db.communication_logs.update_one(
                 {"created_at": log["created_at"], "recipient_email": to_email},
                 {
                     "$set": {
