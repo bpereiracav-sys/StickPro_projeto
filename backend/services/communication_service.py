@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
+from services.template_service import TemplateService
 
 
 class CommunicationService:
     def __init__(self, db):
         self.db = db
+        self.templates = TemplateService()
 
     async def log_notification(
         self,
