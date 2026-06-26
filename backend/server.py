@@ -7294,7 +7294,22 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
     
     if filtered_updates:
         await db.events.update_one({"id": event_id}, {"$set": filtered_updates})
+
+        updated_event = await db.events.find_one({"id": event_id}, {"_id": 0})
+
+        try:
+            if filtered_updates.get("status") == "cancelled":
+                await communication_service.notify_event_cancelled(updated_event)
     
+            elif filtered_updates.get("status") == "postponed":
+                await communication_service.notify_event_postponed(updated_event)
+    
+            elif filtered_updates.get("status") == "scheduled" and event.get("status") in ["cancelled", "postponed"]:
+                await communication_service.notify_event_restored(updated_event)
+    
+        except Exception as notification_error:
+            logger.error(f"Erro ao registar comunicação do evento {event_id}: {notification_error}")
+        
     return {"message": "Evento atualizado"}
 
 @api_router.delete("/events/{event_id}")
