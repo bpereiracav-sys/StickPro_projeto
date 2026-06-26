@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+import resend
 from services.template_service import TemplateService
 
 
@@ -30,6 +31,57 @@ class CommunicationService:
         await self.db.notification_logs.insert_one(log)
         return log
 
+    async def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html: str,
+        notification_type: str,
+        recipient_user_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
+        log = await self.log_notification(
+            notification_type=notification_type,
+            recipient_user_id=recipient_user_id,
+            recipient_email=to_email,
+            subject=subject,
+            status="pending",
+            metadata=metadata,
+        )
+
+        try:
+            resend.Emails.send({
+                "from": "StickPro <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html,
+            })
+
+            await self.db.notification_logs.update_one(
+                {"created_at": log["created_at"], "recipient_email": to_email},
+                {
+                    "$set": {
+                        "status": "sent",
+                        "sent_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                },
+            )
+
+            return {"status": "sent"}
+
+        except Exception as error:
+            await self.db.notification_logs.update_one(
+                {"created_at": log["created_at"], "recipient_email": to_email},
+                {
+                    "$set": {
+                        "status": "failed",
+                        "error": str(error),
+                    }
+                },
+            )
+
+            return {"status": "failed", "error": str(error)}
+    
     def render_birthday_email(self, member_name: str, club_name: str):
         return self.templates.render_template(
             "emails/birthday.html",
