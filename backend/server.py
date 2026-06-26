@@ -2305,7 +2305,21 @@ async def debug_current_user():
     ).to_list(100)
 
     return users
+
+@api_router.get("/debug/communication-logs")
+    async def debug_communication_logs(current_user: dict = Depends(get_current_user)):
+        checker = get_permission_checker(current_user)
     
+        if not checker.is_admin:
+            raise HTTPException(status_code=403, detail="Sem permissão")
+    
+        logs = await db.communication_logs.find(
+            {},
+            {"_id": 0}
+        ).sort("created_at", -1).to_list(100)
+    
+        return logs
+
 @api_router.get("/auth/permissions")
 async def get_my_permissions(current_user: dict = Depends(get_current_user)):
     """Get current user's permissions"""
