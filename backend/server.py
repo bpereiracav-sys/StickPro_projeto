@@ -7275,7 +7275,7 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
         'postponed_to_start_time',
         'postponed_to_end_time',
         'postponement_reason',
-        'original_event_id'
+        'original_event_id',
         'remove_postponed_copy',
     ]
     filtered_updates = {}
@@ -7304,7 +7304,11 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
             {"id": event_id},
             {"$set": filtered_updates}
         )
-        if remove_postponed_copy:
+    
+        if remove_postponed_copy or (
+            filtered_updates.get("status") == "scheduled"
+            and event.get("status") == "postponed"
+        ):
             await db.events.delete_many(
                 {"original_event_id": event_id}
             )
