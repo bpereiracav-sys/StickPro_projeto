@@ -7275,7 +7275,8 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
         'postponed_to_start_time',
         'postponed_to_end_time',
         'postponement_reason',
-        'original_event_id' 
+        'original_event_id'
+        'remove_postponed_copy',
     ]
     filtered_updates = {}
     
@@ -7294,11 +7295,22 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
             else:
                 filtered_updates[key] = value
     
+    remove_postponed_copy = bool(
+        filtered_updates.pop("remove_postponed_copy", False)
+    )
+    
     if filtered_updates:
-        await db.events.update_one({"id": event_id}, {"$set": filtered_updates})
-
+        await db.events.update_one(
+            {"id": event_id},
+            {"$set": filtered_updates}
+        )
+        if remove_postponed_copy:
+            await db.events.delete_many(
+                {"original_event_id": event_id}
+            )
+    
         updated_event = await db.events.find_one({"id": event_id}, {"_id": 0})
-
+    
         try:
             recipients = await recipient_service.get_event_recipients(updated_event)
         
