@@ -188,3 +188,81 @@ class CommunicationService:
                 "club_name": club_name,
             },
         )
+    async def send_birthday_email(
+        self,
+        member: Dict[str, Any],
+        club: Optional[Dict[str, Any]] = None,
+    ):
+        member_name = member.get("name", "Atleta")
+        club_name = club.get("name") if club else "o clube"
+        to_email = member.get("email")
+
+        if not to_email:
+            return {"status": "skipped", "reason": "missing_email"}
+
+        subject = f"🎂 Feliz aniversário, {member_name}!"
+        html = self.render_birthday_email(member_name, club_name)
+
+        return await self.send_email(
+            to_email=to_email,
+            subject=subject,
+            html=html,
+            notification_type="birthday",
+            recipient_user_id=member.get("id"),
+            metadata={
+                "member_id": member.get("id"),
+                "club_id": member.get("club_id"),
+                "club_name": club_name,
+            },
+        )
+
+    async def send_event_postponed_email(
+        self,
+        to_email: str,
+        event: Dict[str, Any],
+        club_name: str = "o clube",
+        recipient_user_id: Optional[str] = None,
+    ):
+        subject = f"⏳ Evento adiado: {event.get('title', 'Evento')}"
+
+        html = self.render_event_postponed_email(
+            event_title=event.get("title", "Evento"),
+            club_name=club_name,
+            new_date=event.get("postponed_to_start_time", ""),
+            location=event.get("location", ""),
+            reason=event.get("postponement_reason", ""),
+        )
+
+        return await self.send_email(
+            to_email=to_email,
+            subject=subject,
+            html=html,
+            notification_type="event_postponed",
+            recipient_user_id=recipient_user_id,
+            metadata={"event_id": event.get("id")},
+        )
+
+    async def send_event_cancelled_email(
+        self,
+        to_email: str,
+        event: Dict[str, Any],
+        club_name: str = "o clube",
+        recipient_user_id: Optional[str] = None,
+    ):
+        subject = f"❌ Evento cancelado: {event.get('title', 'Evento')}"
+
+        html = self.render_event_cancelled_email(
+            event_title=event.get("title", "Evento"),
+            club_name=club_name,
+            original_date=event.get("start_time", ""),
+            location=event.get("location", ""),
+        )
+
+        return await self.send_email(
+            to_email=to_email,
+            subject=subject,
+            html=html,
+            notification_type="event_cancelled",
+            recipient_user_id=recipient_user_id,
+            metadata={"event_id": event.get("id")},
+        )
