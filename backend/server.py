@@ -26,6 +26,7 @@ import httpx
 from bs4 import BeautifulSoup
 import re
 import pandas as pd
+from services.communication_service import CommunicationService
 
 # Import RBAC permissions module
 from permissions import PermissionChecker, get_permission_checker, Role, ROLE_PERMISSIONS
@@ -88,6 +89,9 @@ api_router = APIRouter(prefix="/api")
 
 # Security
 security = HTTPBearer()
+
+# Communication Service
+communication_service = CommunicationService(db)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
