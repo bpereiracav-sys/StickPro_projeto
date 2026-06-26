@@ -7300,17 +7300,37 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
         updated_event = await db.events.find_one({"id": event_id}, {"_id": 0})
 
         try:
+            recipients = await recipient_service.get_event_recipients(updated_event)
+        
             if filtered_updates.get("status") == "cancelled":
                 await communication_service.notify_event_cancelled(updated_event)
-    
+        
+                for recipient in recipients:
+                    if recipient.get("email"):
+                        await communication_service.send_event_cancelled_email(
+                            to_email=recipient["email"],
+                            event=updated_event,
+                            club_name="StickPro",
+                            recipient_user_id=recipient.get("user_id"),
+                        )
+        
             elif filtered_updates.get("status") == "postponed":
                 await communication_service.notify_event_postponed(updated_event)
-    
+        
+                for recipient in recipients:
+                    if recipient.get("email"):
+                        await communication_service.send_event_postponed_email(
+                            to_email=recipient["email"],
+                            event=updated_event,
+                            club_name="StickPro",
+                            recipient_user_id=recipient.get("user_id"),
+                        )
+        
             elif filtered_updates.get("status") == "scheduled" and event.get("status") in ["cancelled", "postponed"]:
                 await communication_service.notify_event_restored(updated_event)
-    
+        
         except Exception as notification_error:
-            logger.error(f"Erro ao registar comunicação do evento {event_id}: {notification_error}")
+            logger.error(f"Erro ao comunicar alteração do evento {event_id}: {notification_error}")
         
     return {"message": "Evento atualizado"}
 
