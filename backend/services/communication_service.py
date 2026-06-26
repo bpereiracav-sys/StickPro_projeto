@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from services.template_service import TemplateService
 
 
@@ -29,6 +29,51 @@ class CommunicationService:
 
         await self.db.notification_logs.insert_one(log)
         return log
+
+    def render_birthday_email(self, member_name: str, club_name: str):
+        return self.templates.render_template(
+            "emails/birthday.html",
+            {
+                "member_name": member_name,
+                "club_name": club_name,
+            },
+        )
+
+    def render_event_postponed_email(
+        self,
+        event_title: str,
+        club_name: str,
+        new_date: str,
+        location: str = "",
+        reason: str = "",
+    ):
+        return self.templates.render_template(
+            "emails/event_postponed.html",
+            {
+                "event_title": event_title,
+                "club_name": club_name,
+                "new_date": new_date,
+                "location": location,
+                "reason": reason,
+            },
+        )
+
+    def render_event_cancelled_email(
+        self,
+        event_title: str,
+        club_name: str,
+        original_date: str,
+        location: str = "",
+    ):
+        return self.templates.render_template(
+            "emails/event_cancelled.html",
+            {
+                "event_title": event_title,
+                "club_name": club_name,
+                "original_date": original_date,
+                "location": location,
+            },
+        )
 
     async def notify_event_cancelled(self, event: Dict[str, Any]):
         subject = f"Evento cancelado: {event.get('title', 'Evento')}"
@@ -68,7 +113,11 @@ class CommunicationService:
             metadata={"event_id": event.get("id")},
         )
 
-    async def notify_birthday(self, member: Dict[str, Any], club: Optional[Dict[str, Any]] = None):
+    async def notify_birthday(
+        self,
+        member: Dict[str, Any],
+        club: Optional[Dict[str, Any]] = None,
+    ):
         member_name = member.get("name", "Atleta")
         club_name = club.get("name") if club else "o clube"
 
