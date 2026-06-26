@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
 
-class NotificationService:
+class CommunicationService:
     def __init__(self, db):
         self.db = db
 
