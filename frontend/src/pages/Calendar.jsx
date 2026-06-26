@@ -660,6 +660,7 @@ export default function CalendarPage() {
         postponed_to_start_time: null,
         postponed_to_end_time: null,
         postponement_reason: '',
+        remove_postponed_copy: true,
       });
   
       await fetchData();
