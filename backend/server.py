@@ -27,6 +27,7 @@ from bs4 import BeautifulSoup
 import re
 import pandas as pd
 from services.communication_service import CommunicationService
+from services.recipient_service import RecipientService
 
 # Import RBAC permissions module
 from permissions import PermissionChecker, get_permission_checker, Role, ROLE_PERMISSIONS
@@ -92,6 +93,7 @@ security = HTTPBearer()
 
 # Communication Service
 communication_service = CommunicationService(db)
+recipient_service = RecipientService(db)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
