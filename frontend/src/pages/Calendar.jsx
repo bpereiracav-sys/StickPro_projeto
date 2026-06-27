@@ -1537,7 +1537,11 @@ export default function CalendarPage() {
               key={key}
               variant={isActive ? 'default' : 'outline'}
               size="sm"
-              className={`gap-2 rounded-xl px-3 shadow-sm ${isActive ? `${type.color} text-white` : 'bg-white'}`}
+              className={
+                `gap-2 rounded-xl px-3 shadow-sm ${
+                  isActive ? type.color + ' text-white' : 'bg-white'
+                }`
+              }
               onClick={() => toggleEventType(key)}
               data-testid={`filter-${key}`}
             >
