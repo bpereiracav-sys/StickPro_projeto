@@ -300,7 +300,13 @@ export default function CalendarPage() {
           profile_user_id: activeProfile?.user_id,
           profile_role: activeProfile?.role,
         }),
-        eventsApi.getBirthdays({ year: calendarYear }).catch(() => ({ data: [] })),
+        eventsApi.getBirthdays({
+          year: calendarYear,
+          team_id: teamFilter,
+          profile_type: activeProfile?.type,
+          profile_user_id: activeProfile?.user_id,
+          profile_role: activeProfile?.role,
+        }).catch(() => ({ data: [] })),
         teamsApi.getAll(),
         unavailabilitiesApi.getMy().catch(() => ({ data: [] }))
       ]);
