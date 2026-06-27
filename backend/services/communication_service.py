@@ -126,18 +126,6 @@ class CommunicationService:
                     },
                 )
     
-                return {"status": "failed", "error": str(error)}
-        except Exception as error:
-            await self.db.communication_logs.update_one(
-                {"created_at": log["created_at"], "recipient_email": to_email},
-                {
-                    "$set": {
-                        "status": "failed",
-                        "error": str(error),
-                    }
-                },
-            )
-
             return {"status": "failed", "error": str(error)}
     
     def render_birthday_email(self, member_name: str, club_name: str):
