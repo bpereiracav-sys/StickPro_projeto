@@ -1180,7 +1180,10 @@ export default function CalendarPage() {
         {/* Header */}
         <div className="grid grid-cols-7 bg-slate-50">
           {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(day => (
-            <div key={day} className="py-3 text-center text-sm font-semibold text-slate-500"
+            <div
+              key={day}
+              className="py-3 text-center text-sm font-semibold text-slate-500"
+            >
               {day}
             </div>
           ))}
