@@ -7336,7 +7336,12 @@ async def get_events(
             if not birth_date:
                 continue
 
-            birthday_date = birth_date.replace(year=current_year)
+            try:
+                birthday_date = birth_date.replace(year=current_year)
+            except ValueError:
+                # Caso especial: pessoas nascidas a 29 de fevereiro em ano não bissexto
+                birthday_date = birth_date.replace(year=current_year, day=28)
+            
             age = _calculate_age(birth_date, birthday_date)
 
             person_team_ids = person.get("team_ids") or []
@@ -7367,17 +7372,17 @@ async def get_events(
                 "description": f"{age} anos",
                 "location": "",
                 "start_time": datetime(
-                    current_year,
-                    birth_date.month,
-                    birth_date.day,
+                    birthday_date.year,
+                    birthday_date.month,
+                    birthday_date.day,
                     9,
                     0,
                     0
                 ),
                 "end_time": datetime(
-                    current_year,
-                    birth_date.month,
-                    birth_date.day,
+                    birthday_date.year,
+                    birthday_date.month,
+                    birthday_date.day,
                     9,
                     30,
                     0
