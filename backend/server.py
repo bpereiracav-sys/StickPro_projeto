@@ -7153,49 +7153,44 @@ async def get_events(
 
     effective_user = current_user
     effective_checker = checker
-
+    
     if profile_type == "associated" and profile_user_id:
         allowed_accounts = current_user.get("associated_accounts", [])
-
+    
         if profile_user_id not in allowed_accounts:
             raise HTTPException(status_code=403, detail="Perfil associado não autorizado")
-
+    
         associated_user = await db.users.find_one(
             {"id": profile_user_id},
             {"_id": 0, "hashed_password": 0, "password": 0}
         )
-
+    
         if not associated_user:
             raise HTTPException(status_code=404, detail="Perfil associado não encontrado")
-
+    
         effective_user = associated_user
         effective_checker = get_permission_checker(effective_user)
-
+    
     elif profile_type == "self" and profile_role:
         effective_user = {
             **current_user,
             "role": profile_role
         }
         effective_checker = get_permission_checker(effective_user)
-
-    accessible_team_ids = []
-
+    
     if team_id:
         if not effective_checker.is_admin and not effective_checker.can_access_team(team_id):
             raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
-
-        accessible_team_ids = [team_id]
-
+    
         query["$or"] = [
             {"team_id": team_id},
             {"team_ids": team_id},
             {"team_ids": {"$in": [team_id]}}
         ]
-
+    
     elif not effective_checker.is_admin:
         user_teams = list(effective_checker.team_ids)
-        accessible_team_ids = user_teams
-
+    
         if user_teams:
             query["$or"] = [
                 {"team_id": {"$in": user_teams}},
@@ -7203,49 +7198,40 @@ async def get_events(
             ]
         else:
             return []
-
-    else:
-        teams_cursor = db.teams.find({}, {"_id": 0, "id": 1})
-        all_teams = await teams_cursor.to_list(1000)
-        accessible_team_ids = [team.get("id") for team in all_teams if team.get("id")]
-
+    
     if event_type:
         query["event_type"] = event_type
 
     if championship_id:
         query["championship_id"] = championship_id
-
+    
     events = await db.events.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
-
+    
     for event in events:
-        if isinstance(event.get('start_time'), str):
-            event['start_time'] = datetime.fromisoformat(event['start_time'])
-
-        if event.get('end_time') and isinstance(event['end_time'], str):
-            event['end_time'] = datetime.fromisoformat(event['end_time'])
-
+        if isinstance(event.get("start_time"), str):
+            event["start_time"] = datetime.fromisoformat(event["start_time"])
+    
+        if event.get("end_time") and isinstance(event["end_time"], str):
+            event["end_time"] = datetime.fromisoformat(event["end_time"])
+    
         team_ids = event.get("team_ids") or []
-
+    
         if not team_ids and event.get("team_id"):
             team_ids = [event.get("team_id")]
-
+    
         event["team_ids"] = team_ids
-
         event["teams"] = []
 
         for team_id_item in team_ids:
             team = await db.teams.find_one({"id": team_id_item}, {"_id": 0})
             if team:
                 event["teams"].append(team)
-
+    
         if not event.get("team") and event["teams"]:
             event["team"] = event["teams"][0]
-
-
-    events.sort(key=lambda item: item.get("start_time") or datetime.max)
-
+    
     return events
-
+    
 # NOTE: This route MUST be defined BEFORE /events/{event_id} to avoid route conflicts
 @api_router.get("/events/upcoming-without-convocation")
 async def get_upcoming_events_without_convocation(current_user: dict = Depends(get_current_user)):
