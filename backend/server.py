@@ -7357,11 +7357,14 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
     
         try:
             recipients = await recipient_service.get_event_recipients(updated_event)
+            logger.info(f"[COMM] Recipients encontrados: {recipients}")
         
             if filtered_updates.get("status") == "cancelled":
                 await communication_service.notify_event_cancelled(updated_event)
+                logger.info("[COMM] A iniciar envio de emails de cancelamento...")
         
                 for recipient in recipients:
+                    logger.info(f"[COMM] Enviar cancelamento para {recipient.get('email')}")
                     if recipient.get("email"):
                         await communication_service.send_event_cancelled_email(
                             to_email=recipient["email"],
@@ -7372,8 +7375,10 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
         
             elif filtered_updates.get("status") == "postponed":
                 await communication_service.notify_event_postponed(updated_event)
+                logger.info("[COMM] A iniciar envio de emails de adiamento...")
         
                 for recipient in recipients:
+                    logger.info(f"[COMM] Enviar adiamento para {recipient.get('email')}")
                     if recipient.get("email"):
                         await communication_service.send_event_postponed_email(
                             to_email=recipient["email"],
