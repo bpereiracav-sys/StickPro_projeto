@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usersApi, unavailabilitiesApi } from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../components/ui/card';
@@ -10,6 +10,7 @@ import { Badge } from '../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import { Separator } from '../components/ui/separator';
 import { Textarea } from '../components/ui/textarea';
+import { useLocation } from 'react-router-dom';
 import {
   Select,
   SelectContent,
@@ -54,7 +55,48 @@ import { getInitials, getRoleName, formatDate } from '../lib/utils';
 import { ImageUpload } from '../components/ImageUpload';
 
 export default function ProfilePage() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, activeProfile } = useAuth();
+  const location = useLocation();
+
+  const profileUserId =
+    location.state?.profileUserId ||
+    activeProfile?.associated_user_id ||
+    activeProfile?.user_id ||
+    activeProfile?.id ||
+    user?.id;
+
+  const isEditingOwnAccount = profileUserId === user?.id;
+
+  const displayUser = useMemo(() => {
+    if (!user) return null;
+
+    if (isEditingOwnAccount) {
+      return user;
+    }
+
+    return {
+      ...user,
+      id: profileUserId,
+      name:
+        activeProfile?.user_name ||
+        activeProfile?.label ||
+        user?.name,
+      role:
+        activeProfile?.role ||
+        'jogador',
+      email:
+        activeProfile?.email ||
+        user?.email,
+      profile:
+        activeProfile?.profile ||
+        user?.profile ||
+        {},
+      avatar_url:
+        activeProfile?.avatar_url ||
+        activeProfile?.profile?.photo_url ||
+        user?.avatar_url,
+    };
+  }, [user, activeProfile, profileUserId, isEditingOwnAccount]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('identity');
   const [showAddFamilyModal, setShowAddFamilyModal] = useState(false);
@@ -83,35 +125,35 @@ export default function ProfilePage() {
   // Form state
   const [formData, setFormData] = useState({
     // Identity
-    photo_url: user?.profile?.photo_url || user?.avatar_url || '',
-    first_name: user?.profile?.first_name || user?.name?.split(' ')[0] || '',
-    surname: user?.profile?.surname || user?.name?.split(' ').slice(1).join(' ') || '',
-    nickname: user?.profile?.nickname || '',
-    birth_date: user?.profile?.birth_date || '',
-    gender: user?.profile?.gender || '',
-    nationality: user?.profile?.nationality || '',
-    fpp_license: user?.profile?.fpp_license || '',
+    photo_url: displayUser?.profile?.photo_url || displayUser?.avatar_url || '',
+    first_name: displayUser?.profile?.first_name || displayUser?.name?.split(' ')[0] || '',
+    surname: displayUser?.profile?.surname || displayUser?.name?.split(' ').slice(1).join(' ') || '',
+    nickname: displayUser?.profile?.nickname || '',
+    birth_date: displayUser?.profile?.birth_date || '',
+    gender: displayUser?.profile?.gender || '',
+    nationality: displayUser?.profile?.nationality || '',
+    fpp_license: displayUser?.profile?.fpp_license || '',
     
     // Family
-    family_members: user?.profile?.family_members || [],
+    family_members: displayUser?.profile?.family_members || [],
     
     // Biometric
-    weight: user?.profile?.weight || '',
-    height: user?.profile?.height || '',
-    shoe_size: user?.profile?.shoe_size || '',
+    weight: displayUser?.profile?.weight || '',
+    height: displayUser?.profile?.height || '',
+    shoe_size: displayUser?.profile?.shoe_size || '',
     
     // Sports info
     year_joined_club: user?.profile?.year_joined_club || '',
-    fpp_number: user?.profile?.fpp_number || '',
-    function: user?.profile?.function || user?.role || 'jogador',
-    position: user?.profile?.position || '',
-    jersey_number: user?.profile?.jersey_number || '',
+    fpp_number: displayUser?.profile?.fpp_number || '',
+    function: displayUser?.profile?.function || displayUser?.role || 'jogador',
+    position: displayUser?.profile?.position || '',
+    jersey_number: displayUser?.profile?.jersey_number || '',
     
     // Equipment
-    training_kit_size: user?.profile?.training_kit_size || '',
-    tracksuit_size: user?.profile?.tracksuit_size || '',
-    polo_size: user?.profile?.polo_size || '',
-    training_sock_size: user?.profile?.training_sock_size || ''
+    training_kit_size: displayUser?.profile?.training_kit_size || '',
+    tracksuit_size: displayUser?.profile?.tracksuit_size || '',
+    polo_size: displayUser?.profile?.polo_size || '',
+    training_sock_size: displayUser?.profile?.training_sock_size || ''
   });
 
   const handleChange = (field, value) => {
@@ -121,12 +163,14 @@ export default function ProfilePage() {
   const handleSave = async () => {
     setLoading(true);
     try {
-      await usersApi.updateProfile(user.id, formData);
-      updateUser({ 
-        profile: formData,
-        name: `${formData.first_name} ${formData.surname}`.trim() || user.name,
-        avatar_url: formData.photo_url || user.avatar_url
-      });
+      await usersApi.updateProfile(profileUserId, formData);
+      if (isEditingOwnAccount) {
+        updateUser({
+          profile: formData,
+          name: `${formData.first_name} ${formData.surname}`.trim() || user.name,
+          avatar_url: formData.photo_url || user.avatar_url,
+        });
+      }
       toast.success('Perfil atualizado com sucesso!');
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Erro ao atualizar perfil');
@@ -306,7 +350,7 @@ export default function ProfilePage() {
           <Avatar className="w-14 h-14 sm:w-20 sm:h-20 border-4 border-primary flex-shrink-0">
             <AvatarImage src={formData.photo_url} />
             <AvatarFallback className="bg-primary text-white text-lg sm:text-2xl font-heading">
-              {getInitials(formData.first_name || user?.name)}
+              {getInitials(formData.first_name || displayUser?.name)}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
@@ -314,7 +358,7 @@ export default function ProfilePage() {
               Meu Perfil
             </h1>
             <p className="text-muted-foreground text-sm truncate">
-              {user?.email} - {getRoleName(user?.role)}
+              {displayUser?.email} - {getRoleName(displayUser?.role)}
             </p>
           </div>
         </div>
