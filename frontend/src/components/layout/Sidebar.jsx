@@ -45,7 +45,7 @@ const StickProLogo = () => (
   <img
     src={CUSTOM_LOGO_URL}
     alt="StickPro"
-    className="h-14 w-auto max-w-[240px] object-contain"
+    className="h-12 w-auto max-w-[190px] object-contain"
     data-testid="stick-pro-logo"
   />
 );
@@ -326,7 +326,7 @@ export function Sidebar() {
         className={`
           fixed top-0 left-0 h-full z-50
           transition-transform duration-300 ease-in-out
-          w-72 lg:translate-x-0
+          w-60 lg:translate-x-0
           ${menuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
         `}
         style={{
@@ -372,94 +372,7 @@ export function Sidebar() {
             </div>
           )}
 
-          <div className="px-4 py-4">
-            <div
-              className="rounded-2xl border p-3"
-              style={{
-                borderColor: 'hsl(var(--sidebar-border))',
-                backgroundColor: 'hsla(var(--sidebar-accent), 0.08)',
-              }}
-            >
-              {selectedTeam && !isAllTeamsSelected ? (
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center overflow-hidden"
-                    style={{ backgroundColor: 'hsla(var(--sidebar-accent), 0.2)' }}
-                  >
-                    {selectedTeam.photo_url ? (
-                      <img
-                        src={selectedTeam.photo_url}
-                        alt=""
-                        className="w-11 h-11 rounded-xl object-cover"
-                      />
-                    ) : (
-                      <Users
-                        className="w-5 h-5"
-                        style={{ color: 'var(--sidebar-active-text)' }}
-                      />
-                    )}
-                  </div>
-
-                  <div className="text-left flex-1 min-w-0">
-                    <p
-                      className="font-semibold text-sm truncate"
-                      style={{ color: 'var(--sidebar-text)' }}
-                    >
-                      {selectedTeam.name}
-                    </p>
-
-                    <p
-                      className="text-xs truncate"
-                      style={{ color: 'hsl(var(--sidebar-muted))' }}
-                    >
-                      {selectedTeam.category} • {selectedTeam.season}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: 'hsla(var(--sidebar-accent), 0.2)' }}
-                  >
-                    <Building2
-                      className="w-5 h-5"
-                      style={{ color: 'var(--sidebar-active-text)' }}
-                    />
-                  </div>
-
-                  <div className="text-left flex-1 min-w-0">
-                    <p
-                      className="font-semibold text-sm truncate"
-                      style={{ color: 'var(--sidebar-text)' }}
-                    >
-                      {tr('nav.myClub', 'Meu Clube')}
-                    </p>
-
-                    <p
-                      className="text-xs"
-                      style={{ color: 'hsl(var(--sidebar-muted))' }}
-                    >
-                      Vista agregada do clube
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              <div
-                className="mt-3 flex items-center gap-2 rounded-xl px-3 py-2 text-xs"
-                style={{
-                  backgroundColor: 'hsla(var(--sidebar-accent), 0.12)',
-                  color: 'hsl(var(--sidebar-muted))',
-                }}
-              >
-                <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                Clube operacional ativo
-              </div>
-            </div>
-          </div>
-
-          <ScrollArea className="flex-1 px-3 pb-4">
+          <ScrollArea className="flex-1 px-3 py-4">
             <nav className="space-y-5">
               {navSections.map((section) => (
                 <div key={section.title}>
