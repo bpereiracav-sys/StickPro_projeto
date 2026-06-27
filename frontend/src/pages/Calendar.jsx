@@ -291,18 +291,24 @@ export default function CalendarPage() {
           ? selectedTeamFilter
           : null;
       
-      const [eventsRes, teamsRes, unavailRes] = await Promise.all([
+      const calendarYear = selectedDate.getFullYear();
+
+      const [eventsRes, birthdaysRes, teamsRes, unavailRes] = await Promise.all([
         eventsApi.getAll({
           team_id: teamFilter,
           profile_type: activeProfile?.type,
           profile_user_id: activeProfile?.user_id,
           profile_role: activeProfile?.role,
         }),
+        eventsApi.getBirthdays({ year: calendarYear }).catch(() => ({ data: [] })),
         teamsApi.getAll(),
         unavailabilitiesApi.getMy().catch(() => ({ data: [] }))
       ]);
       
-      let filteredEvents = eventsRes.data || [];
+      let filteredEvents = [
+        ...(eventsRes.data || []),
+        ...(birthdaysRes.data || []),
+      ];
 
       if (selectedStatusFilter !== 'all') {
         filteredEvents = filteredEvents.filter(
