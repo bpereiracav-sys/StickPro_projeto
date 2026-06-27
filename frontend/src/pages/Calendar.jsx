@@ -1176,11 +1176,11 @@ export default function CalendarPage() {
     const days = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
     return (
-      <div className="border border-border rounded-sm overflow-hidden">
+      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
         {/* Header */}
-        <div className="grid grid-cols-7 bg-muted">
+        <div className="grid grid-cols-7 bg-slate-50">
           {['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'].map(day => (
-            <div key={day} className="py-2 text-center text-sm font-medium text-muted-foreground">
+            <div key={day} className="py-3 text-center text-sm font-semibold text-slate-500"
               {day}
             </div>
           ))}
@@ -1197,7 +1197,7 @@ export default function CalendarPage() {
               <div
                 key={day.toISOString()}
                 className={`
-                  min-h-[165px] p-1 border-t border-r border-border
+                  min-h-[175px] cursor-pointer border-t border-r border-slate-200 p-2 transition-colors hover:bg-slate-50
                   ${!isCurrentMonth ? 'bg-muted/30' : 'bg-white'}
                   ${isCurrentDay ? 'ring-2 ring-primary ring-inset' : ''}
                 `}
@@ -1236,7 +1236,7 @@ export default function CalendarPage() {
                   
                     const eventCard = (
                       <div
-                        className="group relative overflow-hidden rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                        className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
                         onClick={(e) => e.stopPropagation()}
                         title={
                           event.status === 'postponed'
@@ -1253,16 +1253,16 @@ export default function CalendarPage() {
                         <div className={`absolute left-0 top-0 h-full w-1 ${eventType.color}`} />
                     
                         <div className="flex min-w-0 items-center gap-1.5 pl-1">
-                          <EventIcon className={`h-3 w-3 shrink-0 ${eventType.textColor}`} />
+                          <EventIcon className={`h-3.5 w-3.5 shrink-0 ${eventType.textColor}`} />
                     
-                          <p className="truncate text-[9px] font-semibold text-slate-900">
+                          <p className="truncate text-[11px] font-semibold text-slate-900">
                             {event.status === 'cancelled' && '❌ '}
                             {event.status === 'postponed' && '⏳ '}
                             {event.title}
                           </p>
                         </div>
                     
-                        <div className="flex min-w-0 items-center gap-1 pl-1 text-[9px] text-slate-500">
+                        <div className="flex min-w-0 items-center gap-1 pl-1 text-[10px] text-slate-500">
                           {eventTime && <span>{eventTime}</span>}
                     
                           {eventTeam?.name && (
@@ -1351,8 +1351,8 @@ export default function CalendarPage() {
                   })}
                   
                   {dayEvents.length > 5 && (
-                    <p className="text-xs text-muted-foreground px-1">
-                      +{dayEvents.length - 5}
+                    <p className="mt-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500">
+                      +{dayEvents.length - 5} mais
                     </p>
                   )}
                 </div>
@@ -1375,7 +1375,7 @@ export default function CalendarPage() {
 
   return (
     <div
-      className="-mt-5 space-y-4"
+      className="-mt-10 space-y-4"
       data-testid="calendar-page"
     >
       {/* Header Premium */}
@@ -1488,13 +1488,13 @@ export default function CalendarPage() {
           <Button variant="outline" size="icon" onClick={navigateNext}>
             <ChevronRight className="w-4 h-4" />
           </Button>
-          <h2 className="font-heading text-xl tracking-tight ml-4 capitalize">
+          <h2 className="ml-4 font-heading text-2xl font-bold tracking-tight text-slate-950 capitalize">
             {getViewTitle()}
           </h2>
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center border border-border rounded-sm">
+        <div className="flex items-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
           {Object.entries(VIEW_MODES).map(([key, mode]) => {
             const Icon = mode.icon;
             return (
@@ -1502,7 +1502,7 @@ export default function CalendarPage() {
                 key={key}
                 variant={viewMode === key ? 'default' : 'ghost'}
                 size="sm"
-                className="rounded-none first:rounded-l-sm last:rounded-r-sm"
+                className="rounded-none px-4"
                 onClick={() => {
                   setSelectedDate(new Date());
                   setViewMode(key);
@@ -1518,7 +1518,7 @@ export default function CalendarPage() {
       </div>
 
       {/* Event Type Filters */}
-      <div className="flex flex-wrap items-center gap-2 -mt-1">
+      <div className="flex flex-wrap items-center gap-2 -mt-1 rounded-2xl bg-white/70 p-2">
         <span className="text-sm text-muted-foreground mr-2">Filtrar:</span>
         {[
           'treino',
@@ -1537,7 +1537,7 @@ export default function CalendarPage() {
               key={key}
               variant={isActive ? 'default' : 'outline'}
               size="sm"
-              className={`gap-2 ${isActive ? type.color : ''}`}
+              className={`gap-2 rounded-xl px-3 shadow-sm ${isActive ? `${type.color} text-white` : 'bg-white'}`}
               onClick={() => toggleEventType(key)}
               data-testid={`filter-${key}`}
             >
