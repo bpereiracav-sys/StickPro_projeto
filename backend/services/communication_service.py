@@ -67,54 +67,66 @@ class CommunicationService:
     
         return notification_dict
     
-    async def send_email(
-        self,
-        to_email: str,
-        subject: str,
-        html: str,
-        notification_type: str,
-        recipient_user_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-    ):
-        log = await self.log_notification(
-            notification_type=notification_type,
-            recipient_user_id=recipient_user_id,
-            recipient_email=to_email,
-            subject=subject,
-            status="pending",
-            metadata=metadata,
-        )
-
-                try:
-                    import os
-        
-                    resend_key = os.environ.get("RESEND_API_KEY")
-        
-                    if not resend_key:
-                        raise Exception("RESEND_API_KEY não configurada")
-        
-                    resend.api_key = resend_key.strip()
-        
-                    resend.Emails.send({
-                        "from": "StickPro <onboarding@resend.dev>",
-                        "to": [to_email],
-                        "subject": subject,
-                        "html": html,
-                    })
-        
-                    await self.db.communication_logs.update_one(
-                        {"created_at": log["created_at"], "recipient_email": to_email},
-                        {
-                            "$set": {
-                                "status": "sent",
-                                "sent_at": datetime.now(timezone.utc).isoformat(),
-                                "error": None,
-                            }
-                        },
-                    )
-        
-                    return {"status": "sent"}
-
+        async def send_email(
+            self,
+            to_email: str,
+            subject: str,
+            html: str,
+            notification_type: str,
+            recipient_user_id: Optional[str] = None,
+            metadata: Optional[Dict[str, Any]] = None,
+        ):
+            log = await self.log_notification(
+                notification_type=notification_type,
+                recipient_user_id=recipient_user_id,
+                recipient_email=to_email,
+                subject=subject,
+                status="pending",
+                metadata=metadata,
+            )
+    
+            try:
+                import os
+    
+                resend_key = os.environ.get("RESEND_API_KEY")
+    
+                if not resend_key:
+                    raise Exception("RESEND_API_KEY não configurada")
+    
+                resend.api_key = resend_key.strip()
+    
+                resend.Emails.send({
+                    "from": "StickPro <onboarding@resend.dev>",
+                    "to": [to_email],
+                    "subject": subject,
+                    "html": html,
+                })
+    
+                await self.db.communication_logs.update_one(
+                    {"created_at": log["created_at"], "recipient_email": to_email},
+                    {
+                        "$set": {
+                            "status": "sent",
+                            "sent_at": datetime.now(timezone.utc).isoformat(),
+                            "error": None,
+                        }
+                    },
+                )
+    
+                return {"status": "sent"}
+    
+            except Exception as error:
+                await self.db.communication_logs.update_one(
+                    {"created_at": log["created_at"], "recipient_email": to_email},
+                    {
+                        "$set": {
+                            "status": "failed",
+                            "error": str(error),
+                        }
+                    },
+                )
+    
+                return {"status": "failed", "error": str(error)}
         except Exception as error:
             await self.db.communication_logs.update_one(
                 {"created_at": log["created_at"], "recipient_email": to_email},
