@@ -135,6 +135,7 @@ export const championshipsApi = {
 // Events API
 export const eventsApi = {
   getAll: (params) => api.get('/events', { params }),
+  getBirthdays: (params) => api.get('/events/birthdays', { params }),
   getOne: (id) => api.get(`/events/${id}`),
   create: (data) => api.post('/events', data),
   update: (id, data) => api.put(`/events/${id}`, data),
