@@ -2325,6 +2325,27 @@ async def debug_communication_logs(
 
     return logs
 
+@api_router.get("/debug/event-recipients/{event_id}")
+async def debug_event_recipients(event_id: str, current_user: dict = Depends(get_current_user)):
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Sem permissão")
+
+    event = await db.events.find_one({"id": event_id}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento não encontrado")
+
+    recipients = await recipient_service.get_event_recipients(event)
+
+    return {
+        "event_id": event_id,
+        "team_id": event.get("team_id"),
+        "team_ids": event.get("team_ids"),
+        "recipients_count": len(recipients),
+        "recipients": recipients,
+    }
+
 @api_router.get("/auth/permissions")
 async def get_my_permissions(current_user: dict = Depends(get_current_user)):
     """Get current user's permissions"""
