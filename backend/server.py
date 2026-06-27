@@ -7268,8 +7268,140 @@ async def get_upcoming_events_without_convocation(current_user: dict = Depends(g
     return events_without_conv
 
 @api_router.get("/events/birthdays")
-async def get_birthday_events(current_user: dict = Depends(get_current_user)):
-    return []
+async def get_birthday_events(
+    year: Optional[int] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+    target_year = year or datetime.utcnow().year
+
+    if checker.is_admin:
+        users_query = {
+            "$or": [
+                {"profile.birth_date": {"$exists": True, "$ne": ""}},
+                {"profile.date_of_birth": {"$exists": True, "$ne": ""}},
+                {"birth_date": {"$exists": True, "$ne": ""}},
+                {"date_of_birth": {"$exists": True, "$ne": ""}},
+            ]
+        }
+    else:
+        user_team_ids = list(checker.team_ids)
+
+        if not user_team_ids:
+            return []
+
+        users_query = {
+            "$and": [
+                {
+                    "$or": [
+                        {"profile.birth_date": {"$exists": True, "$ne": ""}},
+                        {"profile.date_of_birth": {"$exists": True, "$ne": ""}},
+                        {"birth_date": {"$exists": True, "$ne": ""}},
+                        {"date_of_birth": {"$exists": True, "$ne": ""}},
+                    ]
+                },
+                {
+                    "$or": [
+                        {"team_ids": {"$in": user_team_ids}},
+                        {"team_id": {"$in": user_team_ids}},
+                    ]
+                }
+            ]
+        }
+
+    users = await db.users.find(
+        users_query,
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "role": 1,
+            "team_id": 1,
+            "team_ids": 1,
+            "profile": 1,
+            "avatar_url": 1,
+        }
+    ).to_list(1000)
+
+    birthday_events = []
+
+    for person in users:
+        profile = person.get("profile") or {}
+
+        raw_birth_date = (
+            profile.get("birth_date")
+            or profile.get("date_of_birth")
+            or person.get("birth_date")
+            or person.get("date_of_birth")
+        )
+
+        if not raw_birth_date:
+            continue
+
+        try:
+            if isinstance(raw_birth_date, datetime):
+                birth_date = raw_birth_date.date()
+            else:
+                birth_date = datetime.fromisoformat(str(raw_birth_date)[:10]).date()
+        except Exception:
+            continue
+
+        try:
+            birthday_date = birth_date.replace(year=target_year)
+        except ValueError:
+            birthday_date = birth_date.replace(year=target_year, day=28)
+
+        age = target_year - birth_date.year
+
+        person_team_ids = person.get("team_ids") or []
+        if not person_team_ids and person.get("team_id"):
+            person_team_ids = [person.get("team_id")]
+
+        main_team_id = person_team_ids[0] if person_team_ids else None
+
+        team = None
+        if main_team_id:
+            team = await db.teams.find_one({"id": main_team_id}, {"_id": 0})
+
+        birthday_events.append({
+            "id": f"birthday-{person.get('id')}-{target_year}",
+            "event_type": "birthday",
+            "title": f"🎂 {person.get('name', 'Aniversário')}",
+            "description": f"{age} anos",
+            "location": "",
+            "start_time": datetime(
+                birthday_date.year,
+                birthday_date.month,
+                birthday_date.day,
+                9,
+                0,
+                0
+            ),
+            "end_time": datetime(
+                birthday_date.year,
+                birthday_date.month,
+                birthday_date.day,
+                9,
+                30,
+                0
+            ),
+            "status": "scheduled",
+            "team_id": main_team_id,
+            "team_ids": person_team_ids,
+            "teams": [team] if team else [],
+            "team": team,
+            "is_virtual": True,
+            "virtual_type": "birthday",
+            "editable": False,
+            "person_id": person.get("id"),
+            "person_name": person.get("name"),
+            "person_role": person.get("role"),
+            "age": age,
+        })
+
+    birthday_events.sort(key=lambda item: item["start_time"])
+
+    return birthday_events
     
 @api_router.get("/events/{event_id}")
 async def get_event(event_id: str, current_user: dict = Depends(get_current_user)):
