@@ -85,25 +85,35 @@ class CommunicationService:
             metadata=metadata,
         )
 
-        try:
-            resend.Emails.send({
-                "from": "StickPro <onboarding@resend.dev>",
-                "to": [to_email],
-                "subject": subject,
-                "html": html,
-            })
-
-            await self.db.communication_logs.update_one(
-                {"created_at": log["created_at"], "recipient_email": to_email},
-                {
-                    "$set": {
-                        "status": "sent",
-                        "sent_at": datetime.now(timezone.utc).isoformat(),
-                    }
-                },
-            )
-
-            return {"status": "sent"}
+                try:
+                    import os
+        
+                    resend_key = os.environ.get("RESEND_API_KEY")
+        
+                    if not resend_key:
+                        raise Exception("RESEND_API_KEY não configurada")
+        
+                    resend.api_key = resend_key.strip()
+        
+                    resend.Emails.send({
+                        "from": "StickPro <onboarding@resend.dev>",
+                        "to": [to_email],
+                        "subject": subject,
+                        "html": html,
+                    })
+        
+                    await self.db.communication_logs.update_one(
+                        {"created_at": log["created_at"], "recipient_email": to_email},
+                        {
+                            "$set": {
+                                "status": "sent",
+                                "sent_at": datetime.now(timezone.utc).isoformat(),
+                                "error": None,
+                            }
+                        },
+                    )
+        
+                    return {"status": "sent"}
 
         except Exception as error:
             await self.db.communication_logs.update_one(
