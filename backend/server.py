@@ -7366,26 +7366,30 @@ async def update_event(event_id: str, updates: dict, current_user: dict = Depend
                 for recipient in recipients:
                     logger.info(f"[COMM] Enviar cancelamento para {recipient.get('email')}")
                     if recipient.get("email"):
-                        await communication_service.send_event_cancelled_email(
-                            to_email=recipient["email"],
-                            event=updated_event,
-                            club_name="StickPro",
-                            recipient_user_id=recipient.get("user_id"),
-                        )
+                        result = await communication_service.send_event_postponed_email(
+                        to_email=recipient["email"],
+                        event=updated_event,
+                        club_name="StickPro",
+                        recipient_user_id=recipient.get("user_id"),
+                    )
+                    
+                    logger.info(f"[COMM] Resultado envio adiamento: {result}")
         
             elif filtered_updates.get("status") == "postponed":
                 await communication_service.notify_event_postponed(updated_event)
                 logger.info("[COMM] A iniciar envio de emails de adiamento...")
-        
+            
                 for recipient in recipients:
                     logger.info(f"[COMM] Enviar adiamento para {recipient.get('email')}")
                     if recipient.get("email"):
-                        await communication_service.send_event_postponed_email(
+                        result = await communication_service.send_event_postponed_email(
                             to_email=recipient["email"],
                             event=updated_event,
                             club_name="StickPro",
                             recipient_user_id=recipient.get("user_id"),
                         )
+            
+                        logger.info(f"[COMM] Resultado envio adiamento: {result}")
         
             elif filtered_updates.get("status") == "scheduled" and event.get("status") in ["cancelled", "postponed"]:
                 await communication_service.notify_event_restored(updated_event)
