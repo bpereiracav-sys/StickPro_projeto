@@ -69,32 +69,30 @@ export default function ProfilePage() {
 
   const displayUser = useMemo(() => {
     if (!user) return null;
-
+  
     if (isEditingOwnAccount) {
       return user;
     }
-
+  
+    const fullName =
+      activeProfile?.user_name ||
+      activeProfile?.label ||
+      '';
+  
+    const [firstName, ...surnameParts] = fullName.split(' ');
+  
     return {
-      ...user,
       id: profileUserId,
-      name:
-        activeProfile?.user_name ||
-        activeProfile?.label ||
-        user?.name,
-      role:
-        activeProfile?.role ||
-        'jogador',
-      email:
-        activeProfile?.email ||
-        user?.email,
-      profile:
-        activeProfile?.profile ||
-        user?.profile ||
-        {},
-      avatar_url:
-        activeProfile?.avatar_url ||
-        activeProfile?.profile?.photo_url ||
-        user?.avatar_url,
+      name: fullName,
+      role: activeProfile?.role || 'jogador',
+      email: activeProfile?.email || '',
+      avatar_url: activeProfile?.avatar_url || activeProfile?.profile?.photo_url || '',
+      profile: {
+        ...(activeProfile?.profile || {}),
+        first_name: activeProfile?.profile?.first_name || firstName || '',
+        surname: activeProfile?.profile?.surname || surnameParts.join(' ') || '',
+        photo_url: activeProfile?.profile?.photo_url || activeProfile?.avatar_url || '',
+      },
     };
   }, [user, activeProfile, profileUserId, isEditingOwnAccount]);
   const [loading, setLoading] = useState(false);
@@ -156,6 +154,37 @@ export default function ProfilePage() {
     training_sock_size: displayUser?.profile?.training_sock_size || ''
   });
 
+  useEffect(() => {
+    if (!displayUser) return;
+  
+    setFormData({
+      photo_url: displayUser?.profile?.photo_url || displayUser?.avatar_url || '',
+      first_name: displayUser?.profile?.first_name || displayUser?.name?.split(' ')[0] || '',
+      surname: displayUser?.profile?.surname || displayUser?.name?.split(' ').slice(1).join(' ') || '',
+      nickname: displayUser?.profile?.nickname || '',
+      birth_date: displayUser?.profile?.birth_date || '',
+      gender: displayUser?.profile?.gender || '',
+      nationality: displayUser?.profile?.nationality || '',
+      fpp_license: displayUser?.profile?.fpp_license || '',
+  
+      family_members: displayUser?.profile?.family_members || [],
+  
+      weight: displayUser?.profile?.weight || '',
+      height: displayUser?.profile?.height || '',
+      shoe_size: displayUser?.profile?.shoe_size || '',
+  
+      year_joined_club: displayUser?.profile?.year_joined_club || '',
+      fpp_number: displayUser?.profile?.fpp_number || '',
+      function: displayUser?.profile?.function || displayUser?.role || 'jogador',
+      position: displayUser?.profile?.position || '',
+      jersey_number: displayUser?.profile?.jersey_number || '',
+  
+      training_kit_size: displayUser?.profile?.training_kit_size || '',
+      tracksuit_size: displayUser?.profile?.tracksuit_size || '',
+      polo_size: displayUser?.profile?.polo_size || '',
+      training_sock_size: displayUser?.profile?.training_sock_size || '',
+    });
+  }, [displayUser]);  
   const handleChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
@@ -468,7 +497,7 @@ export default function ProfilePage() {
                 <div className="space-y-2">
                   <Label>Email da Conta</Label>
                   <Input
-                    value={user?.email}
+                    value={displayUser?.email || ''}
                     disabled
                     className="bg-muted"
                   />
