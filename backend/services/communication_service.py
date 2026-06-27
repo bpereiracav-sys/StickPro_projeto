@@ -1,8 +1,11 @@
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
+import os
 import resend
+
 from services.template_service import TemplateService
 from models.communication_models import CommunicationLog, Notification
+
 
 class CommunicationService:
     def __init__(self, db):
@@ -28,11 +31,9 @@ class CommunicationService:
             status=status,
             metadata=metadata or {},
         )
-    
+
         log_dict = log.model_dump(mode="json")
-    
         await self.db.communication_logs.insert_one(log_dict)
-    
         return log_dict
 
     async def create_in_app_notification(
@@ -50,11 +51,10 @@ class CommunicationService:
             notification_type=notification_type,
             metadata=metadata or {},
         )
-    
+
         notification_dict = notification.model_dump(mode="json")
-    
         await self.db.notifications.insert_one(notification_dict)
-    
+
         await self.log_notification(
             notification_type=notification_type,
             recipient_user_id=user_id,
@@ -64,70 +64,68 @@ class CommunicationService:
             channel="in_app",
             metadata=metadata,
         )
-    
+
         return notification_dict
-    
-        async def send_email(
-            self,
-            to_email: str,
-            subject: str,
-            html: str,
-            notification_type: str,
-            recipient_user_id: Optional[str] = None,
-            metadata: Optional[Dict[str, Any]] = None,
-        ):
-            log = await self.log_notification(
-                notification_type=notification_type,
-                recipient_user_id=recipient_user_id,
-                recipient_email=to_email,
-                subject=subject,
-                status="pending",
-                metadata=metadata,
+
+    async def send_email(
+        self,
+        to_email: str,
+        subject: str,
+        html: str,
+        notification_type: str,
+        recipient_user_id: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ):
+        log = await self.log_notification(
+            notification_type=notification_type,
+            recipient_user_id=recipient_user_id,
+            recipient_email=to_email,
+            subject=subject,
+            status="pending",
+            channel="email",
+            metadata=metadata,
+        )
+
+        try:
+            resend_key = os.environ.get("RESEND_API_KEY")
+            if not resend_key:
+                raise Exception("RESEND_API_KEY não configurada")
+
+            resend.api_key = resend_key.strip()
+
+            resend.Emails.send({
+                "from": "StickPro <onboarding@resend.dev>",
+                "to": [to_email],
+                "subject": subject,
+                "html": html,
+            })
+
+            await self.db.communication_logs.update_one(
+                {"id": log["id"]},
+                {
+                    "$set": {
+                        "status": "sent",
+                        "sent_at": datetime.now(timezone.utc).isoformat(),
+                        "error": None,
+                    }
+                },
             )
-    
-            try:
-                import os
-    
-                resend_key = os.environ.get("RESEND_API_KEY")
-    
-                if not resend_key:
-                    raise Exception("RESEND_API_KEY não configurada")
-    
-                resend.api_key = resend_key.strip()
-    
-                resend.Emails.send({
-                    "from": "StickPro <onboarding@resend.dev>",
-                    "to": [to_email],
-                    "subject": subject,
-                    "html": html,
-                })
-    
-                await self.db.communication_logs.update_one(
-                    {"created_at": log["created_at"], "recipient_email": to_email},
-                    {
-                        "$set": {
-                            "status": "sent",
-                            "sent_at": datetime.now(timezone.utc).isoformat(),
-                            "error": None,
-                        }
-                    },
-                )
-    
-                return {"status": "sent"}
-    
-            except Exception as error:
-                await self.db.communication_logs.update_one(
-                    {"created_at": log["created_at"], "recipient_email": to_email},
-                    {
-                        "$set": {
-                            "status": "failed",
-                            "error": str(error),
-                        }
-                    },
-                )
-    
+
+            return {"status": "sent"}
+
+        except Exception as error:
+            await self.db.communication_logs.update_one(
+                {"id": log["id"]},
+                {
+                    "$set": {
+                        "status": "failed",
+                        "error": str(error),
+                    }
+                },
+            )
+
             return {"status": "failed", "error": str(error)}
-    
+
     def render_birthday_email(self, member_name: str, club_name: str):
         return self.templates.render_template(
             "emails/birthday.html",
@@ -234,6 +232,7 @@ class CommunicationService:
                 "club_name": club_name,
             },
         )
+
     async def send_birthday_email(
         self,
         member: Dict[str, Any],
