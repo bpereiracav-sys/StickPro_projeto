@@ -138,6 +138,12 @@ export function TopNavBar() {
     activeProfile?.label ||
     activeProfile?.description ||
     getRoleName(user?.role);
+
+  const profileTargetId =
+    activeProfile?.associated_user_id ||
+    activeProfile?.user_id ||
+    activeProfile?.id ||
+    user?.id;
   
   const handleLogout = () => {
     logout();
@@ -395,11 +401,11 @@ export function TopNavBar() {
                 </DropdownMenuItem>
 
                <DropdownMenuItem asChild>
-  <Link to="/convocations" className="cursor-pointer">
-    <ClipboardList className="mr-2 h-4 w-4" />
-    {tr('dashboard.newConvocation', 'Nova Convocatória')}
-  </Link>
-</DropdownMenuItem>
+                  <Link to="/convocations" className="cursor-pointer">
+                    <ClipboardList className="mr-2 h-4 w-4" />
+                    {tr('dashboard.newConvocation', 'Nova Convocatória')}
+                  </Link>
+                </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
                   <Link to="/competitions" className="cursor-pointer">
@@ -563,11 +569,18 @@ export function TopNavBar() {
                   </>
                 )}
               
-                <DropdownMenuItem asChild>
-                  <Link to="/profile" className="cursor-pointer">
-                    <UserCircle className="mr-2 h-4 w-4" />
-                    {myProfileLabel}
-                  </Link>
+                <DropdownMenuItem
+                  onClick={() =>
+                    navigate('/profile', {
+                      state: {
+                        profileUserId: profileTargetId,
+                      },
+                    })
+                  }
+                  className="cursor-pointer"
+                >
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  {myProfileLabel}
                 </DropdownMenuItem>
               
                 {(permissions.isAdmin || permissions.canManageClub) && (
