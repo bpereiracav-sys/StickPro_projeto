@@ -7268,8 +7268,11 @@ async def get_events(
         if not event.get("team") and event["teams"]:
             event["team"] = event["teams"][0]
 
-    should_include_birthdays = not event_type or event_type == "birthday"
-
+    should_include_birthdays = (
+        (not event_type or event_type == "birthday")
+        and not effective_checker.is_admin
+    )
+    
     if should_include_birthdays:
         current_year = datetime.utcnow().year
         birthday_events = []
