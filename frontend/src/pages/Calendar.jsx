@@ -1197,7 +1197,7 @@ export default function CalendarPage() {
               <div
                 key={day.toISOString()}
                 className={`
-                  min-h-[100px] p-1 border-t border-r border-border
+                  min-h-[165px] p-1 border-t border-r border-border
                   ${!isCurrentMonth ? 'bg-muted/30' : 'bg-white'}
                   ${isCurrentDay ? 'ring-2 ring-primary ring-inset' : ''}
                 `}
@@ -1214,7 +1214,7 @@ export default function CalendarPage() {
                   {format(day, 'd')}
                 </div>
                 <div className="space-y-0.5">
-                  {dayEvents.slice(0, 2).map(event => {
+                  {dayEvents.slice(0, 5).map(event => {
                     const eventType = EVENT_TYPES[event.event_type] || EVENT_TYPES.outro;
                     const EventIcon = eventType.icon || CalendarIcon;
                     const canManageThisEvent =
@@ -1350,9 +1350,9 @@ export default function CalendarPage() {
                     );
                   })}
                   
-                  {dayEvents.length > 2 && (
+                  {dayEvents.length > 5 && (
                     <p className="text-xs text-muted-foreground px-1">
-                      +{dayEvents.length - 2}
+                      +{dayEvents.length - 5}
                     </p>
                   )}
                 </div>
@@ -1374,7 +1374,10 @@ export default function CalendarPage() {
   }
 
   return (
-    <div className="space-y-6" data-testid="calendar-page">
+    <div
+      className="-mt-5 space-y-4"
+      data-testid="calendar-page"
+    >
       {/* Header Premium */}
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/70 p-4 shadow-xl shadow-slate-200/70">
       
@@ -1473,7 +1476,7 @@ export default function CalendarPage() {
       </div>
       
       {/* View Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         {/* Navigation */}
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={navigatePrevious}>
@@ -1515,9 +1518,18 @@ export default function CalendarPage() {
       </div>
 
       {/* Event Type Filters */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 -mt-1">
         <span className="text-sm text-muted-foreground mr-2">Filtrar:</span>
-        {Object.entries(EVENT_TYPES).map(([key, type]) => {
+        {[
+          'treino',
+          'jogo_campeonato',
+          'jogo_amigavel',
+          'torneio',
+          'evento_administrativo',
+          'birthday',
+          'outro',
+        ].map((key) => {
+          const type = EVENT_TYPES[key];
           const Icon = type.icon;
           const isActive = visibleEventTypes.includes(key);
           return (
