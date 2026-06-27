@@ -7267,6 +7267,10 @@ async def get_upcoming_events_without_convocation(current_user: dict = Depends(g
     
     return events_without_conv
 
+@api_router.get("/events/birthdays")
+async def get_birthday_events(current_user: dict = Depends(get_current_user)):
+    return []
+    
 @api_router.get("/events/{event_id}")
 async def get_event(event_id: str, current_user: dict = Depends(get_current_user)):
     checker = get_permission_checker(current_user)
