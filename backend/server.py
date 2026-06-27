@@ -7266,48 +7266,83 @@ async def get_upcoming_events_without_convocation(current_user: dict = Depends(g
             events_without_conv.append(event)
     
     return events_without_conv
-
 @api_router.get("/events/birthdays")
 async def get_birthday_events(
     year: Optional[int] = None,
+    team_id: Optional[str] = None,
+    profile_type: Optional[str] = None,
+    profile_user_id: Optional[str] = None,
+    profile_role: Optional[str] = None,
     current_user: dict = Depends(get_current_user)
 ):
     checker = get_permission_checker(current_user)
+
+    effective_user = current_user
+    effective_checker = checker
+
+    if profile_type == "associated" and profile_user_id:
+        allowed_accounts = current_user.get("associated_accounts", [])
+
+        if profile_user_id not in allowed_accounts:
+            raise HTTPException(status_code=403, detail="Perfil associado não autorizado")
+
+        associated_user = await db.users.find_one(
+            {"id": profile_user_id},
+            {"_id": 0, "hashed_password": 0, "password": 0}
+        )
+
+        if not associated_user:
+            raise HTTPException(status_code=404, detail="Perfil associado não encontrado")
+
+        effective_user = associated_user
+        effective_checker = get_permission_checker(effective_user)
+
+    elif profile_type == "self" and profile_role:
+        effective_user = {
+            **current_user,
+            "role": profile_role
+        }
+        effective_checker = get_permission_checker(effective_user)
+
     target_year = year or datetime.utcnow().year
 
-    if checker.is_admin:
-        users_query = {
-            "$or": [
-                {"profile.birth_date": {"$exists": True, "$ne": ""}},
-                {"profile.date_of_birth": {"$exists": True, "$ne": ""}},
-                {"birth_date": {"$exists": True, "$ne": ""}},
-                {"date_of_birth": {"$exists": True, "$ne": ""}},
-            ]
-        }
+    accessible_team_ids = []
+
+    if team_id:
+        if not effective_checker.is_admin and not effective_checker.can_access_team(team_id):
+            raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+
+        accessible_team_ids = [team_id]
+
+    elif effective_checker.is_admin:
+        all_teams = await db.teams.find({}, {"_id": 0, "id": 1}).to_list(1000)
+        accessible_team_ids = [team.get("id") for team in all_teams if team.get("id")]
+
     else:
-        user_team_ids = list(checker.team_ids)
+        accessible_team_ids = list(effective_checker.team_ids)
 
-        if not user_team_ids:
-            return []
+    if not accessible_team_ids:
+        return []
 
-        users_query = {
-            "$and": [
-                {
-                    "$or": [
-                        {"profile.birth_date": {"$exists": True, "$ne": ""}},
-                        {"profile.date_of_birth": {"$exists": True, "$ne": ""}},
-                        {"birth_date": {"$exists": True, "$ne": ""}},
-                        {"date_of_birth": {"$exists": True, "$ne": ""}},
-                    ]
-                },
-                {
-                    "$or": [
-                        {"team_ids": {"$in": user_team_ids}},
-                        {"team_id": {"$in": user_team_ids}},
-                    ]
-                }
-            ]
-        }
+    users_query = {
+        "$and": [
+            {
+                "$or": [
+                    {"profile.birth_date": {"$exists": True, "$ne": ""}},
+                    {"profile.date_of_birth": {"$exists": True, "$ne": ""}},
+                    {"birth_date": {"$exists": True, "$ne": ""}},
+                    {"date_of_birth": {"$exists": True, "$ne": ""}},
+                ]
+            },
+            {
+                "$or": [
+                    {"team_ids": {"$in": accessible_team_ids}},
+                    {"team_id": {"$in": accessible_team_ids}},
+                    {"teams": {"$in": accessible_team_ids}},
+                ]
+            }
+        ]
+    }
 
     users = await db.users.find(
         users_query,
@@ -7318,6 +7353,7 @@ async def get_birthday_events(
             "role": 1,
             "team_id": 1,
             "team_ids": 1,
+            "teams": 1,
             "profile": 1,
             "avatar_url": 1,
         }
@@ -7354,14 +7390,32 @@ async def get_birthday_events(
         age = target_year - birth_date.year
 
         person_team_ids = person.get("team_ids") or []
+
         if not person_team_ids and person.get("team_id"):
             person_team_ids = [person.get("team_id")]
 
-        main_team_id = person_team_ids[0] if person_team_ids else None
+        if not person_team_ids and person.get("teams"):
+            person_team_ids = (
+                person.get("teams")
+                if isinstance(person.get("teams"), list)
+                else [person.get("teams")]
+            )
 
-        team = None
-        if main_team_id:
-            team = await db.teams.find_one({"id": main_team_id}, {"_id": 0})
+        visible_team_ids = [
+            tid for tid in person_team_ids if tid in accessible_team_ids
+        ]
+
+        if not visible_team_ids:
+            continue
+
+        main_team_id = visible_team_ids[0]
+
+        team_docs = []
+
+        for birthday_team_id in visible_team_ids:
+            team = await db.teams.find_one({"id": birthday_team_id}, {"_id": 0})
+            if team:
+                team_docs.append(team)
 
         birthday_events.append({
             "id": f"birthday-{person.get('id')}-{target_year}",
@@ -7387,9 +7441,9 @@ async def get_birthday_events(
             ),
             "status": "scheduled",
             "team_id": main_team_id,
-            "team_ids": person_team_ids,
-            "teams": [team] if team else [],
-            "team": team,
+            "team_ids": visible_team_ids,
+            "teams": team_docs,
+            "team": team_docs[0] if team_docs else None,
             "is_virtual": True,
             "virtual_type": "birthday",
             "editable": False,
