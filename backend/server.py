@@ -7324,25 +7324,33 @@ async def get_birthday_events(
     if not accessible_team_ids:
         return []
 
-    users_query = {
-        "$and": [
-            {
-                "$or": [
-                    {"profile.birth_date": {"$exists": True, "$ne": ""}},
-                    {"profile.date_of_birth": {"$exists": True, "$ne": ""}},
-                    {"birth_date": {"$exists": True, "$ne": ""}},
-                    {"date_of_birth": {"$exists": True, "$ne": ""}},
-                ]
-            },
-            {
-                "$or": [
-                    {"team_ids": {"$in": accessible_team_ids}},
-                    {"team_id": {"$in": accessible_team_ids}},
-                    {"teams": {"$in": accessible_team_ids}},
-                ]
-            }
+    birth_date_filter = {
+        "$or": [
+            {"profile.birth_date": {"$exists": True, "$ne": ""}},
+            {"profile.date_of_birth": {"$exists": True, "$ne": ""}},
+            {"birth_date": {"$exists": True, "$ne": ""}},
+            {"date_of_birth": {"$exists": True, "$ne": ""}},
         ]
     }
+    
+    if effective_checker.is_admin and not team_id:
+        users_query = birth_date_filter
+    else:
+        users_query = {
+            "$and": [
+                birth_date_filter,
+                {
+                    "$or": [
+                        {"id": effective_user.get("id")},
+                        {"team_ids": {"$in": accessible_team_ids}},
+                        {"team_id": {"$in": accessible_team_ids}},
+                        {"teams": {"$in": accessible_team_ids}},
+                        {"profile.team_ids": {"$in": accessible_team_ids}},
+                        {"profile.team_id": {"$in": accessible_team_ids}},
+                    ]
+                }
+            ]
+        }
 
     users = await db.users.find(
         users_query,
@@ -7405,6 +7413,9 @@ async def get_birthday_events(
             tid for tid in person_team_ids if tid in accessible_team_ids
         ]
 
+        if not visible_team_ids and person.get("id") == effective_user.get("id"):
+            visible_team_ids = accessible_team_ids[:1]
+        
         if not visible_team_ids:
             continue
 
