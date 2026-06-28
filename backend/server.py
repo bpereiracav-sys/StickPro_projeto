@@ -7414,10 +7414,13 @@ async def get_birthday_events(
         ]
 
         if not visible_team_ids and person.get("id") == effective_user.get("id"):
-            visible_team_ids = accessible_team_ids[:1]
+            visible_team_ids = accessible_team_ids[:1] or person_team_ids[:1] or ["birthday-profile"]
         
         if not visible_team_ids:
-            continue
+            if effective_checker.is_admin:
+                visible_team_ids = person_team_ids[:1] or ["birthday-admin"]
+            else:
+                continue
 
         main_team_id = visible_team_ids[0]
 
