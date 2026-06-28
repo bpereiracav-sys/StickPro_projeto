@@ -2154,6 +2154,37 @@ async def debug_latest_family_invite():
         "status": invite.get("status")
     }
 
+@api_router.get("/debug/associated-user-lite/{user_id}")
+async def debug_associated_user_lite(
+    user_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    allowed_accounts = current_user.get("associated_accounts", [])
+
+    if user_id not in allowed_accounts and current_user.get("role") not in ["admin", "gestor_desportivo"]:
+        raise HTTPException(status_code=403, detail="Sem acesso a este utilizador")
+
+    user = await db.users.find_one(
+        {"id": user_id},
+        {
+            "_id": 0,
+            "id": 1,
+            "name": 1,
+            "role": 1,
+            "team_id": 1,
+            "team_ids": 1,
+            "teams": 1,
+            "profile": 1,
+            "associated_accounts": 1,
+            "linked_player_ids": 1,
+        }
+    )
+
+    if not user:
+        raise HTTPException(status_code=404, detail="Utilizador não encontrado")
+
+    return user
+
 @api_router.get("/auth/me")
 async def get_me(current_user: dict = Depends(get_current_user)):
     profiles = await build_available_profiles(current_user)
