@@ -7339,16 +7339,30 @@ async def get_birthday_events(
 
     accessible_team_ids = []
 
-    if team_id:
+    if profile_type == "associated" and profile_user_id:
+        profile_teams = await db.teams.find(
+            {
+                "$or": [
+                    {"player_ids": profile_user_id},
+                    {"member_ids": profile_user_id},
+                    {"user_ids": profile_user_id},
+                ]
+            },
+            {"_id": 0, "id": 1}
+        ).to_list(100)
+    
+        accessible_team_ids = [team["id"] for team in profile_teams if team.get("id")]
+    
+    elif team_id:
         if not effective_checker.is_admin and not effective_checker.can_access_team(team_id):
             raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
-
+    
         accessible_team_ids = [team_id]
-
+    
     elif effective_checker.is_admin:
         all_teams = await db.teams.find({}, {"_id": 0, "id": 1}).to_list(1000)
         accessible_team_ids = [team.get("id") for team in all_teams if team.get("id")]
-
+    
     else:
         accessible_team_ids = list(effective_checker.team_ids)
 
