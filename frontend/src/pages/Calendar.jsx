@@ -323,7 +323,28 @@ export default function CalendarPage() {
       }
       
       setEvents(filteredEvents);
-      setTeams(teamsRes.data);
+      const allTeams = teamsRes.data || [];
+
+      const activeProfileTeamIds =
+        activeProfile?.team_ids ||
+        activeProfile?.teamIds ||
+        activeProfile?.teams?.map((team) => team.id) ||
+        [];
+      
+      const visibleTeams =
+        activeProfile?.type === 'associated' && activeProfileTeamIds.length > 0
+          ? allTeams.filter((team) => activeProfileTeamIds.includes(team.id))
+          : allTeams;
+      
+      setTeams(visibleTeams);
+      
+      if (
+        activeProfile?.type === 'associated' &&
+        selectedTeamFilter !== 'all' &&
+        !visibleTeams.some((team) => team.id === selectedTeamFilter)
+      ) {
+        setSelectedTeamFilter('all');
+      }
       setUnavailabilities(unavailRes.data || []);
       
       // Set default team for form
