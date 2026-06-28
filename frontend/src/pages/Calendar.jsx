@@ -325,6 +325,10 @@ export default function CalendarPage() {
       setEvents(filteredEvents);
       const allTeams = teamsRes.data || [];
 
+      console.log('ACTIVE PROFILE CALENDAR:', activeProfile);
+      console.log('ALL TEAMS:', allTeams);
+      console.log('BIRTHDAYS RESPONSE:', birthdaysRes.data);
+      
       const activeProfileTeamIds = [
         ...(activeProfile?.team_ids || []),
         ...(activeProfile?.teamIds || []),
@@ -361,7 +365,6 @@ export default function CalendarPage() {
     } finally {
       setLoading(false);
     }
-  };
 
   const fetchTeamMembers = async (teamId) => {
     try {
