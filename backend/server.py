@@ -7426,7 +7426,12 @@ async def get_birthday_events(
             if isinstance(raw_birth_date, datetime):
                 birth_date = raw_birth_date.date()
             else:
-                birth_date = datetime.fromisoformat(str(raw_birth_date)[:10]).date()
+                raw_value = str(raw_birth_date).strip()
+        
+                if "/" in raw_value:
+                    birth_date = datetime.strptime(raw_value[:10], "%d/%m/%Y").date()
+                else:
+                    birth_date = datetime.fromisoformat(raw_value[:10]).date()
         except Exception:
             continue
 
