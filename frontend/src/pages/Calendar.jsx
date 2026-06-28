@@ -354,6 +354,23 @@ export default function CalendarPage() {
       
       setUnavailabilities(unavailRes.data || []);
 
+      // Set default team for form
+        if (selectedTeamFilter && selectedTeamFilter !== 'all') {
+          setFormData(prev => ({ ...prev, team_id: selectedTeamFilter }));
+        } else if (selectedTeam?.id) {
+          setFormData(prev => ({ ...prev, team_id: selectedTeam.id }));
+        } else if (visibleTeams.length > 0 && !formData.team_id) {
+          setFormData(prev => ({ ...prev, team_id: visibleTeams[0].id }));
+        }
+  
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast.error(t('common.loadError', 'Erro ao carregar dados'));
+      } finally {
+        setLoading(false);
+      }
+    };
+      
   const fetchTeamMembers = async (teamId) => {
     try {
       const response = await teamsApi.getMembers(teamId);
