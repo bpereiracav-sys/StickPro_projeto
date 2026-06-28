@@ -293,6 +293,12 @@ export default function CalendarPage() {
       
       const calendarYear = selectedDate.getFullYear();
 
+      const activeProfileTeamIds = [
+        ...(activeProfile?.team_ids || []),
+        ...(activeProfile?.teamIds || []),
+        ...((activeProfile?.teams || []).map((team) => team.id)),
+      ].filter(Boolean);
+      
       const [eventsRes, birthdaysRes, teamsRes, unavailRes] = await Promise.all([
         eventsApi.getAll({
           team_id: teamFilter,
@@ -303,19 +309,20 @@ export default function CalendarPage() {
         eventsApi.getBirthdays({
           year: calendarYear,
           team_id: teamFilter,
+          team_ids: activeProfileTeamIds.join(','),
           profile_type: activeProfile?.type,
           profile_user_id: activeProfile?.user_id,
           profile_role: activeProfile?.role,
         }).catch(() => ({ data: [] })),
         teamsApi.getAll(),
-        unavailabilitiesApi.getMy().catch(() => ({ data: [] }))
+        unavailabilitiesApi.getMy().catch(() => ({ data: [] })),
       ]);
       
       let filteredEvents = [
         ...(eventsRes.data || []),
         ...(birthdaysRes.data || []),
       ];
-
+      
       if (selectedStatusFilter !== 'all') {
         filteredEvents = filteredEvents.filter(
           (event) => event.status === selectedStatusFilter
@@ -323,17 +330,12 @@ export default function CalendarPage() {
       }
       
       setEvents(filteredEvents);
+      
       const allTeams = teamsRes.data || [];
-
+      
       console.log('ACTIVE PROFILE CALENDAR:', activeProfile);
       console.log('ALL TEAMS:', allTeams);
       console.log('BIRTHDAYS RESPONSE:', birthdaysRes.data);
-      
-      const activeProfileTeamIds = [
-        ...(activeProfile?.team_ids || []),
-        ...(activeProfile?.teamIds || []),
-        ...((activeProfile?.teams || []).map((team) => team.id)),
-      ].filter(Boolean);
       
       const visibleTeams =
         activeProfile?.type === 'associated'
@@ -349,23 +351,8 @@ export default function CalendarPage() {
       ) {
         setSelectedTeamFilter('all');
       }
-      setUnavailabilities(unavailRes.data || []);
       
-      // Set default team for form
-      if (selectedTeamFilter && selectedTeamFilter !== 'all') {
-        setFormData(prev => ({ ...prev, team_id: selectedTeamFilter }));
-      } else if (selectedTeam?.id) {
-        setFormData(prev => ({ ...prev, team_id: selectedTeam.id }));
-      } else if (teamsRes.data.length > 0 && !formData.team_id) {
-        setFormData(prev => ({ ...prev, team_id: teamsRes.data[0].id }));
-      }
-    } catch (error) {
-      console.error('Error fetching data:', error);
-      toast.error(t('common.loadError', 'Erro ao carregar dados'));
-    } finally {
-      setLoading(false);
-    }
-  };
+      setUnavailabilities(unavailRes.data || []);
 
   const fetchTeamMembers = async (teamId) => {
     try {
