@@ -365,6 +365,7 @@ export default function CalendarPage() {
     } finally {
       setLoading(false);
     }
+  };
 
   const fetchTeamMembers = async (teamId) => {
     try {
