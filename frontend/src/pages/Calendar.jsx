@@ -325,14 +325,14 @@ export default function CalendarPage() {
       setEvents(filteredEvents);
       const allTeams = teamsRes.data || [];
 
-      const activeProfileTeamIds =
-        activeProfile?.team_ids ||
-        activeProfile?.teamIds ||
-        activeProfile?.teams?.map((team) => team.id) ||
-        [];
+      const activeProfileTeamIds = [
+        ...(activeProfile?.team_ids || []),
+        ...(activeProfile?.teamIds || []),
+        ...((activeProfile?.teams || []).map((team) => team.id)),
+      ].filter(Boolean);
       
       const visibleTeams =
-        activeProfile?.type === 'associated' && activeProfileTeamIds.length > 0
+        activeProfile?.type === 'associated'
           ? allTeams.filter((team) => activeProfileTeamIds.includes(team.id))
           : allTeams;
       
