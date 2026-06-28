@@ -7301,6 +7301,7 @@ async def get_upcoming_events_without_convocation(current_user: dict = Depends(g
 async def get_birthday_events(
     year: Optional[int] = None,
     team_id: Optional[str] = None,
+    team_ids: Optional[str] = None,
     profile_type: Optional[str] = None,
     profile_user_id: Optional[str] = None,
     profile_role: Optional[str] = None,
@@ -7337,21 +7338,15 @@ async def get_birthday_events(
 
     target_year = year or datetime.utcnow().year
 
+    requested_team_ids = [
+        item.strip()
+        for item in (team_ids or "").split(",")
+        if item.strip()
+    ]    
     accessible_team_ids = []
 
-    if profile_type == "associated" and profile_user_id:
-        profile_teams = await db.teams.find(
-            {
-                "$or": [
-                    {"player_ids": profile_user_id},
-                    {"member_ids": profile_user_id},
-                    {"user_ids": profile_user_id},
-                ]
-            },
-            {"_id": 0, "id": 1}
-        ).to_list(100)
-    
-        accessible_team_ids = [team["id"] for team in profile_teams if team.get("id")]
+    if requested_team_ids:
+        accessible_team_ids = requested_team_ids
     
     elif team_id:
         if not effective_checker.is_admin and not effective_checker.can_access_team(team_id):
