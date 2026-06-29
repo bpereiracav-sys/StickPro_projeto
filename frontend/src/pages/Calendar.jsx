@@ -1755,9 +1755,9 @@ export default function CalendarPage() {
         </div>
 
         {/* Filtros compactos */}
-        <div className="grid grid-cols-2 gap-2 md:flex md:items-center md:gap-3">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:items-center md:gap-3">
           <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
-            <SelectTrigger className="h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:w-[220px] md:text-sm">
+            <SelectTrigger className="h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:text-sm">
               <SelectValue placeholder={t('calendar.allTeams', 'Todas as equipas')} />
             </SelectTrigger>
 
@@ -1775,7 +1775,7 @@ export default function CalendarPage() {
           </Select>
 
           <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
-            <SelectTrigger className="h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:w-[190px] md:text-sm">
+            <SelectTrigger className="h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:text-sm">
               <SelectValue placeholder={t('calendar.allStatuses', 'Todos os estados')} />
             </SelectTrigger>
 
@@ -1795,6 +1795,53 @@ export default function CalendarPage() {
               <SelectItem value="cancelled">
                 {t('calendar.statusCancelled', 'Cancelado')}
               </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select
+            value={
+              visibleEventTypes.length === Object.keys(EVENT_TYPES).length
+                ? 'all'
+                : visibleEventTypes[0] || 'all'
+            }
+            onValueChange={(value) => {
+              if (value === 'all') {
+                setVisibleEventTypes(Object.keys(EVENT_TYPES));
+              } else {
+                setVisibleEventTypes([value]);
+              }
+            }}
+          >
+            <SelectTrigger className="hidden h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:flex md:text-sm">
+              <SelectValue placeholder={t('calendar.allEventTypes', 'Todos os tipos')} />
+            </SelectTrigger>
+
+            <SelectContent className="bg-white">
+              <SelectItem value="all">
+                {t('calendar.allEventTypes', 'Todos os tipos')}
+              </SelectItem>
+
+              {[
+                'treino',
+                'jogo_campeonato',
+                'jogo_amigavel',
+                'torneio',
+                'evento_administrativo',
+                'birthday',
+                'outro',
+              ].map((key) => {
+                const type = EVENT_TYPES[key];
+                const Icon = type.icon;
+
+                return (
+                  <SelectItem key={key} value={key}>
+                    <div className="flex items-center gap-2">
+                      <Icon className={`h-4 w-4 ${type.textColor}`} />
+                      {type.label}
+                    </div>
+                  </SelectItem>
+                );
+              })}
             </SelectContent>
           </Select>
         </div>
@@ -1844,40 +1891,6 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Event Type Filters - desktop only */}
-      <div className="-mt-1 hidden flex-wrap items-center gap-2 rounded-2xl bg-white/70 p-2 md:flex">
-        <span className="text-sm text-muted-foreground mr-2">{t('common.filter', 'Filtrar')}:</span>
-        {[
-          'treino',
-          'jogo_campeonato',
-          'jogo_amigavel',
-          'torneio',
-          'evento_administrativo',
-          'birthday',
-          'outro',
-        ].map((key) => {
-          const type = EVENT_TYPES[key];
-          const Icon = type.icon;
-          const isActive = visibleEventTypes.includes(key);
-          return (
-            <Button
-              key={key}
-              variant={isActive ? 'default' : 'outline'}
-              size="sm"
-              className={
-                `gap-2 rounded-xl px-3 shadow-sm ${
-                  isActive ? type.color + ' text-white' : 'bg-white'
-                }`
-              }
-              onClick={() => toggleEventType(key)}
-              data-testid={`filter-${key}`}
-            >
-              <Icon className="w-4 h-4" />
-              {type.label}
-            </Button>
-          );
-        })}
-      </div>
 
       {/* Calendar View */}
       {viewMode === 'agenda' && renderAgendaView()}
@@ -2634,4 +2647,5 @@ export default function CalendarPage() {
     </div>
   );
 }
+
 
