@@ -51,14 +51,14 @@ import {
   DropdownMenuTrigger,
 } from '../components/ui/dropdown-menu';
 import { toast } from 'sonner';
-import {
-  Plus,
-  Calendar as CalendarIcon,
-  Clock,
-  MapPin,
-  Loader2,
-  X,
-  ChevronLeft,
+import { 
+  Plus, 
+  Calendar as CalendarIcon, 
+  Clock, 
+  MapPin, 
+  Loader2, 
+  X, 
+  ChevronLeft, 
   ChevronRight,
   LayoutGrid,
   List,
@@ -87,14 +87,14 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
-import {
-  format,
-  isSameDay,
-  parseISO,
-  startOfWeek,
-  endOfWeek,
-  startOfMonth,
-  endOfMonth,
+import { 
+  format, 
+  isSameDay, 
+  parseISO, 
+  startOfWeek, 
+  endOfWeek, 
+  startOfMonth, 
+  endOfMonth, 
   eachDayOfInterval,
   addDays,
   addWeeks,
@@ -106,10 +106,6 @@ import {
   isSameMonth
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
-
-const BirthdayIcon = ({ className = '' }) => (
-  <span className={className} aria-hidden="true">🎂</span>
-);
 
 // Event Types with icons and colors
 const EVENT_TYPES = {
@@ -124,10 +120,10 @@ const EVENT_TYPES = {
     color: 'bg-violet-600',
     textColor: 'text-violet-600',
   },
-
+  
   birthday: {
     label: 'Aniversário',
-    icon: BirthdayIcon,
+    icon: CalendarIcon,
     color: 'bg-pink-500',
     textColor: 'text-pink-600',
   },
@@ -152,7 +148,7 @@ function PlayerStatusRow({ player, canEdit, onUpdateStatus, updating, t }) {
 
   return (
     <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 border border-border">
-      <div className="flex flex-col gap-3 md:flex-row md:items-center">
+      <div className="flex items-center gap-3">
         <Avatar className="h-8 w-8">
           <AvatarImage src={player.avatar_url} />
           <AvatarFallback className="text-xs bg-primary/10">
@@ -166,10 +162,10 @@ function PlayerStatusRow({ player, canEdit, onUpdateStatus, updating, t }) {
           )}
         </div>
       </div>
-
+      
       {canEdit ? (
-        <Select
-          value={player.status}
+        <Select 
+          value={player.status} 
           onValueChange={(value) => onUpdateStatus(player.id, value)}
           disabled={updating}
         >
@@ -210,20 +206,12 @@ export default function CalendarPage() {
   const [teams, setTeams] = useState([]);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
+  const [selectedEventTypeFilter, setSelectedEventTypeFilter] = useState('all');
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isMobile, setIsMobile] = useState(false);
   const [viewMode, setViewMode] = useState('month');
-  const [visibleEventTypes, setVisibleEventTypes] = useState([
-    'treino',
-    'jogo_campeonato',
-    'jogo_amigavel',
-    'torneio',
-    'evento_administrativo',
-    'birthday',
-    'outro'
-  ]);
+  const [isMobile, setIsMobile] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [convocationDialogOpen, setConvocationDialogOpen] = useState(false);
@@ -247,15 +235,15 @@ export default function CalendarPage() {
     end_time: '20:00',
     reason: '',
   });
-
+  
   // Unavailability state
   const [unavailabilities, setUnavailabilities] = useState([]);
   const [unavailabilityDialogOpen, setUnavailabilityDialogOpen] = useState(false);
   const [showUnavailabilities, setShowUnavailabilities] = useState(true);
-
+  
   // Convocation visibility setting
   const [convocationVisibility, setConvocationVisibility] = useState('all'); // players, delegates, all
-
+  
   const [formData, setFormData] = useState({
     team_id: selectedTeam?.id || '',
     event_type: 'treino',
@@ -284,25 +272,25 @@ export default function CalendarPage() {
     { value: 0, label: 'Dom', fullLabel: 'Domingo' }
   ];
 
+  // Calendar V2 - refresh when team filter or profile changes
   useEffect(() => {
-    const updateIsMobile = () => {
-      const mobile = window.matchMedia('(max-width: 767px)').matches;
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
       setIsMobile(mobile);
       if (mobile) {
-        setViewMode((current) => (current === 'month' || current === 'week' ? 'agenda' : current));
+        setViewMode('agenda');
       }
     };
 
-    updateIsMobile();
-    window.addEventListener('resize', updateIsMobile);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
 
-    return () => window.removeEventListener('resize', updateIsMobile);
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Calendar V2 - refresh when team filter or profile changes
   useEffect(() => {
     fetchData();
-  }, [selectedTeam, activeProfile, selectedTeamFilter]);
+  }, [selectedTeam, activeProfile, selectedTeamFilter, selectedStatusFilter, selectedDate]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -311,7 +299,7 @@ export default function CalendarPage() {
         selectedTeamFilter && selectedTeamFilter !== 'all'
           ? selectedTeamFilter
           : null;
-
+      
       const calendarYear = selectedDate.getFullYear();
 
       const activeProfileTeamIds = [
@@ -319,7 +307,7 @@ export default function CalendarPage() {
         ...(activeProfile?.teamIds || []),
         ...((activeProfile?.teams || []).map((team) => team.id)),
       ].filter(Boolean);
-
+      
       const [eventsRes, birthdaysRes, teamsRes, unavailRes] = await Promise.all([
         eventsApi.getAll({
           team_id: teamFilter,
@@ -338,33 +326,33 @@ export default function CalendarPage() {
         teamsApi.getAll(),
         unavailabilitiesApi.getMy().catch(() => ({ data: [] })),
       ]);
-
+      
       let filteredEvents = [
         ...(eventsRes.data || []),
         ...(birthdaysRes.data || []),
       ];
-
+      
       if (selectedStatusFilter !== 'all') {
         filteredEvents = filteredEvents.filter(
           (event) => event.status === selectedStatusFilter
         );
       }
-
+      
       setEvents(filteredEvents);
-
+      
       const allTeams = teamsRes.data || [];
-
+      
       console.log('ACTIVE PROFILE CALENDAR:', activeProfile);
       console.log('ALL TEAMS:', allTeams);
       console.log('BIRTHDAYS RESPONSE:', birthdaysRes.data);
-
+      
       const visibleTeams =
         activeProfile?.type === 'associated'
           ? allTeams.filter((team) => activeProfileTeamIds.includes(team.id))
           : allTeams;
-
+      
       setTeams(visibleTeams);
-
+      
       if (
         activeProfile?.type === 'associated' &&
         selectedTeamFilter !== 'all' &&
@@ -372,7 +360,7 @@ export default function CalendarPage() {
       ) {
         setSelectedTeamFilter('all');
       }
-
+      
       setUnavailabilities(unavailRes.data || []);
 
       // Set default team for form
@@ -383,7 +371,7 @@ export default function CalendarPage() {
         } else if (visibleTeams.length > 0 && !formData.team_id) {
           setFormData(prev => ({ ...prev, team_id: visibleTeams[0].id }));
         }
-
+  
       } catch (error) {
         console.error('Error fetching data:', error);
         toast.error(t('common.loadError', 'Erro ao carregar dados'));
@@ -391,14 +379,14 @@ export default function CalendarPage() {
         setLoading(false);
       }
     };
-
+      
   const fetchTeamMembers = async (teamId) => {
     try {
       const response = await teamsApi.getMembers(teamId);
       // Filter only players from the response
       const allMembers = response.data || [];
-      const players = allMembers.filter(m =>
-        m.role === 'jogador' ||
+      const players = allMembers.filter(m => 
+        m.role === 'jogador' || 
         m.profile?.function === 'jogador' ||
         m.profile?.sports_info?.function === 'jogador'
       );
@@ -441,7 +429,7 @@ export default function CalendarPage() {
     const dates = [];
     let currentDate = parseISO(startDate);
     const lastDate = parseISO(endDate);
-
+    
     while (currentDate <= lastDate) {
       const dayOfWeek = currentDate.getDay(); // 0=Sunday, 1=Monday, etc.
       if (selectedDays.includes(dayOfWeek)) {
@@ -449,7 +437,7 @@ export default function CalendarPage() {
       }
       currentDate = addDays(currentDate, 1);
     }
-
+    
     return dates;
   };
 
@@ -458,33 +446,33 @@ export default function CalendarPage() {
       toast.error(t('calendar.selectTeam', 'Selecione uma equipa'));
       return;
     }
-
+  
     if (!formData.title) {
       toast.error(t('calendar.enterTitle', 'Introduza um título'));
       return;
     }
-
+  
     if (!formData.date) {
       toast.error(t('calendar.selectDate', 'Selecione uma data'));
       return;
     }
-
+  
     if (isRecurring) {
       console.log('isRecurring:', isRecurring);
       console.log('recurringDays:', recurringDays);
       console.log('recurringEndDate:', recurringEndDate);
-
+    
       if (recurringDays.length === 0) {
         toast.error(t('calendar.selectWeekday', 'Selecione pelo menos um dia da semana'));
         return;
       }
-
+    
       if (!recurringEndDate) {
         toast.error(t('calendar.selectEndDate', 'Selecione a data de fim do período'));
         return;
       }
     }
-
+  
     try {
       const buildEventPayload = (date) => ({
         team_id: formData.team_id,
@@ -498,20 +486,20 @@ export default function CalendarPage() {
         championship_id: formData.championship_id || null,
         status: formData.status || 'scheduled',
       });
-
+  
       if (isRecurring && recurringDays.length > 0 && recurringEndDate) {
         const dates = generateRecurringDates(
           formData.date,
           recurringEndDate,
           recurringDays
         );
-
+  
         if (dates.length === 0) {
           toast.error(t('calendar.noRecurringDates', 'Nenhuma data encontrada para os dias selecionados'));
           setCreating(false);
           return;
         }
-
+  
         if (dates.length > 100) {
           toast.error(
             t(
@@ -522,11 +510,11 @@ export default function CalendarPage() {
           setCreating(false);
           return;
         }
-
+  
         for (const date of dates) {
           await eventsApi.create(buildEventPayload(date));
         }
-
+  
         toast.success(
           t(
             'calendar.eventsCreated',
@@ -537,40 +525,40 @@ export default function CalendarPage() {
         await eventsApi.create(buildEventPayload(formData.date));
         toast.success(t('calendar.eventCreated', 'Evento criado com sucesso!'));
       }
-
+  
       await fetchData();
-
+  
       setCreateDialogOpen(false);
       resetForm();
     } catch (error) {
       console.error('Error creating event:', error);
-
+  
       const message =
         typeof error.response?.data?.detail === 'string'
           ? error.response.data.detail
           : t('calendar.createError', 'Erro ao criar evento');
-
+  
       toast.error(message);
     } finally {
       setCreating(false);
     }
   };
-
+  
   const handleUpdateEvent = async () => {
     if (!selectedEvent) return;
-
+  
     if (!formData.title) {
       toast.error(t('calendar.enterTitle', 'Introduza um título'));
       return;
     }
-
+  
     if (!formData.date) {
       toast.error(t('calendar.selectDate', 'Selecione uma data'));
       return;
     }
-
+  
     setUpdating(true);
-
+  
     try {
       const eventData = {
         event_type: formData.event_type,
@@ -584,9 +572,9 @@ export default function CalendarPage() {
         opponent: formData.opponent || '',
         status: formData.status || 'scheduled',
       };
-
+  
       await eventsApi.update(selectedEvent.id, eventData);
-
+  
       setEvents((prev) =>
         prev.map((event) =>
           event.id === selectedEvent.id
@@ -597,7 +585,7 @@ export default function CalendarPage() {
             : event
         )
       );
-
+  
       setEditDialogOpen(false);
       setSelectedEvent(null);
       toast.success(t('calendar.eventUpdated', 'Evento atualizado!'));
@@ -625,7 +613,7 @@ export default function CalendarPage() {
   const handlePostponeEvent = async (event = null) => {
     const targetEvent = event || selectedEvent;
     if (!targetEvent) return;
-
+    
     try {
       await eventsApi.update(targetEvent.id, { status: 'postponed' });
       setEvents(prev => prev.map(e => e.id === targetEvent.id ? { ...e, status: 'postponed' } : e));
@@ -637,10 +625,10 @@ export default function CalendarPage() {
 
   const openPostponeDialog = (event) => {
     setSelectedEvent(event);
-
+  
     const start = event.start_time ? parseISO(event.start_time) : new Date();
     const end = event.end_time ? parseISO(event.end_time) : null;
-
+  
     setPostponeData({
       date: format(start, 'yyyy-MM-dd'),
       start_time: format(start, 'HH:mm'),
@@ -649,30 +637,30 @@ export default function CalendarPage() {
     });
     setPostponeDialogOpen(true);
   };
-
+  
   const handleConfirmPostpone = async () => {
     if (!selectedEvent) return;
-
+  
     if (!postponeData.date || !postponeData.start_time) {
       toast.error(t('calendar.selectDate', 'Selecione uma data'));
       return;
     }
-
+  
     setPostponingEvent(true);
-
+  
     try {
       const postponedStart = `${postponeData.date}T${postponeData.start_time}:00`;
       const postponedEnd = postponeData.end_time
         ? `${postponeData.date}T${postponeData.end_time}:00`
         : null;
-
+  
       await eventsApi.update(selectedEvent.id, {
         status: 'postponed',
         postponed_to_start_time: postponedStart,
         postponed_to_end_time: postponedEnd,
         postponement_reason: postponeData.reason || '',
       });
-
+  
       await eventsApi.create({
         team_id: selectedEvent.team_id,
         event_type: selectedEvent.event_type,
@@ -686,7 +674,7 @@ export default function CalendarPage() {
         status: 'scheduled',
         original_event_id: selectedEvent.id,
       });
-
+  
       setPostponeDialogOpen(false);
       setSelectedEvent(null);
       toast.success(t('calendar.eventPostponed', 'Evento adiado com sucesso'));
@@ -698,11 +686,11 @@ export default function CalendarPage() {
       setPostponingEvent(false);
     }
   };
-
+  
   const handleCancelEvent = async (event = null) => {
     const targetEvent = event || selectedEvent;
     if (!targetEvent) return;
-
+    
     try {
       await eventsApi.update(targetEvent.id, { status: 'cancelled' });
       setEvents(prev => prev.map(e => e.id === targetEvent.id ? { ...e, status: 'cancelled' } : e));
@@ -715,7 +703,7 @@ export default function CalendarPage() {
   const handleRestoreEvent = async (event = null) => {
     const targetEvent = event || selectedEvent;
     if (!targetEvent) return;
-
+  
     try {
       await eventsApi.update(targetEvent.id, {
         status: 'scheduled',
@@ -724,20 +712,20 @@ export default function CalendarPage() {
         postponement_reason: '',
         remove_postponed_copy: true,
       });
-
+  
       await fetchData();
-
+  
       toast.success(t('calendar.eventRestored', 'Evento reativado com sucesso!'));
     } catch (error) {
       console.error('Error restoring event:', error);
       toast.error(t('calendar.restoreError', 'Erro ao reativar evento'));
     }
   };
-
+  
   const openEditDialog = (event) => {
     const startDate = event.start_time ? parseISO(event.start_time) : new Date();
     const endDate = event.end_time ? parseISO(event.end_time) : new Date();
-
+    
     setSelectedEvent(event);
     setFormData({
       team_id: event.team_id,
@@ -760,7 +748,7 @@ export default function CalendarPage() {
     setSelectedPlayers([]);
     setConvocationVisibility('all');
     setConvocationMessage('');
-
+    
     // Fetch unavailabilities for team members
     try {
       const response = await unavailabilitiesApi.getAll({ team_id: event.team_id });
@@ -768,7 +756,7 @@ export default function CalendarPage() {
     } catch (error) {
       console.error('Error fetching unavailabilities:', error);
     }
-
+    
     setConvocationDialogOpen(true);
   };
 
@@ -785,13 +773,13 @@ export default function CalendarPage() {
         message: convocationMessage || null,
         visibility: convocationVisibility
       });
-
+      
       // Check if any players were skipped due to unavailability
       const skipped = response.data?.skipped_unavailable_players || [];
       if (skipped.length > 0) {
         toast.warning(`${skipped.length} jogador(es) indisponível(is) foram excluídos da convocatória`);
       }
-
+      
       toast.success(`Convocatória criada para ${selectedPlayers.length - skipped.length} jogadores!`);
       setConvocationDialogOpen(false);
       setSelectedPlayers([]);
@@ -813,9 +801,9 @@ export default function CalendarPage() {
       setConvocationStatusDialogOpen(true);
     } catch (error) {
       // No attendance records for this event
-      setConvocationStatus({
-        present: [], absent: [], pending: [],
-        total: 0, confirmed_count: 0, event_passed: false
+      setConvocationStatus({ 
+        present: [], absent: [], pending: [], 
+        total: 0, confirmed_count: 0, event_passed: false 
       });
       setConvocationStatusDialogOpen(true);
     } finally {
@@ -872,8 +860,8 @@ export default function CalendarPage() {
   };
 
   const togglePlayerSelection = (playerId) => {
-    setSelectedPlayers(prev =>
-      prev.includes(playerId)
+    setSelectedPlayers(prev => 
+      prev.includes(playerId) 
         ? prev.filter(id => id !== playerId)
         : [...prev, playerId]
     );
@@ -884,9 +872,9 @@ export default function CalendarPage() {
     const eventDate = selectedEvent?.start_time ? new Date(selectedEvent.start_time) : null;
     const availablePlayers = teamMembers.filter(member => {
       if (!eventDate) return true;
-      return !unavailabilities.some(u =>
-        u.user_id === member.id &&
-        new Date(u.start_date) <= eventDate &&
+      return !unavailabilities.some(u => 
+        u.user_id === member.id && 
+        new Date(u.start_date) <= eventDate && 
         new Date(u.end_date) >= eventDate
       );
     });
@@ -906,15 +894,13 @@ export default function CalendarPage() {
 
   // Navigation functions
   const navigatePrevious = () => {
-    if (viewMode === 'agenda') setSelectedDate(prev => subDays(prev, 7));
-    else if (viewMode === 'day') setSelectedDate(prev => subDays(prev, 1));
+    if (viewMode === 'day') setSelectedDate(prev => subDays(prev, 1));
     else if (viewMode === 'week') setSelectedDate(prev => subWeeks(prev, 1));
     else setSelectedDate(prev => subMonths(prev, 1));
   };
 
   const navigateNext = () => {
-    if (viewMode === 'agenda') setSelectedDate(prev => addDays(prev, 7));
-    else if (viewMode === 'day') setSelectedDate(prev => addDays(prev, 1));
+    if (viewMode === 'day') setSelectedDate(prev => addDays(prev, 1));
     else if (viewMode === 'week') setSelectedDate(prev => addWeeks(prev, 1));
     else setSelectedDate(prev => addMonths(prev, 1));
   };
@@ -926,10 +912,7 @@ export default function CalendarPage() {
   // Get events for current view (filtered by visible types)
   const getViewEvents = () => {
     let start, end;
-    if (viewMode === 'agenda') {
-      start = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-      end = addDays(start, 90);
-    } else if (viewMode === 'day') {
+    if (viewMode === 'day') {
       start = selectedDate;
       end = selectedDate;
     } else if (viewMode === 'week') {
@@ -942,7 +925,7 @@ export default function CalendarPage() {
 
     return events.filter(event => {
       if (!event.start_time) return false;
-      if (!visibleEventTypes.includes(event.event_type)) return false;
+      if (selectedEventTypeFilter !== 'all' && event.event_type !== selectedEventTypeFilter) return false;
       const eventDate = parseISO(event.start_time);
       return eventDate >= start && eventDate <= end;
     });
@@ -951,22 +934,14 @@ export default function CalendarPage() {
   const getEventsForDay = (date) => {
     return events.filter(event => {
       if (!event.start_time) return false;
-      if (!visibleEventTypes.includes(event.event_type)) return false;
+      if (selectedEventTypeFilter !== 'all' && event.event_type !== selectedEventTypeFilter) return false;
       return isSameDay(parseISO(event.start_time), date);
     });
   };
 
-  const toggleEventType = (type) => {
-    setVisibleEventTypes(prev =>
-      prev.includes(type)
-        ? prev.filter(t => t !== type)
-        : [...prev, type]
-    );
-  };
-
   const getViewTitle = () => {
     if (viewMode === 'agenda') {
-      return t('calendar.agendaTitle', 'Agenda');
+      return t('calendar.agenda', 'Agenda');
     }
     if (viewMode === 'day') {
       return format(selectedDate, "EEEE, d 'de' MMMM 'de' yyyy", { locale: pt });
@@ -978,455 +953,321 @@ export default function CalendarPage() {
     return format(selectedDate, "MMMM 'de' yyyy", { locale: pt });
   };
 
-  const renderEventCard = (event, compact = false) => {
-    const eventType = EVENT_TYPES[event.event_type] || EVENT_TYPES.outro;
-    const Icon = eventType.icon;
-    const isPostponed = event.status === 'postponed';
-    const isCancelled = event.status === 'cancelled';
-
+  const getEventTeamName = (event) => {
     return (
-      <div
-        key={event.id}
-        className={`
-          group relative rounded-2xl border border-slate-200 bg-white p-4
-          shadow-sm transition-all hover:shadow-lg hover:-translate-y-0.5
-          ${isPostponed ? 'opacity-60' : ''}
-          ${isCancelled ? 'opacity-40' : ''}
-        `}
-        onClick={() => openEditDialog(event)}
-      >
-        <div className="flex items-start justify-between">
-
-          <div className="flex-1">
-
-            <div className="mb-3">
-              <Badge
-                className={`${eventType.color} text-white border-0`}
-              >
-                <Icon className="mr-1 h-3 w-3" />
-                {eventType.label}
-              </Badge>
-            </div>
-
-            <h3
-              className={`
-                text-base font-semibold text-slate-900
-                ${isCancelled ? 'line-through' : ''}
-              `}
-            >
-              {event.title}
-            </h3>
-
-            {!compact && (
-              <div className="mt-2 grid grid-cols-1 gap-3 text-xs text-slate-500 md:grid-cols-[1fr_auto]">
-
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  {event.start_time &&
-                    format(parseISO(event.start_time), 'HH:mm')}
-                  {event.end_time &&
-                    ` - ${format(parseISO(event.end_time), 'HH:mm')}`}
-                </div>
-
-                {event.location && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    {event.location}
-                  </div>
-                )}
-
-                {event.description && (
-                  <div className="ml-auto max-w-sm rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
-                    <span className="font-semibold text-slate-700">
-                      {t('calendar.notes', 'Observações')}:
-                    </span>{' '}
-                    {event.description}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  {teams.find(t => t.id === event.team_id)?.name || 'Equipa'}
-                </div>
-
-              </div>
-            )}
-
-            {isCancelled && (
-              <Badge
-                variant="outline"
-                className="mt-4 border-red-500 bg-red-50 text-red-600"
-              >
-                ❌ {t('calendar.statusCancelled', 'Cancelado')}
-              </Badge>
-            )}
-
-            {isPostponed && (
-              <Badge
-                variant="outline"
-                className="mt-4 border-amber-500 bg-amber-50 text-amber-600"
-              >
-                ⏳ {t('calendar.statusPostponed', 'Adiado')}
-              </Badge>
-            )}
-          </div>
-
-          {canManageEvents &&
-            (isAdmin || canAccessTeam(event.team_id)) && (
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  asChild
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <MoreVertical className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent
-                  className="bg-white"
-                  align="end"
-                >
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openEditDialog(event);
-                    }}
-                  >
-                    <Edit className="w-4 h-4 mr-2" />
-                    Editar
-                  </DropdownMenuItem>
-
-                  {canCreateConvocations && (
-                    <DropdownMenuItem
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openConvocationDialog(event);
-                      }}
-                    >
-                      <Users className="w-4 h-4 mr-2" />
-                      Convocar Jogadores
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuItem
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      openConvocationStatusDialog(event);
-                    }}
-                  >
-                    <ClipboardCheck className="w-4 h-4 mr-2" />
-                    Ver Estado Convocatória
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      openPostponeDialog(event);
-                    }}
-                  >
-                    <PauseCircle className="w-4 h-4 mr-2" />
-                    {t('calendar.postpone', 'Adiar')}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      handleCancelEvent(event);
-                    }}
-                  >
-                    <XCircle className="w-4 h-4 mr-2" />
-                    {t('calendar.cancelEvent', 'Cancelar')}
-                  </DropdownMenuItem>
-
-                  {(event.status === 'cancelled' || event.status === 'postponed') && (
-                    <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        handleRestoreEvent(event);
-                      }}
-                    >
-                      <CheckCircle className="w-4 h-4 mr-2" />
-                      {event.status === 'postponed'
-                        ? t('calendar.undoPostpone', 'Anular adiamento')
-                        : t('calendar.restoreEvent', 'Reativar evento')}
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    className="text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedEvent(event);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="w-4 h-4 mr-2" />
-                    Eliminar
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-          )}
-        </div>
-      </div>
+      teams.find((team) => team.id === event.team_id)?.name ||
+      event.team?.name ||
+      event.teams?.[0]?.name ||
+      t('calendar.team', 'Equipa')
     );
   };
 
-  const getTeamName = (event) => {
-    const eventTeam =
-      teams.find((team) => team.id === event.team_id) ||
-      event.team ||
-      (Array.isArray(event.teams) ? event.teams[0] : null);
-
-    return eventTeam?.name || t('calendar.team', 'Equipa');
+  const getEventCompetitionName = (event) => {
+    return (
+      event.championship_name ||
+      event.competition_name ||
+      event.championship?.name ||
+      event.competition?.name ||
+      ''
+    );
   };
 
-  const getSortedAgendaEvents = () => {
-    const todayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-    const agendaEnd = addDays(todayStart, 90);
+  const getEventResult = (event) => {
+    const homeScore = event.home_score ?? event.home_goals ?? event.score_home;
+    const awayScore = event.away_score ?? event.away_goals ?? event.score_away;
 
-    return events
-      .filter((event) => {
-        if (!event.start_time) return false;
-        if (!visibleEventTypes.includes(event.event_type)) return false;
-        const eventDate = parseISO(event.start_time);
-        return eventDate >= todayStart && eventDate <= agendaEnd;
-      })
-      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+    if (homeScore === undefined || awayScore === undefined) {
+      return '';
+    }
+
+    return `${homeScore} - ${awayScore}`;
   };
 
-  const getAgendaDayLabel = (date) => {
-    if (isToday(date)) return t('calendar.today', 'Hoje');
-    if (isSameDay(date, addDays(new Date(), 1))) return t('calendar.tomorrow', 'Amanhã');
-    return format(date, "EEEE, d 'de' MMMM", { locale: pt });
-  };
-
-  const renderAgendaEventCard = (event) => {
-    const eventType = EVENT_TYPES[event.event_type] || EVENT_TYPES.outro;
-    const Icon = eventType.icon;
-    const isBirthday = event.event_type === 'birthday';
-    const isPostponed = event.status === 'postponed';
-    const isCancelled = event.status === 'cancelled';
-    const start = event.start_time ? parseISO(event.start_time) : null;
-    const end = event.end_time ? parseISO(event.end_time) : null;
+  const renderEventActionsMenu = (event) => {
     const canManageThisEvent = canManageEvents && (isAdmin || canAccessTeam(event.team_id));
 
     return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+          <Button className="h-10 flex-1 rounded-2xl bg-primary text-white shadow-md shadow-primary/20 hover:bg-primary/90">
+            <MoreVertical className="mr-2 h-4 w-4" />
+            {t('calendar.actions', 'Ações')}
+          </Button>
+        </DropdownMenuTrigger>
+
+        <DropdownMenuContent className="bg-white" align="end">
+          <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
+            <ClipboardCheck className="mr-2 h-4 w-4" />
+            {t('convocations.viewStatus', 'Estado da convocatória')}
+          </DropdownMenuItem>
+
+          {canManageThisEvent && (
+            <>
+              <DropdownMenuItem onClick={() => openEditDialog(event)}>
+                <Edit className="mr-2 h-4 w-4" />
+                {t('common.edit', 'Editar')}
+              </DropdownMenuItem>
+
+              {canCreateConvocations && (
+                <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
+                  <Users className="mr-2 h-4 w-4" />
+                  {t('convocations.callPlayers', 'Convocar jogadores')}
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  openPostponeDialog(event);
+                }}
+              >
+                <PauseCircle className="mr-2 h-4 w-4" />
+                {t('calendar.postpone', 'Adiar')}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem onClick={() => handleCancelEvent(event)}>
+                <XCircle className="mr-2 h-4 w-4" />
+                {t('calendar.cancelEvent', 'Cancelar')}
+              </DropdownMenuItem>
+
+              {(event.status === 'cancelled' || event.status === 'postponed') && (
+                <DropdownMenuItem
+                  onSelect={(e) => {
+                    e.preventDefault();
+                    handleRestoreEvent(event);
+                  }}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  {event.status === 'postponed'
+                    ? t('calendar.undoPostpone', 'Anular adiamento')
+                    : t('calendar.restoreEvent', 'Reativar evento')}
+                </DropdownMenuItem>
+              )}
+
+              <DropdownMenuSeparator />
+
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setSelectedEvent(event);
+                  setDeleteDialogOpen(true);
+                }}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                {t('common.delete', 'Eliminar')}
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
+
+  const renderEventCard = (event, compact = false) => {
+    const eventType = EVENT_TYPES[event.event_type] || EVENT_TYPES.outro;
+    const Icon = event.event_type === 'birthday' ? null : eventType.icon;
+    const isPostponed = event.status === 'postponed';
+    const isCancelled = event.status === 'cancelled';
+    const teamName = getEventTeamName(event);
+    const competitionName = getEventCompetitionName(event);
+    const result = getEventResult(event);
+    const isBirthday = event.event_type === 'birthday';
+
+    if (compact) {
+      return (
+        <button
+          key={event.id}
+          type="button"
+          onClick={() => openConvocationStatusDialog(event)}
+          className="w-full rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-left shadow-sm transition hover:shadow-md"
+        >
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span className={`flex h-5 w-1 rounded-full ${eventType.color}`} />
+            <span className="truncate text-[11px] font-semibold text-slate-900">
+              {isBirthday ? '🎂 ' : ''}
+              {event.title}
+            </span>
+          </div>
+          <p className="truncate pl-3 text-[10px] text-slate-500">
+            {event.start_time && format(parseISO(event.start_time), 'HH:mm')}
+            {teamName && ` • ${teamName}`}
+          </p>
+        </button>
+      );
+    }
+
+    return (
       <div
         key={event.id}
-        className={`rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition active:scale-[0.99] ${
-          isCancelled ? 'opacity-50' : isPostponed ? 'opacity-70' : ''
-        }`}
+        className={`group relative overflow-hidden rounded-3xl border border-slate-200 bg-white p-4 shadow-md shadow-slate-200/60 transition-all hover:shadow-lg md:p-4 ${isPostponed ? 'opacity-70' : ''} ${isCancelled ? 'opacity-50' : ''}`}
       >
-        <div className="flex items-start gap-3">
-          <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${isBirthday ? 'bg-pink-50 text-2xl' : `${eventType.color} text-white`}`}>
-            {isBirthday ? '🎂' : <Icon className="h-5 w-5" />}
+        <div className="flex gap-4">
+          <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-white shadow-lg ${eventType.color}`}>
+            {isBirthday ? (
+              <span className="text-3xl">🎂</span>
+            ) : (
+              Icon && <Icon className="h-7 w-7" />
+            )}
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="mb-1 flex flex-wrap items-center gap-2">
-              <Badge className={`${eventType.color} border-0 text-white`}>
-                {isBirthday ? '🎂' : <Icon className="mr-1 h-3 w-3" />}
-                {eventType.label}
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Badge className={`${eventType.color} border-0 text-white shadow-sm`}>
+                {isBirthday ? '🎂' : Icon && <Icon className="mr-1 h-3 w-3" />}
+                {isBirthday ? t('calendar.birthday', 'Aniversário') : eventType.label}
               </Badge>
 
-              {isCancelled && (
-                <Badge variant="outline" className="border-red-500 bg-red-50 text-red-600">
-                  {t('calendar.statusCancelled', 'Cancelado')}
+              {competitionName && (
+                <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-600">
+                  <Trophy className="mr-1 h-3 w-3" />
+                  {competitionName}
                 </Badge>
               )}
 
-              {isPostponed && (
-                <Badge variant="outline" className="border-amber-500 bg-amber-50 text-amber-600">
-                  {t('calendar.statusPostponed', 'Adiado')}
+              {result && (
+                <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                  {result}
                 </Badge>
               )}
             </div>
 
-            <h3 className={`truncate text-base font-semibold text-slate-950 ${isCancelled ? 'line-through' : ''}`}>
+            <h3 className={`truncate text-xl font-bold tracking-tight text-slate-950 md:text-base ${isCancelled ? 'line-through' : ''}`}>
+              {event.status === 'cancelled' && '❌ '}
+              {event.status === 'postponed' && '⏳ '}
               {event.title}
             </h3>
 
-            {isBirthday ? (
-              <p className="mt-1 text-sm text-slate-500">
-                {event.age ? t('calendar.turnsAge', `${event.age} anos`) : t('calendar.birthday', 'Aniversário')}
-              </p>
-            ) : (
-              <div className="mt-2 space-y-1 text-sm text-slate-500">
-                <div className="flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  <span>
-                    {start ? format(start, 'HH:mm') : ''}
-                    {end ? ` - ${format(end, 'HH:mm')}` : ''}
-                  </span>
-                </div>
+            <div className="mt-3 space-y-2 text-sm text-slate-500 md:mt-2 md:grid md:grid-cols-2 md:gap-2 md:space-y-0">
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 shrink-0" />
+                <span>
+                  {event.start_time && format(parseISO(event.start_time), 'HH:mm')}
+                  {event.end_time && ` - ${format(parseISO(event.end_time), 'HH:mm')}`}
+                </span>
+              </div>
 
-                {event.location && (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    <span className="truncate">{event.location}</span>
-                  </div>
-                )}
-
+              {event.location && (
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4" />
-                  <span className="truncate">{getTeamName(event)}</span>
+                  <MapPin className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{event.location}</span>
                 </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <Users className="h-4 w-4 shrink-0" />
+                <span className="truncate">{teamName}</span>
+              </div>
+
+              {isBirthday && event.age && (
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 shrink-0" />
+                  <span>{event.age} {t('calendar.yearsOld', 'anos')}</span>
+                </div>
+              )}
+            </div>
+
+            {event.description && (
+              <div className="mt-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600">
+                <span className="font-semibold text-slate-700">
+                  {t('calendar.notes', 'Observações')}:
+                </span>{' '}
+                {event.description}
               </div>
             )}
-          </div>
-        </div>
 
-        {!isBirthday && (
-          <div className="mt-4 grid grid-cols-2 gap-2">
+            <div className="mt-4 flex gap-3 md:hidden">
+              <Button
+                variant="outline"
+                className="h-10 flex-1 rounded-2xl bg-white"
+                onClick={() => openConvocationStatusDialog(event)}
+              >
+                <ClipboardCheck className="mr-2 h-4 w-4" />
+                {t('calendar.status', 'Estado')}
+              </Button>
+              {renderEventActionsMenu(event)}
+            </div>
+          </div>
+
+          <div className="hidden md:flex md:items-start md:gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="rounded-2xl"
+              className="rounded-xl bg-white"
               onClick={() => openConvocationStatusDialog(event)}
             >
               <ClipboardCheck className="mr-2 h-4 w-4" />
-              {t('convocations.status', 'Estado')}
+              {t('calendar.status', 'Estado')}
             </Button>
-
-            {canManageThisEvent ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" className="rounded-2xl">
-                    <MoreVertical className="mr-2 h-4 w-4" />
-                    {t('common.actions', 'Ações')}
-                  </Button>
-                </DropdownMenuTrigger>
-
-                <DropdownMenuContent className="bg-white" align="end">
-                  <DropdownMenuItem onClick={() => openEditDialog(event)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    {t('common.edit', 'Editar')}
-                  </DropdownMenuItem>
-
-                  {canCreateConvocations && (
-                    <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
-                      <Users className="mr-2 h-4 w-4" />
-                      {t('convocations.callPlayers', 'Convocar Jogadores')}
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
-                    <ClipboardCheck className="mr-2 h-4 w-4" />
-                    {t('convocations.viewStatus', 'Ver Estado Convocatória')}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      openPostponeDialog(event);
-                    }}
-                  >
-                    <PauseCircle className="mr-2 h-4 w-4" />
-                    {t('calendar.postpone', 'Adiar')}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem onClick={() => handleCancelEvent(event)}>
-                    <XCircle className="mr-2 h-4 w-4" />
-                    {t('calendar.cancelEvent', 'Cancelar')}
-                  </DropdownMenuItem>
-
-                  {(event.status === 'cancelled' || event.status === 'postponed') && (
-                    <DropdownMenuItem
-                      onSelect={(e) => {
-                        e.preventDefault();
-                        handleRestoreEvent(event);
-                      }}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      {event.status === 'postponed'
-                        ? t('calendar.undoPostpone', 'Anular adiamento')
-                        : t('calendar.restoreEvent', 'Reativar evento')}
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      setSelectedEvent(event);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {t('common.delete', 'Eliminar')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button
-                size="sm"
-                className="rounded-2xl"
-                onClick={() => openConvocationStatusDialog(event)}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                {t('common.view', 'Ver')}
-              </Button>
-            )}
+            {renderEventActionsMenu(event)}
           </div>
-        )}
+        </div>
       </div>
     );
   };
 
-  const renderAgendaView = () => {
-    const agendaEvents = getSortedAgendaEvents();
+  const getAgendaEvents = () => {
+    return events
+      .filter((event) => {
+        if (!event.start_time) return false;
+        if (selectedEventTypeFilter !== 'all' && event.event_type !== selectedEventTypeFilter) return false;
+        return true;
+      })
+      .sort((a, b) => parseISO(a.start_time) - parseISO(b.start_time));
+  };
 
-    if (agendaEvents.length === 0) {
+  const getAgendaGroups = () => {
+    const grouped = {};
+
+    getAgendaEvents().forEach((event) => {
+      const key = format(parseISO(event.start_time), 'yyyy-MM-dd');
+      if (!grouped[key]) {
+        grouped[key] = [];
+      }
+      grouped[key].push(event);
+    });
+
+    return Object.entries(grouped).map(([dateKey, dayEvents]) => ({
+      date: parseISO(`${dateKey}T00:00:00`),
+      events: dayEvents,
+    }));
+  };
+
+  const renderAgendaView = () => {
+    const groups = getAgendaGroups();
+
+    if (groups.length === 0) {
       return (
-        <Card className="border border-slate-200 bg-white shadow-sm">
+        <Card className="border border-border">
           <CardContent className="p-8 text-center text-muted-foreground">
             <CalendarIcon className="mx-auto mb-3 h-12 w-12 opacity-50" />
-            <p>{t('calendar.noUpcomingEvents', 'Não existem eventos nos próximos dias')}</p>
+            <p>{t('calendar.noEvents', 'Nenhum evento encontrado')}</p>
           </CardContent>
         </Card>
       );
     }
 
-    let lastDayKey = '';
-
     return (
-      <div className="space-y-5 pb-24 md:pb-0">
-        {agendaEvents.map((event) => {
-          const eventDate = parseISO(event.start_time);
-          const dayKey = format(eventDate, 'yyyy-MM-dd');
-          const showHeader = dayKey !== lastDayKey;
-          lastDayKey = dayKey;
-
-          return (
-            <div key={event.id} className="space-y-3">
-              {showHeader && (
-                <div className="sticky top-0 z-10 -mx-1 rounded-2xl bg-slate-50/95 px-3 py-2 backdrop-blur md:static md:bg-transparent md:px-0">
-                  <p className="text-sm font-bold capitalize text-slate-950">
-                    {getAgendaDayLabel(eventDate)}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {format(eventDate, "d 'de' MMMM 'de' yyyy", { locale: pt })}
-                  </p>
-                </div>
-              )}
-
-              {renderAgendaEventCard(event)}
+      <div className="space-y-8 pb-24 md:pb-4">
+        {groups.map(({ date, events: dayEvents }) => (
+          <section key={date.toISOString()} className="space-y-3">
+            <div className="px-1">
+              <h3 className="text-2xl font-bold tracking-tight text-slate-950 md:text-lg">
+                {isToday(date)
+                  ? t('calendar.today', 'Hoje')
+                  : format(date, 'EEEE', { locale: pt })}
+              </h3>
+              <p className="text-sm text-slate-500">
+                {format(date, "d 'de' MMMM 'de' yyyy", { locale: pt })}
+              </p>
             </div>
-          );
-        })}
+            <div className="space-y-4">
+              {dayEvents.map((event) => renderEventCard(event))}
+            </div>
+          </section>
+        ))}
       </div>
     );
   };
@@ -1434,7 +1275,7 @@ export default function CalendarPage() {
   // Render day view
   const renderDayView = () => {
     const dayEvents = getEventsForDay(selectedDate);
-
+    
     return (
       <Card className="border border-border">
         <CardContent className="p-4">
@@ -1463,7 +1304,7 @@ export default function CalendarPage() {
         {days.map(day => {
           const dayEvents = getEventsForDay(day);
           const isCurrentDay = isToday(day);
-
+          
           return (
             <div key={day.toISOString()} className="min-h-[200px]">
               <div className={`
@@ -1509,14 +1350,14 @@ export default function CalendarPage() {
             </div>
           ))}
         </div>
-
+        
         {/* Days Grid */}
         <div className="grid grid-cols-7">
           {days.map(day => {
             const dayEvents = getEventsForDay(day);
             const isCurrentMonth = isSameMonth(day, selectedDate);
             const isCurrentDay = isToday(day);
-
+            
             return (
               <div
                 key={day.toISOString()}
@@ -1543,12 +1384,12 @@ export default function CalendarPage() {
                     const EventIcon = eventType.icon || CalendarIcon;
                     const canManageThisEvent =
                       canManageEvents && (isAdmin || canAccessTeam(event.team_id));
-
+                  
                     const eventTeam =
                       teams.find((team) => team.id === event.team_id) ||
                       event.team ||
                       null;
-
+                  
                     const eventTime = event.start_time
                       ? format(
                           typeof event.start_time === 'string'
@@ -1557,7 +1398,7 @@ export default function CalendarPage() {
                           'HH:mm'
                         )
                       : '';
-
+                  
                     const eventCard = (
                       <div
                         className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
@@ -1575,20 +1416,20 @@ export default function CalendarPage() {
                         }
                       >
                         <div className={`absolute left-0 top-0 h-full w-1 ${eventType.color}`} />
-
+                    
                         <div className="flex min-w-0 items-center gap-1.5 pl-1">
                           <EventIcon className={`h-3.5 w-3.5 shrink-0 ${eventType.textColor}`} />
-
+                    
                           <p className="truncate text-[11px] font-semibold text-slate-900">
                             {event.status === 'cancelled' && '❌ '}
                             {event.status === 'postponed' && '⏳ '}
                             {event.title}
                           </p>
                         </div>
-
+                    
                         <div className="flex min-w-0 items-center gap-1 pl-1 text-[10px] text-slate-500">
                           {eventTime && <span>{eventTime}</span>}
-
+                    
                           {eventTeam?.name && (
                             <>
                               {eventTime && <span>•</span>}
@@ -1598,33 +1439,33 @@ export default function CalendarPage() {
                         </div>
                       </div>
                     );
-
+                  
                     return canManageThisEvent ? (
                       <DropdownMenu key={event.id}>
                         <DropdownMenuTrigger asChild>
                           {eventCard}
                         </DropdownMenuTrigger>
-
+                  
                         <DropdownMenuContent className="bg-white" align="start">
                           <DropdownMenuItem onClick={() => openEditDialog(event)}>
                             <Edit className="w-4 h-4 mr-2" />
                             {t('common.edit', 'Editar')}
                           </DropdownMenuItem>
-
+                  
                           {canCreateConvocations && (
                             <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
                               <Users className="w-4 h-4 mr-2" />
                               {t('convocations.callPlayers', 'Convocar Jogadores')}
                             </DropdownMenuItem>
                           )}
-
+                  
                           <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
                             <ClipboardCheck className="w-4 h-4 mr-2" />
                             {t('convocations.viewStatus', 'Ver Estado Convocatória')}
                           </DropdownMenuItem>
-
+                  
                           <DropdownMenuSeparator />
-
+                  
                           <DropdownMenuItem
                             onSelect={(e) => {
                               e.preventDefault();
@@ -1634,7 +1475,7 @@ export default function CalendarPage() {
                             <PauseCircle className="w-4 h-4 mr-2" />
                             {t('calendar.postpone', 'Adiar')}
                           </DropdownMenuItem>
-
+                  
                           <DropdownMenuItem onClick={() => handleCancelEvent(event)}>
                             <XCircle className="w-4 h-4 mr-2" />
                             {t('calendar.cancelEvent', 'Cancelar')}
@@ -1653,7 +1494,7 @@ export default function CalendarPage() {
                                 : t('calendar.restoreEvent', 'Reativar evento')}
                             </DropdownMenuItem>
                           )}
-
+                  
                           <DropdownMenuSeparator />
 
                           <DropdownMenuItem
@@ -1673,7 +1514,7 @@ export default function CalendarPage() {
                       <div key={event.id}>{eventCard}</div>
                     );
                   })}
-
+                  
                   {dayEvents.length > 5 && (
                     <p className="mt-1 rounded-lg bg-slate-100 px-2 py-1 text-xs font-medium text-slate-500">
                       +{dayEvents.length - 5} mais
@@ -1699,15 +1540,13 @@ export default function CalendarPage() {
 
   return (
     <div
-      className="space-y-4 md:-mt-10"
+      className="-mt-10 space-y-4 md:space-y-4"
       data-testid="calendar-page"
     >
-      {/* Header Premium / Mobile controls */}
-      <div className="sticky top-2 z-20 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/80 p-3 shadow-xl shadow-slate-200/70 md:static md:p-4">
-
-        {/* Linha superior */}
-        <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+      {/* Header / Control Panel */}
+      <div className="sticky top-0 z-30 -mx-2 rounded-b-3xl border border-slate-200 bg-white/95 p-3 shadow-lg shadow-slate-200/60 backdrop-blur md:static md:mx-0 md:rounded-3xl md:bg-gradient-to-br md:from-white md:via-slate-50 md:to-cyan-50/70 md:p-4 md:shadow-xl">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary md:text-xs">
             <CalendarIcon className="h-4 w-4" />
             {t('calendar.title', 'Calendário')}
           </div>
@@ -1715,16 +1554,24 @@ export default function CalendarPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              size="sm"
+              size="icon"
               onClick={() => setUnavailabilityDialogOpen(true)}
               data-testid="create-unavailability-btn"
-              className="h-9 rounded-2xl bg-white px-3 md:px-4"
+              className="h-10 w-10 rounded-2xl bg-white md:hidden"
               title={t('calendar.unavailability', 'Indisponibilidade')}
             >
-              <CalendarOff className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">
-                {t('calendar.unavailability', 'Indisponibilidade')}
-              </span>
+              <CalendarOff className="h-4 w-4" />
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setUnavailabilityDialogOpen(true)}
+              data-testid="create-unavailability-btn-desktop"
+              className="hidden rounded-2xl bg-white md:inline-flex"
+            >
+              <CalendarOff className="mr-2 h-4 w-4" />
+              {t('calendar.unavailability', 'Indisponibilidade')}
             </Button>
 
             <Button
@@ -1732,9 +1579,9 @@ export default function CalendarPage() {
               size="sm"
               onClick={handleExportPDF}
               data-testid="export-pdf-btn"
-              className="hidden h-9 rounded-2xl bg-white md:inline-flex"
+              className="hidden rounded-2xl bg-white md:inline-flex"
             >
-              <Download className="w-4 h-4 mr-2" />
+              <Download className="mr-2 h-4 w-4" />
               {t('common.export', 'Exportar')}
             </Button>
 
@@ -1742,30 +1589,24 @@ export default function CalendarPage() {
               <Button
                 onClick={() => setCreateDialogOpen(true)}
                 data-testid="create-event-btn"
-                className="h-9 rounded-2xl px-3 shadow-lg shadow-primary/20 md:px-4"
+                className="h-10 rounded-2xl shadow-lg shadow-primary/20"
+                size={isMobile ? 'icon' : 'default'}
                 title={t('calendar.newEvent', 'Novo Evento')}
               >
                 <Plus className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">
-                  {t('calendar.newEvent', 'Novo Evento')}
-                </span>
+                <span className="hidden md:inline">{t('calendar.newEvent', 'Novo Evento')}</span>
               </Button>
             )}
           </div>
         </div>
 
-        {/* Filtros compactos */}
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:items-center md:gap-3">
+        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:gap-3">
           <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
-            <SelectTrigger className="h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:text-sm">
+            <SelectTrigger className="h-11 rounded-2xl bg-white text-sm shadow-sm md:h-9">
               <SelectValue placeholder={t('calendar.allTeams', 'Todas as equipas')} />
             </SelectTrigger>
-
             <SelectContent className="bg-white">
-              <SelectItem value="all">
-                {t('calendar.allTeams', 'Todas as equipas')}
-              </SelectItem>
-
+              <SelectItem value="all">{t('calendar.allTeams', 'Todas as equipas')}</SelectItem>
               {teams.map((team) => (
                 <SelectItem key={team.id} value={team.id}>
                   {team.name}
@@ -1775,101 +1616,52 @@ export default function CalendarPage() {
           </Select>
 
           <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
-            <SelectTrigger className="h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:text-sm">
+            <SelectTrigger className="h-11 rounded-2xl bg-white text-sm shadow-sm md:h-9">
               <SelectValue placeholder={t('calendar.allStatuses', 'Todos os estados')} />
             </SelectTrigger>
-
             <SelectContent className="bg-white">
-              <SelectItem value="all">
-                {t('calendar.allStatuses', 'Todos os estados')}
-              </SelectItem>
-
-              <SelectItem value="scheduled">
-                {t('calendar.statusScheduled', 'Agendado')}
-              </SelectItem>
-
-              <SelectItem value="postponed">
-                {t('calendar.statusPostponed', 'Adiado')}
-              </SelectItem>
-
-              <SelectItem value="cancelled">
-                {t('calendar.statusCancelled', 'Cancelado')}
-              </SelectItem>
+              <SelectItem value="all">{t('calendar.allStatuses', 'Todos os estados')}</SelectItem>
+              <SelectItem value="scheduled">{t('calendar.statusScheduled', 'Agendado')}</SelectItem>
+              <SelectItem value="postponed">{t('calendar.statusPostponed', 'Adiado')}</SelectItem>
+              <SelectItem value="cancelled">{t('calendar.statusCancelled', 'Cancelado')}</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select
-            value={
-              visibleEventTypes.length === Object.keys(EVENT_TYPES).length
-                ? 'all'
-                : visibleEventTypes[0] || 'all'
-            }
-            onValueChange={(value) => {
-              if (value === 'all') {
-                setVisibleEventTypes(Object.keys(EVENT_TYPES));
-              } else {
-                setVisibleEventTypes([value]);
-              }
-            }}
-          >
-            <SelectTrigger className="hidden h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:flex md:text-sm">
-              <SelectValue placeholder={t('calendar.allEventTypes', 'Todos os tipos')} />
+          <Select value={selectedEventTypeFilter} onValueChange={setSelectedEventTypeFilter}>
+            <SelectTrigger className="col-span-2 h-11 rounded-2xl bg-white text-sm shadow-sm md:col-span-1 md:h-9">
+              <SelectValue placeholder={t('calendar.allTypes', 'Todos os tipos')} />
             </SelectTrigger>
-
             <SelectContent className="bg-white">
-              <SelectItem value="all">
-                {t('calendar.allEventTypes', 'Todos os tipos')}
-              </SelectItem>
-
-              {[
-                'treino',
-                'jogo_campeonato',
-                'jogo_amigavel',
-                'torneio',
-                'evento_administrativo',
-                'birthday',
-                'outro',
-              ].map((key) => {
-                const type = EVENT_TYPES[key];
-                const Icon = type.icon;
-
-                return (
-                  <SelectItem key={key} value={key}>
-                    <div className="flex items-center gap-2">
-                      <Icon className={`h-4 w-4 ${type.textColor}`} />
-                      {type.label}
-                    </div>
-                  </SelectItem>
-                );
-              })}
+              <SelectItem value="all">{t('calendar.allTypes', 'Todos os tipos')}</SelectItem>
+              {Object.entries(EVENT_TYPES).map(([key, type]) => (
+                <SelectItem key={key} value={key}>
+                  {key === 'birthday' ? '🎂' : ''} {type.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
       </div>
 
       {/* View Controls */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        {/* Navigation */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={navigatePrevious}>
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button variant="outline" onClick={navigateToday}>
             {t('calendar.today', 'Hoje')}
           </Button>
           <Button variant="outline" size="icon" onClick={navigateNext}>
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="h-4 w-4" />
           </Button>
-          <h2 className="ml-2 truncate font-heading text-lg font-bold tracking-tight text-slate-950 capitalize md:ml-4 md:text-2xl">
+          <h2 className="ml-2 font-heading text-2xl font-bold tracking-tight text-slate-950 capitalize md:ml-4">
             {getViewTitle()}
           </h2>
         </div>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          {Object.entries(VIEW_MODES)
-            .filter(([key]) => !isMobile || ['agenda', 'day'].includes(key))
-            .map(([key, mode]) => {
+        <div className="hidden items-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:flex">
+          {Object.entries(VIEW_MODES).map(([key, mode]) => {
             const Icon = mode.icon;
             return (
               <Button
@@ -1883,14 +1675,33 @@ export default function CalendarPage() {
                 }}
                 data-testid={`view-${key}-btn`}
               >
-                <Icon className="w-4 h-4 mr-1" />
+                <Icon className="mr-1 h-4 w-4" />
+                {mode.label}
+              </Button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm md:hidden">
+          {['agenda', 'day'].map((key) => {
+            const mode = VIEW_MODES[key];
+            const Icon = mode.icon;
+            return (
+              <Button
+                key={key}
+                variant={viewMode === key ? 'default' : 'ghost'}
+                size="sm"
+                className="flex-1 rounded-none px-4"
+                onClick={() => setViewMode(key)}
+                data-testid={`view-${key}-btn`}
+              >
+                <Icon className="mr-2 h-4 w-4" />
                 {mode.label}
               </Button>
             );
           })}
         </div>
       </div>
-
 
       {/* Calendar View */}
       {viewMode === 'agenda' && renderAgendaView()}
@@ -2035,7 +1846,7 @@ export default function CalendarPage() {
                     checked={isRecurring}
                     onCheckedChange={(checked) => {
                       setIsRecurring(checked);
-
+                    
                       if (checked && !recurringEndDate) {
                         setRecurringEndDate(
                           format(
@@ -2062,8 +1873,8 @@ export default function CalendarPage() {
                             size="sm"
                             className="w-10 h-10 p-0"
                             onClick={() => {
-                              setRecurringDays(prev =>
-                                prev.includes(day.value)
+                              setRecurringDays(prev => 
+                                prev.includes(day.value) 
                                   ? prev.filter(d => d !== day.value)
                                   : [...prev, day.value]
                               );
@@ -2262,7 +2073,7 @@ export default function CalendarPage() {
               {t('calendar.postponeEventDescription', 'Defina a nova data e hora do evento.')}
             </DialogDescription>
           </DialogHeader>
-
+      
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label>{t('calendar.newDate', 'Nova data')} *</Label>
@@ -2274,7 +2085,7 @@ export default function CalendarPage() {
                 }
               />
             </div>
-
+      
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label>{t('calendar.startTime', 'Hora início')} *</Label>
@@ -2286,7 +2097,7 @@ export default function CalendarPage() {
                   }
                 />
               </div>
-
+      
               <div className="space-y-2">
                 <Label>{t('calendar.endTime', 'Hora fim')}</Label>
                 <Input
@@ -2298,7 +2109,7 @@ export default function CalendarPage() {
                 />
               </div>
             </div>
-
+      
             <div className="space-y-2">
               <Label>{t('calendar.reason', 'Motivo')}</Label>
               <Textarea
@@ -2310,12 +2121,12 @@ export default function CalendarPage() {
               />
             </div>
           </div>
-
+      
           <DialogFooter>
             <Button variant="outline" onClick={() => setPostponeDialogOpen(false)}>
               {t('common.cancel', 'Cancelar')}
             </Button>
-
+      
             <Button onClick={handleConfirmPostpone} disabled={postponingEvent}>
               {postponingEvent ? (
                 <>
@@ -2329,7 +2140,7 @@ export default function CalendarPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      
       {/* Convocation Dialog */}
       <Dialog open={convocationDialogOpen} onOpenChange={setConvocationDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
@@ -2368,12 +2179,12 @@ export default function CalendarPage() {
                   {teamMembers.map(member => {
                     // Check if player is unavailable for this event
                     const eventDate = selectedEvent?.start_time ? new Date(selectedEvent.start_time) : null;
-                    const isUnavailable = eventDate && unavailabilities.some(u =>
-                      u.user_id === member.id &&
-                      new Date(u.start_date) <= eventDate &&
+                    const isUnavailable = eventDate && unavailabilities.some(u => 
+                      u.user_id === member.id && 
+                      new Date(u.start_date) <= eventDate && 
                       new Date(u.end_date) >= eventDate
                     );
-
+                    
                     return (
                       <div
                         key={member.id}
@@ -2455,7 +2266,7 @@ export default function CalendarPage() {
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
               <ClipboardCheck className="w-5 h-5 text-primary" />
-              {t('attendance.statusTitle')}
+              {t('attendance.statusTitle', 'Estado da Convocatória')}
             </DialogTitle>
             <DialogDescription>
               {selectedEvent?.title} - {selectedEvent?.start_time && format(parseISO(selectedEvent.start_time), "d 'de' MMMM", { locale: pt })}
@@ -2471,26 +2282,26 @@ export default function CalendarPage() {
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
                 <CheckCircle className="w-5 h-5 text-green-600 mx-auto mb-1" />
                 <p className="text-2xl font-bold text-green-700">{convocationStatus.present?.length || 0}</p>
-                <p className="text-xs text-green-600">{t('attendance.presentPlayers')}</p>
+                <p className="text-xs text-green-600">{t('attendance.presentPlayers', 'Presentes')}</p>
               </div>
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-center">
                 <XCircle className="w-5 h-5 text-red-600 mx-auto mb-1" />
                 <p className="text-2xl font-bold text-red-700">{convocationStatus.absent?.length || 0}</p>
-                <p className="text-xs text-red-600">{t('attendance.absentPlayers')}</p>
+                <p className="text-xs text-red-600">{t('attendance.absentPlayers', 'Ausentes')}</p>
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-center">
                 <AlertCircle className="w-5 h-5 text-amber-600 mx-auto mb-1" />
                 <p className="text-2xl font-bold text-amber-700">{convocationStatus.pending?.length || 0}</p>
-                <p className="text-xs text-amber-600">{t('attendance.pendingPlayers')}</p>
+                <p className="text-xs text-amber-600">{t('attendance.pendingPlayers', 'Pendentes')}</p>
               </div>
             </div>
 
             {/* Action buttons for pending players */}
             {(isAdmin || isCoach) && convocationStatus.pending?.length > 0 && (
               <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
+                <Button 
+                  variant="outline" 
+                  size="sm" 
                   onClick={handleSendReminder}
                   disabled={sendingReminder}
                   data-testid="send-reminder-btn"
@@ -2499,9 +2310,9 @@ export default function CalendarPage() {
                   {t('attendance.sendReminder')}
                 </Button>
                 {convocationStatus.event_passed && (
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
                     onClick={handleAutoMarkAbsent}
                     disabled={updatingStatus}
                     className="text-amber-600 hover:text-amber-700"
@@ -2523,10 +2334,10 @@ export default function CalendarPage() {
               ) : convocationStatus.total === 0 ? (
                 <div className="p-8 text-center text-muted-foreground">
                   <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                  <p>{t('attendance.noPlayers')}</p>
-                  <Button
-                    variant="outline"
-                    size="sm"
+                  <p>{t('attendance.noPlayers', 'Sem jogadores')}</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
                     className="mt-3"
                     onClick={() => {
                       setConvocationStatusDialogOpen(false);
@@ -2534,7 +2345,7 @@ export default function CalendarPage() {
                     }}
                   >
                     <Users className="w-4 h-4 mr-2" />
-                    {t('events.createConvocation')}
+                    {t('events.createConvocation', 'Criar convocatória')}
                   </Button>
                 </div>
               ) : (
@@ -2544,13 +2355,13 @@ export default function CalendarPage() {
                     <div>
                       <h4 className="text-sm font-medium text-green-700 mb-2 flex items-center gap-2">
                         <CheckCircle className="w-4 h-4" />
-                        {t('attendance.presentPlayers')} ({convocationStatus.present.length})
+                        {t('attendance.presentPlayers', 'Presentes')} ({convocationStatus.present.length})
                       </h4>
                       <div className="space-y-2">
                         {convocationStatus.present.map((player) => (
-                          <PlayerStatusRow
-                            key={player.id}
-                            player={player}
+                          <PlayerStatusRow 
+                            key={player.id} 
+                            player={player} 
                             canEdit={isAdmin || isCoach}
                             onUpdateStatus={handleUpdatePlayerStatus}
                             updating={updatingStatus}
@@ -2566,13 +2377,13 @@ export default function CalendarPage() {
                     <div>
                       <h4 className="text-sm font-medium text-red-700 mb-2 flex items-center gap-2">
                         <XCircle className="w-4 h-4" />
-                        {t('attendance.absentPlayers')} ({convocationStatus.absent.length})
+                        {t('attendance.absentPlayers', 'Ausentes')} ({convocationStatus.absent.length})
                       </h4>
                       <div className="space-y-2">
                         {convocationStatus.absent.map((player) => (
-                          <PlayerStatusRow
-                            key={player.id}
-                            player={player}
+                          <PlayerStatusRow 
+                            key={player.id} 
+                            player={player} 
                             canEdit={isAdmin || isCoach}
                             onUpdateStatus={handleUpdatePlayerStatus}
                             updating={updatingStatus}
@@ -2588,13 +2399,13 @@ export default function CalendarPage() {
                     <div>
                       <h4 className="text-sm font-medium text-amber-700 mb-2 flex items-center gap-2">
                         <AlertCircle className="w-4 h-4" />
-                        {t('attendance.pendingPlayers')} ({convocationStatus.pending.length})
+                        {t('attendance.pendingPlayers', 'Pendentes')} ({convocationStatus.pending.length})
                       </h4>
                       <div className="space-y-2">
                         {convocationStatus.pending.map((player) => (
-                          <PlayerStatusRow
-                            key={player.id}
-                            player={player}
+                          <PlayerStatusRow 
+                            key={player.id} 
+                            player={player} 
                             canEdit={isAdmin || isCoach}
                             onUpdateStatus={handleUpdatePlayerStatus}
                             updating={updatingStatus}
@@ -2611,7 +2422,7 @@ export default function CalendarPage() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setConvocationStatusDialogOpen(false)}>
-              {t('common.close')}
+              {t('common.close', 'Fechar')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2637,9 +2448,9 @@ export default function CalendarPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
+      
       {/* Unavailability Dialog */}
-      <UnavailabilityDialog
+      <UnavailabilityDialog 
         open={unavailabilityDialogOpen}
         onOpenChange={setUnavailabilityDialogOpen}
         onSuccess={fetchData}
@@ -2647,5 +2458,4 @@ export default function CalendarPage() {
     </div>
   );
 }
-
 
