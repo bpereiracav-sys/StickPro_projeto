@@ -20,12 +20,9 @@ import {
   MessageSquare,
   Settings,
   LogOut,
-  Menu,
-  X,
   BarChart3,
   Home,
   ChevronDown,
-  Bell,
   Trophy,
   ClipboardCheck,
   RefreshCw,
@@ -77,6 +74,18 @@ export function Sidebar() {
     const value = t(key);
     return value && value !== key ? value : fallback;
   };
+
+  useEffect(() => {
+    const openSidebarFromBottomNav = () => {
+      setMenuOpen(true);
+    };
+
+    window.addEventListener('stickpro:open-sidebar', openSidebarFromBottomNav);
+
+    return () => {
+      window.removeEventListener('stickpro:open-sidebar', openSidebarFromBottomNav);
+    };
+  }, []);
 
   useEffect(() => {
     const fetchNotifications = async () => {
@@ -276,45 +285,6 @@ export function Sidebar() {
 
   return (
     <>
-      <header
-        className="lg:hidden fixed top-0 left-0 right-0 h-14 z-40 flex items-center justify-between px-4"
-        style={{
-          backgroundColor: 'hsl(var(--sidebar-bg))',
-          borderBottom: '1px solid hsl(var(--sidebar-border))',
-        }}
-      >
-        <img
-          src={CUSTOM_LOGO_URL}
-          alt="StickPro"
-          className="h-9 w-auto object-contain"
-          data-testid="mobile-header-logo"
-        />
-
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="relative h-9 w-9"
-            style={{ color: 'var(--sidebar-text)' }}
-          >
-            <Bell className="w-5 h-5" />
-            {pendingNotifications > 0 && (
-              <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500" />
-            )}
-          </Button>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            style={{ color: 'var(--sidebar-text)' }}
-            onClick={() => setMenuOpen((prev) => !prev)}
-          >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </Button>
-        </div>
-      </header>
-
       {menuOpen && (
         <div
           className="lg:hidden fixed inset-0 bg-black/50 z-40"
