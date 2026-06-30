@@ -1190,15 +1190,11 @@ export default function CalendarPage() {
   };
 
   const getSortedAgendaEvents = () => {
-    const todayStart = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
-    const agendaEnd = addDays(todayStart, 90);
-
     return events
       .filter((event) => {
         if (!event.start_time) return false;
         if (!visibleEventTypes.includes(event.event_type)) return false;
-        const eventDate = parseISO(event.start_time);
-        return eventDate >= todayStart && eventDate <= agendaEnd;
+        return true;
       })
       .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
   };
@@ -1394,7 +1390,7 @@ export default function CalendarPage() {
         <Card className="border border-slate-200 bg-white shadow-sm">
           <CardContent className="p-8 text-center text-muted-foreground">
             <CalendarIcon className="mx-auto mb-3 h-12 w-12 opacity-50" />
-            <p>{t('calendar.noUpcomingEvents', 'Não existem eventos nos próximos dias')}</p>
+            <p>{t('calendar.noEvents', 'Não existem eventos para apresentar')}</p>
           </CardContent>
         </Card>
       );
@@ -1703,7 +1699,7 @@ export default function CalendarPage() {
       data-testid="calendar-page"
     >
       {/* Header Premium / Mobile controls */}
-      <div className="sticky top-2 z-20 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/80 p-3 shadow-xl shadow-slate-200/70 md:static md:p-4">
+      <div className="sticky top-0 z-40 -mx-1 overflow-hidden rounded-b-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/95 p-3 shadow-xl shadow-slate-200/70 backdrop-blur md:static md:mx-0 md:rounded-3xl md:p-4">
 
         {/* Linha superior */}
         <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
@@ -1848,7 +1844,7 @@ export default function CalendarPage() {
       </div>
 
       {/* View Controls */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
         {/* Navigation */}
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={navigatePrevious}>
@@ -2647,3 +2643,4 @@ export default function CalendarPage() {
     </div>
   );
 }
+
