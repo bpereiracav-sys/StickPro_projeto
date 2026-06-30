@@ -49,8 +49,8 @@ export function AppLayout({ children }) {
       <TopNavBar />
       <Sidebar />
 
-      <main className="relative z-10 min-h-screen pb-20 pt-16 lg:ml-64 lg:pb-0 lg:pt-16">
-        <div className="mx-auto w-full max-w-7xl px-3 py-3 sm:px-5 lg:px-8 lg:py-5">
+      <main className="relative z-10 min-h-screen pb-20 lg:ml-64 lg:pb-0">
+        <div className="mx-auto w-full max-w-7xl px-3 py-2 sm:px-5 sm:py-3 lg:px-8 lg:py-4">
           <div className="rounded-[1.5rem] border border-white/70 bg-white/78 p-3 shadow-sm shadow-slate-200/70 backdrop-blur-xl sm:p-5 lg:rounded-[2rem] lg:p-5">
             {children}
           </div>
@@ -70,3 +70,4 @@ export function AppLayout({ children }) {
 }
 
 export default AppLayout;
+
