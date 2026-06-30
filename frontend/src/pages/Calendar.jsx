@@ -1238,15 +1238,59 @@ export default function CalendarPage() {
     return format(date, "EEEE, d 'de' MMMM", { locale: pt });
   };
 
+  const isGameEvent = (event) => {
+    return ['jogo_campeonato', 'jogo_amigavel', 'torneio'].includes(event?.event_type);
+  };
+
+  const getCompetitionName = (event) => {
+    return (
+      event?.championship?.name ||
+      event?.championship_name ||
+      event?.competition?.name ||
+      event?.competition_name ||
+      event?.league_name ||
+      event?.tournament_name ||
+      event?.championship_title ||
+      ''
+    );
+  };
+
+  const getEventScore = (event) => {
+    const homeGoals =
+      event?.home_goals ??
+      event?.home_score ??
+      event?.goals_for ??
+      event?.team_goals ??
+      event?.result?.home_goals ??
+      event?.result?.home_score;
+
+    const awayGoals =
+      event?.away_goals ??
+      event?.away_score ??
+      event?.goals_against ??
+      event?.opponent_goals ??
+      event?.result?.away_goals ??
+      event?.result?.away_score;
+
+    if (homeGoals === undefined || homeGoals === null || awayGoals === undefined || awayGoals === null) {
+      return '';
+    }
+
+    return `${homeGoals} - ${awayGoals}`;
+  };
+
   const renderAgendaEventCard = (event) => {
     const eventType = EVENT_TYPES[event.event_type] || EVENT_TYPES.outro;
     const Icon = eventType.icon;
     const isBirthday = event.event_type === 'birthday';
+    const isGame = isGameEvent(event);
     const isPostponed = event.status === 'postponed';
     const isCancelled = event.status === 'cancelled';
     const start = event.start_time ? parseISO(event.start_time) : null;
     const end = event.end_time ? parseISO(event.end_time) : null;
     const canManageThisEvent = canManageEvents && (isAdmin || canAccessTeam(event.team_id));
+    const competitionName = getCompetitionName(event);
+    const score = getEventScore(event);
 
     return (
       <div
@@ -1266,6 +1310,19 @@ export default function CalendarPage() {
                 {isBirthday ? '🎂' : <Icon className="mr-1 h-3 w-3" />}
                 {eventType.label}
               </Badge>
+
+              {isGame && competitionName && (
+                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                  <Trophy className="mr-1 h-3 w-3" />
+                  {competitionName}
+                </Badge>
+              )}
+
+              {score && (
+                <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-700">
+                  {t('calendar.result', 'Resultado')}: {score}
+                </Badge>
+              )}
 
               {isCancelled && (
                 <Badge variant="outline" className="border-red-500 bg-red-50 text-red-600">
@@ -1309,6 +1366,13 @@ export default function CalendarPage() {
                   <Users className="h-4 w-4" />
                   <span className="truncate">{getTeamName(event)}</span>
                 </div>
+
+                {isGame && event.opponent && (
+                  <div className="flex items-center gap-2">
+                    <Swords className="h-4 w-4" />
+                    <span className="truncate">{t('calendar.opponent', 'Adversário')}: {event.opponent}</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1326,89 +1390,99 @@ export default function CalendarPage() {
               {t('convocations.status', 'Estado')}
             </Button>
 
-            {canManageThisEvent ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button size="sm" className="rounded-2xl">
-                    <MoreVertical className="mr-2 h-4 w-4" />
-                    {t('common.actions', 'Ações')}
-                  </Button>
-                </DropdownMenuTrigger>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" className="rounded-2xl">
+                  <MoreVertical className="mr-2 h-4 w-4" />
+                  {canManageThisEvent ? t('common.actions', 'Ações') : t('common.open', 'Abrir')}
+                </Button>
+              </DropdownMenuTrigger>
 
-                <DropdownMenuContent className="bg-white" align="end">
-                  <DropdownMenuItem onClick={() => openEditDialog(event)}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    {t('common.edit', 'Editar')}
+              <DropdownMenuContent className="bg-white" align="end">
+                <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
+                  <ClipboardCheck className="mr-2 h-4 w-4" />
+                  {t('convocations.viewStatus', 'Ver Estado Convocatória')}
+                </DropdownMenuItem>
+
+                {canCreateConvocations && canManageThisEvent && (
+                  <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
+                    <Users className="mr-2 h-4 w-4" />
+                    {t('convocations.callPlayers', 'Convocar Jogadores')}
                   </DropdownMenuItem>
+                )}
 
-                  {canCreateConvocations && (
-                    <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
-                      <Users className="mr-2 h-4 w-4" />
-                      {t('convocations.callPlayers', 'Convocar Jogadores')}
+                {isGame && (
+                  <DropdownMenuItem onClick={() => toast.info(t('statistics.inDevelopment', 'Estatísticas em desenvolvimento'))}>
+                    <Trophy className="mr-2 h-4 w-4" />
+                    {t('statistics.title', 'Estatísticas')}
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuItem onClick={() => toast.info(t('calendar.attendanceInDevelopment', 'Presenças em desenvolvimento'))}>
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  {t('attendance.title', 'Presenças')}
+                </DropdownMenuItem>
+
+                <DropdownMenuItem onClick={() => toast.info(t('calendar.forumInDevelopment', 'Fórum em desenvolvimento'))}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  {t('calendar.forum', 'Fórum')}
+                </DropdownMenuItem>
+
+                {canManageThisEvent && (
+                  <>
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem onClick={() => openEditDialog(event)}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      {t('common.edit', 'Editar')}
                     </DropdownMenuItem>
-                  )}
 
-                  <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
-                    <ClipboardCheck className="mr-2 h-4 w-4" />
-                    {t('convocations.viewStatus', 'Ver Estado Convocatória')}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      openPostponeDialog(event);
-                    }}
-                  >
-                    <PauseCircle className="mr-2 h-4 w-4" />
-                    {t('calendar.postpone', 'Adiar')}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem onClick={() => handleCancelEvent(event)}>
-                    <XCircle className="mr-2 h-4 w-4" />
-                    {t('calendar.cancelEvent', 'Cancelar')}
-                  </DropdownMenuItem>
-
-                  {(event.status === 'cancelled' || event.status === 'postponed') && (
                     <DropdownMenuItem
                       onSelect={(e) => {
                         e.preventDefault();
-                        handleRestoreEvent(event);
+                        openPostponeDialog(event);
                       }}
                     >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      {event.status === 'postponed'
-                        ? t('calendar.undoPostpone', 'Anular adiamento')
-                        : t('calendar.restoreEvent', 'Reativar evento')}
+                      <PauseCircle className="mr-2 h-4 w-4" />
+                      {t('calendar.postpone', 'Adiar')}
                     </DropdownMenuItem>
-                  )}
 
-                  <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleCancelEvent(event)}>
+                      <XCircle className="mr-2 h-4 w-4" />
+                      {t('calendar.cancelEvent', 'Cancelar')}
+                    </DropdownMenuItem>
 
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onSelect={(e) => {
-                      e.preventDefault();
-                      setSelectedEvent(event);
-                      setDeleteDialogOpen(true);
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {t('common.delete', 'Eliminar')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Button
-                size="sm"
-                className="rounded-2xl"
-                onClick={() => openConvocationStatusDialog(event)}
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                {t('common.view', 'Ver')}
-              </Button>
-            )}
+                    {(event.status === 'cancelled' || event.status === 'postponed') && (
+                      <DropdownMenuItem
+                        onSelect={(e) => {
+                          e.preventDefault();
+                          handleRestoreEvent(event);
+                        }}
+                      >
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        {event.status === 'postponed'
+                          ? t('calendar.undoPostpone', 'Anular adiamento')
+                          : t('calendar.restoreEvent', 'Reativar evento')}
+                      </DropdownMenuItem>
+                    )}
+
+                    <DropdownMenuSeparator />
+
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      onSelect={(e) => {
+                        e.preventDefault();
+                        setSelectedEvent(event);
+                        setDeleteDialogOpen(true);
+                      }}
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {t('common.delete', 'Eliminar')}
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         )}
       </div>
