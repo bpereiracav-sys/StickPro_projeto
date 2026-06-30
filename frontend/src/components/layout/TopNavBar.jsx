@@ -228,55 +228,50 @@ export function TopNavBar() {
   return (
     <>
       <header
-        className="sticky top-0 z-50 border-b border-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:hidden"
+        className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950 text-white lg:hidden"
         data-testid="mobile-top-nav-bar"
       >
-        <div className="flex h-14 items-center justify-between gap-3 px-3">
-          <button
-            type="button"
-            onClick={() =>
-              navigate('/profile', {
-                state: {
-                  profileUserId: profileTargetId,
-                },
-              })
-            }
-            className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-1 py-1 text-left active:bg-slate-50"
-            data-testid="mobile-active-profile"
+        <div className="flex h-16 items-center justify-between gap-3 px-4">
+          <Link
+            to="/dashboard"
+            className="flex shrink-0 items-center"
+            data-testid="mobile-topnav-logo-dashboard"
+            aria-label="Dashboard"
           >
-            <Avatar className="h-10 w-10 shrink-0 border-2 border-primary">
-              <AvatarImage
-                src={activeProfile?.avatar_url || user?.avatar_url || user?.profile?.photo_url}
-                alt={activeProfile?.user_name || user?.name}
-              />
-              <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
-                {getInitials(activeProfile?.user_name || activeProfile?.label || user?.name)}
-              </AvatarFallback>
-            </Avatar>
+            <img
+              src="/stickpro-logo.png"
+              alt="StickPro"
+              className="h-9 w-auto max-w-[118px] object-contain"
+              data-testid="mobile-stick-pro-logo"
+            />
+          </Link>
 
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold leading-tight text-slate-950">
-                {activeProfile?.user_name || activeProfile?.label || user?.name || 'StickPro'}
-              </span>
-              <span className="block truncate text-[11px] leading-tight text-slate-500">
-                {activeProfile?.type === 'associated'
-                  ? tr('roles.player', 'Atleta')
-                  : activeProfileLabel}
-              </span>
-            </span>
-          </button>
+          <Link
+            to="/dashboard"
+            className="min-w-0 flex-1 px-2 text-center"
+            data-testid="mobile-topnav-profile-dashboard"
+          >
+            <p className="truncate font-heading text-base font-bold leading-tight tracking-tight text-white">
+              {activeProfile?.user_name || activeProfile?.label || user?.name || 'StickPro'}
+            </p>
+            <p className="truncate text-[11px] font-medium leading-tight text-slate-300">
+              {activeProfile?.type === 'associated'
+                ? tr('roles.player', 'Atleta')
+                : activeProfileLabel}
+            </p>
+          </Link>
 
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center gap-1.5">
             <Button
               variant="ghost"
-              className="relative h-10 w-10 rounded-full"
+              className="relative h-10 w-10 rounded-full text-white hover:bg-white/10 hover:text-white"
               asChild
               data-testid="mobile-topnav-notifications"
             >
-              <Link to="/convocations">
+              <Link to="/convocations" aria-label={tr('nav.notifications', 'Notificações')}>
                 <Bell className="h-5 w-5" />
                 {pendingNotifications > 0 && (
-                  <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  <span className="absolute right-0.5 top-0.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                     {pendingNotifications > 99 ? '99+' : pendingNotifications}
                   </span>
                 )}
@@ -287,55 +282,26 @@ export function TopNavBar() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="ghost"
-                  className="h-10 rounded-full px-2"
-                  data-testid="mobile-topnav-language-selector"
-                >
-                  <span className="text-base">{activeLanguage.flag}</span>
-                </Button>
-              </DropdownMenuTrigger>
-
-              <DropdownMenuContent className="w-48 bg-white" align="end">
-                <DropdownMenuLabel>
-                  {tr('settings.language', 'Idioma')}
-                </DropdownMenuLabel>
-
-                <DropdownMenuSeparator />
-
-                {LANGUAGES.map((item) => (
-                  <DropdownMenuItem
-                    key={item.code}
-                    onClick={() => handleLanguageChange(item.code)}
-                    className="flex cursor-pointer items-center justify-between"
-                    data-testid={`mobile-language-${item.code}`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <span>{item.flag}</span>
-                      <span>{item.name}</span>
-                    </span>
-
-                    {activeLanguage.code === item.code && (
-                      <Check className="h-4 w-4 text-primary" />
-                    )}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="h-10 w-10 rounded-full"
+                  className="h-11 w-11 rounded-full p-0 hover:bg-white/10"
                   data-testid="mobile-user-menu-btn"
+                  aria-label={tr('nav.myProfile', 'Meu Perfil')}
                 >
-                  <ChevronDown className="h-5 w-5 text-slate-500" />
+                  <Avatar className="h-10 w-10 border-2 border-white/80">
+                    <AvatarImage
+                      src={activeProfile?.avatar_url || user?.avatar_url || user?.profile?.photo_url}
+                      alt={activeProfile?.user_name || user?.name}
+                    />
+                    <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
+                      {getInitials(activeProfile?.user_name || activeProfile?.label || user?.name)}
+                    </AvatarFallback>
+                  </Avatar>
                 </Button>
               </DropdownMenuTrigger>
 
-              <DropdownMenuContent className="w-64 bg-white" align="end">
+              <DropdownMenuContent className="w-72 bg-white" align="end">
                 <DropdownMenuLabel>
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-10 w-10 border-2 border-primary">
+                    <Avatar className="h-11 w-11 border-2 border-primary">
                       <AvatarImage
                         src={activeProfile?.avatar_url || user?.avatar_url || user?.profile?.photo_url}
                         alt={activeProfile?.user_name || user?.name}
@@ -346,8 +312,8 @@ export function TopNavBar() {
                     </Avatar>
 
                     <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {activeProfile?.user_name || user?.name}
+                      <p className="truncate text-sm font-semibold">
+                        {activeProfile?.user_name || activeProfile?.label || user?.name}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
                         {activeProfileLabel}
@@ -437,6 +403,30 @@ export function TopNavBar() {
                     </Link>
                   </DropdownMenuItem>
                 )}
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                  {tr('settings.language', 'Idioma')}
+                </DropdownMenuLabel>
+
+                {LANGUAGES.map((item) => (
+                  <DropdownMenuItem
+                    key={item.code}
+                    onClick={() => handleLanguageChange(item.code)}
+                    className="flex cursor-pointer items-center justify-between"
+                    data-testid={`mobile-language-${item.code}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>{item.flag}</span>
+                      <span>{item.name}</span>
+                    </span>
+
+                    {activeLanguage.code === item.code && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
 
                 <DropdownMenuSeparator />
 
