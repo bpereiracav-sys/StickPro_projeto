@@ -1695,11 +1695,11 @@ export default function CalendarPage() {
 
   return (
     <div
-      className="space-y-4 md:-mt-10"
+      className="flex h-[calc(100dvh-92px)] flex-col gap-3 overflow-hidden md:block md:h-auto md:space-y-4 md:-mt-10 md:overflow-visible"
       data-testid="calendar-page"
     >
       {/* Header Premium / Mobile controls */}
-      <div className="fixed left-3 right-3 top-16 z-50 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/95 p-3 shadow-xl shadow-slate-200/70 backdrop-blur md:static md:mx-0 md:rounded-3xl md:p-4">
+      <div className="shrink-0 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/95 p-3 shadow-xl shadow-slate-200/70 backdrop-blur md:rounded-3xl md:p-4">
 
         {/* Linha superior */}
         <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
@@ -1843,9 +1843,6 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Mobile spacer for fixed calendar controls */}
-      <div className="h-36 md:hidden" aria-hidden="true" />
-
       {/* View Controls */}
       <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
         {/* Navigation */}
@@ -1892,10 +1889,12 @@ export default function CalendarPage() {
 
 
       {/* Calendar View */}
-      {viewMode === 'agenda' && renderAgendaView()}
-      {viewMode === 'day' && renderDayView()}
-      {viewMode === 'week' && renderWeekView()}
-      {viewMode === 'month' && renderMonthView()}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-24 pr-1 md:block md:overflow-visible md:pb-0 md:pr-0">
+        {viewMode === 'agenda' && renderAgendaView()}
+        {viewMode === 'day' && renderDayView()}
+        {viewMode === 'week' && renderWeekView()}
+        {viewMode === 'month' && renderMonthView()}
+      </div>
 
       {/* Create Event Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -2646,5 +2645,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-
-
