@@ -226,12 +226,240 @@ export function TopNavBar() {
   }
 
   return (
-    <header
-      className="hidden lg:block sticky top-0 z-50 border-b border-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:ml-72"
-      data-testid="top-nav-bar"
-    >
-      <div className="px-6">
-        <div className="flex h-16 items-center justify-between gap-4">
+    <>
+      <header
+        className="sticky top-0 z-50 border-b border-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:hidden"
+        data-testid="mobile-top-nav-bar"
+      >
+        <div className="flex h-14 items-center justify-between gap-3 px-3">
+          <button
+            type="button"
+            onClick={() =>
+              navigate('/profile', {
+                state: {
+                  profileUserId: profileTargetId,
+                },
+              })
+            }
+            className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-1 py-1 text-left active:bg-slate-50"
+            data-testid="mobile-active-profile"
+          >
+            <Avatar className="h-10 w-10 shrink-0 border-2 border-primary">
+              <AvatarImage
+                src={activeProfile?.avatar_url || user?.avatar_url || user?.profile?.photo_url}
+                alt={activeProfile?.user_name || user?.name}
+              />
+              <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
+                {getInitials(activeProfile?.user_name || activeProfile?.label || user?.name)}
+              </AvatarFallback>
+            </Avatar>
+
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold leading-tight text-slate-950">
+                {activeProfile?.user_name || activeProfile?.label || user?.name || 'StickPro'}
+              </span>
+              <span className="block truncate text-[11px] leading-tight text-slate-500">
+                {activeProfile?.type === 'associated'
+                  ? tr('roles.player', 'Atleta')
+                  : activeProfileLabel}
+              </span>
+            </span>
+          </button>
+
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              className="relative h-10 w-10 rounded-full"
+              asChild
+              data-testid="mobile-topnav-notifications"
+            >
+              <Link to="/convocations">
+                <Bell className="h-5 w-5" />
+                {pendingNotifications > 0 && (
+                  <span className="absolute right-1 top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                    {pendingNotifications > 99 ? '99+' : pendingNotifications}
+                  </span>
+                )}
+              </Link>
+            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-10 rounded-full px-2"
+                  data-testid="mobile-topnav-language-selector"
+                >
+                  <span className="text-base">{activeLanguage.flag}</span>
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent className="w-48 bg-white" align="end">
+                <DropdownMenuLabel>
+                  {tr('settings.language', 'Idioma')}
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                {LANGUAGES.map((item) => (
+                  <DropdownMenuItem
+                    key={item.code}
+                    onClick={() => handleLanguageChange(item.code)}
+                    className="flex cursor-pointer items-center justify-between"
+                    data-testid={`mobile-language-${item.code}`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span>{item.flag}</span>
+                      <span>{item.name}</span>
+                    </span>
+
+                    {activeLanguage.code === item.code && (
+                      <Check className="h-4 w-4 text-primary" />
+                    )}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="h-10 w-10 rounded-full"
+                  data-testid="mobile-user-menu-btn"
+                >
+                  <ChevronDown className="h-5 w-5 text-slate-500" />
+                </Button>
+              </DropdownMenuTrigger>
+
+              <DropdownMenuContent className="w-64 bg-white" align="end">
+                <DropdownMenuLabel>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-10 w-10 border-2 border-primary">
+                      <AvatarImage
+                        src={activeProfile?.avatar_url || user?.avatar_url || user?.profile?.photo_url}
+                        alt={activeProfile?.user_name || user?.name}
+                      />
+                      <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                        {getInitials(activeProfile?.user_name || activeProfile?.label || user?.name)}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {activeProfile?.user_name || user?.name}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {activeProfileLabel}
+                      </p>
+                    </div>
+                  </div>
+                </DropdownMenuLabel>
+
+                <DropdownMenuSeparator />
+
+                {availableProfiles?.length > 1 && (
+                  <>
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                      {tr('profiles.switchProfile', 'Mudar perfil')}
+                    </DropdownMenuLabel>
+
+                    {availableProfiles.map((profile) => {
+                      const ProfileIcon = getProfileIcon(profile);
+
+                      const isActive =
+                        activeProfile?.profile_id === profile.profile_id ||
+                        (
+                          activeProfile?.type === profile.type &&
+                          activeProfile?.user_id === profile.user_id &&
+                          activeProfile?.role === profile.role
+                        );
+
+                      return (
+                        <DropdownMenuItem
+                          key={
+                            profile.profile_id ||
+                            `${profile.type}-${profile.user_id}-${profile.role}`
+                          }
+                          onClick={() => handleSwitchProfile(profile)}
+                          className="flex cursor-pointer items-center justify-between"
+                        >
+                          <div className="flex min-w-0 items-center gap-2">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                              <ProfileIcon className="h-4 w-4 text-primary" />
+                            </div>
+
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium">
+                                {profile.label || profile.user_name}
+                              </p>
+
+                              <p className="truncate text-xs text-muted-foreground">
+                                {profile.type === 'associated'
+                                  ? getProfileDisplayRole(profile)
+                                  : profile.description ||
+                                    profile.role_name ||
+                                    getProfileDisplayRole(profile)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {isActive && (
+                            <Check className="h-4 w-4 shrink-0 text-primary" />
+                          )}
+                        </DropdownMenuItem>
+                      );
+                    })}
+
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+
+                <DropdownMenuItem
+                  onClick={() =>
+                    navigate('/profile', {
+                      state: {
+                        profileUserId: profileTargetId,
+                      },
+                    })
+                  }
+                  className="cursor-pointer"
+                >
+                  <UserCircle className="mr-2 h-4 w-4" />
+                  {myProfileLabel}
+                </DropdownMenuItem>
+
+                {(permissions.isAdmin || permissions.canManageClub) && (
+                  <DropdownMenuItem asChild>
+                    <Link to="/settings" className="cursor-pointer">
+                      <Settings className="mr-2 h-4 w-4" />
+                      {settingsLabel}
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+
+                <DropdownMenuSeparator />
+
+                <DropdownMenuItem
+                  className="flex cursor-pointer items-center gap-2 text-destructive"
+                  onClick={handleLogout}
+                  data-testid="mobile-logout-menu-btn"
+                >
+                  <LogOut className="h-4 w-4" />
+                  {tr('auth.logout', 'Sair')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </header>
+
+      <header
+        className="hidden lg:block sticky top-0 z-50 border-b border-border bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 lg:ml-72"
+        data-testid="top-nav-bar"
+      >
+        <div className="px-6">
+          <div className="flex h-16 items-center justify-between gap-4">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -606,8 +834,9 @@ export function TopNavBar() {
             </DropdownMenu>
           </div>
         </div>
-      </div>
-    </header>
+        </div>
+      </header>
+    </>
   );
 }
 
