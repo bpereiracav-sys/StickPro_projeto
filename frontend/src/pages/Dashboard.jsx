@@ -261,10 +261,10 @@ const fetchDashboard = async () => {
         aria-hidden="true"
       />
 
-      <CardContent className="relative p-4 sm:p-5">
+      <CardContent className="relative p-3 sm:p-5">
         <div className="flex items-start justify-between gap-3">
-          <div className={`rounded-2xl bg-gradient-to-br p-3 shadow-lg ${currentTone.icon}`}>
-            <Icon className="h-5 w-5" />
+          <div className={`rounded-xl bg-gradient-to-br p-2.5 shadow-lg sm:rounded-2xl sm:p-3 ${currentTone.icon}`}>
+            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
 
           {to && (
@@ -272,17 +272,17 @@ const fetchDashboard = async () => {
           )}
         </div>
 
-       <div className="mt-5">
-          <p className="font-heading text-6xl tracking-tight text-slate-950">
+       <div className="mt-3 sm:mt-5">
+          <p className="font-heading text-3xl leading-none tracking-tight text-slate-950 sm:text-6xl">
             {value}
           </p>
         
-          <p className="mt-1 text-sm font-semibold text-slate-700">
+          <p className="mt-1 truncate text-xs font-semibold text-slate-700 sm:text-sm">
             {label}
           </p>
         
           {helper && (
-            <p className="mt-1 text-xs leading-5 text-slate-500">
+            <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-500 sm:text-xs sm:leading-5">
               {helper}
             </p>
           )}
@@ -317,7 +317,7 @@ const fetchDashboard = async () => {
     const missing = commitment.training?.next_goal?.missing || 0;
 
     return (
-      <section className="relative overflow-hidden rounded-[1.75rem] border border-amber-200/70 bg-slate-950 px-4 py-3 text-white shadow-xl shadow-amber-100/60 sm:px-5">
+      <section className="relative overflow-hidden rounded-[1.5rem] border border-amber-200/70 bg-slate-950 px-4 py-3 text-white shadow-xl shadow-amber-100/60 sm:px-5 lg:rounded-[1.75rem]">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.25),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(192,192,192,0.16),transparent_28%)]"
           aria-hidden="true"
@@ -332,11 +332,11 @@ const fetchDashboard = async () => {
               🏅 STICKPro Commitment
             </Badge>
         
-            <h2 className="font-heading text-2xl font-bold text-white">
+            <h2 className="font-heading text-xl font-bold text-white sm:text-2xl">
               {t('commitment.myCommitment')}
             </h2>
         
-            <p className="mt-2 text-sm text-white/70">
+            <p className="mt-1 line-clamp-2 text-xs text-white/70 sm:text-sm lg:line-clamp-none">
               Compromisso, assiduidade e participação ao longo da época.
             </p>
           </div>
@@ -441,8 +441,8 @@ const fetchDashboard = async () => {
   const PaymentHeroIcon = paymentHeroStatus?.icon;
 
   return (
-    <div className="space-y-6 -mt-10 lg:-mt-12" data-testid="dashboard-page">
-      <section className="relative overflow-hidden rounded-[2rem] border border-slate-200/80 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-6 lg:p-6">
+    <div className="space-y-4 pb-20 pt-1 lg:space-y-6 lg:-mt-12 lg:pb-0" data-testid="dashboard-page">
+      <section className="relative overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-slate-950 p-4 text-white shadow-xl shadow-slate-200/70 sm:p-6 lg:rounded-[2rem] lg:p-6">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.32),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.28),transparent_32%)]"
           aria-hidden="true"
@@ -455,15 +455,15 @@ const fetchDashboard = async () => {
               StickPro Club OS
             </Badge>
 
-            <h1 className="font-heading text-3xl tracking-tight sm:text-5xl">
+            <h1 className="font-heading text-2xl leading-tight tracking-tight sm:text-5xl">
               {getGreeting()}, {displayName?.split(' ')?.[0] || tr('common.user', 'Utilizador')}.
             </h1>
 
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+            <p className="mt-2 line-clamp-2 max-w-2xl text-xs leading-5 text-slate-300 sm:text-base lg:line-clamp-none">
               {t('dashboard.heroSubtitle')}
             </p>
 
-            <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-slate-300">
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300 sm:text-sm">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
                 <Calendar className="h-4 w-4 text-cyan-300" />
                 {format(new Date(), dateFormat, { locale: dateLocale })}
@@ -486,19 +486,19 @@ const fetchDashboard = async () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 rounded-3xl border border-white/10 bg-white/10 p-3 backdrop-blur lg:min-w-[340px]">
-            <div className="rounded-2xl bg-white/10 p-3 text-center">
-              <p className="font-heading text-2xl">{data?.teams_count || 0}</p>
+          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/10 p-2 backdrop-blur sm:gap-3 sm:rounded-3xl sm:p-3 lg:min-w-[340px]">
+            <div className="rounded-xl bg-white/10 p-2 text-center sm:rounded-2xl sm:p-3">
+              <p className="font-heading text-xl sm:text-2xl">{data?.teams_count || 0}</p>
               <p className="text-xs text-slate-300">{t('dashboard.teams')}</p>
             </div>
 
-            <div className="rounded-2xl bg-white/10 p-3 text-center">
-              <p className="font-heading text-2xl">{upcomingEvents.length}</p>
+            <div className="rounded-xl bg-white/10 p-2 text-center sm:rounded-2xl sm:p-3">
+              <p className="font-heading text-xl sm:text-2xl">{upcomingEvents.length}</p>
               <p className="text-xs text-slate-300">{t('dashboard.events')}</p>
             </div>
 
-            <div className="rounded-2xl bg-white/10 p-3 text-center">
-              <p className="font-heading text-2xl">{pendingCount}</p>
+            <div className="rounded-xl bg-white/10 p-2 text-center sm:rounded-2xl sm:p-3">
+              <p className="font-heading text-xl sm:text-2xl">{pendingCount}</p>
               <p className="text-xs text-slate-300">{t('dashboard.pending')}</p>
             </div>
           </div>
@@ -635,7 +635,7 @@ const fetchDashboard = async () => {
 })()}
 
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         <MetricCard
           icon={Users}
           value={data?.teams_count || 0}
@@ -680,7 +680,7 @@ const fetchDashboard = async () => {
         >
           <div className="grid grid-cols-1 lg:grid-cols-[170px_1fr]">
             <div
-              className={`relative flex min-h-[170px] flex-col justify-between overflow-hidden p-5 text-white ${
+              className={`relative flex min-h-[120px] flex-row items-center justify-between gap-3 overflow-hidden p-4 text-white lg:min-h-[170px] lg:flex-col lg:items-stretch lg:p-5 ${
                 nextEvent.event_type === 'jogo' ? 'bg-primary' : 'bg-secondary'
               }`}
             >
@@ -703,7 +703,7 @@ const fetchDashboard = async () => {
                   {getEventDateLabel(nextEvent.start_time)}
                 </span>
                 <div className="mt-1 flex items-end gap-2">
-                  <span className="font-heading text-5xl leading-none">
+                  <span className="font-heading text-3xl leading-none lg:text-5xl">
                     {nextEvent.start_time ? format(new Date(nextEvent.start_time), 'd') : '--'}
                   </span>
                   <span className="pb-1 text-sm font-semibold uppercase text-white/80">
@@ -724,7 +724,7 @@ const fetchDashboard = async () => {
                     {getTranslatedEventType(nextEvent.event_type)}
                   </Badge>
 
-                  <h2 className="font-heading text-2xl tracking-tight text-slate-950 sm:text-3xl">
+                  <h2 className="font-heading text-xl tracking-tight text-slate-950 sm:text-3xl">
                     {nextEvent.title || tr('calendar.event', 'Evento')}
                   </h2>
 
@@ -741,7 +741,7 @@ const fetchDashboard = async () => {
                 </Button>
               </div>
 
-              <div className="mt-5 grid gap-3 text-sm text-slate-600 sm:grid-cols-3">
+              <div className="mt-4 grid gap-2 text-sm text-slate-600 sm:grid-cols-3 sm:gap-3">
                 <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
                   <Clock className="mb-2 h-4 w-4 text-primary" />
                   <p className="font-semibold text-slate-950">
@@ -794,7 +794,7 @@ const fetchDashboard = async () => {
                 {upcomingEvents.slice(0, 5).map((event) => (
                   <div
                     key={event.id}
-                    className="group flex items-center gap-4 rounded-2xl border border-slate-200 bg-gradient-to-r from-white to-slate-50 p-3 transition-all duration-200 hover:border-primary/40 hover:shadow-md"
+                    className="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-gradient-to-r from-white to-slate-50 p-3 transition-all duration-200 hover:border-primary/40 hover:shadow-md sm:gap-4"
                     data-testid={`event-row-${event.id}`}
                   >
                     <div
@@ -803,13 +803,13 @@ const fetchDashboard = async () => {
                       }`}
                     />
 
-                    <div className="w-14 shrink-0 text-center">
+                    <div className="w-11 shrink-0 text-center sm:w-14">
                       <p className="text-xs uppercase text-slate-400">
                         {event.start_time
                           ? format(new Date(event.start_time), 'EEE', { locale: dateLocale })
                           : '--'}
                       </p>
-                      <p className="font-heading text-2xl text-slate-950">
+                      <p className="font-heading text-xl text-slate-950 sm:text-2xl">
                         {event.start_time ? format(new Date(event.start_time), 'd') : '--'}
                       </p>
                     </div>
@@ -942,4 +942,3 @@ const fetchDashboard = async () => {
     </div>
   );
 }
-
