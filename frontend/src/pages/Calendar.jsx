@@ -302,7 +302,7 @@ export default function CalendarPage() {
   // Calendar V2 - refresh when team filter or profile changes
   useEffect(() => {
     fetchData();
-  }, [selectedTeam, activeProfile, selectedTeamFilter]);
+  }, [selectedTeam, activeProfile, selectedTeamFilter, selectedStatusFilter, visibleEventTypes]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -344,11 +344,22 @@ export default function CalendarPage() {
         ...(birthdaysRes.data || []),
       ];
 
-      if (selectedStatusFilter !== 'all') {
-        filteredEvents = filteredEvents.filter(
-          (event) => event.status === selectedStatusFilter
-        );
-      }
+      filteredEvents = filteredEvents.filter((event) => {
+        if (!event?.start_time) return false;
+
+        if (!visibleEventTypes.includes(event.event_type)) {
+          return false;
+        }
+
+        if (selectedStatusFilter !== 'all') {
+          const eventStatus = event.status || 'scheduled';
+          if (eventStatus !== selectedStatusFilter) {
+            return false;
+          }
+        }
+
+        return true;
+      });
 
       setEvents(filteredEvents);
 
@@ -941,8 +952,7 @@ export default function CalendarPage() {
     }
 
     return events.filter(event => {
-      if (!event.start_time) return false;
-      if (!visibleEventTypes.includes(event.event_type)) return false;
+      if (!eventMatchesCurrentFilters(event)) return false;
       const eventDate = parseISO(event.start_time);
       return eventDate >= start && eventDate <= end;
     });
@@ -950,8 +960,7 @@ export default function CalendarPage() {
 
   const getEventsForDay = (date) => {
     return events.filter(event => {
-      if (!event.start_time) return false;
-      if (!visibleEventTypes.includes(event.event_type)) return false;
+      if (!eventMatchesCurrentFilters(event)) return false;
       return isSameDay(parseISO(event.start_time), date);
     });
   };
@@ -1189,13 +1198,37 @@ export default function CalendarPage() {
     return eventTeam?.name || t('calendar.team', 'Equipa');
   };
 
+  const eventMatchesCurrentFilters = (event) => {
+    if (!event?.start_time) return false;
+
+    if (!visibleEventTypes.includes(event.event_type)) {
+      return false;
+    }
+
+    if (selectedStatusFilter !== 'all') {
+      const eventStatus = event.status || 'scheduled';
+      if (eventStatus !== selectedStatusFilter) {
+        return false;
+      }
+    }
+
+    if (selectedTeamFilter && selectedTeamFilter !== 'all') {
+      const eventTeamIds = [
+        event.team_id,
+        ...(event.team_ids || []),
+      ].filter(Boolean);
+
+      if (!eventTeamIds.includes(selectedTeamFilter)) {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const getSortedAgendaEvents = () => {
     return events
-      .filter((event) => {
-        if (!event.start_time) return false;
-        if (!visibleEventTypes.includes(event.event_type)) return false;
-        return true;
-      })
+      .filter(eventMatchesCurrentFilters)
       .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
   };
 
@@ -2645,4 +2678,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-
