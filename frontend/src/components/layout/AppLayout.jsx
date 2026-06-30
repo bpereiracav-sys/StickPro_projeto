@@ -40,7 +40,7 @@ export function AppLayout({ children }) {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-slate-50 text-slate-900">
+    <div className="relative min-h-screen bg-slate-50 text-slate-900">
       <div
         className="pointer-events-none fixed inset-0 z-0 bg-[radial-gradient(circle_at_top_left,rgba(15,118,110,0.08),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(37,99,235,0.06),transparent_34%)]"
         aria-hidden="true"
@@ -49,7 +49,7 @@ export function AppLayout({ children }) {
       <TopNavBar />
       <Sidebar />
 
-      <main className="relative z-10 min-h-screen pb-20 lg:ml-64 lg:pb-0">
+      <main className="relative z-10 min-h-screen pb-20 pt-16 lg:ml-64 lg:pb-0 lg:pt-16">
         <div className="mx-auto w-full max-w-7xl px-3 py-3 sm:px-5 lg:px-8 lg:py-5">
           <div className="rounded-[1.5rem] border border-white/70 bg-white/78 p-3 shadow-sm shadow-slate-200/70 backdrop-blur-xl sm:p-5 lg:rounded-[2rem] lg:p-5">
             {children}
