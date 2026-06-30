@@ -196,6 +196,64 @@ export function TopNavBar() {
   const myProfileLabel = tr('nav.myProfile', 'Meu Perfil');
   const settingsLabel = tr('nav.settings', 'Definições');
 
+
+  const getActiveProfilePhoto = () =>
+    activeProfile?.avatar_url ||
+    activeProfile?.photo_url ||
+    activeProfile?.profile_photo_url ||
+    activeProfile?.profile?.photo_url ||
+    user?.avatar_url ||
+    user?.profile?.photo_url ||
+    user?.photo_url ||
+    '';
+
+  const getActiveProfileName = () =>
+    activeProfile?.user_name ||
+    activeProfile?.label ||
+    user?.name ||
+    'StickPro';
+
+  const getActiveProfileTeams = () => {
+    const profileTeams = [
+      ...(activeProfile?.teams || []),
+      ...(activeProfile?.team_names || []),
+    ];
+
+    const names = profileTeams
+      .map((team) => {
+        if (!team) return '';
+        if (typeof team === 'string') return team;
+        return team.name || team.label || team.category || '';
+      })
+      .filter(Boolean);
+
+    if (names.length === 0 && selectedTeam?.name) {
+      names.push(selectedTeam.name);
+    }
+
+    if (names.length === 0 && activeProfile?.team_name) {
+      names.push(activeProfile.team_name);
+    }
+
+    if (names.length === 0 && activeProfile?.team_label) {
+      names.push(activeProfile.team_label);
+    }
+
+    const uniqueNames = [...new Set(names)];
+
+    if (uniqueNames.length === 0) {
+      return activeProfile?.type === 'associated'
+        ? tr('roles.player', 'Atleta')
+        : activeProfileLabel;
+    }
+
+    if (uniqueNames.length <= 2) {
+      return uniqueNames.join(' • ');
+    }
+
+    return tr('dashboard.teamsCount', '{count} equipas').replace('{count}', uniqueNames.length);
+  };
+
   if (!isAuthenticated) {
     return (
       <header className="sticky top-0 z-50 border-b border-border bg-white">
@@ -231,7 +289,7 @@ export function TopNavBar() {
         className="sticky top-0 z-50 border-b border-slate-800 bg-slate-950 text-white lg:hidden"
         data-testid="mobile-top-nav-bar"
       >
-        <div className="flex h-16 items-center justify-between gap-3 px-4">
+        <div className="flex h-16 items-center justify-between gap-2 px-3">
           <Link
             to="/dashboard"
             className="flex shrink-0 items-center"
@@ -241,27 +299,25 @@ export function TopNavBar() {
             <img
               src="/stickpro-logo.png"
               alt="StickPro"
-              className="h-9 w-auto max-w-[118px] object-contain"
+              className="h-9 w-auto max-w-[112px] object-contain"
               data-testid="mobile-stick-pro-logo"
             />
           </Link>
 
           <Link
             to="/dashboard"
-            className="min-w-0 flex-1 px-2 text-center"
+            className="min-w-0 flex-1 px-1 text-center"
             data-testid="mobile-topnav-profile-dashboard"
           >
-            <p className="truncate font-heading text-base font-bold leading-tight tracking-tight text-white">
-              {activeProfile?.user_name || activeProfile?.label || user?.name || 'StickPro'}
+            <p className="truncate font-heading text-[13px] font-bold leading-tight tracking-tight text-white min-[380px]:text-sm">
+              {getActiveProfileName()}
             </p>
-            <p className="truncate text-[11px] font-medium leading-tight text-slate-300">
-              {activeProfile?.type === 'associated'
-                ? tr('roles.player', 'Atleta')
-                : activeProfileLabel}
+            <p className="truncate text-[10px] font-semibold leading-tight text-emerald-300 min-[380px]:text-[11px]">
+              {getActiveProfileTeams()}
             </p>
           </Link>
 
-          <div className="flex shrink-0 items-center gap-1.5">
+          <div className="flex shrink-0 items-center gap-1">
             <Button
               variant="ghost"
               className="relative h-10 w-10 rounded-full text-white hover:bg-white/10 hover:text-white"
@@ -288,11 +344,11 @@ export function TopNavBar() {
                 >
                   <Avatar className="h-10 w-10 border-2 border-white/80">
                     <AvatarImage
-                      src={activeProfile?.avatar_url || user?.avatar_url || user?.profile?.photo_url}
-                      alt={activeProfile?.user_name || user?.name}
+                      src={getActiveProfilePhoto()}
+                      alt={getActiveProfileName()}
                     />
                     <AvatarFallback className="bg-primary text-sm font-semibold text-primary-foreground">
-                      {getInitials(activeProfile?.user_name || activeProfile?.label || user?.name)}
+                      {getInitials(getActiveProfileName())}
                     </AvatarFallback>
                   </Avatar>
                 </Button>
@@ -303,20 +359,20 @@ export function TopNavBar() {
                   <div className="flex items-center gap-3">
                     <Avatar className="h-11 w-11 border-2 border-primary">
                       <AvatarImage
-                        src={activeProfile?.avatar_url || user?.avatar_url || user?.profile?.photo_url}
-                        alt={activeProfile?.user_name || user?.name}
+                        src={getActiveProfilePhoto()}
+                        alt={getActiveProfileName()}
                       />
                       <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                        {getInitials(activeProfile?.user_name || activeProfile?.label || user?.name)}
+                        {getInitials(getActiveProfileName())}
                       </AvatarFallback>
                     </Avatar>
 
                     <div className="min-w-0">
                       <p className="truncate text-sm font-semibold">
-                        {activeProfile?.user_name || activeProfile?.label || user?.name}
+                        {getActiveProfileName()}
                       </p>
                       <p className="truncate text-xs text-muted-foreground">
-                        {activeProfileLabel}
+                        {getActiveProfileTeams()}
                       </p>
                     </div>
                   </div>
