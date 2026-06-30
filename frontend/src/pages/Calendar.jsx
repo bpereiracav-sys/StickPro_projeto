@@ -18,6 +18,9 @@ import { Switch } from '../components/ui/switch';
 import { ScrollArea } from '../components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
 import UnavailabilityDialog from '../components/UnavailabilityDialog';
+import CalendarHeader from '../components/calendar/CalendarHeader';
+import CalendarViewControls from '../components/calendar/CalendarViewControls';
+import CalendarAgenda from '../components/calendar/CalendarAgenda';
 import {
   Dialog,
   DialogContent,
@@ -1490,47 +1493,25 @@ export default function CalendarPage() {
   };
 
   const renderAgendaView = () => {
-    const agendaEvents = getSortedAgendaEvents();
-
-    if (agendaEvents.length === 0) {
-      return (
-        <Card className="border border-slate-200 bg-white shadow-sm">
-          <CardContent className="p-8 text-center text-muted-foreground">
-            <CalendarIcon className="mx-auto mb-3 h-12 w-12 opacity-50" />
-            <p>{t('calendar.noEvents', 'Não existem eventos para apresentar')}</p>
-          </CardContent>
-        </Card>
-      );
-    }
-
-    let lastDayKey = '';
-
     return (
-      <div className="space-y-5 pb-24 md:pb-0">
-        {agendaEvents.map((event) => {
-          const eventDate = parseISO(event.start_time);
-          const dayKey = format(eventDate, 'yyyy-MM-dd');
-          const showHeader = dayKey !== lastDayKey;
-          lastDayKey = dayKey;
-
-          return (
-            <div key={event.id} className="space-y-3">
-              {showHeader && (
-                <div className="sticky top-0 z-10 -mx-1 rounded-2xl bg-slate-50/95 px-3 py-2 backdrop-blur md:static md:bg-transparent md:px-0">
-                  <p className="text-sm font-bold capitalize text-slate-950">
-                    {getAgendaDayLabel(eventDate)}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {format(eventDate, "d 'de' MMMM 'de' yyyy", { locale: pt })}
-                  </p>
-                </div>
-              )}
-
-              {renderAgendaEventCard(event)}
-            </div>
-          );
-        })}
-      </div>
+      <CalendarAgenda
+        t={t}
+        events={getSortedAgendaEvents()}
+        teams={teams}
+        eventTypes={EVENT_TYPES}
+        canManageEvents={canManageEvents}
+        canCreateConvocations={canCreateConvocations}
+        isAdmin={isAdmin}
+        canAccessTeam={canAccessTeam}
+        openEditDialog={openEditDialog}
+        openConvocationDialog={openConvocationDialog}
+        openConvocationStatusDialog={openConvocationStatusDialog}
+        openPostponeDialog={openPostponeDialog}
+        handleCancelEvent={handleCancelEvent}
+        handleRestoreEvent={handleRestoreEvent}
+        setSelectedEvent={setSelectedEvent}
+        setDeleteDialogOpen={setDeleteDialogOpen}
+      />
     );
   };
 
@@ -1805,195 +1786,36 @@ export default function CalendarPage() {
       className="flex h-[calc(100dvh-92px)] flex-col gap-3 overflow-hidden md:block md:h-auto md:space-y-4 md:-mt-10 md:overflow-visible"
       data-testid="calendar-page"
     >
-      {/* Header Premium / Mobile controls */}
-      <div className="shrink-0 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/95 p-3 shadow-xl shadow-slate-200/70 backdrop-blur md:rounded-3xl md:p-4">
+      <CalendarHeader
+        t={t}
+        teams={teams}
+        eventTypes={EVENT_TYPES}
+        visibleEventTypes={visibleEventTypes}
+        selectedTeamFilter={selectedTeamFilter}
+        selectedStatusFilter={selectedStatusFilter}
+        canManageEvents={canManageEvents}
+        onTeamChange={setSelectedTeamFilter}
+        onStatusChange={setSelectedStatusFilter}
+        onEventTypeChange={setVisibleEventTypes}
+        onOpenUnavailability={() => setUnavailabilityDialogOpen(true)}
+        onExportPDF={handleExportPDF}
+        onCreateEvent={() => setCreateDialogOpen(true)}
+      />
 
-        {/* Linha superior */}
-        <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
-          <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-            <CalendarIcon className="h-4 w-4" />
-            {t('calendar.title', 'Calendário')}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setUnavailabilityDialogOpen(true)}
-              data-testid="create-unavailability-btn"
-              className="h-9 rounded-2xl bg-white px-3 md:px-4"
-              title={t('calendar.unavailability', 'Indisponibilidade')}
-            >
-              <CalendarOff className="h-4 w-4 md:mr-2" />
-              <span className="hidden md:inline">
-                {t('calendar.unavailability', 'Indisponibilidade')}
-              </span>
-            </Button>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleExportPDF}
-              data-testid="export-pdf-btn"
-              className="hidden h-9 rounded-2xl bg-white md:inline-flex"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              {t('common.export', 'Exportar')}
-            </Button>
-
-            {canManageEvents && (
-              <Button
-                onClick={() => setCreateDialogOpen(true)}
-                data-testid="create-event-btn"
-                className="h-9 rounded-2xl px-3 shadow-lg shadow-primary/20 md:px-4"
-                title={t('calendar.newEvent', 'Novo Evento')}
-              >
-                <Plus className="h-4 w-4 md:mr-2" />
-                <span className="hidden md:inline">
-                  {t('calendar.newEvent', 'Novo Evento')}
-                </span>
-              </Button>
-            )}
-          </div>
-        </div>
-
-        {/* Filtros compactos */}
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 md:items-center md:gap-3">
-          <Select value={selectedTeamFilter} onValueChange={setSelectedTeamFilter}>
-            <SelectTrigger className="h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:text-sm">
-              <SelectValue placeholder={t('calendar.allTeams', 'Todas as equipas')} />
-            </SelectTrigger>
-
-            <SelectContent className="bg-white">
-              <SelectItem value="all">
-                {t('calendar.allTeams', 'Todas as equipas')}
-              </SelectItem>
-
-              {teams.map((team) => (
-                <SelectItem key={team.id} value={team.id}>
-                  {team.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Select value={selectedStatusFilter} onValueChange={setSelectedStatusFilter}>
-            <SelectTrigger className="h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:text-sm">
-              <SelectValue placeholder={t('calendar.allStatuses', 'Todos os estados')} />
-            </SelectTrigger>
-
-            <SelectContent className="bg-white">
-              <SelectItem value="all">
-                {t('calendar.allStatuses', 'Todos os estados')}
-              </SelectItem>
-
-              <SelectItem value="scheduled">
-                {t('calendar.statusScheduled', 'Agendado')}
-              </SelectItem>
-
-              <SelectItem value="postponed">
-                {t('calendar.statusPostponed', 'Adiado')}
-              </SelectItem>
-
-              <SelectItem value="cancelled">
-                {t('calendar.statusCancelled', 'Cancelado')}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select
-            value={
-              visibleEventTypes.length === Object.keys(EVENT_TYPES).length
-                ? 'all'
-                : visibleEventTypes[0] || 'all'
-            }
-            onValueChange={(value) => {
-              if (value === 'all') {
-                setVisibleEventTypes(Object.keys(EVENT_TYPES));
-              } else {
-                setVisibleEventTypes([value]);
-              }
-            }}
-          >
-            <SelectTrigger className="hidden h-9 w-full rounded-2xl bg-white text-xs shadow-sm md:flex md:text-sm">
-              <SelectValue placeholder={t('calendar.allEventTypes', 'Todos os tipos')} />
-            </SelectTrigger>
-
-            <SelectContent className="bg-white">
-              <SelectItem value="all">
-                {t('calendar.allEventTypes', 'Todos os tipos')}
-              </SelectItem>
-
-              {[
-                'treino',
-                'jogo_campeonato',
-                'jogo_amigavel',
-                'torneio',
-                'evento_administrativo',
-                'birthday',
-                'outro',
-              ].map((key) => {
-                const type = EVENT_TYPES[key];
-                const Icon = type.icon;
-
-                return (
-                  <SelectItem key={key} value={key}>
-                    <div className="flex items-center gap-2">
-                      <Icon className={`h-4 w-4 ${type.textColor}`} />
-                      {type.label}
-                    </div>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-
-      {/* View Controls */}
-      <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
-        {/* Navigation */}
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="icon" onClick={navigatePrevious}>
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <Button variant="outline" onClick={navigateToday}>
-            {t('calendar.today', 'Hoje')}
-          </Button>
-          <Button variant="outline" size="icon" onClick={navigateNext}>
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-          <h2 className="ml-2 truncate font-heading text-lg font-bold tracking-tight text-slate-950 capitalize md:ml-4 md:text-2xl">
-            {getViewTitle()}
-          </h2>
-        </div>
-
-        {/* View Mode Toggle */}
-        <div className="flex items-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-          {Object.entries(VIEW_MODES)
-            .filter(([key]) => !isMobile || ['agenda', 'day'].includes(key))
-            .map(([key, mode]) => {
-            const Icon = mode.icon;
-            return (
-              <Button
-                key={key}
-                variant={viewMode === key ? 'default' : 'ghost'}
-                size="sm"
-                className="rounded-none px-4"
-                onClick={() => {
-                  setSelectedDate(new Date());
-                  setViewMode(key);
-                }}
-                data-testid={`view-${key}-btn`}
-              >
-                <Icon className="w-4 h-4 mr-1" />
-                {mode.label}
-              </Button>
-            );
-          })}
-        </div>
-      </div>
-
+      <CalendarViewControls
+        t={t}
+        viewMode={viewMode}
+        viewTitle={getViewTitle()}
+        isMobile={isMobile}
+        viewModes={VIEW_MODES}
+        onPrevious={navigatePrevious}
+        onToday={navigateToday}
+        onNext={navigateNext}
+        onChangeView={(key) => {
+          setSelectedDate(new Date());
+          setViewMode(key);
+        }}
+      />
 
       {/* Calendar View */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-24 pr-1 md:block md:overflow-visible md:pb-0 md:pr-0">
@@ -2752,3 +2574,4 @@ export default function CalendarPage() {
     </div>
   );
 }
+
