@@ -1699,7 +1699,7 @@ export default function CalendarPage() {
       data-testid="calendar-page"
     >
       {/* Header Premium / Mobile controls */}
-      <div className="sticky top-0 z-40 -mx-1 overflow-hidden rounded-b-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/95 p-3 shadow-xl shadow-slate-200/70 backdrop-blur md:static md:mx-0 md:rounded-3xl md:p-4">
+      <div className="fixed left-3 right-3 top-16 z-50 overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-cyan-50/95 p-3 shadow-xl shadow-slate-200/70 backdrop-blur md:static md:mx-0 md:rounded-3xl md:p-4">
 
         {/* Linha superior */}
         <div className="mb-3 flex items-center justify-between gap-3 md:mb-4">
@@ -1842,6 +1842,9 @@ export default function CalendarPage() {
           </Select>
         </div>
       </div>
+
+      {/* Mobile spacer for fixed calendar controls */}
+      <div className="h-36 md:hidden" aria-hidden="true" />
 
       {/* View Controls */}
       <div className="hidden flex-col gap-3 md:flex md:flex-row md:items-center md:justify-between">
@@ -2643,4 +2646,5 @@ export default function CalendarPage() {
     </div>
   );
 }
+
 
