@@ -18,15 +18,12 @@ export function BottomNav() {
     window.dispatchEvent(new CustomEvent('stickpro:open-sidebar'));
   };
 
+  const teamsHref = permissions.canManageTeam ? '/teams' : '/my-teams';
+  const teamsLabel = permissions.canManageTeam
+    ? tr('nav.teams', 'Equipas')
+    : tr('nav.myTeams', 'Minhas Equipas');
+
   const navItems = [
-    {
-      href: '/dashboard',
-      label: tr('nav.dashboard', 'Dashboard'),
-      icon: Menu,
-      visible: true,
-      testId: 'dashboard',
-      isSidebarTrigger: true,
-    },
     {
       href: '/calendar',
       label: tr('nav.calendar', 'Calendário'),
@@ -42,10 +39,10 @@ export function BottomNav() {
       testId: 'messages',
     },
     {
-      href: '/teams',
-      label: tr('nav.teams', 'Equipas'),
+      href: teamsHref,
+      label: teamsLabel,
       icon: Users,
-      visible: permissions.hasPermission('view_team_members') || permissions.canManageTeam,
+      visible: true,
       testId: 'teams',
     },
     {
@@ -54,6 +51,14 @@ export function BottomNav() {
       icon: BarChart3,
       visible: true,
       testId: 'stats',
+    },
+    {
+      href: '#menu',
+      label: tr('nav.more', 'Mais'),
+      icon: Menu,
+      visible: true,
+      testId: 'more',
+      isSidebarTrigger: true,
     },
   ].filter((item) => item.visible);
 
@@ -81,7 +86,7 @@ export function BottomNav() {
             >
               <Icon className="h-5 w-5 shrink-0" />
               <span className="mt-1 max-w-full truncate text-[10px] font-medium">
-                {tr('nav.more', 'Mais')}
+                {item.label}
               </span>
             </button>
           );
@@ -116,3 +121,4 @@ export function BottomNav() {
 }
 
 export default BottomNav;
+
