@@ -1,6 +1,7 @@
 import { format, isToday, isSameDay, addDays, parseISO } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Calendar as CalendarIcon } from 'lucide-react';
+
 import { Card, CardContent } from '../ui/card';
 import EventCard from './EventCard';
 
@@ -9,9 +10,7 @@ import EventCard from './EventCard';
  *
  * Vista corrida/agenda do calendário.
  *
- * Nota:
- * - Este componente replica a lógica da agenda que está atualmente dentro de Calendar.jsx.
- * - Será ligado ao Calendar.jsx no passo seguinte.
+ * Este componente recebe a lista de eventos já filtrada e ordenada pelo Calendar.jsx.
  */
 export default function CalendarAgenda({
   t,
@@ -22,19 +21,22 @@ export default function CalendarAgenda({
   canCreateConvocations = false,
   isAdmin = false,
   canAccessTeam = () => false,
-  onOpenEdit,
-  onOpenConvocation,
-  onOpenConvocationStatus,
-  onOpenPostpone,
-  onCancelEvent,
-  onRestoreEvent,
-  onDeleteEvent,
+  openEditDialog,
+  openConvocationDialog,
+  openConvocationStatusDialog,
+  openPostponeDialog,
+  handleCancelEvent,
+  handleRestoreEvent,
+  setSelectedEvent,
+  setDeleteDialogOpen,
 }) {
   const getAgendaDayLabel = (date) => {
     if (isToday(date)) return t('calendar.today', 'Hoje');
+
     if (isSameDay(date, addDays(new Date(), 1))) {
       return t('calendar.tomorrow', 'Amanhã');
     }
+
     return format(date, "EEEE, d 'de' MMMM", { locale: pt });
   };
 
@@ -57,6 +59,7 @@ export default function CalendarAgenda({
         const eventDate = parseISO(event.start_time);
         const dayKey = format(eventDate, 'yyyy-MM-dd');
         const showHeader = dayKey !== lastDayKey;
+
         lastDayKey = dayKey;
 
         return (
@@ -81,13 +84,14 @@ export default function CalendarAgenda({
               canCreateConvocations={canCreateConvocations}
               isAdmin={isAdmin}
               canAccessTeam={canAccessTeam}
-              onOpenEdit={onOpenEdit}
-              onOpenConvocation={onOpenConvocation}
-              onOpenConvocationStatus={onOpenConvocationStatus}
-              onOpenPostpone={onOpenPostpone}
-              onCancelEvent={onCancelEvent}
-              onRestoreEvent={onRestoreEvent}
-              onDeleteEvent={onDeleteEvent}
+              openEditDialog={openEditDialog}
+              openConvocationDialog={openConvocationDialog}
+              openConvocationStatusDialog={openConvocationStatusDialog}
+              openPostponeDialog={openPostponeDialog}
+              handleCancelEvent={handleCancelEvent}
+              handleRestoreEvent={handleRestoreEvent}
+              setSelectedEvent={setSelectedEvent}
+              setDeleteDialogOpen={setDeleteDialogOpen}
             />
           </div>
         );
