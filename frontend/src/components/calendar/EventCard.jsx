@@ -17,9 +17,11 @@ import {
   Users,
   XCircle,
 } from 'lucide-react';
+import { useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { convocationsApi } from '../../services/api';
 
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
@@ -143,6 +145,90 @@ function getEventScore(event) {
   return `${homeGoals} - ${awayGoals}`;
 }
 
+
+function getAttendanceRecord(event) {
+  return (
+    event?.my_attendance ||
+    event?.attendance ||
+    event?.user_attendance ||
+    event?.current_user_attendance ||
+    null
+  );
+}
+
+function getAttendanceId(event) {
+  const attendance = getAttendanceRecord(event);
+
+  return (
+    attendance?.id ||
+    event?.attendance_id ||
+    event?.my_attendance_id ||
+    event?.current_user_attendance_id ||
+    null
+  );
+}
+
+function getInitialAttendanceStatus(event) {
+  const attendance = getAttendanceRecord(event);
+
+  return (
+    attendance?.status ||
+    event?.attendance_status ||
+    event?.my_attendance_status ||
+    event?.convocation_status ||
+    event?.my_convocation_status ||
+    null
+  );
+}
+
+function hasConvocation(event) {
+  return Boolean(
+    getAttendanceId(event) ||
+      event?.convocation_id ||
+      event?.has_convocation ||
+      event?.convocation_created ||
+      event?.convocation_status ||
+      event?.attendance_status ||
+      event?.my_attendance_status
+  );
+}
+
+function getConvocationStatusConfig(status, t) {
+  if (status === 'confirmado') {
+    return {
+      label: safeTranslate(t, 'attendance.confirmed', 'Confirmou presença'),
+      className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+      icon: CheckCircle,
+    };
+  }
+
+  if (status === 'ausente') {
+    return {
+      label: safeTranslate(t, 'attendance.absent', 'Ausente'),
+      className: 'border-red-200 bg-red-50 text-red-700',
+      icon: XCircle,
+    };
+  }
+
+  if (status === 'pendente') {
+    return {
+      label: safeTranslate(t, 'attendance.pending', 'Pendente'),
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
+      icon: HelpCircle,
+    };
+  }
+
+  return {
+    label: safeTranslate(
+      t,
+      'convocations.notLaunched',
+      'Convocatória não lançada'
+    ),
+    className: 'border-slate-200 bg-slate-50 text-slate-500',
+    icon: ClipboardCheck,
+  };
+}
+
 export default function EventCard({
   event,
   teams = [],
@@ -160,8 +246,13 @@ export default function EventCard({
   handleRestoreEvent,
   setSelectedEvent,
   setDeleteDialogOpen,
+  onConvocationStatusUpdated,
 }) {
   const navigate = useNavigate();
+  const [localAttendanceStatus, setLocalAttendanceStatus] = useState(
+    getInitialAttendanceStatus(event)
+  );
+  const [updatingAttendance, setUpdatingAttendance] = useState(false);
 
   if (!event) return null;
 
@@ -177,6 +268,20 @@ export default function EventCard({
     canManageEvents && (isAdmin || canAccessTeam(event.team_id));
   const competitionName = getCompetitionName(event);
   const score = getEventScore(event);
+  const attendanceId = getAttendanceId(event);
+  const eventHasConvocation = hasConvocation(event);
+  const visibleAttendanceStatus =
+    localAttendanceStatus || getInitialAttendanceStatus(event);
+  const convocationStatusConfig = getConvocationStatusConfig(
+    eventHasConvocation ? visibleAttendanceStatus || 'pendente' : null,
+    t
+  );
+  const ConvocationStatusIcon = convocationStatusConfig.icon;
+  const eventEnd = end || start;
+  const eventPassed = eventEnd ? eventEnd < new Date() : false;
+  const canUpdateOwnConvocation =
+    attendanceId && (!eventPassed || canManageThisEvent);
+
 
   const getEventDayUrl = () => {
     if (!event?.id || !event?.start_time) return '/calendar';
@@ -237,6 +342,52 @@ export default function EventCard({
 
     if (typeof setDeleteDialogOpen === 'function') {
       setDeleteDialogOpen(true);
+    }
+  };
+
+
+  const handleUpdateOwnConvocation = async (status) => {
+    if (!attendanceId || updatingAttendance) return;
+
+    setUpdatingAttendance(true);
+
+    try {
+      await convocationsApi.updateAttendance(attendanceId, {
+        status,
+        reason:
+          status === 'ausente'
+            ? safeTranslate(t, 'attendance.unavailable', 'Indisponível')
+            : null,
+      });
+
+      setLocalAttendanceStatus(status);
+
+      window.dispatchEvent(
+        new CustomEvent('stickpro:convocation-updated', {
+          detail: {
+            eventId: event.id,
+            attendanceId,
+            status,
+          },
+        })
+      );
+
+      if (typeof onConvocationStatusUpdated === 'function') {
+        onConvocationStatusUpdated({ eventId: event.id, attendanceId, status });
+      }
+
+      toast.success(
+        status === 'confirmado'
+          ? safeTranslate(t, 'attendance.presenceConfirmed', 'Presença confirmada')
+          : safeTranslate(t, 'attendance.absenceRegistered', 'Ausência registada')
+      );
+    } catch (error) {
+      console.error('Error updating event convocation:', error);
+      toast.error(
+        safeTranslate(t, 'attendance.updateError', 'Erro ao atualizar presença')
+      );
+    } finally {
+      setUpdatingAttendance(false);
     }
   };
 
@@ -317,6 +468,18 @@ export default function EventCard({
             {event.title}
           </h3>
 
+          {!isBirthday && (
+            <div className="mt-2">
+              <Badge
+                variant="outline"
+                className={`${convocationStatusConfig.className} rounded-full`}
+              >
+                <ConvocationStatusIcon className="mr-1 h-3 w-3" />
+                {convocationStatusConfig.label}
+              </Badge>
+            </div>
+          )}
+
           {isBirthday ? (
             <p className="mt-1 text-sm text-slate-500">
               {event.age
@@ -360,16 +523,46 @@ export default function EventCard({
       </div>
 
       {!isBirthday && (
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-2xl"
-            onClick={handleShowConvocationStatus}
-          >
-            <ClipboardCheck className="mr-2 h-4 w-4" />
-            {safeTranslate(t, 'convocations.status', 'Estado')}
-          </Button>
+        <div className="mt-4 space-y-2">
+          {canUpdateOwnConvocation && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                size="sm"
+                className="rounded-2xl bg-secondary hover:bg-secondary/90"
+                onClick={() => handleUpdateOwnConvocation('confirmado')}
+                disabled={
+                  updatingAttendance || visibleAttendanceStatus === 'confirmado'
+                }
+              >
+                <CheckCircle className="mr-2 h-4 w-4" />
+                {safeTranslate(t, 'common.confirm', 'Confirmar')}
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-2xl border-red-200 text-red-600 hover:bg-red-50"
+                onClick={() => handleUpdateOwnConvocation('ausente')}
+                disabled={
+                  updatingAttendance || visibleAttendanceStatus === 'ausente'
+                }
+              >
+                <XCircle className="mr-2 h-4 w-4" />
+                {safeTranslate(t, 'attendance.unavailable', 'Indisponível')}
+              </Button>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-2xl"
+              onClick={handleShowConvocationStatus}
+            >
+              <ClipboardCheck className="mr-2 h-4 w-4" />
+              {safeTranslate(t, 'convocations.status', 'Estado')}
+            </Button>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -516,8 +709,10 @@ export default function EventCard({
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+          </div>
         </div>
       )}
     </div>
   );
 }
+
