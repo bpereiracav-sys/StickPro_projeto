@@ -193,7 +193,33 @@ function hasConvocation(event) {
   );
 }
 
-function getConvocationStatusConfig(status, t) {
+function isPrivateConvocation(event) {
+  return Boolean(
+    event?.convocation_visibility === 'private' ||
+      event?.visibility === 'private' ||
+      event?.convocation?.visibility === 'private' ||
+      event?.convocation?.is_private ||
+      event?.is_private_convocation
+  );
+}
+
+function getConvocationStatusConfig(status, t, event = null) {
+  if (event && isPrivateConvocation(event)) {
+    return {
+      label: safeTranslate(t, 'convocations.private', 'Privado'),
+      className: 'border-violet-200 bg-violet-50 text-violet-700',
+      icon: ClipboardCheck,
+    };
+  }
+
+  if (status === 'lancada' || status === 'launched') {
+    return {
+      label: safeTranslate(t, 'convocations.launched', 'Convocatória efetuada'),
+      className: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+      icon: ClipboardCheck,
+    };
+  }
+
   if (status === 'confirmado') {
     return {
       label: safeTranslate(t, 'attendance.confirmed', 'Confirmou presença'),
@@ -273,8 +299,9 @@ export default function EventCard({
   const visibleAttendanceStatus =
     localAttendanceStatus || getInitialAttendanceStatus(event);
   const convocationStatusConfig = getConvocationStatusConfig(
-    eventHasConvocation ? visibleAttendanceStatus || 'pendente' : null,
-    t
+    eventHasConvocation ? visibleAttendanceStatus || 'lancada' : null,
+    t,
+    event
   );
   const ConvocationStatusIcon = convocationStatusConfig.icon;
   const eventEnd = end || start;
@@ -418,7 +445,7 @@ export default function EventCard({
         <div className="min-w-0 flex-1">
           <div className="mb-1 flex flex-wrap items-center gap-2">
             <Badge className={`${eventType.color} border-0 text-white`}>
-              {isBirthday ? '🎂' : <Icon className="mr-1 h-3 w-3" />}
+              {!isBirthday && <Icon className="mr-1 h-3 w-3" />}
               {eventType.label}
             </Badge>
 
@@ -522,7 +549,7 @@ export default function EventCard({
         </div>
       </div>
 
-      {!isBirthday && (
+      {!isBirthday && canManageThisEvent && (
         <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-2 text-xs sm:grid-cols-4">
           <button
             type="button"
@@ -530,8 +557,19 @@ export default function EventCard({
             onClick={handleShowConvocationStatus}
           >
             <ClipboardCheck className="mx-auto mb-1 h-4 w-4 text-primary" />
-            {safeTranslate(t, 'convocations.title', 'Convocatória')}
+            {safeTranslate(t, 'common.consult', 'Consultar')}
           </button>
+
+          {canCreateConvocations && (
+            <button
+              type="button"
+              className="rounded-xl bg-white px-2 py-2 font-semibold text-slate-700 shadow-sm transition hover:text-primary"
+              onClick={handleOpenConvocation}
+            >
+              <Users className="mx-auto mb-1 h-4 w-4 text-cyan-600" />
+              {safeTranslate(t, 'convocations.callPlayers', 'Convocar')}
+            </button>
+          )}
 
           <button
             type="button"
@@ -545,71 +583,20 @@ export default function EventCard({
             {safeTranslate(t, 'attendance.title', 'Presenças')}
           </button>
 
-          {isGame && (
-            <button
-              type="button"
-              className="rounded-xl bg-white px-2 py-2 font-semibold text-slate-700 shadow-sm transition hover:text-primary"
-              onClick={(clickEvent) => {
-                clickEvent.stopPropagation();
-                navigate(`/stats?event_id=${event.id}`);
-              }}
-            >
-              <Trophy className="mx-auto mb-1 h-4 w-4 text-amber-600" />
-              {safeTranslate(t, 'statistics.title', 'Estatísticas')}
-            </button>
-          )}
-
           <button
             type="button"
             className="rounded-xl bg-white px-2 py-2 font-semibold text-slate-700 shadow-sm transition hover:text-primary"
-            onClick={() =>
-              toast.info(
-                safeTranslate(
-                  t,
-                  'calendar.forumInDevelopment',
-                  'Fórum em desenvolvimento'
-                )
-              )
-            }
+            onClick={handleEdit}
           >
-            <Eye className="mx-auto mb-1 h-4 w-4 text-slate-500" />
-            {safeTranslate(t, 'calendar.forum', 'Fórum')}
+            <Edit className="mx-auto mb-1 h-4 w-4 text-slate-600" />
+            {safeTranslate(t, 'common.edit', 'Editar')}
           </button>
         </div>
       )}
 
-      {!isBirthday && (
-        <div className="mt-3 space-y-2">
-          {canUpdateOwnConvocation && (
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                size="sm"
-                className="rounded-2xl bg-secondary hover:bg-secondary/90"
-                onClick={() => handleUpdateOwnConvocation('confirmado')}
-                disabled={
-                  updatingAttendance || visibleAttendanceStatus === 'confirmado'
-                }
-              >
-                <CheckCircle className="mr-2 h-4 w-4" />
-                {safeTranslate(t, 'common.confirm', 'Confirmar')}
-              </Button>
-
-              <Button
-                size="sm"
-                variant="outline"
-                className="rounded-2xl border-red-200 text-red-600 hover:bg-red-50"
-                onClick={() => handleUpdateOwnConvocation('ausente')}
-                disabled={
-                  updatingAttendance || visibleAttendanceStatus === 'ausente'
-                }
-              >
-                <XCircle className="mr-2 h-4 w-4" />
-                {safeTranslate(t, 'attendance.unavailable', 'Indisponível')}
-              </Button>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-2">
+      {!isBirthday && !canManageThisEvent && (
+        <div className="mt-4 space-y-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             <Button
               variant="outline"
               size="sm"
@@ -617,159 +604,58 @@ export default function EventCard({
               onClick={handleShowConvocationStatus}
             >
               <ClipboardCheck className="mr-2 h-4 w-4" />
-              {safeTranslate(t, 'convocations.status', 'Estado')}
+              {safeTranslate(t, 'common.consult', 'Consultar')}
             </Button>
 
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            {canUpdateOwnConvocation && visibleAttendanceStatus === 'pendente' && (
               <Button
                 size="sm"
-                className="rounded-2xl"
-                onClick={(clickEvent) => clickEvent.stopPropagation()}
-              >
-                <MoreVertical className="mr-2 h-4 w-4" />
-                {canManageThisEvent
-                  ? safeTranslate(t, 'common.actions', 'Ações')
-                  : safeTranslate(t, 'common.open', 'Abrir')}
-              </Button>
-            </DropdownMenuTrigger>
-
-            <DropdownMenuContent className="bg-white" align="end">
-              <DropdownMenuItem onClick={(clickEvent) => {
-                clickEvent.stopPropagation();
-                openEventDay();
-              }}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {safeTranslate(t, 'calendar.openEvent', 'Abrir evento')}
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem onClick={handleShowConvocationStatus}>
-                <ClipboardCheck className="mr-2 h-4 w-4" />
-                {safeTranslate(
-                  t,
-                  'convocations.viewStatus',
-                  'Ver Estado Convocatória'
-                )}
-              </DropdownMenuItem>
-
-              {canCreateConvocations && canManageThisEvent && (
-                <DropdownMenuItem onClick={handleOpenConvocation}>
-                  <Users className="mr-2 h-4 w-4" />
-                  {safeTranslate(
-                    t,
-                    'convocations.callPlayers',
-                    'Convocar Jogadores'
-                  )}
-                </DropdownMenuItem>
-              )}
-
-              {isGame && (
-                <DropdownMenuItem
-                  onClick={(clickEvent) => {
-                    clickEvent.stopPropagation();
-                    navigate(`/stats?event_id=${event.id}`);
-                  }}
-                >
-                  <Trophy className="mr-2 h-4 w-4" />
-                  {safeTranslate(t, 'statistics.title', 'Estatísticas')}
-                </DropdownMenuItem>
-              )}
-
-              <DropdownMenuItem
+                className="rounded-2xl bg-secondary hover:bg-secondary/90"
                 onClick={(clickEvent) => {
                   clickEvent.stopPropagation();
-                  navigate(`/attendance?event_id=${event.id}`);
+                  handleUpdateOwnConvocation('confirmado');
                 }}
+                disabled={updatingAttendance}
               >
                 <CheckCircle className="mr-2 h-4 w-4" />
-                {safeTranslate(t, 'attendance.title', 'Presenças')}
-              </DropdownMenuItem>
+                {safeTranslate(t, 'common.respond', 'Responder')}
+              </Button>
+            )}
 
-              <DropdownMenuItem
-                onClick={() =>
-                  toast.info(
-                    safeTranslate(
-                      t,
-                      'calendar.forumInDevelopment',
-                      'Fórum em desenvolvimento'
-                    )
-                  )
-                }
-              >
-                <Eye className="mr-2 h-4 w-4" />
-                {safeTranslate(t, 'calendar.forum', 'Fórum')}
-              </DropdownMenuItem>
-
-              {canManageThisEvent && (
-                <>
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem onClick={handleEdit}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    {safeTranslate(t, 'common.edit', 'Editar')}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    onSelect={(eventSelect) => {
-                      eventSelect.preventDefault();
-                      handlePostpone();
-                    }}
-                  >
-                    <PauseCircle className="mr-2 h-4 w-4" />
-                    {safeTranslate(t, 'calendar.postpone', 'Adiar')}
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem onClick={handleCancel}>
-                    <XCircle className="mr-2 h-4 w-4" />
-                    {safeTranslate(t, 'calendar.cancelEvent', 'Cancelar')}
-                  </DropdownMenuItem>
-
-                  {(event.status === 'cancelled' ||
-                    event.status === 'postponed') && (
-                    <DropdownMenuItem
-                      onSelect={(eventSelect) => {
-                        eventSelect.preventDefault();
-                        handleRestore();
-                      }}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      {event.status === 'postponed'
-                        ? safeTranslate(
-                            t,
-                            'calendar.undoPostpone',
-                            'Anular adiamento'
-                          )
-                        : safeTranslate(
-                            t,
-                            'calendar.restoreEvent',
-                            'Reativar evento'
-                          )}
-                    </DropdownMenuItem>
-                  )}
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    className="text-destructive focus:text-destructive"
-                    onSelect={(eventSelect) => {
-                      eventSelect.preventDefault();
-                      handleDelete();
-                    }}
-                  >
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    {safeTranslate(t, 'common.delete', 'Eliminar')}
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-2xl"
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                const query = new URLSearchParams();
+                if (event.team_id) query.set('team_id', event.team_id);
+                if (event.id) query.set('event_id', event.id);
+                navigate(`/messages?${query.toString()}`);
+              }}
+            >
+              <Eye className="mr-2 h-4 w-4" />
+              {safeTranslate(t, 'messages.sendToCoach', 'Enviar mensagem')}
+            </Button>
           </div>
+
+          {canUpdateOwnConvocation && visibleAttendanceStatus === 'pendente' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full rounded-2xl border-red-200 text-red-600 hover:bg-red-50"
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                handleUpdateOwnConvocation('ausente');
+              }}
+              disabled={updatingAttendance}
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              {safeTranslate(t, 'attendance.unavailable', 'Indisponível')}
+            </Button>
+          )}
         </div>
       )}
     </div>
   );
 }
-
-
