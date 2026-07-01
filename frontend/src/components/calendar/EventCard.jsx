@@ -523,7 +523,63 @@ export default function EventCard({
       </div>
 
       {!isBirthday && (
-        <div className="mt-4 space-y-2">
+        <div className="mt-4 grid grid-cols-2 gap-2 rounded-2xl border border-slate-100 bg-slate-50 p-2 text-xs sm:grid-cols-4">
+          <button
+            type="button"
+            className="rounded-xl bg-white px-2 py-2 font-semibold text-slate-700 shadow-sm transition hover:text-primary"
+            onClick={handleShowConvocationStatus}
+          >
+            <ClipboardCheck className="mx-auto mb-1 h-4 w-4 text-primary" />
+            {safeTranslate(t, 'convocations.title', 'Convocatória')}
+          </button>
+
+          <button
+            type="button"
+            className="rounded-xl bg-white px-2 py-2 font-semibold text-slate-700 shadow-sm transition hover:text-primary"
+            onClick={(clickEvent) => {
+              clickEvent.stopPropagation();
+              navigate(`/attendance?event_id=${event.id}`);
+            }}
+          >
+            <CheckCircle className="mx-auto mb-1 h-4 w-4 text-emerald-600" />
+            {safeTranslate(t, 'attendance.title', 'Presenças')}
+          </button>
+
+          {isGame && (
+            <button
+              type="button"
+              className="rounded-xl bg-white px-2 py-2 font-semibold text-slate-700 shadow-sm transition hover:text-primary"
+              onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                navigate(`/stats?event_id=${event.id}`);
+              }}
+            >
+              <Trophy className="mx-auto mb-1 h-4 w-4 text-amber-600" />
+              {safeTranslate(t, 'statistics.title', 'Estatísticas')}
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="rounded-xl bg-white px-2 py-2 font-semibold text-slate-700 shadow-sm transition hover:text-primary"
+            onClick={() =>
+              toast.info(
+                safeTranslate(
+                  t,
+                  'calendar.forumInDevelopment',
+                  'Fórum em desenvolvimento'
+                )
+              )
+            }
+          >
+            <Eye className="mx-auto mb-1 h-4 w-4 text-slate-500" />
+            {safeTranslate(t, 'calendar.forum', 'Fórum')}
+          </button>
+        </div>
+      )}
+
+      {!isBirthday && (
+        <div className="mt-3 space-y-2">
           {canUpdateOwnConvocation && (
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -715,4 +771,5 @@ export default function EventCard({
     </div>
   );
 }
+
 
