@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { usePermissions } from '../context/PermissionsContext';
@@ -91,6 +91,7 @@ const viewModes = [
 
 export default function Attendance() {
   const { user } = useAuth();
+  const location = useLocation();
   const { selectedTeam, teams: contextTeams } = useTeam();
   const { canManageAttendance, canAccessTeam, isAdmin, isPlayer, isFamilyMember } = usePermissions();
   const [teams, setTeams] = useState([]);
@@ -113,6 +114,7 @@ export default function Attendance() {
   const [unavailabilities, setUnavailabilities] = useState([]);
   const [showUnavailabilities, setShowUnavailabilities] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const selectedEventId = new URLSearchParams(location.search).get('event_id');
 
   // Set selected team from context
   useEffect(() => {
@@ -126,6 +128,12 @@ export default function Attendance() {
       setLoading(false);
     }
   }, [selectedTeam, contextTeams]);
+
+  useEffect(() => {
+    if (selectedEventId) {
+      setViewMode('event');
+    }
+  }, [selectedEventId]);
 
   useEffect(() => {
     if (selectedTeamId) {
@@ -812,14 +820,26 @@ export default function Attendance() {
                         return (
                           <div 
                             key={event.id}
-                            className="flex items-center justify-between p-3 border border-border rounded-sm hover:bg-muted/30 transition-colors"
+                            id={`attendance-event-${event.id}`}
+                            className={`flex items-center justify-between p-3 border rounded-sm transition-colors ${
+                              selectedEventId === event.id
+                                ? 'border-primary bg-primary/5 shadow-sm'
+                                : 'border-border hover:bg-muted/30'
+                            }`}
                           >
                             <div className="flex items-center gap-3">
                               <div className="w-10 h-10 bg-primary/10 rounded-sm flex items-center justify-center">
                                 <Calendar className="w-5 h-5 text-primary" />
                               </div>
                               <div>
-                                <p className="font-medium">{event.title}</p>
+                                <p className="font-medium">
+                                  {event.title}
+                                  {selectedEventId === event.id && (
+                                    <Badge className="ml-2 bg-primary text-white">
+                                      Evento selecionado
+                                    </Badge>
+                                  )}
+                                </p>
                                 <p className="text-sm text-muted-foreground">
                                   {event.start_time && format(parseISO(event.start_time), 'd MMM yyyy', { locale: pt })}
                                   {' - '}
