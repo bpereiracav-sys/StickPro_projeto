@@ -1150,9 +1150,14 @@ export default function CalendarPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    className={
+                      compact
+                        ? 'h-7 w-7 rounded-full bg-white/90 text-slate-700 opacity-100 shadow-sm hover:bg-white'
+                        : 'opacity-0 transition-opacity group-hover:opacity-100'
+                    }
+                    aria-label={compact ? t('common.edit', 'Editar') : t('common.actions', 'Ações')}
                   >
-                    <MoreVertical className="h-4 w-4" />
+                    {compact ? <Edit className="h-3.5 w-3.5" /> : <MoreVertical className="h-4 w-4" />}
                   </Button>
                 </DropdownMenuTrigger>
 
@@ -1586,6 +1591,18 @@ export default function CalendarPage() {
             </div>
           ) : (
             <div className="space-y-3">
+              <div className="rounded-3xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
+                  {t('calendar.eventOperationalCenter', 'Centro operacional do evento')}
+                </p>
+                <p className="mt-1 text-sm text-slate-600">
+                  {t(
+                    'calendar.eventOperationalCenterHelp',
+                    'Consulte detalhes, convocatórias, presenças e ações associadas ao evento.'
+                  )}
+                </p>
+              </div>
+
               {dayEvents.map((event) => (
                 <EventCard
                   key={event.id}
@@ -1638,9 +1655,16 @@ export default function CalendarPage() {
               <div className="space-y-1">
                 {dayEvents.slice(0, 3).map(event => renderEventCard(event, true))}
                 {dayEvents.length > 3 && (
-                  <p className="text-xs text-muted-foreground text-center">
-                    +{dayEvents.length - 3} mais
-                  </p>
+                  <button
+                    type="button"
+                    className="w-full rounded-lg bg-slate-100 px-2 py-1 text-center text-xs font-medium text-slate-500 transition hover:bg-slate-200"
+                    onClick={() => {
+                      setSelectedDate(day);
+                      setViewMode('day');
+                    }}
+                  >
+                    +{dayEvents.length - 3} {t('calendar.moreEvents', 'mais')}
+                  </button>
                 )}
               </div>
             </div>
@@ -1722,7 +1746,7 @@ export default function CalendarPage() {
 
                     const eventCard = (
                       <div
-                        className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+                        className={`group relative overflow-hidden rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${canManageThisEvent ? 'pr-8' : ''}`}
                         onClick={(e) => {
                           e.stopPropagation();
                           if (event.start_time) {
@@ -1767,78 +1791,91 @@ export default function CalendarPage() {
                       </div>
                     );
 
-                    return canManageThisEvent ? (
-                      <DropdownMenu key={event.id}>
-                        <DropdownMenuTrigger asChild>
-                          {eventCard}
-                        </DropdownMenuTrigger>
+                    return (
+                      <div key={event.id} className="relative">
+                        {eventCard}
 
-                        <DropdownMenuContent className="bg-white" align="start">
-                          <DropdownMenuItem onClick={() => openEditDialog(event)}>
-                            <Edit className="w-4 h-4 mr-2" />
-                            {t('common.edit', 'Editar')}
-                          </DropdownMenuItem>
+                        {canManageThisEvent && (
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-1 top-1 h-6 w-6 rounded-full bg-white/90 text-slate-700 opacity-90 shadow-sm hover:bg-white"
+                                onClick={(e) => e.stopPropagation()}
+                                aria-label={t('common.edit', 'Editar')}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                              </Button>
+                            </DropdownMenuTrigger>
 
-                          {canCreateConvocations && (
-                            <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
-                              <Users className="w-4 h-4 mr-2" />
-                              {t('convocations.callPlayers', 'Convocar Jogadores')}
-                            </DropdownMenuItem>
-                          )}
+                            <DropdownMenuContent className="bg-white" align="start">
+                              <DropdownMenuItem onClick={() => openEditDialog(event)}>
+                                <Edit className="w-4 h-4 mr-2" />
+                                {t('common.edit', 'Editar')}
+                              </DropdownMenuItem>
 
-                          <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
-                            <ClipboardCheck className="w-4 h-4 mr-2" />
-                            {t('convocations.viewStatus', 'Ver Estado Convocatória')}
-                          </DropdownMenuItem>
+                              {canCreateConvocations && (
+                                <DropdownMenuItem onClick={() => openConvocationDialog(event)}>
+                                  <Users className="w-4 h-4 mr-2" />
+                                  {t('convocations.callPlayers', 'Convocar Jogadores')}
+                                </DropdownMenuItem>
+                              )}
 
-                          <DropdownMenuSeparator />
+                              <DropdownMenuItem onClick={() => openConvocationStatusDialog(event)}>
+                                <ClipboardCheck className="w-4 h-4 mr-2" />
+                                {t('convocations.viewStatus', 'Ver Estado Convocatória')}
+                              </DropdownMenuItem>
 
-                          <DropdownMenuItem
-                            onSelect={(e) => {
-                              e.preventDefault();
-                              openPostponeDialog(event);
-                            }}
-                          >
-                            <PauseCircle className="w-4 h-4 mr-2" />
-                            {t('calendar.postpone', 'Adiar')}
-                          </DropdownMenuItem>
+                              <DropdownMenuSeparator />
 
-                          <DropdownMenuItem onClick={() => handleCancelEvent(event)}>
-                            <XCircle className="w-4 h-4 mr-2" />
-                            {t('calendar.cancelEvent', 'Cancelar')}
-                          </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  openPostponeDialog(event);
+                                }}
+                              >
+                                <PauseCircle className="w-4 h-4 mr-2" />
+                                {t('calendar.postpone', 'Adiar')}
+                              </DropdownMenuItem>
 
-                          {(event.status === 'cancelled' || event.status === 'postponed') && (
-                            <DropdownMenuItem
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                handleRestoreEvent(event);
-                              }}
-                            >
-                              <CheckCircle className="w-4 h-4 mr-2" />
-                              {event.status === 'postponed'
-                                ? t('calendar.undoPostpone', 'Anular adiamento')
-                                : t('calendar.restoreEvent', 'Reativar evento')}
-                            </DropdownMenuItem>
-                          )}
+                              <DropdownMenuItem onClick={() => handleCancelEvent(event)}>
+                                <XCircle className="w-4 h-4 mr-2" />
+                                {t('calendar.cancelEvent', 'Cancelar')}
+                              </DropdownMenuItem>
 
-                          <DropdownMenuSeparator />
+                              {(event.status === 'cancelled' || event.status === 'postponed') && (
+                                <DropdownMenuItem
+                                  onSelect={(e) => {
+                                    e.preventDefault();
+                                    handleRestoreEvent(event);
+                                  }}
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-2" />
+                                  {event.status === 'postponed'
+                                    ? t('calendar.undoPostpone', 'Anular adiamento')
+                                    : t('calendar.restoreEvent', 'Reativar evento')}
+                                </DropdownMenuItem>
+                              )}
 
-                          <DropdownMenuItem
-                            className="text-destructive focus:text-destructive"
-                            onSelect={(e) => {
-                              e.preventDefault();
-                              setSelectedEvent(event);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            {t('common.delete', 'Eliminar')}
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    ) : (
-                      <div key={event.id}>{eventCard}</div>
+                              <DropdownMenuSeparator />
+
+                              <DropdownMenuItem
+                                className="text-destructive focus:text-destructive"
+                                onSelect={(e) => {
+                                  e.preventDefault();
+                                  setSelectedEvent(event);
+                                  setDeleteDialogOpen(true);
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4 mr-2" />
+                                {t('common.delete', 'Eliminar')}
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        )}
+                      </div>
                     );
                   })}
 
@@ -2658,3 +2695,4 @@ export default function CalendarPage() {
     </div>
   );
 }
+
