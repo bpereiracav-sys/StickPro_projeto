@@ -151,6 +151,22 @@ export default function Dashboard() {
     return `/calendar?view=day&date=${date}&eventId=${event.id}`;
   };
 
+  const getMessageLink = () => {
+    const message = recentMessages?.[0];
+
+    if (!message) return '/messages';
+
+    const query = new URLSearchParams();
+
+    if (message.thread_id) query.set('thread_id', message.thread_id);
+    if (message.id) query.set('message_id', message.id);
+    if (message.team_id) query.set('team_id', message.team_id);
+
+    const queryString = query.toString();
+
+    return queryString ? `/messages?${queryString}` : '/messages';
+  };
+
   const handleUpdateDashboardConvocation = async (attendanceId, status) => {
     if (!attendanceId) return;
 
@@ -616,23 +632,6 @@ const fetchDashboard = async () => {
               )}
             </div>
           </div>
-
-          <div className="grid grid-cols-3 gap-2 rounded-2xl border border-white/10 bg-white/10 p-2 backdrop-blur sm:gap-3 sm:rounded-3xl sm:p-3 lg:min-w-[340px]">
-            <div className="rounded-xl bg-white/10 p-2 text-center sm:rounded-2xl sm:p-3">
-              <p className="font-heading text-xl sm:text-2xl">{data?.teams_count || 0}</p>
-              <p className="text-xs text-slate-300">{t('dashboard.teams')}</p>
-            </div>
-
-            <div className="rounded-xl bg-white/10 p-2 text-center sm:rounded-2xl sm:p-3">
-              <p className="font-heading text-xl sm:text-2xl">{upcomingEvents.length}</p>
-              <p className="text-xs text-slate-300">{t('dashboard.events')}</p>
-            </div>
-
-            <div className="rounded-xl bg-white/10 p-2 text-center sm:rounded-2xl sm:p-3">
-              <p className="font-heading text-xl sm:text-2xl">{pendingCount}</p>
-              <p className="text-xs text-slate-300">{t('dashboard.pending')}</p>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -800,7 +799,7 @@ const fetchDashboard = async () => {
           label={tr('messages.title', 'Mensagens')}
           helper={tr('dashboard.recentCommunication', 'Comunicação recente')}
           tone="purple"
-          to="/messages"
+          to={getMessageLink()}
         />
       </div>
 
@@ -1014,9 +1013,12 @@ const fetchDashboard = async () => {
                       </span>
                     </div>
 
-                    <p className="text-sm font-semibold text-slate-950">
+                    <Link
+                      to={getEventDayLink(item.event)}
+                      className="block text-sm font-semibold text-slate-950 transition hover:text-primary"
+                    >
                       {item.event?.title || tr('calendar.event', 'Evento')}
-                    </p>
+                    </Link>
                     <p className="mt-1 text-xs text-slate-500">
                       {formatTime(item.event?.start_time)}
                       {item.event?.location ? ` • ${item.event.location}` : ''}
