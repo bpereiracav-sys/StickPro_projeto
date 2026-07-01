@@ -7,6 +7,7 @@ import {
   paymentsApi,
   commitmentApi,
   trainingFeedbackApi,
+  convocationsApi,
 } from '../services/api';
 import { Card, CardContent } from '../components/ui/card';
 import {
@@ -33,6 +34,7 @@ import {
   ShieldCheck,
   MessageSquare,
   ArrowUpRight,
+  Loader2,
 } from 'lucide-react';
 import { formatTime, getEventTypeName } from '../lib/utils';
 import { format, isToday, isTomorrow, differenceInCalendarDays } from 'date-fns';
@@ -40,6 +42,79 @@ import { pt, es, fr, it, enUS } from 'date-fns/locale';
 import { toast } from 'sonner';
 
 const locales = { pt, es, fr, it, en: enUS };
+
+const StickIconBase = ({ children, className = '' }) => (
+  <svg
+    viewBox="0 0 64 64"
+    className={className}
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    aria-hidden="true"
+  >
+    {children}
+  </svg>
+);
+
+const StickTeamIcon = ({ className = '' }) => (
+  <StickIconBase className={className}>
+    <circle cx="22" cy="21" r="8" stroke="currentColor" strokeWidth="4" />
+    <circle cx="43" cy="22" r="7" stroke="currentColor" strokeWidth="4" />
+    <path d="M10 52c2.5-10 9-16 18-16s15.5 6 18 16" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+    <path d="M35 39c4.5 1.5 8 5.5 10.5 12" stroke="currentColor" strokeWidth="4" strokeLinecap="round" opacity="0.7" />
+    <path d="M16 57h31" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+  </StickIconBase>
+);
+
+const StickCalendarIcon = ({ className = '' }) => (
+  <StickIconBase className={className}>
+    <rect x="12" y="15" width="40" height="37" rx="8" stroke="currentColor" strokeWidth="4" />
+    <path d="M20 10v11M44 10v11M13 28h38" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+    <path d="M23 39h4M37 39h4M23 47h4M37 47h4" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+  </StickIconBase>
+);
+
+const StickConvocationIcon = ({ className = '' }) => (
+  <StickIconBase className={className}>
+    <rect x="14" y="9" width="36" height="46" rx="7" stroke="currentColor" strokeWidth="4" />
+    <path d="M23 23h18M23 34h18M23 45h10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+    <path d="M20 23l2 2 4-5" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+  </StickIconBase>
+);
+
+const StickMessageIcon = ({ className = '' }) => (
+  <StickIconBase className={className}>
+    <path d="M13 17h38v26H29L18 53V43h-5V17Z" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
+    <path d="M23 28h18M23 36h11" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+  </StickIconBase>
+);
+
+const StickSkateIcon = ({ className = '' }) => (
+  <StickIconBase className={className}>
+    <path d="M18 15c6 2 14 2 22 0l5 22H17l1-22Z" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
+    <path d="M17 37h32c3 0 5 2 5 5v3H13v-3c0-3 2-5 4-5Z" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
+    <circle cx="23" cy="51" r="5" stroke="currentColor" strokeWidth="4" />
+    <circle cx="43" cy="51" r="5" stroke="currentColor" strokeWidth="4" />
+    <path d="M25 22h14M26 29h12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+  </StickIconBase>
+);
+
+const StickGoalIcon = ({ className = '' }) => (
+  <StickIconBase className={className}>
+    <path d="M10 50V18h36l8 32" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
+    <path d="M10 18h36M17 18v32M24 18v32M31 18v32M38 18v32M10 28h39M10 38h42" stroke="currentColor" strokeWidth="2.5" opacity="0.65" />
+    <path d="M10 18h36" stroke="#f97316" strokeWidth="5" strokeLinecap="round" />
+    <path d="M10 18v32" stroke="#f97316" strokeWidth="5" strokeLinecap="round" />
+  </StickIconBase>
+);
+
+const StickTrophyIcon = ({ className = '' }) => (
+  <StickIconBase className={className}>
+    <path d="M22 12h20v11c0 9-4 16-10 16S22 32 22 23V12Z" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
+    <path d="M22 17H12v5c0 7 5 11 11 11M42 17h10v5c0 7-5 11-11 11" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+    <path d="M32 39v9M23 53h18" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+  </StickIconBase>
+);
+
 
 export default function Dashboard() {
   const { user, activeProfile } = useAuth();
@@ -53,6 +128,7 @@ export default function Dashboard() {
   const [feedbackRating, setFeedbackRating] = useState('');
   const [feedbackComment, setFeedbackComment] = useState('');
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [updatingConvocation, setUpdatingConvocation] = useState(null);
 
   const dateLocale = locales[language] || pt;
 
@@ -65,6 +141,40 @@ export default function Dashboard() {
   const tr = (key, fallback) => {
     const value = t(key);
     return value && value !== key ? value : fallback;
+  };
+
+
+  const getEventDayLink = (event) => {
+    if (!event?.id || !event?.start_time) return '/calendar';
+
+    const date = format(new Date(event.start_time), 'yyyy-MM-dd');
+    return `/calendar?view=day&date=${date}&eventId=${event.id}`;
+  };
+
+  const handleUpdateDashboardConvocation = async (attendanceId, status) => {
+    if (!attendanceId) return;
+
+    setUpdatingConvocation(attendanceId);
+
+    try {
+      await convocationsApi.updateAttendance(attendanceId, {
+        status,
+        reason: status === 'ausente' ? tr('attendance.unavailable', 'Indisponível') : null,
+      });
+
+      toast.success(
+        status === 'confirmado'
+          ? tr('attendance.presenceConfirmed', 'Presença confirmada')
+          : tr('attendance.absenceRegistered', 'Ausência registada')
+      );
+
+      await Promise.all([fetchDashboard(), fetchCommitment()]);
+    } catch (error) {
+      console.error('Error updating dashboard convocation:', error);
+      toast.error(tr('attendance.updateError', 'Erro ao atualizar presença'));
+    } finally {
+      setUpdatingConvocation(null);
+    }
   };
 
   useEffect(() => {
@@ -317,7 +427,8 @@ const fetchDashboard = async () => {
     const missing = commitment.training?.next_goal?.missing || 0;
 
     return (
-      <section className="relative overflow-hidden rounded-[1.5rem] border border-amber-200/70 bg-slate-950 px-4 py-3 text-white shadow-xl shadow-amber-100/60 sm:px-5 lg:rounded-[1.75rem]">
+      <Link to="/attendance" className="block">
+        <section className="relative overflow-hidden rounded-[1.5rem] border border-amber-200/70 bg-slate-950 px-4 py-3 text-white shadow-xl shadow-amber-100/60 transition hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-amber-100/70 sm:px-5 lg:rounded-[1.75rem]">
         <div
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(212,175,55,0.25),transparent_30%),radial-gradient(circle_at_bottom_right,rgba(192,192,192,0.16),transparent_28%)]"
           aria-hidden="true"
@@ -415,7 +526,8 @@ const fetchDashboard = async () => {
             </div>
           </div>
         </div>
-      </section>
+        </section>
+      </Link>
     );
   };
 
@@ -637,16 +749,16 @@ const fetchDashboard = async () => {
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         <MetricCard
-          icon={Users}
+          icon={StickTeamIcon}
           value={data?.teams_count || 0}
           label={t('dashboard.teams')}
           helper={tr('dashboard.activeSportsStructure', 'Estrutura desportiva ativa')}
           tone="primary"
-          to="/teams"
+          to="/my-teams"
         />
 
         <MetricCard
-          icon={Calendar}
+          icon={StickCalendarIcon}
           value={upcomingEvents.length}
           label={t('dashboard.events')}
           helper={tr('dashboard.upcomingTrainingAndGames', 'Próximos treinos e jogos')}
@@ -655,7 +767,7 @@ const fetchDashboard = async () => {
         />
 
         <MetricCard
-          icon={ClipboardCheck}
+          icon={StickConvocationIcon}
           value={pendingCount}
           label={t('dashboard.convocations')}
           helper={tr('dashboard.awaitingResponse', 'A aguardar resposta')}
@@ -664,7 +776,7 @@ const fetchDashboard = async () => {
         />
 
         <MetricCard
-          icon={MessageSquare}
+          icon={StickMessageIcon}
           value={recentMessages.length}
           label={tr('messages.title', 'Mensagens')}
           helper={tr('dashboard.recentCommunication', 'Comunicação recente')}
@@ -734,7 +846,7 @@ const fetchDashboard = async () => {
                 </div>
 
                 <Button asChild className="shrink-0 rounded-full" data-testid="view-event-btn">
-                  <Link to="/calendar">
+                  <Link to={getEventDayLink(nextEvent)}>
                     {tr('common.seeDetails', 'Ver Detalhes')}
                     <ChevronRight className="ml-1 h-4 w-4" />
                   </Link>
@@ -792,8 +904,9 @@ const fetchDashboard = async () => {
             {upcomingEvents.length > 0 ? (
               <div className="space-y-3">
                 {upcomingEvents.slice(0, 5).map((event) => (
-                  <div
+                  <Link
                     key={event.id}
+                    to={getEventDayLink(event)}
                     className="group flex min-w-0 items-center gap-3 rounded-2xl border border-slate-200 bg-gradient-to-r from-white to-slate-50 p-3 transition-all duration-200 hover:border-primary/40 hover:shadow-md sm:gap-4"
                     data-testid={`event-row-${event.id}`}
                   >
@@ -827,7 +940,7 @@ const fetchDashboard = async () => {
                     <Badge variant="outline" className="hidden shrink-0 text-xs sm:flex">
                       {getTranslatedEventType(event.event_type)}
                     </Badge>
-                  </div>
+                  </Link>
                 ))}
               </div>
             ) : (
@@ -892,26 +1005,34 @@ const fetchDashboard = async () => {
 
                     <div className="mt-3 flex gap-2">
                       <Button
-                        asChild
+                        type="button"
                         size="sm"
                         className="h-8 flex-1 rounded-full bg-secondary hover:bg-secondary/90"
+                        onClick={() => handleUpdateDashboardConvocation(item.attendance?.id, 'confirmado')}
+                        disabled={updatingConvocation === item.attendance?.id}
                       >
-                        <Link to="/convocations">
+                        {updatingConvocation === item.attendance?.id ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
                           <CheckCircle className="mr-1 h-3 w-3" />
-                          {tr('common.confirm', 'Confirmar')}
-                        </Link>
+                        )}
+                        {tr('common.confirm', 'Confirmar')}
                       </Button>
 
                       <Button
-                        asChild
+                        type="button"
                         size="sm"
                         variant="outline"
                         className="h-8 flex-1 rounded-full border-red-200 text-red-600 hover:bg-red-50"
+                        onClick={() => handleUpdateDashboardConvocation(item.attendance?.id, 'ausente')}
+                        disabled={updatingConvocation === item.attendance?.id}
                       >
-                        <Link to="/convocations">
+                        {updatingConvocation === item.attendance?.id ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
                           <XCircle className="mr-1 h-3 w-3" />
-                          {tr('attendance.unavailable', 'Indisponível')}
-                        </Link>
+                        )}
+                        {tr('attendance.unavailable', 'Indisponível')}
                       </Button>
                     </div>
                   </div>
