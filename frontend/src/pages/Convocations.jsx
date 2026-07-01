@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { usePermissions } from '../context/PermissionsContext';
 import { convocationsApi } from '../services/api';
 import { Card, CardContent } from '../components/ui/card';
@@ -18,6 +19,7 @@ import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
 import {
   ClipboardCheck,
+  Calendar,
   Check,
   X,
   Clock,
@@ -44,6 +46,14 @@ export default function Convocations() {
   const [reasonDialogOpen, setReasonDialogOpen] = useState(false);
   const [selectedAttendance, setSelectedAttendance] = useState(null);
   const [reason, setReason] = useState('');
+
+
+  const getEventDayLink = (event) => {
+    if (!event?.id || !event?.start_time) return '/calendar';
+
+    const date = new Date(event.start_time).toISOString().slice(0, 10);
+    return `/calendar?view=day&date=${date}&eventId=${event.id}`;
+  };
 
   useEffect(() => {
     fetchConvocations();
@@ -82,6 +92,12 @@ export default function Convocations() {
         status,
         reason: reasonText || null,
       });
+
+      window.dispatchEvent(
+        new CustomEvent('stickpro:convocation-updated', {
+          detail: { attendanceId, status },
+        })
+      );
 
       toast.success(
         status === 'confirmado' ? 'Presença confirmada!' : 'Ausência registada'
@@ -150,7 +166,14 @@ export default function Convocations() {
                       </Badge>
                     </div>
 
-                    <h3 className="font-semibold text-lg">{event?.title || 'Evento'}</h3>
+                    <h3 className="font-semibold text-lg">
+                      <Link
+                        to={getEventDayLink(event)}
+                        className="transition hover:text-primary"
+                      >
+                        {event?.title || 'Evento'}
+                      </Link>
+                    </h3>
 
                     {event?.opponent && (
                       <p className="text-muted-foreground">vs {event.opponent}</p>
@@ -186,6 +209,13 @@ export default function Convocations() {
 
                   {attendance?.status === 'pendente' ? (
                     <div className="flex gap-2 lg:flex-col">
+                      <Button asChild variant="outline" className="flex-1">
+                        <Link to={getEventDayLink(event)}>
+                          <Calendar className="w-4 h-4 mr-2" />
+                          Ver Evento
+                        </Link>
+                      </Button>
+
                       <Button
                         className="flex-1 bg-secondary hover:bg-secondary/90"
                         onClick={() => handleUpdateAttendance(attendance?.id, 'confirmado')}
@@ -215,6 +245,12 @@ export default function Convocations() {
                     </div>
                   ) : (
                     <div className="flex gap-2">
+                      <Button asChild variant="outline" size="sm">
+                        <Link to={getEventDayLink(event)}>
+                          <Calendar className="w-4 h-4" />
+                        </Link>
+                      </Button>
+
                       <Button
                         variant="outline"
                         size="sm"
