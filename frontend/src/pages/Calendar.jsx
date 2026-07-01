@@ -22,6 +22,7 @@ import UnavailabilityDialog from '../components/UnavailabilityDialog';
 import CalendarHeader from '../components/calendar/CalendarHeader';
 import CalendarViewControls from '../components/calendar/CalendarViewControls';
 import CalendarAgenda from '../components/calendar/CalendarAgenda';
+import EventCard from '../components/calendar/EventCard';
 import {
   Dialog,
   DialogContent,
@@ -326,6 +327,19 @@ export default function CalendarPage() {
       }
     }
   }, [location.search, isMobile]);
+
+
+  useEffect(() => {
+    const handleConvocationUpdated = () => {
+      fetchData();
+    };
+
+    window.addEventListener('stickpro:convocation-updated', handleConvocationUpdated);
+
+    return () => {
+      window.removeEventListener('stickpro:convocation-updated', handleConvocationUpdated);
+    };
+  }, [selectedTeam, activeProfile, selectedTeamFilter, selectedStatusFilter, visibleEventTypes]);
 
   // Calendar V2 - refresh when team filter or profile changes
   useEffect(() => {
@@ -1060,6 +1074,19 @@ export default function CalendarPage() {
             </h3>
 
             {!compact && (
+              <Badge
+                variant="outline"
+                className="mt-2 rounded-full border-slate-200 bg-slate-50 text-slate-600"
+              >
+                <ClipboardCheck className="mr-1 h-3 w-3" />
+                {event.my_attendance_status ||
+                  event.attendance_status ||
+                  event.convocation_status ||
+                  t('convocations.notLaunched', 'Convocatória não lançada')}
+              </Badge>
+            )}
+
+            {!compact && (
               <div className="mt-2 grid grid-cols-1 gap-3 text-xs text-slate-500 md:grid-cols-[1fr_auto]">
 
                 <div className="flex items-center gap-2">
@@ -1559,7 +1586,28 @@ export default function CalendarPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {dayEvents.map(event => renderEventCard(event))}
+              {dayEvents.map((event) => (
+                <EventCard
+                  key={event.id}
+                  event={event}
+                  t={t}
+                  teams={teams}
+                  eventTypes={EVENT_TYPES}
+                  canManageEvents={canManageEvents}
+                  canCreateConvocations={canCreateConvocations}
+                  isAdmin={isAdmin}
+                  canAccessTeam={canAccessTeam}
+                  openEditDialog={openEditDialog}
+                  openConvocationDialog={openConvocationDialog}
+                  openConvocationStatusDialog={openConvocationStatusDialog}
+                  openPostponeDialog={openPostponeDialog}
+                  handleCancelEvent={handleCancelEvent}
+                  handleRestoreEvent={handleRestoreEvent}
+                  setSelectedEvent={setSelectedEvent}
+                  setDeleteDialogOpen={setDeleteDialogOpen}
+                  onConvocationStatusUpdated={fetchData}
+                />
+              ))}
             </div>
           )}
         </CardContent>
@@ -2610,4 +2658,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-
