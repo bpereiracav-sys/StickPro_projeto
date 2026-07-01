@@ -207,6 +207,15 @@ export default function Convocations() {
                       <Badge className={getStatusColor(attendance?.status)}>
                         {getStatusName(attendance?.status)}
                       </Badge>
+
+                      {(convocation?.visibility === 'private' ||
+                        convocation?.is_private ||
+                        item?.visibility === 'private' ||
+                        item?.convocation_visibility === 'private') && (
+                        <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
+                          Privada
+                        </Badge>
+                      )}
                     </div>
 
                     <h3 className="font-semibold text-lg">
@@ -352,10 +361,18 @@ export default function Convocations() {
                   </p>
                 </div>
 
-                <Badge variant="outline">
-                  <Users className="w-3 h-3 mr-1" />
-                  {conv?.player_ids?.length || 0} convocados
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  {(conv?.visibility === 'private' || conv?.is_private) && (
+                    <Badge variant="outline" className="border-violet-200 bg-violet-50 text-violet-700">
+                      Privada
+                    </Badge>
+                  )}
+
+                  <Badge variant="outline">
+                    <Users className="w-3 h-3 mr-1" />
+                    {conv?.player_ids?.length || 0} convocados
+                  </Badge>
+                </div>
               </div>
 
               {conv?.message ? (
