@@ -845,6 +845,14 @@ export default function CalendarPage() {
         toast.warning(`${skipped.length} jogador(es) indisponível(is) foram excluídos da convocatória`);
       }
 
+      window.dispatchEvent(
+        new CustomEvent('stickpro:convocation-updated', {
+          detail: { eventId: selectedEvent.id, visibility: convocationVisibility },
+        })
+      );
+
+      await fetchData();
+
       toast.success(`Convocatória criada para ${selectedPlayers.length - skipped.length} jogadores!`);
       setConvocationDialogOpen(false);
       setSelectedPlayers([]);
@@ -1372,7 +1380,7 @@ export default function CalendarPage() {
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <Badge className={`${eventType.color} border-0 text-white`}>
-                {isBirthday ? '🎂' : <Icon className="mr-1 h-3 w-3" />}
+                {!isBirthday && <Icon className="mr-1 h-3 w-3" />}
                 {eventType.label}
               </Badge>
 
@@ -2468,6 +2476,7 @@ export default function CalendarPage() {
                 </SelectTrigger>
                 <SelectContent className="bg-white">
                   <SelectItem value="all">Todos (Jogadores e Delegados)</SelectItem>
+                  <SelectItem value="private">Privada (apenas convocados e equipa técnica)</SelectItem>
                   <SelectItem value="players">Apenas Jogadores</SelectItem>
                   <SelectItem value="delegates">Apenas Delegados</SelectItem>
                 </SelectContent>
