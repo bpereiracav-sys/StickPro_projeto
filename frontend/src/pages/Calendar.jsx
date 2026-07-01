@@ -280,6 +280,13 @@ export default function CalendarPage() {
   const [recurringDays, setRecurringDays] = useState([]); // 0=Dom, 1=Seg, 2=Ter, etc.
   const [recurringEndDate, setRecurringEndDate] = useState('');
 
+  const canEditConvocationStatuses =
+    canManageEvents &&
+    Boolean(
+      selectedEvent &&
+        (isAdmin || isCoach || canAccessTeam(selectedEvent.team_id))
+    );
+
   const WEEKDAYS = [
     { value: 1, label: 'Seg', fullLabel: 'Segunda' },
     { value: 2, label: 'Ter', fullLabel: 'Terça' },
@@ -836,7 +843,9 @@ export default function CalendarPage() {
       const response = await eventsApi.createConvocation(selectedEvent.id, {
         player_ids: selectedPlayers,
         message: convocationMessage || null,
-        visibility: convocationVisibility
+        visibility: convocationVisibility,
+        is_private: convocationVisibility === 'private',
+        privacy: convocationVisibility === 'private' ? 'private' : 'public',
       });
 
       // Check if any players were skipped due to unavailability
@@ -853,7 +862,11 @@ export default function CalendarPage() {
 
       await fetchData();
 
-      toast.success(`Convocatória criada para ${selectedPlayers.length - skipped.length} jogadores!`);
+      toast.success(
+        convocationVisibility === 'private'
+          ? `Convocatória privada criada para ${selectedPlayers.length - skipped.length} jogadores!`
+          : `Convocatória criada para ${selectedPlayers.length - skipped.length} jogadores!`
+      );
       setConvocationDialogOpen(false);
       setSelectedPlayers([]);
       setConvocationMessage('');
@@ -894,6 +907,18 @@ export default function CalendarPage() {
       // Refresh status
       const response = await eventsApi.getConvocationStatus(selectedEvent.id);
       setConvocationStatus(response.data);
+
+      window.dispatchEvent(
+        new CustomEvent('stickpro:convocation-updated', {
+          detail: {
+            eventId: selectedEvent.id,
+            playerId,
+            status: newStatus,
+          },
+        })
+      );
+
+      fetchData();
     } catch (error) {
       toast.error(error.response?.data?.detail || t('common.error'));
     } finally {
@@ -2403,6 +2428,11 @@ export default function CalendarPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{selectedPlayers.length} selecionados</Badge>
+                {convocationVisibility === 'private' && (
+                  <Badge className="bg-violet-600 text-white">
+                    {t('convocations.private', 'Privada')}
+                  </Badge>
+                )}
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" size="sm" onClick={selectAllPlayers}>
@@ -2469,16 +2499,30 @@ export default function CalendarPage() {
 
             {/* Visibility Setting */}
             <div className="space-y-2">
-              <Label>Visibilidade da Convocatória</Label>
+              <Label>{t('convocations.visibility', 'Visibilidade da Convocatória')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t(
+                  'convocations.visibilityHelp',
+                  'Na convocatória privada, apenas convocados e equipa técnica têm acesso à lista.'
+                )}
+              </p>
               <Select value={convocationVisibility} onValueChange={setConvocationVisibility}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-white">
-                  <SelectItem value="all">Todos (Jogadores e Delegados)</SelectItem>
-                  <SelectItem value="private">Privada (apenas convocados e equipa técnica)</SelectItem>
-                  <SelectItem value="players">Apenas Jogadores</SelectItem>
-                  <SelectItem value="delegates">Apenas Delegados</SelectItem>
+                  <SelectItem value="all">
+                    {t('convocations.visibilityAll', 'Todos (Jogadores e Delegados)')}
+                  </SelectItem>
+                  <SelectItem value="private">
+                    {t('convocations.visibilityPrivate', 'Privada (apenas convocados e equipa técnica)')}
+                  </SelectItem>
+                  <SelectItem value="players">
+                    {t('convocations.visibilityPlayers', 'Apenas Jogadores')}
+                  </SelectItem>
+                  <SelectItem value="delegates">
+                    {t('convocations.visibilityDelegates', 'Apenas Delegados')}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -2516,6 +2560,14 @@ export default function CalendarPage() {
             </DialogTitle>
             <DialogDescription>
               {selectedEvent?.title} - {selectedEvent?.start_time && format(parseISO(selectedEvent.start_time), "d 'de' MMMM", { locale: pt })}
+              {(selectedEvent?.convocation_visibility === 'private' ||
+                selectedEvent?.visibility === 'private' ||
+                selectedEvent?.convocation?.visibility === 'private' ||
+                selectedEvent?.convocation?.is_private) && (
+                <Badge variant="outline" className="ml-2 border-violet-200 bg-violet-50 text-violet-700">
+                  {t('convocations.private', 'Privada')}
+                </Badge>
+              )}
               {convocationStatus.event_passed && (
                 <Badge variant="outline" className="ml-2 bg-gray-100 text-gray-600">Evento passado</Badge>
               )}
@@ -2543,7 +2595,7 @@ export default function CalendarPage() {
             </div>
 
             {/* Action buttons for pending players */}
-            {(isAdmin || isCoach) && convocationStatus.pending?.length > 0 && (
+            {canEditConvocationStatuses && convocationStatus.pending?.length > 0 && (
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -2608,7 +2660,7 @@ export default function CalendarPage() {
                           <PlayerStatusRow
                             key={player.id}
                             player={player}
-                            canEdit={isAdmin || isCoach}
+                            canEdit={canEditConvocationStatuses}
                             onUpdateStatus={handleUpdatePlayerStatus}
                             updating={updatingStatus}
                             t={t}
@@ -2630,7 +2682,7 @@ export default function CalendarPage() {
                           <PlayerStatusRow
                             key={player.id}
                             player={player}
-                            canEdit={isAdmin || isCoach}
+                            canEdit={canEditConvocationStatuses}
                             onUpdateStatus={handleUpdatePlayerStatus}
                             updating={updatingStatus}
                             t={t}
@@ -2652,7 +2704,7 @@ export default function CalendarPage() {
                           <PlayerStatusRow
                             key={player.id}
                             player={player}
-                            canEdit={isAdmin || isCoach}
+                            canEdit={canEditConvocationStatuses}
                             onUpdateStatus={handleUpdatePlayerStatus}
                             updating={updatingStatus}
                             t={t}
@@ -2704,4 +2756,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-
