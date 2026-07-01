@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
-import { convocationsApi } from '../services/api';
+import { convocationsApi, dashboardApi } from '../services/api';
 import { Card, CardContent } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -38,6 +39,7 @@ import {
 
 export default function Convocations() {
   const { isCoach, isAdmin } = usePermissions();
+  const { activeProfile } = useAuth();
 
   const [myConvocations, setMyConvocations] = useState([]);
   const [allConvocations, setAllConvocations] = useState([]);
@@ -59,12 +61,53 @@ export default function Convocations() {
     fetchConvocations();
   }, [isCoach, isAdmin]);
 
+  const normalizeDashboardConvocation = (item) => ({
+    ...item,
+    attendance: item?.attendance || {
+      id: item?.attendance_id,
+      status: item?.attendance_status || item?.status || 'pendente',
+      reason: item?.reason || '',
+    },
+    event: item?.event || item,
+    convocation: item?.convocation || {
+      id: item?.convocation_id,
+      message: item?.message || '',
+    },
+  });
+
+  const mergeConvocations = (primary, fallback) => {
+    const seen = new Set();
+    const merged = [];
+
+    [...primary, ...fallback].forEach((item) => {
+      const key = item?.attendance?.id || item?.event?.id || item?.id;
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      merged.push(item);
+    });
+
+    return merged;
+  };
+
   const fetchConvocations = async () => {
     setLoading(true);
 
     try {
       const myRes = await convocationsApi.getMy();
-      setMyConvocations(Array.isArray(myRes?.data) ? myRes.data : []);
+      const apiConvocations = Array.isArray(myRes?.data) ? myRes.data : [];
+
+      let dashboardConvocations = [];
+
+      try {
+        const dashboardRes = await dashboardApi.get(activeProfile);
+        dashboardConvocations = Array.isArray(dashboardRes?.data?.pending_convocations)
+          ? dashboardRes.data.pending_convocations.map(normalizeDashboardConvocation)
+          : [];
+      } catch (dashboardError) {
+        console.warn('Dashboard convocations fallback unavailable', dashboardError);
+      }
+
+      setMyConvocations(mergeConvocations(apiConvocations, dashboardConvocations));
 
       if (isCoach || isAdmin) {
         const allRes = await convocationsApi.getAll();
