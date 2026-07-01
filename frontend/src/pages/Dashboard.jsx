@@ -162,6 +162,12 @@ export default function Dashboard() {
         reason: status === 'ausente' ? tr('attendance.unavailable', 'Indisponível') : null,
       });
 
+      window.dispatchEvent(
+        new CustomEvent('stickpro:convocation-updated', {
+          detail: { attendanceId, status },
+        })
+      );
+
       toast.success(
         status === 'confirmado'
           ? tr('attendance.presenceConfirmed', 'Presença confirmada')
@@ -176,6 +182,19 @@ export default function Dashboard() {
       setUpdatingConvocation(null);
     }
   };
+
+  useEffect(() => {
+    const handleConvocationUpdated = () => {
+      fetchDashboard();
+      fetchCommitment();
+    };
+
+    window.addEventListener('stickpro:convocation-updated', handleConvocationUpdated);
+
+    return () => {
+      window.removeEventListener('stickpro:convocation-updated', handleConvocationUpdated);
+    };
+  }, [activeProfile]);
 
   useEffect(() => {
     fetchDashboard();
