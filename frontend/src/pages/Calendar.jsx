@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { usePermissions } from '../context/PermissionsContext';
@@ -209,6 +210,7 @@ export default function CalendarPage() {
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const { canManageEvents, canCreateConvocations, canAccessTeam, isAdmin, isCoach } = usePermissions();
   const { t } = useLanguage();
+  const location = useLocation();
   const [events, setEvents] = useState([]);
   const [teams, setTeams] = useState([]);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
@@ -293,6 +295,8 @@ export default function CalendarPage() {
       setIsMobile(mobile);
       if (mobile) {
         setViewMode((current) => (current === 'month' || current === 'week' ? 'agenda' : current));
+      } else {
+        setViewMode((current) => (current === 'agenda' ? 'month' : current));
       }
     };
 
@@ -301,6 +305,27 @@ export default function CalendarPage() {
 
     return () => window.removeEventListener('resize', updateIsMobile);
   }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const requestedView = params.get('view');
+    const requestedDate = params.get('date');
+
+    if (requestedDate) {
+      const parsedDate = parseISO(requestedDate);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        setSelectedDate(parsedDate);
+      }
+    }
+
+    if (requestedView && VIEW_MODES[requestedView]) {
+      if (requestedView === 'agenda' && !isMobile) {
+        setViewMode('day');
+      } else {
+        setViewMode(requestedView);
+      }
+    }
+  }, [location.search, isMobile]);
 
   // Calendar V2 - refresh when team filter or profile changes
   useEffect(() => {
@@ -1005,7 +1030,12 @@ export default function CalendarPage() {
           ${isPostponed ? 'opacity-60' : ''}
           ${isCancelled ? 'opacity-40' : ''}
         `}
-        onClick={() => openEditDialog(event)}
+        onClick={() => {
+          if (event.start_time) {
+            setSelectedDate(parseISO(event.start_time));
+            setViewMode('day');
+          }
+        }}
       >
         <div className="flex items-start justify-between">
 
@@ -1645,7 +1675,13 @@ export default function CalendarPage() {
                     const eventCard = (
                       <div
                         className="group relative overflow-hidden rounded-xl border border-slate-200 bg-white px-2 py-1.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-                        onClick={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (event.start_time) {
+                            setSelectedDate(parseISO(event.start_time));
+                            setViewMode('day');
+                          }
+                        }}
                         title={
                           event.status === 'postponed'
                             ? `${t('calendar.statusPostponed', 'Adiado')}${
@@ -1807,7 +1843,7 @@ export default function CalendarPage() {
         viewMode={viewMode}
         viewTitle={getViewTitle()}
         isMobile={isMobile}
-        viewModes={VIEW_MODES}
+        viewModes={isMobile ? VIEW_MODES : { day: VIEW_MODES.day, week: VIEW_MODES.week, month: VIEW_MODES.month }}
         onPrevious={navigatePrevious}
         onToday={navigateToday}
         onNext={navigateNext}
