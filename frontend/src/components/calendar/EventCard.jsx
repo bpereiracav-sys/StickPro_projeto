@@ -9,6 +9,7 @@ import {
   Flag,
   HelpCircle,
   MapPin,
+  MessageSquare,
   MoreVertical,
   PauseCircle,
   Swords,
@@ -567,7 +568,9 @@ export default function EventCard({
               onClick={handleOpenConvocation}
             >
               <Users className="mx-auto mb-1 h-4 w-4 text-cyan-600" />
-              {safeTranslate(t, 'convocations.callPlayers', 'Convocar')}
+              {eventHasConvocation
+                ? safeTranslate(t, 'convocations.editConvocation', 'Editar convocatória')
+                : safeTranslate(t, 'convocations.callPlayers', 'Convocar')}
             </button>
           )}
 
@@ -634,7 +637,7 @@ export default function EventCard({
                 navigate(`/messages?${query.toString()}`);
               }}
             >
-              <Eye className="mr-2 h-4 w-4" />
+              <MessageSquare className="mr-2 h-4 w-4" />
               {safeTranslate(t, 'messages.sendToCoach', 'Enviar mensagem')}
             </Button>
           </div>
