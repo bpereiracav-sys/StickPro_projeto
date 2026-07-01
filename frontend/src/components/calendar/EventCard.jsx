@@ -18,6 +18,7 @@ import {
   XCircle,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { Badge } from '../ui/badge';
@@ -160,6 +161,8 @@ export default function EventCard({
   setSelectedEvent,
   setDeleteDialogOpen,
 }) {
+  const navigate = useNavigate();
+
   if (!event) return null;
 
   const eventType = eventTypes[event.event_type] || eventTypes.outro;
@@ -175,43 +178,59 @@ export default function EventCard({
   const competitionName = getCompetitionName(event);
   const score = getEventScore(event);
 
-  const handleShowConvocationStatus = () => {
+  const getEventDayUrl = () => {
+    if (!event?.id || !event?.start_time) return '/calendar';
+    return `/calendar?view=day&date=${format(parseISO(event.start_time), 'yyyy-MM-dd')}&eventId=${event.id}`;
+  };
+
+  const openEventDay = () => {
+    navigate(getEventDayUrl());
+  };
+
+  const handleShowConvocationStatus = (clickEvent = null) => {
+    clickEvent?.stopPropagation?.();
     if (typeof openConvocationStatusDialog === 'function') {
       openConvocationStatusDialog(event);
     }
   };
 
-  const handleOpenConvocation = () => {
+  const handleOpenConvocation = (clickEvent = null) => {
+    clickEvent?.stopPropagation?.();
     if (typeof openConvocationDialog === 'function') {
       openConvocationDialog(event);
     }
   };
 
-  const handleEdit = () => {
+  const handleEdit = (clickEvent = null) => {
+    clickEvent?.stopPropagation?.();
     if (typeof openEditDialog === 'function') {
       openEditDialog(event);
     }
   };
 
-  const handlePostpone = () => {
+  const handlePostpone = (clickEvent = null) => {
+    clickEvent?.stopPropagation?.();
     if (typeof openPostponeDialog === 'function') {
       openPostponeDialog(event);
     }
   };
 
-  const handleCancel = () => {
+  const handleCancel = (clickEvent = null) => {
+    clickEvent?.stopPropagation?.();
     if (typeof handleCancelEvent === 'function') {
       handleCancelEvent(event);
     }
   };
 
-  const handleRestore = () => {
+  const handleRestore = (clickEvent = null) => {
+    clickEvent?.stopPropagation?.();
     if (typeof handleRestoreEvent === 'function') {
       handleRestoreEvent(event);
     }
   };
 
-  const handleDelete = () => {
+  const handleDelete = (clickEvent = null) => {
+    clickEvent?.stopPropagation?.();
     if (typeof setSelectedEvent === 'function') {
       setSelectedEvent(event);
     }
@@ -223,7 +242,16 @@ export default function EventCard({
 
   return (
     <div
-      className={`rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition active:scale-[0.99] ${
+      role="button"
+      tabIndex={0}
+      onClick={openEventDay}
+      onKeyDown={(keyEvent) => {
+        if (keyEvent.key === 'Enter' || keyEvent.key === ' ') {
+          keyEvent.preventDefault();
+          openEventDay();
+        }
+      }}
+      className={`cursor-pointer rounded-3xl border border-slate-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.99] ${
         isCancelled ? 'opacity-50' : isPostponed ? 'opacity-70' : ''
       }`}
     >
@@ -345,7 +373,11 @@ export default function EventCard({
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" className="rounded-2xl">
+              <Button
+                size="sm"
+                className="rounded-2xl"
+                onClick={(clickEvent) => clickEvent.stopPropagation()}
+              >
                 <MoreVertical className="mr-2 h-4 w-4" />
                 {canManageThisEvent
                   ? safeTranslate(t, 'common.actions', 'Ações')
@@ -354,6 +386,16 @@ export default function EventCard({
             </DropdownMenuTrigger>
 
             <DropdownMenuContent className="bg-white" align="end">
+              <DropdownMenuItem onClick={(clickEvent) => {
+                clickEvent.stopPropagation();
+                openEventDay();
+              }}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {safeTranslate(t, 'calendar.openEvent', 'Abrir evento')}
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
               <DropdownMenuItem onClick={handleShowConvocationStatus}>
                 <ClipboardCheck className="mr-2 h-4 w-4" />
                 {safeTranslate(
@@ -376,15 +418,10 @@ export default function EventCard({
 
               {isGame && (
                 <DropdownMenuItem
-                  onClick={() =>
-                    toast.info(
-                      safeTranslate(
-                        t,
-                        'statistics.inDevelopment',
-                        'Estatísticas em desenvolvimento'
-                      )
-                    )
-                  }
+                  onClick={(clickEvent) => {
+                    clickEvent.stopPropagation();
+                    navigate(`/stats?event_id=${event.id}`);
+                  }}
                 >
                   <Trophy className="mr-2 h-4 w-4" />
                   {safeTranslate(t, 'statistics.title', 'Estatísticas')}
@@ -392,15 +429,10 @@ export default function EventCard({
               )}
 
               <DropdownMenuItem
-                onClick={() =>
-                  toast.info(
-                    safeTranslate(
-                      t,
-                      'calendar.attendanceInDevelopment',
-                      'Presenças em desenvolvimento'
-                    )
-                  )
-                }
+                onClick={(clickEvent) => {
+                  clickEvent.stopPropagation();
+                  navigate(`/attendance?event_id=${event.id}`);
+                }}
               >
                 <CheckCircle className="mr-2 h-4 w-4" />
                 {safeTranslate(t, 'attendance.title', 'Presenças')}
