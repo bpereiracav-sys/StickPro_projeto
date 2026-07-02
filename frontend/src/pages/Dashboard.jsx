@@ -787,10 +787,10 @@ const fetchDashboard = async () => {
         <MetricCard
           icon={StickConvocationIcon}
           value={pendingCount}
-          label={t('dashboard.convocations')}
+          label={tr('dashboard.pendingActions', 'Pendentes')}
           helper={tr('dashboard.awaitingResponse', 'A aguardar resposta')}
           tone="amber"
-          to="/convocations"
+          to="/calendar?view=agenda"
         />
 
         <MetricCard
@@ -981,11 +981,13 @@ const fetchDashboard = async () => {
           <CardStripeHeader className="flex flex-row items-center justify-between pb-2">
             <CardStripeTitle className="flex items-center gap-2 text-base sm:text-lg">
               <ClipboardCheck className="h-5 w-5 text-amber-500" />
-              {t('dashboard.convocations')}
+              {tr('dashboard.pendingActions', 'Pendentes')}
             </CardStripeTitle>
 
             <Button asChild variant="ghost" size="sm" className="rounded-full">
-              <Link to="/convocations">{t('dashboard.seeAll')}</Link>
+              <Link to="/calendar?view=agenda">
+                {tr('calendar.openCalendar', 'Abrir calendário')}
+              </Link>
             </Button>
           </CardStripeHeader>
 
