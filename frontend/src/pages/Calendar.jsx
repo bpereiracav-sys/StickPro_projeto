@@ -1938,7 +1938,7 @@ export default function CalendarPage() {
               </Badge>
 
               <h2 className="font-heading text-2xl tracking-tight sm:text-3xl">
-                {format(selectedDate, 'EEEE, d MMMM', { locale: dateLocale })}
+                {format(selectedDate, 'EEEE, d MMMM', { locale: pt })}
               </h2>
 
               <p className="mt-1 max-w-2xl text-sm text-cyan-50/75">
