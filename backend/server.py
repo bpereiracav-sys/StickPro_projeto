@@ -7292,44 +7292,151 @@ def convocation_event_badge_status(convocation: Optional[dict]) -> Optional[str]
     return "launched"
 
 
+def _parse_dt(value):
+    """Parse ISO datetime strings defensively while keeping existing datetime objects."""
+    if isinstance(value, datetime):
+        return value
+    if isinstance(value, str) and value:
+        try:
+            return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        except Exception:
+            return value
+    return value
+
+
+def _event_team_ids(event: dict) -> List[str]:
+    team_ids = event.get("team_ids") or []
+    if isinstance(team_ids, str):
+        team_ids = [team_ids]
+    if not team_ids and event.get("team_id"):
+        team_ids = [event.get("team_id")]
+    return [tid for tid in team_ids if tid]
+
+
+async def attach_teams_to_events(events: List[dict]) -> List[dict]:
+    """Attach team / teams to events with one Mongo query instead of N queries."""
+    if not events:
+        return events
+
+    all_team_ids = set()
+    for event in events:
+        for tid in _event_team_ids(event):
+            all_team_ids.add(tid)
+
+    team_map: Dict[str, dict] = {}
+    if all_team_ids:
+        teams = await db.teams.find(
+            {"id": {"$in": list(all_team_ids)}},
+            {"_id": 0}
+        ).to_list(len(all_team_ids))
+        team_map = {team.get("id"): team for team in teams if team.get("id")}
+
+    for event in events:
+        event["start_time"] = _parse_dt(event.get("start_time"))
+        if event.get("end_time"):
+            event["end_time"] = _parse_dt(event.get("end_time"))
+
+        team_ids = _event_team_ids(event)
+        event["team_ids"] = team_ids
+        event["teams"] = [team_map[tid] for tid in team_ids if tid in team_map]
+
+        if not event.get("team") and event["teams"]:
+            event["team"] = event["teams"][0]
+
+    return events
+
+
 async def enrich_event_with_convocation_context(event: dict, current_user: dict) -> dict:
+    """Backward-compatible single-event wrapper.
+
+    Internally uses the batch implementation so future routes can call the same
+    optimized logic without duplicating database queries.
+    """
     if not event or not event.get("id"):
         return event
 
-    enriched = dict(event)
-    convocation = await db.convocations.find_one({"event_id": event["id"]}, {"_id": 0})
-    normalized_convocation = normalize_convocation_document(convocation)
-    sanitized_convocation = sanitize_convocation_for_user(normalized_convocation, event, current_user)
-
-    visible_convocation = sanitized_convocation
-    enriched["has_convocation"] = bool(visible_convocation)
-    enriched["convocation"] = visible_convocation
-    enriched["convocation_id"] = visible_convocation.get("id") if visible_convocation else None
-    enriched["convocation_visibility"] = visible_convocation.get("visibility") if visible_convocation else None
-    enriched["convocation_lifecycle_status"] = visible_convocation.get("status") if visible_convocation else None
-    enriched["convocation_status"] = convocation_event_badge_status(visible_convocation)
-    enriched["is_private_convocation"] = is_private_convocation_document(visible_convocation)
-
-    player_ids = get_accessible_player_ids(current_user)
-    my_attendance = await db.attendance.find_one(
-        {"event_id": event["id"], "player_id": {"$in": player_ids}},
-        {"_id": 0}
-    )
-
-    if my_attendance:
-        enriched["my_attendance"] = my_attendance
-        enriched["my_attendance_id"] = my_attendance.get("id")
-        enriched["attendance_id"] = my_attendance.get("id")
-        enriched["my_attendance_status"] = my_attendance.get("status")
-        enriched["attendance_status"] = my_attendance.get("status")
-
-    return enriched
+    enriched = await enrich_events_with_convocation_context([event], current_user)
+    return enriched[0] if enriched else event
 
 
 async def enrich_events_with_convocation_context(events: List[dict], current_user: dict) -> List[dict]:
+    """Batch-enrich events with convocation and attendance context.
+
+    Sprint 4.0 Performance:
+    Previous implementation executed 2 Mongo queries per event
+    (convocation + attendance), which made Calendar/Convocations very slow.
+    This version performs bounded batch reads and O(1) in-memory lookups.
+    """
+    if not events:
+        return []
+
+    event_ids = [event.get("id") for event in events if event and event.get("id")]
+    if not event_ids:
+        return events
+
+    player_ids = get_accessible_player_ids(current_user)
+
+    convocations = await db.convocations.find(
+        {"event_id": {"$in": event_ids}},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(max(len(event_ids) * 2, 100))
+
+    convocation_by_event: Dict[str, dict] = {}
+    for convocation in convocations:
+        event_id = convocation.get("event_id")
+        if event_id and event_id not in convocation_by_event:
+            convocation_by_event[event_id] = normalize_convocation_document(convocation)
+
+    attendance_by_event: Dict[str, dict] = {}
+    if player_ids:
+        attendances = await db.attendance.find(
+            {
+                "event_id": {"$in": event_ids},
+                "player_id": {"$in": player_ids},
+            },
+            {"_id": 0}
+        ).sort("updated_at", -1).to_list(max(len(event_ids) * len(player_ids), 100))
+
+        for attendance in attendances:
+            event_id = attendance.get("event_id")
+            if event_id and event_id not in attendance_by_event:
+                attendance_by_event[event_id] = attendance
+
     enriched_events = []
     for event in events:
-        enriched_events.append(await enrich_event_with_convocation_context(event, current_user))
+        if not event or not event.get("id"):
+            enriched_events.append(event)
+            continue
+
+        enriched = dict(event)
+        event_id = event.get("id")
+
+        normalized_convocation = convocation_by_event.get(event_id)
+        sanitized_convocation = sanitize_convocation_for_user(
+            normalized_convocation,
+            event,
+            current_user
+        )
+
+        visible_convocation = sanitized_convocation
+        enriched["has_convocation"] = bool(visible_convocation)
+        enriched["convocation"] = visible_convocation
+        enriched["convocation_id"] = visible_convocation.get("id") if visible_convocation else None
+        enriched["convocation_visibility"] = visible_convocation.get("visibility") if visible_convocation else None
+        enriched["convocation_lifecycle_status"] = visible_convocation.get("status") if visible_convocation else None
+        enriched["convocation_status"] = convocation_event_badge_status(visible_convocation)
+        enriched["is_private_convocation"] = is_private_convocation_document(visible_convocation)
+
+        my_attendance = attendance_by_event.get(event_id)
+        if my_attendance:
+            enriched["my_attendance"] = my_attendance
+            enriched["my_attendance_id"] = my_attendance.get("id")
+            enriched["attendance_id"] = my_attendance.get("id")
+            enriched["my_attendance_status"] = my_attendance.get("status")
+            enriched["attendance_status"] = my_attendance.get("status")
+
+        enriched_events.append(enriched)
+
     return enriched_events
 
 
@@ -7348,44 +7455,44 @@ async def get_events(
 
     effective_user = current_user
     effective_checker = checker
-    
+
     if profile_type == "associated" and profile_user_id:
         allowed_accounts = current_user.get("associated_accounts", [])
-    
+
         if profile_user_id not in allowed_accounts:
             raise HTTPException(status_code=403, detail="Perfil associado não autorizado")
-    
+
         associated_user = await db.users.find_one(
             {"id": profile_user_id},
             {"_id": 0, "hashed_password": 0, "password": 0}
         )
-    
+
         if not associated_user:
             raise HTTPException(status_code=404, detail="Perfil associado não encontrado")
-    
+
         effective_user = associated_user
         effective_checker = get_permission_checker(effective_user)
-    
+
     elif profile_type == "self" and profile_role:
         effective_user = {
             **current_user,
             "role": profile_role
         }
         effective_checker = get_permission_checker(effective_user)
-    
+
     if team_id:
         if not effective_checker.is_admin and not effective_checker.can_access_team(team_id):
             raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
-    
+
         query["$or"] = [
             {"team_id": team_id},
             {"team_ids": team_id},
             {"team_ids": {"$in": [team_id]}}
         ]
-    
+
     elif not effective_checker.is_admin:
         user_teams = list(effective_checker.team_ids)
-    
+
         if user_teams:
             query["$or"] = [
                 {"team_id": {"$in": user_teams}},
@@ -7393,42 +7500,21 @@ async def get_events(
             ]
         else:
             return []
-    
+
     if event_type:
         query["event_type"] = event_type
 
     if championship_id:
         query["championship_id"] = championship_id
-    
-    events = await db.events.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
-    
-    for event in events:
-        if isinstance(event.get("start_time"), str):
-            event["start_time"] = datetime.fromisoformat(event["start_time"])
-    
-        if event.get("end_time") and isinstance(event["end_time"], str):
-            event["end_time"] = datetime.fromisoformat(event["end_time"])
-    
-        team_ids = event.get("team_ids") or []
-    
-        if not team_ids and event.get("team_id"):
-            team_ids = [event.get("team_id")]
-    
-        event["team_ids"] = team_ids
-        event["teams"] = []
 
-        for team_id_item in team_ids:
-            team = await db.teams.find_one({"id": team_id_item}, {"_id": 0})
-            if team:
-                event["teams"].append(team)
-    
-        if not event.get("team") and event["teams"]:
-            event["team"] = event["teams"][0]
-    
+    events = await db.events.find(query, {"_id": 0}).sort("start_time", 1).to_list(500)
+
+    events = await attach_teams_to_events(events)
     events = await enrich_events_with_convocation_context(events, effective_user)
 
     return events
-    
+
+
 # NOTE: This route MUST be defined BEFORE /events/{event_id} to avoid route conflicts
 @api_router.get("/events/upcoming-without-convocation")
 async def get_upcoming_events_without_convocation(current_user: dict = Depends(get_current_user)):
@@ -8479,8 +8565,9 @@ async def build_my_convocations_for_user(
 ) -> List[dict]:
     """Single source of truth for personal convocations.
 
-    Used by /convocations/my and Dashboard so both screens show the same
-    convocatoria/attendance objects.
+    Sprint 4.0 Performance:
+    Loads attendances, events and convocations in batches instead of executing
+    multiple find_one calls for each attendance row.
     """
     player_ids = get_accessible_player_ids(current_user)
     if not player_ids:
@@ -8493,20 +8580,74 @@ async def build_my_convocations_for_user(
     if not include_past:
         query["event_date"] = {"$gte": datetime.now(timezone.utc).isoformat()}
 
-    attendances = await db.attendance.find(query, {"_id": 0}).sort("event_date", -1).to_list(limit)
+    attendances = await db.attendance.find(
+        query,
+        {"_id": 0}
+    ).sort("event_date", -1).to_list(limit)
+
+    if not attendances:
+        return []
+
+    event_ids = list({att.get("event_id") for att in attendances if att.get("event_id")})
+    convocation_ids = list({
+        att.get("convocation_id")
+        for att in attendances
+        if att.get("convocation_id")
+    })
+
+    events = await db.events.find(
+        {"id": {"$in": event_ids}},
+        {"_id": 0}
+    ).to_list(len(event_ids))
+
+    events = await attach_teams_to_events(events)
+    enriched_events = await enrich_events_with_convocation_context(events, current_user)
+    event_map = {event.get("id"): event for event in enriched_events if event.get("id")}
+
+    convocations_by_id: Dict[str, dict] = {}
+    if convocation_ids:
+        convocations = await db.convocations.find(
+            {"id": {"$in": convocation_ids}},
+            {"_id": 0}
+        ).to_list(len(convocation_ids))
+        convocations_by_id = {
+            conv.get("id"): normalize_convocation_document(conv)
+            for conv in convocations
+            if conv.get("id")
+        }
+
+    convocations_by_event: Dict[str, dict] = {}
+    fallback_needed_event_ids = [
+        event_id
+        for event_id in event_ids
+        if event_id and event_id not in {
+            conv.get("event_id") for conv in convocations_by_id.values()
+        }
+    ]
+
+    if fallback_needed_event_ids:
+        fallback_convocations = await db.convocations.find(
+            {"event_id": {"$in": fallback_needed_event_ids}},
+            {"_id": 0}
+        ).sort("created_at", -1).to_list(max(len(fallback_needed_event_ids) * 2, 100))
+
+        for convocation in fallback_convocations:
+            event_id = convocation.get("event_id")
+            if event_id and event_id not in convocations_by_event:
+                convocations_by_event[event_id] = normalize_convocation_document(convocation)
 
     result = []
     for att in attendances:
-        event = await db.events.find_one({"id": att.get("event_id")}, {"_id": 0})
+        event = event_map.get(att.get("event_id"))
         if not event:
             continue
 
         convocation = None
         if att.get("convocation_id"):
-            convocation = await db.convocations.find_one({"id": att.get("convocation_id")}, {"_id": 0})
+            convocation = convocations_by_id.get(att.get("convocation_id"))
 
         if not convocation:
-            convocation = await db.convocations.find_one({"event_id": att.get("event_id")}, {"_id": 0}, sort=[("created_at", -1)])
+            convocation = convocations_by_event.get(att.get("event_id"))
 
         normalized_convocation = normalize_convocation_document(convocation)
         sanitized_convocation = sanitize_convocation_for_user(normalized_convocation, event, current_user)
@@ -8521,13 +8662,6 @@ async def build_my_convocations_for_user(
             ]:
                 continue
 
-        if isinstance(event.get('start_time'), str):
-            event['start_time'] = datetime.fromisoformat(event['start_time'].replace("Z", "+00:00"))
-        if event.get('end_time') and isinstance(event.get('end_time'), str):
-            event['end_time'] = datetime.fromisoformat(event['end_time'].replace("Z", "+00:00"))
-
-        event = await enrich_event_with_convocation_context(event, current_user)
-
         result.append({
             "attendance": att,
             "event": event,
@@ -8535,6 +8669,7 @@ async def build_my_convocations_for_user(
         })
 
     return result
+
 
 
 @api_router.get("/convocations/my")
@@ -9538,12 +9673,7 @@ async def get_dashboard(
     
     upcoming_events = await db.events.find(upcoming_query, {"_id": 0}).sort("start_time", 1).limit(5).to_list(5)
 
-    for event in upcoming_events:
-        if isinstance(event.get('start_time'), str):
-            event['start_time'] = datetime.fromisoformat(event['start_time'].replace("Z", "+00:00"))
-        team = await db.teams.find_one({"id": event['team_id']}, {"_id": 0})
-        event['team'] = team
-
+    upcoming_events = await attach_teams_to_events(upcoming_events)
     upcoming_events = await enrich_events_with_convocation_context(upcoming_events, effective_user)
 
     # Pending convocations - single source of truth shared with /convocations/my.
@@ -9561,10 +9691,14 @@ async def get_dashboard(
         # Count teams of linked children
         child_team_ids = set()
         all_linked = linked_player_ids if linked_player_ids else ([linked_player_id] if linked_player_id else [])
-        for player_id in all_linked:
-            player = await db.users.find_one({"id": player_id}, {"_id": 0, "team_ids": 1})
-            if player and player.get('team_ids'):
-                child_team_ids.update(player['team_ids'])
+        if all_linked:
+            linked_players = await db.users.find(
+                {"id": {"$in": all_linked}},
+                {"_id": 0, "team_ids": 1}
+            ).to_list(len(all_linked))
+            for player in linked_players:
+                if player and player.get('team_ids'):
+                    child_team_ids.update(player['team_ids'])
         teams_count = len(child_team_ids)
     else:
         teams_count = len(user_teams)
@@ -9578,10 +9712,14 @@ async def get_dashboard(
         # Parent sees messages from children's teams
         child_team_ids = set()
         all_linked = linked_player_ids if linked_player_ids else ([linked_player_id] if linked_player_id else [])
-        for player_id in all_linked:
-            player = await db.users.find_one({"id": player_id}, {"_id": 0, "team_ids": 1})
-            if player and player.get('team_ids'):
-                child_team_ids.update(player['team_ids'])
+        if all_linked:
+            linked_players = await db.users.find(
+                {"id": {"$in": all_linked}},
+                {"_id": 0, "team_ids": 1}
+            ).to_list(len(all_linked))
+            for player in linked_players:
+                if player and player.get('team_ids'):
+                    child_team_ids.update(player['team_ids'])
         if child_team_ids:
             recent_messages = await db.messages.find({"team_id": {"$in": list(child_team_ids)}}, {"_id": 0}).sort("created_at", -1).limit(5).to_list(5)
     elif user_teams:
@@ -11376,8 +11514,40 @@ async def start_reminder_scheduler():
         await asyncio.sleep(30 * 60)
 
 # Start the scheduler when the app starts
+async def ensure_performance_indexes():
+    """Create MongoDB indexes needed by Calendar, Convocations and Dashboard.
+
+    Safe to run on every startup. MongoDB only creates missing indexes.
+    """
+    try:
+        await db.events.create_index([("team_id", 1), ("start_time", 1)])
+        await db.events.create_index([("team_ids", 1), ("start_time", 1)])
+        await db.events.create_index([("id", 1)], unique=True)
+        await db.events.create_index([("championship_id", 1)])
+
+        await db.attendance.create_index([("event_id", 1), ("player_id", 1)])
+        await db.attendance.create_index([("player_id", 1), ("event_date", -1)])
+        await db.attendance.create_index([("convocation_id", 1)])
+
+        await db.convocations.create_index([("event_id", 1), ("created_at", -1)])
+        await db.convocations.create_index([("id", 1)], unique=True)
+
+        await db.teams.create_index([("id", 1)], unique=True)
+
+        await db.users.create_index([("id", 1)], unique=True)
+        await db.users.create_index([("team_ids", 1)])
+        await db.users.create_index([("associated_accounts", 1)])
+        await db.users.create_index([("linked_player_ids", 1)])
+
+        await db.messages.create_index([("team_id", 1), ("created_at", -1)])
+        logger.info("Performance indexes ensured")
+    except Exception as e:
+        logger.error(f"Failed to ensure performance indexes: {e}")
+
+
 @app.on_event("startup")
 async def startup_event():
+    await ensure_performance_indexes()
     # Start the reminder scheduler as a background task
     asyncio.create_task(start_reminder_scheduler())
     logging.info("Event reminder scheduler started")
