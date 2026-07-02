@@ -7229,6 +7229,9 @@ def sanitize_convocation_for_user(convocation: Optional[dict], event: Optional[d
 
     normalized = normalize_convocation_document(convocation)
 
+    if not is_convocation_visible_to_user(normalized, event, current_user):
+        return None
+
     if not is_private_convocation_document(normalized):
         return normalized
 
@@ -7243,23 +7246,48 @@ def sanitize_convocation_for_user(convocation: Optional[dict], event: Optional[d
     return sanitized
 
 
+def is_convocation_visible_to_user(convocation: Optional[dict], event: Optional[dict], current_user: dict) -> bool:
+    """Visibility gate used by Dashboard, Calendar and /convocations/my.
+
+    Staff with event/team access can see every lifecycle state.
+    Athletes/responsáveis only see published or closed convocations in which
+    they have an attendance record. Draft/cancelled convocations remain internal.
+    """
+    if not convocation:
+        return False
+
+    normalized = normalize_convocation_document(convocation)
+    status = normalized.get("status") or ConvocationStatus.published.value
+
+    if can_view_full_convocation_for_event(current_user, event):
+        return True
+
+    return status in [
+        ConvocationStatus.published.value,
+        ConvocationStatus.closed.value,
+    ]
+
+
 def convocation_event_badge_status(convocation: Optional[dict]) -> Optional[str]:
     if not convocation:
         return None
 
-    if is_private_convocation_document(convocation):
-        return "private"
-
     lifecycle_status = convocation.get("status") or ConvocationStatus.published.value
 
-    if lifecycle_status in [ConvocationStatus.published.value, ConvocationStatus.draft.value]:
-        return "launched"
+    if lifecycle_status == ConvocationStatus.cancelled.value:
+        return "cancelled"
 
     if lifecycle_status == ConvocationStatus.closed.value:
         return "closed"
 
-    if lifecycle_status == ConvocationStatus.cancelled.value:
-        return "cancelled"
+    if lifecycle_status == ConvocationStatus.draft.value:
+        return "draft"
+
+    if is_private_convocation_document(convocation):
+        return "private"
+
+    if lifecycle_status == ConvocationStatus.published.value:
+        return "launched"
 
     return "launched"
 
@@ -7273,13 +7301,14 @@ async def enrich_event_with_convocation_context(event: dict, current_user: dict)
     normalized_convocation = normalize_convocation_document(convocation)
     sanitized_convocation = sanitize_convocation_for_user(normalized_convocation, event, current_user)
 
-    enriched["has_convocation"] = bool(normalized_convocation)
-    enriched["convocation"] = sanitized_convocation
-    enriched["convocation_id"] = normalized_convocation.get("id") if normalized_convocation else None
-    enriched["convocation_visibility"] = normalized_convocation.get("visibility") if normalized_convocation else None
-    enriched["convocation_lifecycle_status"] = normalized_convocation.get("status") if normalized_convocation else None
-    enriched["convocation_status"] = convocation_event_badge_status(normalized_convocation)
-    enriched["is_private_convocation"] = is_private_convocation_document(normalized_convocation)
+    visible_convocation = sanitized_convocation
+    enriched["has_convocation"] = bool(visible_convocation)
+    enriched["convocation"] = visible_convocation
+    enriched["convocation_id"] = visible_convocation.get("id") if visible_convocation else None
+    enriched["convocation_visibility"] = visible_convocation.get("visibility") if visible_convocation else None
+    enriched["convocation_lifecycle_status"] = visible_convocation.get("status") if visible_convocation else None
+    enriched["convocation_status"] = convocation_event_badge_status(visible_convocation)
+    enriched["is_private_convocation"] = is_private_convocation_document(visible_convocation)
 
     player_ids = get_accessible_player_ids(current_user)
     my_attendance = await db.attendance.find_one(
@@ -7873,21 +7902,28 @@ def ensure_can_manage_convocation(current_user: dict, event: dict):
 
 @api_router.post("/convocations")
 async def create_convocation(conv_data: ConvocationCreate, current_user: dict = Depends(get_current_user)):
+    """Create or update the convocation for an event.
+
+    Sprint 3.3.3: this endpoint is now idempotent per event. Calling it again
+    for the same event updates the existing convocation and synchronizes
+    attendance rows instead of creating duplicated convocations.
+    """
     checker = get_permission_checker(current_user)
-    
+
     if not checker.can_create_convocations:
         raise HTTPException(status_code=403, detail="Sem permissão para criar convocatórias")
-    
+
     event = await db.events.find_one({"id": conv_data.event_id}, {"_id": 0})
     if not event:
         raise HTTPException(status_code=404, detail="Evento não encontrado")
-    
-    # Check team access
+
     if not checker.is_admin and event.get('team_id') and not checker.can_access_team(event.get('team_id')):
         raise HTTPException(status_code=403, detail="Sem acesso a este evento")
-    
-    event_date = event['start_time'] if isinstance(event['start_time'], datetime) else datetime.fromisoformat(event['start_time'])
-    
+
+    event_date = event['start_time'] if isinstance(event['start_time'], datetime) else datetime.fromisoformat(str(event['start_time']).replace("Z", "+00:00"))
+    if event_date.tzinfo is None:
+        event_date = event_date.replace(tzinfo=timezone.utc)
+
     # Check for unavailable players and warn
     unavailable_player_ids = []
     for player_id in conv_data.player_ids:
@@ -7898,50 +7934,121 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
         }, {"_id": 0}).to_list(1)
         if unavails:
             unavailable_player_ids.append(player_id)
-    
-    # Filter out unavailable players from convocation (they can still be manually added later)
+
     available_player_ids = [pid for pid in conv_data.player_ids if pid not in unavailable_player_ids]
-    
     visibility_value = get_convocation_visibility_value(conv_data.visibility)
 
     if conv_data.is_private or str(conv_data.privacy or '').lower() == 'private':
         visibility_value = ConvocationVisibility.private.value
 
     now = datetime.now(timezone.utc)
-    initial_status = (
-        ConvocationStatus.published
-        if conv_data.publish_immediately
-        else ConvocationStatus.draft
+    now_iso = now.isoformat()
+    event_started = event_date <= now
+
+    existing_convocation = await db.convocations.find_one(
+        {"event_id": conv_data.event_id},
+        {"_id": 0},
+        sort=[("created_at", -1)]
     )
 
-    convocation = Convocation(
-        event_id=conv_data.event_id,
-        player_ids=available_player_ids,
-        message=conv_data.message,
-        visibility=visibility_value,
-        status=initial_status,
-        published_at=now if initial_status == ConvocationStatus.published else None,
-        created_by=current_user['id'],
-        updated_at=now
+    if existing_convocation:
+        convocation_id = existing_convocation["id"]
+        next_status = (
+            ConvocationStatus.published.value
+            if conv_data.publish_immediately
+            else existing_convocation.get("status", ConvocationStatus.draft.value)
+        )
+
+        update_data = {
+            "player_ids": available_player_ids,
+            "message": conv_data.message,
+            "visibility": visibility_value,
+            "is_private": visibility_value == ConvocationVisibility.private.value,
+            "privacy": "private" if visibility_value == ConvocationVisibility.private.value else "public",
+            "status": next_status,
+            "updated_at": now_iso,
+        }
+
+        if next_status == ConvocationStatus.published.value and not existing_convocation.get("published_at"):
+            update_data["published_at"] = now_iso
+
+        await db.convocations.update_one(
+            {"id": convocation_id},
+            {"$set": update_data}
+        )
+    else:
+        initial_status = (
+            ConvocationStatus.published.value
+            if conv_data.publish_immediately
+            else ConvocationStatus.draft.value
+        )
+
+        convocation = Convocation(
+            event_id=conv_data.event_id,
+            player_ids=available_player_ids,
+            message=conv_data.message,
+            visibility=visibility_value,
+            status=initial_status,
+            published_at=now if initial_status == ConvocationStatus.published.value else None,
+            created_by=current_user['id'],
+            updated_at=now
+        )
+
+        convocation_id = convocation.id
+        conv_dict = convocation.model_dump()
+        conv_dict['visibility'] = visibility_value
+        conv_dict['status'] = conv_dict['status'].value if hasattr(conv_dict['status'], 'value') else conv_dict['status']
+        conv_dict['is_private'] = visibility_value == ConvocationVisibility.private.value
+        conv_dict['privacy'] = 'private' if conv_dict['is_private'] else 'public'
+        conv_dict['created_at'] = conv_dict['created_at'].isoformat()
+        conv_dict['updated_at'] = conv_dict['updated_at'].isoformat()
+        conv_dict['published_at'] = conv_dict['published_at'].isoformat() if conv_dict.get('published_at') else None
+        await db.convocations.insert_one(conv_dict)
+
+    # Synchronize attendance records for this convocation.
+    existing_attendances = await db.attendance.find(
+        {
+            "event_id": conv_data.event_id,
+            "$or": [
+                {"convocation_id": convocation_id},
+                {"convocation_id": {"$exists": False}},
+                {"convocation_id": None},
+            ],
+        },
+        {"_id": 0}
+    ).to_list(1000)
+
+    existing_by_player = {
+        attendance.get("player_id"): attendance
+        for attendance in existing_attendances
+        if attendance.get("player_id")
+    }
+
+    new_player_ids = set(available_player_ids)
+    old_player_ids = set(existing_by_player.keys())
+
+    added_player_ids = [pid for pid in available_player_ids if pid not in old_player_ids]
+    removed_player_ids = list(old_player_ids - new_player_ids)
+
+    # Keep old history after the event has started; before it starts, removed
+    # players should disappear from this convocation everywhere.
+    if removed_player_ids and not event_started:
+        await db.attendance.delete_many({
+            "event_id": conv_data.event_id,
+            "convocation_id": convocation_id,
+            "player_id": {"$in": removed_player_ids}
+        })
+
+    # Ensure existing rows point to the current convocation.
+    await db.attendance.update_many(
+        {"event_id": conv_data.event_id, "player_id": {"$in": list(new_player_ids)}},
+        {"$set": {"convocation_id": convocation_id, "updated_at": now_iso}}
     )
-    conv_dict = convocation.model_dump()
-    conv_dict['visibility'] = get_convocation_visibility_value(conv_dict.get('visibility'))
-    conv_dict['status'] = conv_dict['status'].value if hasattr(conv_dict['status'], 'value') else conv_dict['status']
-    conv_dict['is_private'] = visibility_value == ConvocationVisibility.private.value
-    conv_dict['privacy'] = 'private' if conv_dict['is_private'] else 'public'
-    conv_dict['created_at'] = conv_dict['created_at'].isoformat()
-    conv_dict['updated_at'] = conv_dict['updated_at'].isoformat()
-    conv_dict['published_at'] = conv_dict['published_at'].isoformat() if conv_dict.get('published_at') else None
-    
-    await db.convocations.insert_one(conv_dict)
-    # Remove MongoDB _id before returning
-    conv_dict.pop('_id', None)
-    
-    # Create attendance records only for available players
-    for player_id in available_player_ids:
+
+    for player_id in added_player_ids:
         attendance = Attendance(
             event_id=conv_data.event_id,
-            convocation_id=convocation.id,
+            convocation_id=convocation_id,
             player_id=player_id,
             team_id=event['team_id'],
             event_type=event['event_type'],
@@ -7952,17 +8059,23 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
         att_dict['event_date'] = att_dict['event_date'].isoformat()
         att_dict['updated_at'] = att_dict['updated_at'].isoformat()
         await db.attendance.insert_one(att_dict)
-        
-        # Send email (MOCK)
+
         player = await db.users.find_one({"id": player_id}, {"_id": 0})
-        if player:
+        if player and player.get("email"):
             await send_email_notification(
                 player['email'],
                 f"Convocatória: {event.get('title', 'Evento')}",
                 f"<h1>Foste convocado!</h1><p>{conv_data.message or 'Por favor confirma a tua presença.'}</p>"
             )
 
-    return conv_dict
+    updated_convocation = await db.convocations.find_one({"id": convocation_id}, {"_id": 0})
+    result = normalize_convocation_document(updated_convocation)
+    result["skipped_unavailable_players"] = unavailable_player_ids
+    result["added_player_ids"] = added_player_ids
+    result["removed_player_ids"] = removed_player_ids if not event_started else []
+    result["updated_existing"] = bool(existing_convocation)
+
+    return result
 
 
 @api_router.get("/convocations")
@@ -8357,29 +8470,76 @@ async def get_event_training_feedback(
         "comments": comments,
     }
 
-@api_router.get("/convocations/my")
-async def get_my_convocations(current_user: dict = Depends(get_current_user)):
+async def build_my_convocations_for_user(
+    current_user: dict,
+    *,
+    only_pending: bool = False,
+    include_past: bool = True,
+    limit: int = 500
+) -> List[dict]:
+    """Single source of truth for personal convocations.
+
+    Used by /convocations/my and Dashboard so both screens show the same
+    convocatoria/attendance objects.
+    """
     player_ids = get_accessible_player_ids(current_user)
-    attendances = await db.attendance.find(
-        {"player_id": {"$in": player_ids}},
-        {"_id": 0}
-    ).sort("event_date", -1).to_list(500)
-    
+    if not player_ids:
+        return []
+
+    query: Dict[str, Any] = {"player_id": {"$in": player_ids}}
+    if only_pending:
+        query["status"] = "pendente"
+
+    if not include_past:
+        query["event_date"] = {"$gte": datetime.now(timezone.utc).isoformat()}
+
+    attendances = await db.attendance.find(query, {"_id": 0}).sort("event_date", -1).to_list(limit)
+
     result = []
     for att in attendances:
-        event = await db.events.find_one({"id": att['event_id']}, {"_id": 0})
-        convocation = await db.convocations.find_one({"id": att.get('convocation_id')}, {"_id": 0}) if att.get('convocation_id') else None
-        
-        if event:
-            if isinstance(event.get('start_time'), str):
-                event['start_time'] = datetime.fromisoformat(event['start_time'])
-            result.append({
-                "attendance": att,
-                "event": event,
-                "convocation": sanitize_convocation_for_user(convocation, event, current_user),
-            })
-    
+        event = await db.events.find_one({"id": att.get("event_id")}, {"_id": 0})
+        if not event:
+            continue
+
+        convocation = None
+        if att.get("convocation_id"):
+            convocation = await db.convocations.find_one({"id": att.get("convocation_id")}, {"_id": 0})
+
+        if not convocation:
+            convocation = await db.convocations.find_one({"event_id": att.get("event_id")}, {"_id": 0}, sort=[("created_at", -1)])
+
+        normalized_convocation = normalize_convocation_document(convocation)
+        sanitized_convocation = sanitize_convocation_for_user(normalized_convocation, event, current_user)
+
+        if normalized_convocation and not sanitized_convocation:
+            continue
+
+        if only_pending and normalized_convocation:
+            if normalized_convocation.get("status") in [
+                ConvocationStatus.closed.value,
+                ConvocationStatus.cancelled.value,
+            ]:
+                continue
+
+        if isinstance(event.get('start_time'), str):
+            event['start_time'] = datetime.fromisoformat(event['start_time'].replace("Z", "+00:00"))
+        if event.get('end_time') and isinstance(event.get('end_time'), str):
+            event['end_time'] = datetime.fromisoformat(event['end_time'].replace("Z", "+00:00"))
+
+        event = await enrich_event_with_convocation_context(event, current_user)
+
+        result.append({
+            "attendance": att,
+            "event": event,
+            "convocation": sanitized_convocation,
+        })
+
     return result
+
+
+@api_router.get("/convocations/my")
+async def get_my_convocations(current_user: dict = Depends(get_current_user)):
+    return await build_my_convocations_for_user(current_user, only_pending=False, include_past=True, limit=500)
 
 def calculate_commitment_medal(rate: float):
     if rate >= 100:
@@ -8862,7 +9022,9 @@ async def get_event_attendance(event_id: str, current_user: dict = Depends(get_c
         "summary": summary,
         "convocation": sanitize_convocation_for_user(convocation, event, current_user),
         "convocation_status": convocation.get("status") if convocation else None,
+        "convocation_lifecycle_status": convocation.get("status") if convocation else None,
         "convocation_visibility": convocation.get("visibility") if convocation else None,
+        "is_private": is_private_convocation_document(convocation),
         "is_private_convocation": is_private_convocation_document(convocation),
     }
 
@@ -8951,7 +9113,9 @@ async def get_convocation_status(event_id: str, current_user: dict = Depends(get
         "event_passed": event_passed,
         "convocation": sanitize_convocation_for_user(convocation, event, current_user),
         "convocation_status": convocation.get("status") if convocation else None,
+        "convocation_lifecycle_status": convocation.get("status") if convocation else None,
         "convocation_visibility": convocation.get("visibility") if convocation else None,
+        "is_private": is_private_convocation_document(convocation),
         "is_private_convocation": is_private_convocation_document(convocation),
         "private_restricted_view": private_restricted_view,
         "present": sorted(present, key=lambda x: x['name'] or ''),
@@ -9373,31 +9537,23 @@ async def get_dashboard(
             upcoming_query["team_id"] = {"$in": []}
     
     upcoming_events = await db.events.find(upcoming_query, {"_id": 0}).sort("start_time", 1).limit(5).to_list(5)
-    
+
     for event in upcoming_events:
         if isinstance(event.get('start_time'), str):
-            event['start_time'] = datetime.fromisoformat(event['start_time'])
+            event['start_time'] = datetime.fromisoformat(event['start_time'].replace("Z", "+00:00"))
         team = await db.teams.find_one({"id": event['team_id']}, {"_id": 0})
         event['team'] = team
-    
-    # Pending attendances - always user's own or linked players'
-    attendance_query = {"status": "pendente"}
-    if user_role == 'responsavel' and (linked_player_ids or linked_player_id):
-        all_linked = linked_player_ids if linked_player_ids else ([linked_player_id] if linked_player_id else [])
-        attendance_query["player_id"] = {"$in": [effective_user['id']] + all_linked}
-    else:
-        attendance_query["player_id"] = effective_user['id']
-    
-    pending_attendances = await db.attendance.find(attendance_query, {"_id": 0}).to_list(10)
-    
-    pending_convocations = []
-    for att in pending_attendances:
-        event = await db.events.find_one({"id": att['event_id']}, {"_id": 0})
-        if event:
-            if isinstance(event.get('start_time'), str):
-                event['start_time'] = datetime.fromisoformat(event['start_time'])
-            pending_convocations.append({"attendance": att, "event": event})
-    
+
+    upcoming_events = await enrich_events_with_convocation_context(upcoming_events, effective_user)
+
+    # Pending convocations - single source of truth shared with /convocations/my.
+    pending_convocations = await build_my_convocations_for_user(
+        effective_user,
+        only_pending=True,
+        include_past=False,
+        limit=10,
+    )
+
     # Teams count based on role
     if is_admin_role(user_role):
         teams_count = await db.teams.count_documents({})
