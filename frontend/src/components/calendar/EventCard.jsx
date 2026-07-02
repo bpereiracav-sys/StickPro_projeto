@@ -15,6 +15,7 @@ import {
   Trash2,
   Trophy,
   Users,
+  Award,
   XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -272,6 +273,236 @@ function getOperationalSummary(event, visibleAttendanceStatus, eventHasConvocati
   );
 }
 
+
+function getOperationalState(event, visibleAttendanceStatus, eventHasConvocation, eventPassed, t) {
+  if (event?.status === 'cancelled') {
+    return {
+      label: safeTranslate(t, 'calendar.operationalCancelled', 'Evento cancelado'),
+      description: safeTranslate(
+        t,
+        'calendar.operationalCancelledHelp',
+        'Este evento foi cancelado e não requer novas ações.'
+      ),
+      className: 'border-red-200 bg-red-50 text-red-700',
+      icon: XCircle,
+    };
+  }
+
+  if (event?.status === 'postponed') {
+    return {
+      label: safeTranslate(t, 'calendar.operationalPostponed', 'Evento adiado'),
+      description: safeTranslate(
+        t,
+        'calendar.operationalPostponedHelp',
+        'Este evento está adiado. Confirme a nova data antes de avançar.'
+      ),
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
+      icon: PauseCircle,
+    };
+  }
+
+  if (!eventHasConvocation) {
+    return {
+      label: safeTranslate(t, 'calendar.operationalAwaitingConvocation', 'Aguarda convocatória'),
+      description: safeTranslate(
+        t,
+        'calendar.operationalAwaitingConvocationHelp',
+        'O evento está criado, mas ainda não existe convocatória associada.'
+      ),
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
+      icon: HelpCircle,
+    };
+  }
+
+  if (visibleAttendanceStatus === 'pendente') {
+    return {
+      label: safeTranslate(t, 'calendar.operationalPendingResponse', 'Resposta pendente'),
+      description: safeTranslate(
+        t,
+        'calendar.operationalPendingResponseHelp',
+        'Existe uma convocatória pendente de resposta.'
+      ),
+      className: 'border-amber-200 bg-amber-50 text-amber-700',
+      icon: HelpCircle,
+    };
+  }
+
+  if (eventPassed) {
+    return {
+      label: safeTranslate(t, 'calendar.operationalCompleted', 'Evento realizado'),
+      description: safeTranslate(
+        t,
+        'calendar.operationalCompletedHelp',
+        'Evento concluído. Consulte presenças, feedback e estatísticas.'
+      ),
+      className: 'border-slate-200 bg-slate-50 text-slate-700',
+      icon: CheckCircle,
+    };
+  }
+
+  return {
+    label: safeTranslate(t, 'calendar.operationalActive', 'Evento operacional'),
+    description: safeTranslate(
+      t,
+      'calendar.operationalActiveHelp',
+      'Evento pronto para acompanhamento operacional.'
+    ),
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    icon: CheckCircle,
+  };
+}
+
+function getAttendanceSummary(event, visibleAttendanceStatus, t) {
+  const present =
+    event?.attendance_summary?.present ??
+    event?.attendance_summary?.confirmed ??
+    event?.present_count ??
+    event?.confirmed_count ??
+    event?.convocation_status_summary?.present ??
+    null;
+
+  const pending =
+    event?.attendance_summary?.pending ??
+    event?.pending_count ??
+    event?.convocation_status_summary?.pending ??
+    null;
+
+  const total =
+    event?.attendance_summary?.total ??
+    event?.total_convoked ??
+    event?.convocation_total ??
+    event?.convocation?.player_ids?.length ??
+    null;
+
+  if (total !== null && present !== null) {
+    const pendingText =
+      pending !== null
+        ? ` · ${pending} ${safeTranslate(t, 'attendance.pendingShort', 'pendentes')}`
+        : '';
+
+    return `${present}/${total} ${safeTranslate(t, 'attendance.confirmedShort', 'confirmados')}${pendingText}`;
+  }
+
+  if (visibleAttendanceStatus) {
+    return safeTranslate(t, 'calendar.myStatus', 'O meu estado') + `: ${visibleAttendanceStatus}`;
+  }
+
+  return safeTranslate(t, 'attendance.noSummaryYet', 'Sem resumo disponível');
+}
+
+function getTimelineSteps(eventHasConvocation, visibleAttendanceStatus, eventPassed, event, t) {
+  const statusDone = ['confirmado', 'ausente', 'faltou_sem_aviso'].includes(visibleAttendanceStatus);
+
+  return [
+    {
+      key: 'created',
+      label: safeTranslate(t, 'calendar.timelineCreated', 'Evento criado'),
+      done: true,
+    },
+    {
+      key: 'convocation',
+      label: safeTranslate(t, 'calendar.timelineConvocation', 'Convocatória'),
+      done: eventHasConvocation,
+      muted: !eventHasConvocation,
+    },
+    {
+      key: 'attendance',
+      label: safeTranslate(t, 'calendar.timelineAttendance', 'Presenças'),
+      done: statusDone || eventPassed,
+      muted: !eventHasConvocation,
+    },
+    {
+      key: 'completed',
+      label: safeTranslate(t, 'calendar.timelineCompleted', 'Realizado'),
+      done: eventPassed,
+      muted: event?.status === 'cancelled',
+    },
+  ];
+}
+
+function TimelineStep({ step, isLast }) {
+  return (
+    <div className="flex min-w-0 flex-1 items-center">
+      <div className="flex min-w-0 flex-col items-center">
+        <span
+          className={`flex h-7 w-7 items-center justify-center rounded-full border text-[11px] font-bold ${
+            step.done
+              ? 'border-cyan-200 bg-cyan-500 text-white'
+              : step.muted
+                ? 'border-slate-200 bg-slate-100 text-slate-400'
+                : 'border-amber-200 bg-amber-50 text-amber-600'
+          }`}
+        >
+          {step.done ? '✓' : '•'}
+        </span>
+        <span className="mt-1 max-w-[80px] truncate text-center text-[10px] font-medium text-slate-500">
+          {step.label}
+        </span>
+      </div>
+
+      {!isLast && (
+        <div
+          className={`mx-2 h-0.5 flex-1 rounded-full ${
+            step.done ? 'bg-cyan-200' : 'bg-slate-200'
+          }`}
+        />
+      )}
+    </div>
+  );
+}
+
+function EventCenterActionCard({
+  title,
+  value,
+  helper,
+  icon: Icon,
+  tone = 'slate',
+  actionLabel,
+  onClick,
+  disabled = false,
+}) {
+  const tones = {
+    cyan: 'border-cyan-100 bg-cyan-50/70 text-cyan-700',
+    emerald: 'border-emerald-100 bg-emerald-50/70 text-emerald-700',
+    purple: 'border-purple-100 bg-purple-50/70 text-purple-700',
+    amber: 'border-amber-100 bg-amber-50/70 text-amber-700',
+    slate: 'border-slate-200 bg-slate-50 text-slate-600',
+  };
+
+  return (
+    <div className={`rounded-2xl border p-3 ${tones[tone] || tones.slate}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-bold uppercase tracking-wide">{title}</p>
+        {Icon && <Icon className="h-4 w-4" />}
+      </div>
+
+      <p className="mt-2 line-clamp-2 text-sm font-semibold text-slate-950">
+        {value}
+      </p>
+
+      {helper && (
+        <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
+          {helper}
+        </p>
+      )}
+
+      {actionLabel && onClick && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mt-2 h-8 rounded-full px-0 hover:bg-transparent"
+          onClick={onClick}
+          disabled={disabled}
+        >
+          {actionLabel}
+        </Button>
+      )}
+    </div>
+  );
+}
+
+
 export default function EventCard({
   event,
   teams = [],
@@ -327,6 +558,22 @@ export default function EventCard({
   const eventPassed = eventEnd ? eventEnd < new Date() : false;
   const canUpdateOwnConvocation =
     attendanceId && (!eventPassed || canManageThisEvent);
+  const operationalState = getOperationalState(
+    event,
+    visibleAttendanceStatus,
+    eventHasConvocation,
+    eventPassed,
+    t
+  );
+  const OperationalStateIcon = operationalState.icon;
+  const attendanceSummary = getAttendanceSummary(event, visibleAttendanceStatus, t);
+  const timelineSteps = getTimelineSteps(
+    eventHasConvocation,
+    visibleAttendanceStatus,
+    eventPassed,
+    event,
+    t
+  );
 
   const getEventDayUrl = () => {
     if (!event?.id || !event?.start_time) return '/calendar';
@@ -678,88 +925,102 @@ export default function EventCard({
           </div>
         )}
 
-        <div className="grid gap-3 lg:grid-cols-4">
-          <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
-                {safeTranslate(t, 'dashboard.convocations', 'Convocatória')}
-              </p>
-              <ClipboardCheck className="h-4 w-4 text-cyan-600" />
+        <div className={`rounded-3xl border p-4 ${operationalState.className}`}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/80 shadow-sm">
+                <OperationalStateIcon className="h-5 w-5" />
+              </div>
+
+              <div>
+                <p className="font-heading text-lg text-slate-950">
+                  {operationalState.label}
+                </p>
+                <p className="mt-1 text-sm leading-5 text-slate-600">
+                  {operationalState.description}
+                </p>
+              </div>
             </div>
-            <p className="mt-2 text-sm font-semibold text-slate-950">
+
+            <Badge variant="outline" className={`${convocationStatusConfig.className} w-fit rounded-full`}>
+              <ConvocationStatusIcon className="mr-1 h-3 w-3" />
               {convocationStatusConfig.label}
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mt-2 h-8 rounded-full px-0 text-cyan-700 hover:bg-transparent hover:text-cyan-900"
-              onClick={handleShowConvocationStatus}
-            >
-              {safeTranslate(t, 'common.consult', 'Consultar')}
-            </Button>
+            </Badge>
           </div>
 
-          <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                {safeTranslate(t, 'attendance.title', 'Presenças')}
-              </p>
-              <CheckCircle className="h-4 w-4 text-emerald-600" />
-            </div>
-            <p className="mt-2 text-sm font-semibold text-slate-950">
-              {visibleAttendanceStatus
-                ? convocationStatusConfig.label
-                : safeTranslate(t, 'attendance.notAvailable', 'Por registar')}
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mt-2 h-8 rounded-full px-0 text-emerald-700 hover:bg-transparent hover:text-emerald-900"
-              onClick={openAttendance}
-            >
-              {safeTranslate(t, 'common.open', 'Abrir')}
-            </Button>
+          <div className="mt-4 flex items-center">
+            {timelineSteps.map((step, index) => (
+              <TimelineStep
+                key={step.key}
+                step={step}
+                isLast={index === timelineSteps.length - 1}
+              />
+            ))}
           </div>
+        </div>
 
-          <div className="rounded-2xl border border-purple-100 bg-purple-50/70 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-purple-700">
-                {safeTranslate(t, 'messages.title', 'Mensagens')}
-              </p>
-              <MessageSquare className="h-4 w-4 text-purple-600" />
-            </div>
-            <p className="mt-2 text-sm font-semibold text-slate-950">
-              {safeTranslate(t, 'calendar.eventMessages', 'Comunicação do evento')}
-            </p>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="mt-2 h-8 rounded-full px-0 text-purple-700 hover:bg-transparent hover:text-purple-900"
-              onClick={openMessages}
-            >
-              {safeTranslate(t, 'messages.open', 'Abrir mensagens')}
-            </Button>
-          </div>
+        <div className="grid gap-3 lg:grid-cols-5">
+          <EventCenterActionCard
+            title={safeTranslate(t, 'dashboard.convocations', 'Convocatória')}
+            value={convocationStatusConfig.label}
+            helper={
+              eventHasConvocation
+                ? safeTranslate(t, 'calendar.convocationAvailable', 'Disponível para consulta')
+                : safeTranslate(t, 'calendar.convocationMissing', 'Ainda não lançada')
+            }
+            icon={ClipboardCheck}
+            tone="cyan"
+            actionLabel={safeTranslate(t, 'common.consult', 'Consultar')}
+            onClick={handleShowConvocationStatus}
+          />
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
-                {isGame
-                  ? safeTranslate(t, 'statistics.title', 'Estatísticas')
-                  : safeTranslate(t, 'trainingFeedback.title', 'Feedback')}
-              </p>
-              {isGame ? <Trophy className="h-4 w-4 text-slate-500" /> : <HelpCircle className="h-4 w-4 text-slate-500" />}
-            </div>
-            <p className="mt-2 text-sm font-semibold text-slate-950">
-              {safeTranslate(t, 'common.soon', 'Em breve')}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {safeTranslate(t, 'calendar.eventCenterFuture', 'Preparado para a próxima fase')}
-            </p>
-          </div>
+          <EventCenterActionCard
+            title={safeTranslate(t, 'attendance.title', 'Presenças')}
+            value={attendanceSummary}
+            helper={safeTranslate(t, 'calendar.attendanceCenterHelp', 'Acompanhe confirmações e ausências')}
+            icon={CheckCircle}
+            tone="emerald"
+            actionLabel={safeTranslate(t, 'common.open', 'Abrir')}
+            onClick={openAttendance}
+          />
+
+          <EventCenterActionCard
+            title={safeTranslate(t, 'messages.title', 'Mensagens')}
+            value={safeTranslate(t, 'calendar.eventMessages', 'Comunicação do evento')}
+            helper={safeTranslate(t, 'calendar.eventMessagesHelp', 'Conversas associadas à equipa/evento')}
+            icon={MessageSquare}
+            tone="purple"
+            actionLabel={safeTranslate(t, 'messages.open', 'Abrir mensagens')}
+            onClick={openMessages}
+          />
+
+          <EventCenterActionCard
+            title={
+              isGame
+                ? safeTranslate(t, 'statistics.title', 'Estatísticas')
+                : safeTranslate(t, 'trainingFeedback.title', 'Feedback')
+            }
+            value={
+              isGame
+                ? safeTranslate(t, 'statistics.matchStats', 'Dados do jogo')
+                : safeTranslate(t, 'trainingFeedback.title', 'Feedback')
+            }
+            helper={safeTranslate(t, 'calendar.eventCenterFuture', 'Preparado para a próxima fase')}
+            icon={isGame ? Trophy : HelpCircle}
+            tone="amber"
+            actionLabel={safeTranslate(t, 'common.soon', 'Em breve')}
+            disabled
+          />
+
+          <EventCenterActionCard
+            title={safeTranslate(t, 'evaluations.title', 'Avaliação')}
+            value={safeTranslate(t, 'evaluations.playerDevelopment', 'Desenvolvimento')}
+            helper={safeTranslate(t, 'calendar.evaluationFutureHelp', 'Critérios e evolução temporal dos atletas')}
+            icon={Award}
+            tone="slate"
+            actionLabel={safeTranslate(t, 'common.soon', 'Em breve')}
+            disabled
+          />
         </div>
 
         {canManageThisEvent ? (
@@ -862,4 +1123,5 @@ export default function EventCard({
     </article>
   );
 }
+
 
