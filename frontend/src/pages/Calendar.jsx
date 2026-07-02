@@ -1898,32 +1898,63 @@ export default function CalendarPage() {
   // Render day view
   const renderDayView = () => {
     const dayEvents = getEventsForDay(selectedDate);
+    const highlightedEventId = new URLSearchParams(location.search).get('eventId');
+
+    const orderedDayEvents = highlightedEventId
+      ? [
+          ...dayEvents.filter((event) => event.id === highlightedEventId),
+          ...dayEvents.filter((event) => event.id !== highlightedEventId),
+        ]
+      : dayEvents;
 
     return (
-      <Card className="border border-border">
-        <CardContent className="p-4">
-          {dayEvents.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Nenhum evento neste dia</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="rounded-3xl border border-cyan-100 bg-gradient-to-r from-cyan-50 to-white p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
-                  {t('calendar.eventOperationalCenter', 'Centro operacional do evento')}
-                </p>
-                <p className="mt-1 text-sm text-slate-600">
-                  {t(
-                    'calendar.eventOperationalCenterHelp',
-                    'Consulte detalhes, convocatórias, presenças e ações associadas ao evento.'
-                  )}
-                </p>
-              </div>
+      <div className="space-y-4">
+        <section className="overflow-hidden rounded-[1.75rem] border border-cyan-100 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-4 text-white shadow-xl shadow-slate-200/70 sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <Badge className="mb-3 border border-white/15 bg-white/10 text-white">
+                <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                {t('calendar.eventOperationalCenter', 'Centro operacional do evento')}
+              </Badge>
 
-              {dayEvents.map((event) => (
+              <h2 className="font-heading text-2xl tracking-tight sm:text-3xl">
+                {format(selectedDate, 'EEEE, d MMMM', { locale: dateLocale })}
+              </h2>
+
+              <p className="mt-1 max-w-2xl text-sm text-cyan-50/75">
+                {t(
+                  'calendar.eventOperationalCenterHelp',
+                  'Consulte detalhes, convocatórias, presenças e ações associadas ao evento.'
+                )}
+              </p>
+            </div>
+
+            <Badge variant="outline" className="w-fit border-white/20 bg-white/10 text-white">
+              {orderedDayEvents.length}{' '}
+              {orderedDayEvents.length === 1
+                ? t('calendar.event', 'Evento')
+                : t('calendar.events', 'Eventos')}
+            </Badge>
+          </div>
+        </section>
+
+        {orderedDayEvents.length === 0 ? (
+          <Card className="border border-border">
+            <CardContent className="p-4">
+              <div className="text-center py-12 text-muted-foreground">
+                <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                <p>{t('calendar.noEventsThisDay', 'Nenhum evento neste dia')}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {orderedDayEvents.map((event) => (
+              <div
+                key={event.id}
+                className={event.id === highlightedEventId ? 'rounded-[2rem] ring-4 ring-cyan-200/70' : ''}
+              >
                 <EventCard
-                  key={event.id}
                   event={event}
                   t={t}
                   teams={teams}
@@ -1942,11 +1973,11 @@ export default function CalendarPage() {
                   setDeleteDialogOpen={setDeleteDialogOpen}
                   onConvocationStatusUpdated={() => fetchData({ silent: true })}
                 />
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     );
   };
 
