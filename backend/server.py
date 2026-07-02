@@ -840,6 +840,13 @@ class ConvocationVisibility(str, Enum):
     players = "players"
     delegates = "delegates"
     all = "all"
+    private = "private"  # Sprint 3.3.1: lista visível apenas para convocados/equipa técnica
+
+class ConvocationStatus(str, Enum):
+    draft = "draft"
+    published = "published"
+    closed = "closed"
+    cancelled = "cancelled"
 
 class ConvocationCreate(BaseModel):
     event_id: str
@@ -854,8 +861,11 @@ class Convocation(BaseModel):
     player_ids: List[str]
     message: Optional[str] = None
     visibility: ConvocationVisibility = ConvocationVisibility.all
+    status: ConvocationStatus = ConvocationStatus.draft
+    published_at: Optional[datetime] = None
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class TrainingFeedbackCreate(BaseModel):
     event_id: str
@@ -7676,6 +7686,56 @@ async def delete_event(event_id: str, current_user: dict = Depends(get_current_u
 
 # ==================== CONVOCATION ROUTES ====================
 
+def serialize_datetime_fields(document: dict, fields: List[str]) -> dict:
+    """Return a copy with datetime fields converted to ISO strings for Mongo/API safety."""
+    if not document:
+        return document
+
+    serialized = dict(document)
+    for field in fields:
+        value = serialized.get(field)
+        if isinstance(value, datetime):
+            serialized[field] = value.isoformat()
+    return serialized
+
+
+def normalize_convocation_document(convocation: Optional[dict]) -> Optional[dict]:
+    """Backfill lifecycle fields for legacy convocations without mutating the database."""
+    if not convocation:
+        return None
+
+    normalized = dict(convocation)
+    normalized.setdefault("status", "draft")
+    normalized.setdefault("published_at", None)
+    normalized.setdefault("updated_at", normalized.get("created_at"))
+    return serialize_datetime_fields(normalized, ["created_at", "updated_at", "published_at"])
+
+
+async def get_convocation_with_event_or_404(convocation_id: str):
+    convocation = await db.convocations.find_one({"id": convocation_id}, {"_id": 0})
+    if not convocation:
+        raise HTTPException(status_code=404, detail="Convocatória não encontrada")
+
+    event = await db.events.find_one({"id": convocation.get("event_id")}, {"_id": 0})
+    if not event:
+        raise HTTPException(status_code=404, detail="Evento associado não encontrado")
+
+    return convocation, event
+
+
+def ensure_can_manage_convocation(current_user: dict, event: dict):
+    checker = get_permission_checker(current_user)
+
+    if not checker.can_create_convocations:
+        raise HTTPException(status_code=403, detail="Sem permissão para gerir convocatórias")
+
+    team_id = event.get("team_id")
+    if not checker.is_admin and team_id and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a este evento")
+
+    return checker
+
+
 @api_router.post("/convocations")
 async def create_convocation(conv_data: ConvocationCreate, current_user: dict = Depends(get_current_user)):
     checker = get_permission_checker(current_user)
@@ -7712,10 +7772,16 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
         player_ids=available_player_ids,
         message=conv_data.message,
         visibility=conv_data.visibility,
+        status=ConvocationStatus.draft,
+        published_at=None,
         created_by=current_user['id']
     )
     conv_dict = convocation.model_dump()
+    conv_dict['visibility'] = convocation.visibility.value if hasattr(convocation.visibility, 'value') else convocation.visibility
+    conv_dict['status'] = convocation.status.value if hasattr(convocation.status, 'value') else convocation.status
     conv_dict['created_at'] = conv_dict['created_at'].isoformat()
+    conv_dict['updated_at'] = conv_dict['updated_at'].isoformat()
+    conv_dict['published_at'] = None
     
     await db.convocations.insert_one(conv_dict)
     # Remove MongoDB _id before returning
@@ -7747,6 +7813,134 @@ async def create_convocation(conv_data: ConvocationCreate, current_user: dict = 
             )
 
     return conv_dict
+
+
+@api_router.get("/convocations")
+async def get_convocations(
+    event_id: Optional[str] = None,
+    team_id: Optional[str] = None,
+    status: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """List convocations accessible to staff/admin. Keeps existing frontend getAll() compatible."""
+    checker = get_permission_checker(current_user)
+
+    if not checker.can_create_convocations and not checker.is_staff and not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Sem permissão para ver convocatórias")
+
+    query: Dict[str, Any] = {}
+    if event_id:
+        query["event_id"] = event_id
+    if status:
+        query["status"] = status
+
+    allowed_event_ids: Optional[List[str]] = None
+
+    if team_id:
+        if not checker.is_admin and not checker.can_access_team(team_id):
+            raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+        events = await db.events.find({"team_id": team_id}, {"_id": 0, "id": 1}).to_list(1000)
+        allowed_event_ids = [event["id"] for event in events]
+    elif not checker.is_admin:
+        user_team_ids = list(checker.team_ids)
+        if not user_team_ids:
+            return []
+        events = await db.events.find({"team_id": {"$in": user_team_ids}}, {"_id": 0, "id": 1}).to_list(1000)
+        allowed_event_ids = [event["id"] for event in events]
+
+    if allowed_event_ids is not None:
+        if not allowed_event_ids:
+            return []
+        if event_id and event_id not in allowed_event_ids:
+            raise HTTPException(status_code=403, detail="Sem acesso a este evento")
+        query["event_id"] = event_id or {"$in": allowed_event_ids}
+
+    convocations = await db.convocations.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+    result = []
+    for convocation in convocations:
+        event = await db.events.find_one({"id": convocation.get("event_id")}, {"_id": 0})
+        result.append({
+            **normalize_convocation_document(convocation),
+            "event": event,
+        })
+
+    return result
+
+
+async def update_convocation_lifecycle(convocation_id: str, next_status: str, current_user: dict, reset_published_at: bool = False):
+    convocation, event = await get_convocation_with_event_or_404(convocation_id)
+    ensure_can_manage_convocation(current_user, event)
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+    update_data = {
+        "status": next_status,
+        "updated_at": now_iso,
+    }
+
+    if next_status == ConvocationStatus.published.value:
+        update_data["published_at"] = now_iso
+    elif reset_published_at:
+        update_data["published_at"] = None
+
+    await db.convocations.update_one(
+        {"id": convocation_id},
+        {"$set": update_data}
+    )
+
+    updated = await db.convocations.find_one({"id": convocation_id}, {"_id": 0})
+    return normalize_convocation_document(updated)
+
+
+@api_router.post("/convocations/{convocation_id}/publish")
+async def publish_convocation(convocation_id: str, current_user: dict = Depends(get_current_user)):
+    convocation = await update_convocation_lifecycle(
+        convocation_id,
+        ConvocationStatus.published.value,
+        current_user,
+    )
+    return {"message": "Convocatória publicada", "convocation": convocation}
+
+
+@api_router.post("/convocations/{convocation_id}/close")
+async def close_convocation(convocation_id: str, current_user: dict = Depends(get_current_user)):
+    convocation = await update_convocation_lifecycle(
+        convocation_id,
+        ConvocationStatus.closed.value,
+        current_user,
+    )
+    return {"message": "Convocatória fechada", "convocation": convocation}
+
+
+@api_router.post("/convocations/{convocation_id}/cancel")
+async def cancel_convocation(convocation_id: str, current_user: dict = Depends(get_current_user)):
+    convocation = await update_convocation_lifecycle(
+        convocation_id,
+        ConvocationStatus.cancelled.value,
+        current_user,
+    )
+    return {"message": "Convocatória cancelada", "convocation": convocation}
+
+
+@api_router.post("/convocations/{convocation_id}/reopen")
+async def reopen_convocation(convocation_id: str, current_user: dict = Depends(get_current_user)):
+    convocation, _event = await get_convocation_with_event_or_404(convocation_id)
+    current_status = convocation.get("status", ConvocationStatus.draft.value)
+
+    if current_status not in [ConvocationStatus.closed.value, ConvocationStatus.cancelled.value]:
+        raise HTTPException(
+            status_code=400,
+            detail="Só é possível reabrir convocatórias fechadas ou canceladas"
+        )
+
+    convocation = await update_convocation_lifecycle(
+        convocation_id,
+        ConvocationStatus.draft.value,
+        current_user,
+        reset_published_at=True,
+    )
+    return {"message": "Convocatória reaberta", "convocation": convocation}
+
 
 def get_accessible_player_ids(current_user: dict):
     player_ids = [str(current_user["id"])]
@@ -8015,7 +8209,11 @@ async def get_event_training_feedback(
 
 @api_router.get("/convocations/my")
 async def get_my_convocations(current_user: dict = Depends(get_current_user)):
-    attendances = await db.attendance.find({"player_id": current_user['id']}, {"_id": 0}).to_list(100)
+    player_ids = get_accessible_player_ids(current_user)
+    attendances = await db.attendance.find(
+        {"player_id": {"$in": player_ids}},
+        {"_id": 0}
+    ).sort("event_date", -1).to_list(500)
     
     result = []
     for att in attendances:
@@ -8025,7 +8223,11 @@ async def get_my_convocations(current_user: dict = Depends(get_current_user)):
         if event:
             if isinstance(event.get('start_time'), str):
                 event['start_time'] = datetime.fromisoformat(event['start_time'])
-            result.append({"attendance": att, "event": event, "convocation": convocation})
+            result.append({
+                "attendance": att,
+                "event": event,
+                "convocation": normalize_convocation_document(convocation),
+            })
     
     return result
 
@@ -8194,10 +8396,17 @@ async def update_attendance(attendance_id: str, update: AttendanceUpdate, curren
             detail="O evento já começou. Apenas treinadores podem atualizar a presença."
         )
     
+    now_iso = datetime.now(timezone.utc).isoformat()
     await db.attendance.update_one(
         {"id": attendance_id},
-        {"$set": {"status": update.status, "reason": update.reason, "updated_at": datetime.now(timezone.utc).isoformat()}}
+        {"$set": {"status": update.status, "reason": update.reason, "updated_at": now_iso}}
     )
+
+    if attendance.get("convocation_id"):
+        await db.convocations.update_one(
+            {"id": attendance.get("convocation_id")},
+            {"$set": {"updated_at": now_iso}}
+        )
     
     return {"message": "Presença atualizada"}
 
@@ -8511,6 +8720,9 @@ async def get_convocation_status(event_id: str, current_user: dict = Depends(get
     team_id = event.get('team_id')
     if not checker.is_admin and not checker.can_access_team(team_id):
         raise HTTPException(status_code=403, detail="Sem acesso a este evento")
+
+    convocation = await db.convocations.find_one({"event_id": event_id}, {"_id": 0})
+    convocation = normalize_convocation_document(convocation)
     
     # Get all attendance records for this event
     attendances = await db.attendance.find({"event_id": event_id}, {"_id": 0}).to_list(500)
@@ -8564,6 +8776,9 @@ async def get_convocation_status(event_id: str, current_user: dict = Depends(get
         "event_title": event.get('title'),
         "event_date": event_date,
         "event_passed": event_passed,
+        "convocation": convocation,
+        "convocation_status": convocation.get("status") if convocation else None,
+        "convocation_visibility": convocation.get("visibility") if convocation else None,
         "present": sorted(present, key=lambda x: x['name'] or ''),
         "absent": sorted(absent, key=lambda x: x['name'] or ''),
         "pending": sorted(pending, key=lambda x: x['name'] or ''),
@@ -8600,14 +8815,21 @@ async def update_convocation_status(event_id: str, update: ConvocationStatusUpda
     if not attendance:
         raise HTTPException(status_code=404, detail="Registo de presença não encontrado")
     
+    now_iso = datetime.now(timezone.utc).isoformat()
     await db.attendance.update_one(
         {"id": attendance['id']},
         {"$set": {
             "status": update.status,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_at": now_iso,
             "updated_by": current_user['id']
         }}
     )
+
+    if attendance.get("convocation_id"):
+        await db.convocations.update_one(
+            {"id": attendance.get("convocation_id")},
+            {"$set": {"updated_at": now_iso}}
+        )
     
     return {"message": "Estado atualizado", "status": update.status}
 
