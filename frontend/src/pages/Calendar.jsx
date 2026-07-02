@@ -211,6 +211,7 @@ export default function CalendarPage() {
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const { canManageEvents, canCreateConvocations, canAccessTeam, isAdmin, isCoach } = usePermissions();
   const { t } = useLanguage();
+  const dateLocale = pt;
   const location = useLocation();
   const agendaScrollRef = useRef(null);
   const agendaTodayRef = useRef(null);
@@ -1938,7 +1939,7 @@ export default function CalendarPage() {
               </Badge>
 
               <h2 className="font-heading text-2xl tracking-tight sm:text-3xl">
-                {format(selectedDate, 'EEEE, d MMMM', { locale: pt })}
+                {format(selectedDate, 'EEEE, d MMMM', { locale: dateLocale })}
               </h2>
 
               <p className="mt-1 max-w-2xl text-sm text-cyan-50/75">
