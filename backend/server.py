@@ -889,6 +889,112 @@ class TrainingFeedback(BaseModel):
     comment: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
+# Evaluation Models — Sprint 4.2.1
+EvaluationCriterionCategory = Literal[
+    "technical",
+    "tactical",
+    "physical",
+    "psychological",
+    "attitude",
+    "other"
+]
+
+EvaluationVisibility = Literal[
+    "coach_only",
+    "technical_staff",
+    "player",
+    "guardian",
+    "all"
+]
+
+
+class EvaluationCriterionCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    category: EvaluationCriterionCategory = "technical"
+    scale_min: int = 1
+    scale_max: int = 5
+    weight: float = 1.0
+    team_id: Optional[str] = None
+    is_active: bool = True
+
+
+class EvaluationCriterion(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    category: EvaluationCriterionCategory = "technical"
+    scale_min: int = 1
+    scale_max: int = 5
+    weight: float = 1.0
+    team_id: Optional[str] = None
+    club_id: Optional[str] = None
+    is_active: bool = True
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class EvaluationCriterionUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[EvaluationCriterionCategory] = None
+    scale_min: Optional[int] = None
+    scale_max: Optional[int] = None
+    weight: Optional[float] = None
+    team_id: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class PlayerEvaluationScore(BaseModel):
+    criterion_id: str
+    score: float
+    comment: Optional[str] = None
+
+
+class PlayerEvaluationCreate(BaseModel):
+    player_id: str
+    team_id: str
+    event_id: Optional[str] = None
+    period_label: Optional[str] = None
+    visibility: EvaluationVisibility = "coach_only"
+    scores: List[PlayerEvaluationScore] = []
+    general_comment: Optional[str] = None
+    share_with_player: bool = False
+    share_with_guardian: bool = False
+
+
+class PlayerEvaluation(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    player_id: str
+    team_id: str
+    event_id: Optional[str] = None
+    period_label: Optional[str] = None
+    visibility: EvaluationVisibility = "coach_only"
+    scores: List[dict] = []
+    general_comment: Optional[str] = None
+    share_with_player: bool = False
+    share_with_guardian: bool = False
+    overall_score: Optional[float] = None
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class PlayerEvaluationUpdate(BaseModel):
+    period_label: Optional[str] = None
+    visibility: Optional[EvaluationVisibility] = None
+    scores: Optional[List[PlayerEvaluationScore]] = None
+    general_comment: Optional[str] = None
+    share_with_player: Optional[bool] = None
+    share_with_guardian: Optional[bool] = None
+
+
 # Unavailability Models
 UnavailabilityReason = Literal["ferias", "doenca", "escola", "outro"]
 
@@ -10117,6 +10223,409 @@ async def send_notification(notification_data: dict, current_user: dict = Depend
         "success": success_count,
         "failed": failed_count
     }
+
+
+# ==================== EVALUATION ROUTES — Sprint 4.2.1 ====================
+
+def calculate_evaluation_overall_score(scores: List[dict], criteria_map: Dict[str, dict]) -> Optional[float]:
+    """Weighted average for evaluation scores. Returns None when no valid scores exist."""
+    weighted_total = 0.0
+    weight_total = 0.0
+
+    for score_item in scores or []:
+        criterion_id = score_item.get("criterion_id")
+        raw_score = score_item.get("score")
+
+        if criterion_id is None or raw_score is None:
+            continue
+
+        criterion = criteria_map.get(criterion_id, {})
+        weight = float(criterion.get("weight", 1.0) or 1.0)
+
+        try:
+            score_value = float(raw_score)
+        except (TypeError, ValueError):
+            continue
+
+        weighted_total += score_value * weight
+        weight_total += weight
+
+    if weight_total <= 0:
+        return None
+
+    return round(weighted_total / weight_total, 2)
+
+
+async def get_evaluation_player_or_404(player_id: str) -> dict:
+    player = await db.users.find_one(
+        {"id": player_id},
+        {"_id": 0, "hashed_password": 0, "password": 0}
+    )
+
+    if not player:
+        raise HTTPException(status_code=404, detail="Atleta não encontrado")
+
+    if player.get("role") not in ["jogador", "atleta", "player"]:
+        raise HTTPException(status_code=400, detail="A avaliação só pode ser associada a atletas")
+
+    return player
+
+
+def can_view_player_evaluations(current_user: dict, player_id: str, team_id: Optional[str] = None, evaluation: Optional[dict] = None) -> bool:
+    checker = get_permission_checker(current_user)
+
+    if checker.is_admin:
+        return True
+
+    if current_user.get("id") == player_id:
+        return bool(evaluation and evaluation.get("share_with_player"))
+
+    linked_player_ids = current_user.get("linked_player_ids", []) or []
+    linked_player_id = current_user.get("linked_player_id")
+    if linked_player_id and linked_player_id not in linked_player_ids:
+        linked_player_ids.append(linked_player_id)
+
+    if player_id in linked_player_ids:
+        return bool(evaluation and evaluation.get("share_with_guardian"))
+
+    if team_id and checker.is_staff and checker.can_access_team(team_id):
+        return True
+
+    return False
+
+
+@api_router.post("/evaluations/criteria")
+async def create_evaluation_criterion(
+    criterion_data: EvaluationCriterionCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_staff and not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Sem permissão para criar critérios de avaliação")
+
+    if criterion_data.team_id and not checker.is_admin and not checker.can_access_team(criterion_data.team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+
+    if criterion_data.scale_min >= criterion_data.scale_max:
+        raise HTTPException(status_code=400, detail="A escala mínima deve ser inferior à escala máxima")
+
+    criterion = EvaluationCriterion(
+        **criterion_data.model_dump(),
+        club_id=current_user.get("club_id"),
+        created_by=current_user["id"]
+    )
+
+    criterion_dict = criterion.model_dump()
+    criterion_dict["created_at"] = criterion_dict["created_at"].isoformat()
+    criterion_dict["updated_at"] = criterion_dict["updated_at"].isoformat()
+
+    await db.evaluation_criteria.insert_one(criterion_dict)
+
+    return criterion_dict
+
+
+@api_router.get("/evaluations/criteria")
+async def get_evaluation_criteria(
+    team_id: Optional[str] = None,
+    include_inactive: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    query: Dict[str, Any] = {}
+
+    if not include_inactive:
+        query["is_active"] = {"$ne": False}
+
+    if team_id:
+        if not checker.is_admin and not checker.can_access_team(team_id):
+            raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+        query["$or"] = [{"team_id": team_id}, {"team_id": None}, {"team_id": {"$exists": False}}]
+    elif not checker.is_admin:
+        accessible_team_ids = list(checker.team_ids)
+        query["$or"] = [
+            {"team_id": {"$in": accessible_team_ids}},
+            {"team_id": None},
+            {"team_id": {"$exists": False}},
+        ]
+
+    criteria = await db.evaluation_criteria.find(query, {"_id": 0}).sort("category", 1).sort("name", 1).to_list(500)
+    return criteria
+
+
+@api_router.put("/evaluations/criteria/{criterion_id}")
+async def update_evaluation_criterion(
+    criterion_id: str,
+    updates: EvaluationCriterionUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    criterion = await db.evaluation_criteria.find_one({"id": criterion_id}, {"_id": 0})
+    if not criterion:
+        raise HTTPException(status_code=404, detail="Critério não encontrado")
+
+    if not checker.is_admin:
+        if criterion.get("created_by") != current_user.get("id") and not checker.can_access_team(criterion.get("team_id")):
+            raise HTTPException(status_code=403, detail="Sem permissão para editar este critério")
+
+    update_data = updates.model_dump(exclude_unset=True)
+
+    if "scale_min" in update_data or "scale_max" in update_data:
+        next_min = update_data.get("scale_min", criterion.get("scale_min", 1))
+        next_max = update_data.get("scale_max", criterion.get("scale_max", 5))
+        if next_min >= next_max:
+            raise HTTPException(status_code=400, detail="A escala mínima deve ser inferior à escala máxima")
+
+    if update_data.get("team_id") and not checker.is_admin and not checker.can_access_team(update_data["team_id"]):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+
+    if update_data:
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.evaluation_criteria.update_one(
+            {"id": criterion_id},
+            {"$set": update_data}
+        )
+
+    updated = await db.evaluation_criteria.find_one({"id": criterion_id}, {"_id": 0})
+    return updated
+
+
+@api_router.delete("/evaluations/criteria/{criterion_id}")
+async def archive_evaluation_criterion(
+    criterion_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    criterion = await db.evaluation_criteria.find_one({"id": criterion_id}, {"_id": 0})
+    if not criterion:
+        raise HTTPException(status_code=404, detail="Critério não encontrado")
+
+    if not checker.is_admin:
+        if criterion.get("created_by") != current_user.get("id") and not checker.can_access_team(criterion.get("team_id")):
+            raise HTTPException(status_code=403, detail="Sem permissão para arquivar este critério")
+
+    await db.evaluation_criteria.update_one(
+        {"id": criterion_id},
+        {
+            "$set": {
+                "is_active": False,
+                "updated_at": datetime.now(timezone.utc).isoformat()
+            }
+        }
+    )
+
+    return {"message": "Critério arquivado"}
+
+
+@api_router.post("/evaluations")
+async def create_player_evaluation(
+    evaluation_data: PlayerEvaluationCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_staff and not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Sem permissão para avaliar atletas")
+
+    if not checker.is_admin and not checker.can_access_team(evaluation_data.team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+
+    player = await get_evaluation_player_or_404(evaluation_data.player_id)
+
+    if evaluation_data.team_id not in (player.get("team_ids") or []):
+        raise HTTPException(status_code=400, detail="O atleta não pertence a esta equipa")
+
+    criterion_ids = [item.criterion_id for item in evaluation_data.scores]
+    criteria = []
+    if criterion_ids:
+        criteria = await db.evaluation_criteria.find(
+            {"id": {"$in": criterion_ids}},
+            {"_id": 0}
+        ).to_list(500)
+
+    criteria_map = {criterion["id"]: criterion for criterion in criteria}
+
+    for item in evaluation_data.scores:
+        criterion = criteria_map.get(item.criterion_id)
+        if not criterion:
+            raise HTTPException(status_code=400, detail=f"Critério inválido: {item.criterion_id}")
+
+        scale_min = criterion.get("scale_min", 1)
+        scale_max = criterion.get("scale_max", 5)
+
+        if item.score < scale_min or item.score > scale_max:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pontuação fora da escala para {criterion.get('name', item.criterion_id)}"
+            )
+
+    score_dicts = [item.model_dump() for item in evaluation_data.scores]
+    overall_score = calculate_evaluation_overall_score(score_dicts, criteria_map)
+
+    evaluation = PlayerEvaluation(
+        player_id=evaluation_data.player_id,
+        team_id=evaluation_data.team_id,
+        event_id=evaluation_data.event_id,
+        period_label=evaluation_data.period_label,
+        visibility=evaluation_data.visibility,
+        scores=score_dicts,
+        general_comment=evaluation_data.general_comment,
+        share_with_player=evaluation_data.share_with_player,
+        share_with_guardian=evaluation_data.share_with_guardian,
+        overall_score=overall_score,
+        created_by=current_user["id"]
+    )
+
+    evaluation_dict = evaluation.model_dump()
+    evaluation_dict["created_at"] = evaluation_dict["created_at"].isoformat()
+    evaluation_dict["updated_at"] = evaluation_dict["updated_at"].isoformat()
+
+    await db.player_evaluations.insert_one(evaluation_dict)
+
+    return evaluation_dict
+
+
+@api_router.get("/evaluations/player/{player_id}")
+async def get_player_evaluations(
+    player_id: str,
+    team_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    await get_evaluation_player_or_404(player_id)
+
+    query: Dict[str, Any] = {"player_id": player_id}
+    if team_id:
+        query["team_id"] = team_id
+
+    evaluations = await db.player_evaluations.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+
+    visible = []
+    for evaluation in evaluations:
+        if can_view_player_evaluations(
+            current_user,
+            player_id,
+            evaluation.get("team_id"),
+            evaluation
+        ):
+            visible.append(evaluation)
+
+    return visible
+
+
+@api_router.get("/evaluations/{evaluation_id}")
+async def get_player_evaluation(
+    evaluation_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    evaluation = await db.player_evaluations.find_one({"id": evaluation_id}, {"_id": 0})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+
+    if not can_view_player_evaluations(
+        current_user,
+        evaluation.get("player_id"),
+        evaluation.get("team_id"),
+        evaluation
+    ):
+        raise HTTPException(status_code=403, detail="Sem permissão para ver esta avaliação")
+
+    criterion_ids = [item.get("criterion_id") for item in evaluation.get("scores", []) if item.get("criterion_id")]
+    criteria = []
+    if criterion_ids:
+        criteria = await db.evaluation_criteria.find(
+            {"id": {"$in": criterion_ids}},
+            {"_id": 0}
+        ).to_list(500)
+
+    criteria_map = {criterion["id"]: criterion for criterion in criteria}
+
+    enriched_scores = []
+    for item in evaluation.get("scores", []):
+        criterion = criteria_map.get(item.get("criterion_id"))
+        enriched_scores.append({
+            **item,
+            "criterion": criterion
+        })
+
+    evaluation["scores"] = enriched_scores
+    return evaluation
+
+
+@api_router.put("/evaluations/{evaluation_id}")
+async def update_player_evaluation(
+    evaluation_id: str,
+    updates: PlayerEvaluationUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    evaluation = await db.player_evaluations.find_one({"id": evaluation_id}, {"_id": 0})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+
+    if not checker.is_admin:
+        if evaluation.get("created_by") != current_user.get("id") and not checker.can_access_team(evaluation.get("team_id")):
+            raise HTTPException(status_code=403, detail="Sem permissão para editar esta avaliação")
+
+    update_data = updates.model_dump(exclude_unset=True)
+
+    if "scores" in update_data and update_data["scores"] is not None:
+        score_dicts = [
+            item.model_dump() if hasattr(item, "model_dump") else item
+            for item in update_data["scores"]
+        ]
+
+        criterion_ids = [item.get("criterion_id") for item in score_dicts]
+        criteria = await db.evaluation_criteria.find(
+            {"id": {"$in": criterion_ids}},
+            {"_id": 0}
+        ).to_list(500)
+        criteria_map = {criterion["id"]: criterion for criterion in criteria}
+
+        for item in score_dicts:
+            criterion = criteria_map.get(item.get("criterion_id"))
+            if not criterion:
+                raise HTTPException(status_code=400, detail=f"Critério inválido: {item.get('criterion_id')}")
+
+            if item.get("score") < criterion.get("scale_min", 1) or item.get("score") > criterion.get("scale_max", 5):
+                raise HTTPException(status_code=400, detail="Pontuação fora da escala")
+
+        update_data["scores"] = score_dicts
+        update_data["overall_score"] = calculate_evaluation_overall_score(score_dicts, criteria_map)
+
+    if update_data:
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.player_evaluations.update_one(
+            {"id": evaluation_id},
+            {"$set": update_data}
+        )
+
+    updated = await db.player_evaluations.find_one({"id": evaluation_id}, {"_id": 0})
+    return updated
+
+
+@api_router.delete("/evaluations/{evaluation_id}")
+async def delete_player_evaluation(
+    evaluation_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    evaluation = await db.player_evaluations.find_one({"id": evaluation_id}, {"_id": 0})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+
+    if not checker.is_admin and evaluation.get("created_by") != current_user.get("id"):
+        raise HTTPException(status_code=403, detail="Sem permissão para eliminar esta avaliação")
+
+    await db.player_evaluations.delete_one({"id": evaluation_id})
+
+    return {"message": "Avaliação eliminada"}
+
+
 
 # ==================== UNAVAILABILITY ROUTES ====================
 
