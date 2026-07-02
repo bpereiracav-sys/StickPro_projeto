@@ -215,6 +215,7 @@ export default function CalendarPage() {
   const agendaScrollRef = useRef(null);
   const agendaTodayRef = useRef(null);
   const hasAutoScrolledAgendaRef = useRef(false);
+  const dayEventRefs = useRef({});
   const fetchDataRequestId = useRef(0);
   const [events, setEvents] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -339,6 +340,25 @@ export default function CalendarPage() {
       }
     }
   }, [location.search, isMobile]);
+
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const highlightedEventId = params.get('eventId');
+
+    if (!highlightedEventId || viewMode !== 'day' || loading) return;
+
+    window.requestAnimationFrame(() => {
+      const node = dayEventRefs.current?.[highlightedEventId];
+
+      if (node) {
+        node.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start',
+        });
+      }
+    });
+  }, [location.search, viewMode, loading, events.length]);
 
 
   const applyOptimisticConvocationUpdate = (detail = {}) => {
@@ -1929,12 +1949,20 @@ export default function CalendarPage() {
               </p>
             </div>
 
-            <Badge variant="outline" className="w-fit border-white/20 bg-white/10 text-white">
-              {orderedDayEvents.length}{' '}
-              {orderedDayEvents.length === 1
-                ? t('calendar.event', 'Evento')
-                : t('calendar.events', 'Eventos')}
-            </Badge>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className="w-fit border-white/20 bg-white/10 text-white">
+                {orderedDayEvents.length}{' '}
+                {orderedDayEvents.length === 1
+                  ? t('calendar.event', 'Evento')
+                  : t('calendar.events', 'Eventos')}
+              </Badge>
+
+              {highlightedEventId && (
+                <Badge variant="outline" className="w-fit border-cyan-200/50 bg-cyan-500/20 text-cyan-50">
+                  {t('calendar.eventHighlighted', 'Evento destacado')}
+                </Badge>
+              )}
+            </div>
           </div>
         </section>
 
@@ -1952,7 +1980,14 @@ export default function CalendarPage() {
             {orderedDayEvents.map((event) => (
               <div
                 key={event.id}
-                className={event.id === highlightedEventId ? 'rounded-[2rem] ring-4 ring-cyan-200/70' : ''}
+                ref={(node) => {
+                  if (node) {
+                    dayEventRefs.current[event.id] = node;
+                  } else {
+                    delete dayEventRefs.current[event.id];
+                  }
+                }}
+                className={event.id === highlightedEventId ? 'scroll-mt-24 rounded-[2rem] ring-4 ring-cyan-200/70' : 'scroll-mt-24'}
               >
                 <EventCard
                   event={event}
