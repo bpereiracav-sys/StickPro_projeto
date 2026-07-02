@@ -178,13 +178,6 @@ export function Sidebar() {
             visible: true,
           },
           {
-            href: '/convocations',
-            label: tr('nav.convocations', 'Convocatórias'),
-            icon: ClipboardCheck,
-            visible: true,
-            notificationCount: pendingNotifications,
-          },
-          {
             href: '/messages',
             label: tr('nav.messages', 'Mensagens'),
             icon: MessageSquare,
