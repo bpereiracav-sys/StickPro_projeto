@@ -215,12 +215,14 @@ export default function CalendarPage() {
   const agendaScrollRef = useRef(null);
   const agendaTodayRef = useRef(null);
   const hasAutoScrolledAgendaRef = useRef(false);
+  const fetchDataRequestId = useRef(0);
   const [events, setEvents] = useState([]);
   const [teams, setTeams] = useState([]);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
   const [teamMembers, setTeamMembers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [isMobile, setIsMobile] = useState(false);
   const [viewMode, setViewMode] = useState('month');
@@ -339,9 +341,53 @@ export default function CalendarPage() {
   }, [location.search, isMobile]);
 
 
+  const applyOptimisticConvocationUpdate = (detail = {}) => {
+    if (!detail?.eventId) return;
+
+    setEvents((prev) =>
+      prev.map((calendarEvent) => {
+        if (calendarEvent.id !== detail.eventId) return calendarEvent;
+
+        const nextVisibility =
+          detail.visibility || calendarEvent.convocation_visibility;
+
+        const nextStatus =
+          detail.status ||
+          calendarEvent.my_attendance_status ||
+          calendarEvent.attendance_status ||
+          (nextVisibility === 'private'
+            ? 'private'
+            : calendarEvent.convocation_status || 'launched');
+
+        return {
+          ...calendarEvent,
+          has_convocation: true,
+          my_attendance_status: detail.status || calendarEvent.my_attendance_status,
+          attendance_status: detail.status || calendarEvent.attendance_status,
+          convocation_status:
+            nextVisibility === 'private'
+              ? 'private'
+              : detail.convocation_status || calendarEvent.convocation_status || 'launched',
+          convocation_lifecycle_status:
+            detail.lifecycle_status ||
+            detail.convocation_lifecycle_status ||
+            calendarEvent.convocation_lifecycle_status ||
+            'published',
+          convocation_visibility: nextVisibility,
+          is_private_convocation:
+            nextVisibility === 'private' || calendarEvent.is_private_convocation,
+          optimistic_status: nextStatus,
+        };
+      })
+    );
+  };
+
   useEffect(() => {
-    const handleConvocationUpdated = () => {
-      fetchData();
+    const handleConvocationUpdated = (event) => {
+      const detail = event?.detail || {};
+
+      applyOptimisticConvocationUpdate(detail);
+      fetchData({ silent: true });
     };
 
     window.addEventListener('stickpro:convocation-updated', handleConvocationUpdated);
@@ -349,7 +395,7 @@ export default function CalendarPage() {
     return () => {
       window.removeEventListener('stickpro:convocation-updated', handleConvocationUpdated);
     };
-  }, [selectedTeam, activeProfile, selectedTeamFilter, selectedStatusFilter, visibleEventTypes]);
+  }, [selectedTeam, activeProfile, selectedTeamFilter, selectedStatusFilter, visibleEventTypes, events.length]);
 
   useEffect(() => {
     if (viewMode === 'agenda') {
@@ -359,11 +405,18 @@ export default function CalendarPage() {
 
   // Calendar V2 - refresh when team filter or profile changes
   useEffect(() => {
-    fetchData();
+    fetchData({ silent: events.length > 0 });
   }, [selectedTeam, activeProfile, selectedTeamFilter, selectedStatusFilter, visibleEventTypes]);
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchData = async ({ silent = false } = {}) => {
+    const requestId = ++fetchDataRequestId.current;
+    const hasExistingData = events.length > 0;
+
+    if (silent || hasExistingData) {
+      setIsRefreshing(true);
+    } else {
+      setLoading(true);
+    }
     try {
       const teamFilter =
         selectedTeamFilter && selectedTeamFilter !== 'all'
@@ -419,18 +472,18 @@ export default function CalendarPage() {
         return true;
       });
 
+      if (requestId !== fetchDataRequestId.current) return;
+
       setEvents(filteredEvents);
 
       const allTeams = teamsRes.data || [];
-
-      console.log('ACTIVE PROFILE CALENDAR:', activeProfile);
-      console.log('ALL TEAMS:', allTeams);
-      console.log('BIRTHDAYS RESPONSE:', birthdaysRes.data);
 
       const visibleTeams =
         activeProfile?.type === 'associated'
           ? allTeams.filter((team) => activeProfileTeamIds.includes(team.id))
           : allTeams;
+
+      if (requestId !== fetchDataRequestId.current) return;
 
       setTeams(visibleTeams);
 
@@ -441,6 +494,8 @@ export default function CalendarPage() {
       ) {
         setSelectedTeamFilter('all');
       }
+
+      if (requestId !== fetchDataRequestId.current) return;
 
       setUnavailabilities(unavailRes.data || []);
 
@@ -457,7 +512,10 @@ export default function CalendarPage() {
         console.error('Error fetching data:', error);
         toast.error(t('common.loadError', 'Erro ao carregar dados'));
       } finally {
-        setLoading(false);
+        if (requestId === fetchDataRequestId.current) {
+          setIsRefreshing(false);
+          setLoading(false);
+        }
       }
     };
 
@@ -607,7 +665,7 @@ export default function CalendarPage() {
         toast.success(t('calendar.eventCreated', 'Evento criado com sucesso!'));
       }
 
-      await fetchData();
+      await fetchData({ silent: true });
 
       setCreateDialogOpen(false);
       resetForm();
@@ -759,7 +817,7 @@ export default function CalendarPage() {
       setPostponeDialogOpen(false);
       setSelectedEvent(null);
       toast.success(t('calendar.eventPostponed', 'Evento adiado com sucesso'));
-      fetchData();
+      fetchData({ silent: true });
     } catch (error) {
       console.error('Error postponing event:', error);
       toast.error(t('calendar.postponeError', 'Erro ao adiar evento'));
@@ -794,7 +852,7 @@ export default function CalendarPage() {
         remove_postponed_copy: true,
       });
 
-      await fetchData();
+      await fetchData({ silent: true });
 
       toast.success(t('calendar.eventRestored', 'Evento reativado com sucesso!'));
     } catch (error) {
@@ -863,13 +921,22 @@ export default function CalendarPage() {
         toast.warning(`${skipped.length} jogador(es) indisponível(is) foram excluídos da convocatória`);
       }
 
+      const updateDetail = {
+        eventId: selectedEvent.id,
+        visibility: convocationVisibility,
+        convocation_status: convocationVisibility === 'private' ? 'private' : 'launched',
+        lifecycle_status: 'published',
+      };
+
+      applyOptimisticConvocationUpdate(updateDetail);
+
       window.dispatchEvent(
         new CustomEvent('stickpro:convocation-updated', {
-          detail: { eventId: selectedEvent.id, visibility: convocationVisibility },
+          detail: updateDetail,
         })
       );
 
-      await fetchData();
+      await fetchData({ silent: true });
 
       toast.success(
         convocationVisibility === 'private'
@@ -917,17 +984,21 @@ export default function CalendarPage() {
       const response = await eventsApi.getConvocationStatus(selectedEvent.id);
       setConvocationStatus(response.data);
 
+      const updateDetail = {
+        eventId: selectedEvent.id,
+        playerId,
+        status: newStatus,
+      };
+
+      applyOptimisticConvocationUpdate(updateDetail);
+
       window.dispatchEvent(
         new CustomEvent('stickpro:convocation-updated', {
-          detail: {
-            eventId: selectedEvent.id,
-            playerId,
-            status: newStatus,
-          },
+          detail: updateDetail,
         })
       );
 
-      fetchData();
+      fetchData({ silent: true });
     } catch (error) {
       toast.error(error.response?.data?.detail || t('common.error'));
     } finally {
@@ -1121,7 +1192,8 @@ export default function CalendarPage() {
                 className="mt-2 rounded-full border-slate-200 bg-slate-50 text-slate-600"
               >
                 <ClipboardCheck className="mr-1 h-3 w-3" />
-                {event.my_attendance_status ||
+                {event.optimistic_status ||
+                  event.my_attendance_status ||
                   event.attendance_status ||
                   event.convocation_status ||
                   t('convocations.notLaunched', 'Convocatória não lançada')}
@@ -1868,7 +1940,7 @@ export default function CalendarPage() {
                   handleRestoreEvent={handleRestoreEvent}
                   setSelectedEvent={setSelectedEvent}
                   setDeleteDialogOpen={setDeleteDialogOpen}
-                  onConvocationStatusUpdated={fetchData}
+                  onConvocationStatusUpdated={() => fetchData({ silent: true })}
                 />
               ))}
             </div>
@@ -2139,7 +2211,7 @@ export default function CalendarPage() {
     );
   };
 
-  if (loading) {
+  if (loading && events.length === 0) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-10 w-64" />
@@ -2183,6 +2255,13 @@ export default function CalendarPage() {
           setViewMode(key);
         }}
       />
+
+      {isRefreshing && (
+        <div className="flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 md:w-fit">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          {t('common.refreshing', 'A atualizar...')}
+        </div>
+      )}
 
       {/* Calendar View */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-24 pr-1 md:block md:overflow-visible md:pb-0 md:pr-0">
@@ -2964,7 +3043,7 @@ export default function CalendarPage() {
       <UnavailabilityDialog
         open={unavailabilityDialogOpen}
         onOpenChange={setUnavailabilityDialogOpen}
-        onSuccess={fetchData}
+        onSuccess={() => fetchData({ silent: true })}
       />
     </div>
   );
