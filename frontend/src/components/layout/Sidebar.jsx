@@ -30,6 +30,7 @@ import {
   BookOpen,
   Building2,
   CreditCard,
+  Award,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
@@ -223,6 +224,16 @@ export function Sidebar() {
             label: tr('nav.stats', 'Estatísticas'),
             icon: BarChart3,
             visible: true,
+          },
+          {
+            href: '/evaluation-criteria',
+            label: tr('nav.evaluationCriteria', 'Critérios de Avaliação'),
+            icon: Award,
+            visible:
+              permissions.isAdmin ||
+              permissions.isStaff ||
+              permissions.canManageTeam ||
+              permissions.hasPermission?.('view_team_members'),
           },
         ],
       },
