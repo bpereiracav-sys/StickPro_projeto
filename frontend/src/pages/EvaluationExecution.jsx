@@ -8,6 +8,7 @@ import { Badge } from '../components/ui/badge';
 import { Checkbox } from '../components/ui/checkbox';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -18,11 +19,11 @@ import {
 import {
   ArrowLeft,
   ArrowRight,
-  Calendar,
   CheckCircle,
   ClipboardCheck,
   Dumbbell,
   Loader2,
+  Save,
   Sparkles,
   Users,
 } from 'lucide-react';
@@ -104,6 +105,52 @@ function DevelopmentIcon({ className = '' }) {
   );
 }
 
+function buildEvaluationKey(playerId, criterionId) {
+  return `${playerId}::${criterionId}`;
+}
+
+function ScoreSelector({ value, min = 1, max = 5, onChange }) {
+  const options = [];
+
+  for (let current = min; current <= max; current += 1) {
+    options.push(current);
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((score) => {
+        const selected = Number(value) === score;
+
+        return (
+          <button
+            key={score}
+            type="button"
+            onClick={() => onChange(score)}
+            className={`flex h-9 w-9 items-center justify-center rounded-full border text-sm font-bold transition ${
+              selected
+                ? 'border-cyan-500 bg-cyan-500 text-white shadow-md shadow-cyan-100'
+                : 'border-slate-200 bg-white text-slate-500 hover:border-cyan-300 hover:text-cyan-700'
+            }`}
+          >
+            {score}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function getInitials(name = '') {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+
 export default function EvaluationExecution() {
   const { t } = useLanguage();
   const permissions = usePermissions();
@@ -121,6 +168,14 @@ export default function EvaluationExecution() {
   const [selectedEventId, setSelectedEventId] = useState('none');
   const [periodLabel, setPeriodLabel] = useState('');
   const [selectedPlayerIds, setSelectedPlayerIds] = useState([]);
+
+  const [evaluationStarted, setEvaluationStarted] = useState(false);
+  const [activePlayerIndex, setActivePlayerIndex] = useState(0);
+  const [scores, setScores] = useState({});
+  const [criterionComments, setCriterionComments] = useState({});
+  const [generalComments, setGeneralComments] = useState({});
+  const [shareWithPlayer, setShareWithPlayer] = useState(false);
+  const [shareWithGuardian, setShareWithGuardian] = useState(false);
 
   const tr = (key, fallback) => {
     const value = t(key);
@@ -214,6 +269,41 @@ export default function EvaluationExecution() {
     return plans.filter((plan) => !plan.team_id || plan.team_id === selectedTeamId);
   }, [plans, selectedTeamId]);
 
+  const selectedPlayers = useMemo(() => {
+    return players.filter((player) => selectedPlayerIds.includes(player.id));
+  }, [players, selectedPlayerIds]);
+
+  const planCriteria = useMemo(() => {
+    return [...(selectedPlan?.criteria || [])].sort(
+      (a, b) => (a.order ?? 0) - (b.order ?? 0)
+    );
+  }, [selectedPlan]);
+
+  const activePlayer = selectedPlayers[activePlayerIndex] || null;
+  const totalCriteria = planCriteria.length;
+  const totalExpectedScores = selectedPlayers.length * totalCriteria;
+
+  const completedScores = useMemo(() => {
+    let count = 0;
+
+    selectedPlayers.forEach((player) => {
+      planCriteria.forEach((item) => {
+        const key = buildEvaluationKey(player.id, item.criterion_id);
+
+        if (scores[key] !== undefined && scores[key] !== null && scores[key] !== '') {
+          count += 1;
+        }
+      });
+    });
+
+    return count;
+  }, [selectedPlayers, planCriteria, scores]);
+
+  const overallProgress =
+    totalExpectedScores > 0
+      ? Math.round((completedScores / totalExpectedScores) * 100)
+      : 0;
+
   const canContinue = () => {
     const currentStep = STEPS[stepIndex]?.key;
 
@@ -261,10 +351,117 @@ export default function EvaluationExecution() {
       return;
     }
 
+    if (!selectedPlan || planCriteria.length === 0) {
+      toast.error(
+        tr(
+          'evaluations.planWithoutCriteria',
+          'O plano selecionado não tem critérios disponíveis'
+        )
+      );
+      return;
+    }
+
+    setEvaluationStarted(true);
+    setActivePlayerIndex(0);
+  };
+
+  const backToWizard = () => {
+    setEvaluationStarted(false);
+  };
+
+  const updateScore = (playerId, criterionId, value) => {
+    const key = buildEvaluationKey(playerId, criterionId);
+    setScores((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateCriterionComment = (playerId, criterionId, value) => {
+    const key = buildEvaluationKey(playerId, criterionId);
+    setCriterionComments((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const updateGeneralComment = (playerId, value) => {
+    setGeneralComments((prev) => ({ ...prev, [playerId]: value }));
+  };
+
+  const getPlayerCompletedCriteria = (playerId) => {
+    return planCriteria.reduce((count, item) => {
+      const key = buildEvaluationKey(playerId, item.criterion_id);
+
+      return scores[key] !== undefined && scores[key] !== null && scores[key] !== ''
+        ? count + 1
+        : count;
+    }, 0);
+  };
+
+  const getPlayerAverage = (playerId) => {
+    const values = planCriteria
+      .map((item) => {
+        const key = buildEvaluationKey(playerId, item.criterion_id);
+        return scores[key];
+      })
+      .filter((value) => value !== undefined && value !== null && value !== '')
+      .map(Number);
+
+    if (values.length === 0) return null;
+
+    return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
+  };
+
+  const goToPreviousPlayer = () => {
+    setActivePlayerIndex((current) => Math.max(current - 1, 0));
+  };
+
+  const goToNextPlayer = () => {
+    setActivePlayerIndex((current) =>
+      Math.min(current + 1, selectedPlayers.length - 1)
+    );
+  };
+
+  const buildPayloadPreview = () => ({
+    plan_id: selectedPlanId,
+    team_id: selectedTeamId,
+    event_id: selectedEventId === 'none' ? null : selectedEventId,
+    period_label: periodLabel || null,
+    visibility: 'coach_only',
+    evaluations: selectedPlayers.map((player) => ({
+      player_id: player.id,
+      share_with_player: shareWithPlayer,
+      share_with_guardian: shareWithGuardian,
+      general_comment: generalComments[player.id] || null,
+      scores: planCriteria
+        .map((item) => {
+          const key = buildEvaluationKey(player.id, item.criterion_id);
+
+          return {
+            criterion_id: item.criterion_id,
+            score: scores[key],
+            comment: criterionComments[key] || null,
+          };
+        })
+        .filter(
+          (item) =>
+            item.score !== undefined && item.score !== null && item.score !== ''
+        ),
+    })),
+  });
+
+  const prepareSave = () => {
+    if (completedScores < totalExpectedScores) {
+      toast.error(
+        tr(
+          'evaluations.completeAllScores',
+          'Preenche todas as pontuações antes de guardar'
+        )
+      );
+      return;
+    }
+
+    console.log('Evaluation payload preview:', buildPayloadPreview());
+
     toast.info(
       tr(
-        'evaluations.gridNextSprint',
-        'Grelha de avaliação será ativada no próximo sprint.'
+        'evaluations.saveNextSprint',
+        'Guardar no backend será ativado no próximo sprint.'
       )
     );
   };
@@ -289,6 +486,347 @@ export default function EvaluationExecution() {
     return `${event.title || tr('calendar.event', 'Evento')} ${date ? `· ${date}` : ''} ${hour ? `· ${hour}` : ''}`;
   };
 
+  const renderEvaluationGrid = () => {
+    if (!activePlayer) return null;
+
+    const playerAverage = getPlayerAverage(activePlayer.id);
+    const playerCompleted = getPlayerCompletedCriteria(activePlayer.id);
+
+    return (
+      <div className="space-y-5">
+        <Card className="overflow-hidden border border-cyan-100 bg-white shadow-xl shadow-slate-200/60">
+          <div className="bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-5 text-white">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+              <div>
+                <Badge className="mb-3 border border-white/15 bg-white/10 text-white">
+                  <Dumbbell className="mr-1.5 h-3.5 w-3.5" />
+                  {tr('evaluations.evaluationGrid', 'Grelha de Avaliação')}
+                </Badge>
+
+                <h2 className="font-heading text-3xl tracking-tight">
+                  {selectedPlan?.name || tr('evaluations.plan', 'Plano')}
+                </h2>
+
+                <p className="mt-1 text-sm text-cyan-50/75">
+                  {selectedTeam?.name || '-'} · {selectedPlayers.length}{' '}
+                  {tr('evaluations.players', 'atletas')} · {totalCriteria}{' '}
+                  {tr('evaluations.criteria', 'critérios')}
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-white/15 bg-white/10 p-4 backdrop-blur lg:min-w-[260px]">
+                <div className="mb-2 flex items-center justify-between text-xs">
+                  <span>{tr('evaluations.globalProgress', 'Progresso global')}</span>
+                  <span className="font-bold">{overallProgress}%</span>
+                </div>
+
+                <div className="h-2 overflow-hidden rounded-full bg-white/10">
+                  <div
+                    className="h-full rounded-full bg-cyan-400 transition-all"
+                    style={{ width: `${overallProgress}%` }}
+                  />
+                </div>
+
+                <p className="mt-2 text-xs text-cyan-50/70">
+                  {completedScores}/{totalExpectedScores}{' '}
+                  {tr('evaluations.scoresCompleted', 'pontuações preenchidas')}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <CardContent className="p-4 sm:p-5">
+            <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
+              <aside className="space-y-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full rounded-full"
+                  onClick={backToWizard}
+                >
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  {tr('evaluations.backToSetup', 'Voltar à preparação')}
+                </Button>
+
+                <Card className="border border-slate-200 bg-slate-50">
+                  <CardContent className="p-3">
+                    <p className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">
+                      {tr('evaluations.players', 'Atletas')}
+                    </p>
+
+                    <div className="space-y-2">
+                      {selectedPlayers.map((player, index) => {
+                        const completed = getPlayerCompletedCriteria(player.id);
+                        const isActive = index === activePlayerIndex;
+                        const average = getPlayerAverage(player.id);
+
+                        return (
+                          <button
+                            key={player.id}
+                            type="button"
+                            onClick={() => setActivePlayerIndex(index)}
+                            className={`w-full rounded-2xl border p-3 text-left transition ${
+                              isActive
+                                ? 'border-cyan-300 bg-cyan-50 ring-2 ring-cyan-100'
+                                : 'border-slate-200 bg-white hover:border-cyan-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-slate-100 text-xs font-bold text-slate-700">
+                                {getInitials(player.name || '?')}
+                              </div>
+
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-semibold text-slate-950">
+                                  {player.name}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {completed}/{totalCriteria}{' '}
+                                  {tr('evaluations.criteria', 'critérios')}
+                                  {average ? ` · ${average}` : ''}
+                                </p>
+                              </div>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </aside>
+
+              <main className="space-y-4">
+                <Card className="border border-slate-200">
+                  <CardContent className="p-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-cyan-50 text-lg font-bold text-cyan-700">
+                          {getInitials(activePlayer.name || '?')}
+                        </div>
+
+                        <div>
+                          <h3 className="font-heading text-2xl text-slate-950">
+                            {activePlayer.name}
+                          </h3>
+                          <p className="text-sm text-slate-500">
+                            {activePlayer.position || tr('roles.player', 'Atleta')}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="min-w-[220px]">
+                        <div className="mb-1 flex items-center justify-between text-xs">
+                          <span className="font-semibold text-slate-500">
+                            {tr('evaluations.progress', 'Progresso')}
+                          </span>
+                          <span className="font-bold text-slate-700">
+                            {totalCriteria > 0
+                              ? Math.round((playerCompleted / totalCriteria) * 100)
+                              : 0}
+                            %
+                          </span>
+                        </div>
+
+                        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-cyan-500 transition-all duration-300"
+                            style={{
+                              width: `${
+                                totalCriteria > 0
+                                  ? Math.round((playerCompleted / totalCriteria) * 100)
+                                  : 0
+                              }%`,
+                            }}
+                          />
+                        </div>
+
+                        {playerAverage && (
+                          <p className="mt-2 text-right text-sm text-slate-500">
+                            {tr('evaluations.average', 'Média')}: {playerAverage}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-3">
+                  {planCriteria.map((planItem) => {
+                    const criterion = planItem.criterion || {};
+                    const criterionId = planItem.criterion_id;
+                    const key = buildEvaluationKey(activePlayer.id, criterionId);
+                    const min = criterion.scale_min || 1;
+                    const max = criterion.scale_max || 5;
+
+                    return (
+                      <Card key={criterionId} className="border border-slate-200">
+                        <CardContent className="p-4">
+                          <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-start">
+                            <div>
+                              <div className="mb-2 flex flex-wrap items-center gap-2">
+                                <h4 className="font-semibold text-slate-950">
+                                  {criterion.name || criterionId}
+                                </h4>
+
+                                {planItem.required !== false && (
+                                  <Badge
+                                    variant="outline"
+                                    className="rounded-full border-cyan-100 bg-cyan-50 text-cyan-700"
+                                  >
+                                    {tr('evaluations.required', 'Obrigatório')}
+                                  </Badge>
+                                )}
+
+                                <Badge variant="outline" className="rounded-full">
+                                  {min}–{max}
+                                </Badge>
+
+                                {planItem.weight && (
+                                  <Badge variant="outline" className="rounded-full">
+                                    {tr('evaluations.weight', 'Peso')}: {planItem.weight}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {criterion.description && (
+                                <p className="text-sm leading-6 text-slate-500">
+                                  {criterion.description}
+                                </p>
+                              )}
+                            </div>
+
+                            <ScoreSelector
+                              value={scores[key]}
+                              min={min}
+                              max={max}
+                              onChange={(value) =>
+                                updateScore(activePlayer.id, criterionId, value)
+                              }
+                            />
+                          </div>
+
+                          <div className="mt-3">
+                            <Textarea
+                              value={criterionComments[key] || ''}
+                              onChange={(event) =>
+                                updateCriterionComment(
+                                  activePlayer.id,
+                                  criterionId,
+                                  event.target.value
+                                )
+                              }
+                              placeholder={tr(
+                                'evaluations.criterionCommentPlaceholder',
+                                'Comentário opcional sobre este critério'
+                              )}
+                              className="min-h-[76px] rounded-2xl"
+                            />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                <Card className="border border-slate-200">
+                  <CardContent className="p-4">
+                    <Label>
+                      {tr('evaluations.generalComment', 'Comentário geral')}
+                    </Label>
+                    <Textarea
+                      value={generalComments[activePlayer.id] || ''}
+                      onChange={(event) =>
+                        updateGeneralComment(activePlayer.id, event.target.value)
+                      }
+                      placeholder={tr(
+                        'evaluations.generalCommentPlaceholder',
+                        'Resumo qualitativo da avaliação do atleta'
+                      )}
+                      className="mt-2 min-h-[100px] rounded-2xl"
+                    />
+                  </CardContent>
+                </Card>
+
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={goToPreviousPlayer}
+                    disabled={activePlayerIndex === 0}
+                  >
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    {tr('common.previous', 'Anterior')}
+                  </Button>
+
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="rounded-full"
+                      onClick={goToNextPlayer}
+                      disabled={activePlayerIndex === selectedPlayers.length - 1}
+                    >
+                      {tr('common.next', 'Seguinte')}
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+
+                    <Button
+                      type="button"
+                      className="rounded-full bg-cyan-600 hover:bg-cyan-700"
+                      onClick={prepareSave}
+                    >
+                      <Save className="mr-2 h-4 w-4" />
+                      {tr('evaluations.prepareSave', 'Preparar gravação')}
+                    </Button>
+                  </div>
+                </div>
+              </main>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border border-slate-200 bg-slate-50">
+          <CardContent className="p-4">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="font-semibold text-slate-950">
+                  {tr('evaluations.sharingOptions', 'Opções de partilha')}
+                </p>
+                <p className="text-sm text-slate-500">
+                  {tr(
+                    'evaluations.sharingOptionsHelp',
+                    'Estas opções serão enviadas no payload das avaliações.'
+                  )}
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                  <Checkbox
+                    checked={shareWithPlayer}
+                    onCheckedChange={(checked) => setShareWithPlayer(Boolean(checked))}
+                  />
+                  {tr('evaluations.shareWithPlayer', 'Partilhar com atleta')}
+                </label>
+
+                <label className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm">
+                  <Checkbox
+                    checked={shareWithGuardian}
+                    onCheckedChange={(checked) =>
+                      setShareWithGuardian(Boolean(checked))
+                    }
+                  />
+                  {tr('evaluations.shareWithGuardian', 'Partilhar com responsável')}
+                </label>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   if (!canEvaluate) {
     return (
       <div className="space-y-4 pb-20 lg:pb-0">
@@ -307,6 +845,52 @@ export default function EvaluationExecution() {
     return (
       <div className="flex min-h-[420px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
+      </div>
+    );
+  }
+
+  if (evaluationStarted) {
+    return (
+      <div
+        className="space-y-5 pb-20 pt-1 lg:-mt-12 lg:pb-0"
+        data-testid="evaluation-execution-page"
+      >
+        <section className="overflow-hidden rounded-[1.75rem] border border-cyan-100 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <Badge className="mb-3 border border-white/15 bg-white/10 text-white">
+                <DevelopmentIcon className="mr-1.5 h-4 w-4" />
+                {tr('developmentCenter.title', 'Centro de Desenvolvimento')}
+              </Badge>
+
+              <h1 className="font-heading text-3xl tracking-tight sm:text-5xl">
+                {tr('evaluations.evaluationGrid', 'Grelha de Avaliação')}
+              </h1>
+
+              <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
+                {tr(
+                  'evaluations.gridSubtitle',
+                  'Avalia cada atleta com base nos critérios do plano selecionado.'
+                )}
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                asChild
+                variant="outline"
+                className="rounded-full border-white/20 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+              >
+                <Link to="/evaluation-plans">
+                  <ClipboardCheck className="mr-2 h-4 w-4" />
+                  {tr('evaluations.plansTitle', 'Planos de Avaliação')}
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {renderEvaluationGrid()}
       </div>
     );
   }
