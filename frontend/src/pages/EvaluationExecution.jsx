@@ -25,6 +25,7 @@ import {
   Loader2,
   Save,
   Sparkles,
+  Trophy,
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -176,6 +177,8 @@ export default function EvaluationExecution() {
   const [generalComments, setGeneralComments] = useState({});
   const [shareWithPlayer, setShareWithPlayer] = useState(false);
   const [shareWithGuardian, setShareWithGuardian] = useState(false);
+  const [savingEvaluations, setSavingEvaluations] = useState(false);
+  const [saveResult, setSaveResult] = useState(null);
 
   const tr = (key, fallback) => {
     const value = t(key);
@@ -370,6 +373,8 @@ export default function EvaluationExecution() {
   };
 
   const updateScore = (playerId, criterionId, value) => {
+
+
     const key = buildEvaluationKey(playerId, criterionId);
     setScores((prev) => ({ ...prev, [key]: value }));
   };
@@ -445,7 +450,44 @@ export default function EvaluationExecution() {
     })),
   });
 
-  const prepareSave = () => {
+  const resetEvaluationFlow = () => {
+    setStepIndex(0);
+    setSelectedPlanId('');
+    setSelectedTeamId('');
+    setSelectedEventId('none');
+    setPeriodLabel('');
+    setSelectedPlayerIds([]);
+    setEvaluationStarted(false);
+    setActivePlayerIndex(0);
+    setScores({});
+    setCriterionComments({});
+    setGeneralComments({});
+    setShareWithPlayer(false);
+    setShareWithGuardian(false);
+    setSaveResult(null);
+  };
+
+  const startNewEvaluation = () => {
+    resetEvaluationFlow();
+    fetchInitialData();
+  };
+
+  const validateBeforeSave = () => {
+    if (!selectedPlanId || !selectedTeamId || selectedPlayerIds.length === 0) {
+      toast.error(tr('evaluations.executionMissingData', 'Seleciona plano, equipa e atletas'));
+      return false;
+    }
+
+    if (!selectedPlan || planCriteria.length === 0) {
+      toast.error(
+        tr(
+          'evaluations.planWithoutCriteria',
+          'O plano selecionado não tem critérios disponíveis'
+        )
+      );
+      return false;
+    }
+
     if (completedScores < totalExpectedScores) {
       toast.error(
         tr(
@@ -453,17 +495,49 @@ export default function EvaluationExecution() {
           'Preenche todas as pontuações antes de guardar'
         )
       );
-      return;
+      return false;
     }
 
-    console.log('Evaluation payload preview:', buildPayloadPreview());
+    return true;
+  };
 
-    toast.info(
-      tr(
-        'evaluations.saveNextSprint',
-        'Guardar no backend será ativado no próximo sprint.'
-      )
-    );
+  const prepareSave = async () => {
+    if (!validateBeforeSave()) return;
+
+    const payload = buildPayloadPreview();
+    setSavingEvaluations(true);
+
+    try {
+      const result = await apiRequest('/evaluations/from-plan', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      const numericScores = Object.values(scores)
+        .filter((value) => value !== undefined && value !== null && value !== '')
+        .map(Number);
+
+      setSaveResult({
+        ...result,
+        planName: selectedPlan?.name,
+        teamName: selectedTeam?.name,
+        eventName: selectedEvent?.title,
+        playersCount: selectedPlayers.length,
+        criteriaCount: planCriteria.length,
+        averageScore:
+          numericScores.length > 0
+            ? (numericScores.reduce((sum, value) => sum + value, 0) / numericScores.length).toFixed(1)
+            : null,
+      });
+
+      setEvaluationStarted(false);
+      toast.success(tr('evaluations.savedSuccessfully', 'Avaliações guardadas com sucesso'));
+    } catch (error) {
+      console.error('Error saving evaluations:', error);
+      toast.error(error.message || tr('evaluations.saveError', 'Erro ao guardar avaliações'));
+    } finally {
+      setSavingEvaluations(false);
+    }
   };
 
   const formatEventLabel = (event) => {
@@ -775,9 +849,16 @@ export default function EvaluationExecution() {
                       type="button"
                       className="rounded-full bg-cyan-600 hover:bg-cyan-700"
                       onClick={prepareSave}
+                      disabled={savingEvaluations}
                     >
-                      <Save className="mr-2 h-4 w-4" />
-                      {tr('evaluations.prepareSave', 'Preparar gravação')}
+                      {savingEvaluations ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Save className="mr-2 h-4 w-4" />
+                      )}
+                      {savingEvaluations
+                        ? tr('evaluations.saving', 'A guardar...')
+                        : tr('evaluations.saveEvaluations', 'Guardar avaliações')}
                     </Button>
                   </div>
                 </div>
@@ -827,6 +908,108 @@ export default function EvaluationExecution() {
     );
   };
 
+
+  const renderSuccessScreen = () => {
+    if (!saveResult) return null;
+
+    return (
+      <div className="space-y-5">
+        <Card className="overflow-hidden border border-emerald-100 bg-white shadow-xl shadow-slate-200/60">
+          <div className="bg-gradient-to-br from-emerald-600 via-cyan-600 to-slate-900 p-6 text-white">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+              <div>
+                <Badge className="mb-3 border border-white/15 bg-white/10 text-white">
+                  <CheckCircle className="mr-1.5 h-3.5 w-3.5" />
+                  {tr('evaluations.savedSuccessfully', 'Avaliações guardadas com sucesso')}
+                </Badge>
+
+                <h2 className="font-heading text-3xl tracking-tight sm:text-5xl">
+                  {tr('evaluations.evaluationCompleted', 'Avaliação concluída')}
+                </h2>
+
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-emerald-50/90 sm:text-base">
+                  {tr(
+                    'evaluations.evaluationCompletedHelp',
+                    'As avaliações foram guardadas e já podem ser usadas no acompanhamento da evolução dos atletas.'
+                  )}
+                </p>
+              </div>
+
+              <div className="flex h-20 w-20 items-center justify-center rounded-[2rem] border border-white/20 bg-white/10">
+                <Trophy className="h-10 w-10" />
+              </div>
+            </div>
+          </div>
+
+          <CardContent className="p-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  {tr('evaluations.plan', 'Plano')}
+                </p>
+                <p className="mt-2 font-heading text-xl text-slate-950">
+                  {saveResult.planName || '-'}
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  {tr('common.team', 'Equipa')}
+                </p>
+                <p className="mt-2 font-heading text-xl text-slate-950">
+                  {saveResult.teamName || '-'}
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  {tr('evaluations.createdEvaluations', 'Avaliações criadas')}
+                </p>
+                <p className="mt-2 font-heading text-4xl text-slate-950">
+                  {saveResult.created_count ?? saveResult.playersCount ?? 0}
+                </p>
+              </div>
+
+              <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  {tr('evaluations.average', 'Média')}
+                </p>
+                <p className="mt-2 font-heading text-4xl text-slate-950">
+                  {saveResult.averageScore || '-'}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <Button
+                type="button"
+                className="rounded-full bg-cyan-600 hover:bg-cyan-700"
+                onClick={startNewEvaluation}
+              >
+                <Sparkles className="mr-2 h-4 w-4" />
+                {tr('evaluations.newEvaluation', 'Nova Avaliação')}
+              </Button>
+
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/evaluation-plans">
+                  <ClipboardCheck className="mr-2 h-4 w-4" />
+                  {tr('evaluations.plansTitle', 'Planos de Avaliação')}
+                </Link>
+              </Button>
+
+              <Button asChild variant="outline" className="rounded-full">
+                <Link to="/evaluation-criteria">
+                  <Dumbbell className="mr-2 h-4 w-4" />
+                  {tr('evaluations.criteriaTitle', 'Critérios de Avaliação')}
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  };
+
   if (!canEvaluate) {
     return (
       <div className="space-y-4 pb-20 lg:pb-0">
@@ -845,6 +1028,32 @@ export default function EvaluationExecution() {
     return (
       <div className="flex min-h-[420px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
+      </div>
+    );
+  }
+
+  if (saveResult) {
+    return (
+      <div
+        className="space-y-5 pb-20 pt-1 lg:-mt-12 lg:pb-0"
+        data-testid="evaluation-execution-page"
+      >
+        <section className="overflow-hidden rounded-[1.75rem] border border-cyan-100 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-6">
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+            <div className="max-w-3xl">
+              <Badge className="mb-3 border border-white/15 bg-white/10 text-white">
+                <DevelopmentIcon className="mr-1.5 h-4 w-4" />
+                {tr('developmentCenter.title', 'Centro de Desenvolvimento')}
+              </Badge>
+
+              <h1 className="font-heading text-3xl tracking-tight sm:text-5xl">
+                {tr('evaluations.evaluationCompleted', 'Avaliação concluída')}
+              </h1>
+            </div>
+          </div>
+        </section>
+
+        {renderSuccessScreen()}
       </div>
     );
   }
