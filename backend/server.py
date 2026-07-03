@@ -995,6 +995,62 @@ class PlayerEvaluationUpdate(BaseModel):
     share_with_guardian: Optional[bool] = None
 
 
+# Evaluation Plan Models — Sprint 4.2.3.1
+EvaluationPlanCategory = Literal[
+    "training",
+    "match",
+    "goalkeeper",
+    "technical",
+    "tactical",
+    "physical",
+    "custom"
+]
+
+
+class EvaluationPlanCriterion(BaseModel):
+    criterion_id: str
+    weight: float = 1.0
+    required: bool = True
+    order: int = 0
+
+
+class EvaluationPlanCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    category: EvaluationPlanCategory = "training"
+    team_id: Optional[str] = None
+    criteria: List[EvaluationPlanCriterion] = []
+    estimated_minutes: Optional[int] = None
+    is_active: bool = True
+
+
+class EvaluationPlan(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    name: str
+    description: Optional[str] = None
+    category: EvaluationPlanCategory = "training"
+    team_id: Optional[str] = None
+    club_id: Optional[str] = None
+    criteria: List[dict] = []
+    estimated_minutes: Optional[int] = None
+    is_active: bool = True
+    created_by: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class EvaluationPlanUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[EvaluationPlanCategory] = None
+    team_id: Optional[str] = None
+    criteria: Optional[List[EvaluationPlanCriterion]] = None
+    estimated_minutes: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
 # Unavailability Models
 UnavailabilityReason = Literal["ferias", "doenca", "escola", "outro"]
 
@@ -10624,6 +10680,234 @@ async def delete_player_evaluation(
     await db.player_evaluations.delete_one({"id": evaluation_id})
 
     return {"message": "Avaliação eliminada"}
+
+
+
+
+# ==================== EVALUATION PLAN ROUTES — Sprint 4.2.3.1 ====================
+
+async def validate_evaluation_plan_access(current_user: dict, team_id: Optional[str] = None, *, write: bool = False):
+    checker = get_permission_checker(current_user)
+
+    if write and not checker.is_staff and not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Sem permissão para gerir planos de avaliação")
+
+    if team_id and not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+
+    return checker
+
+
+async def validate_evaluation_plan_criteria(criteria: List[EvaluationPlanCriterion], team_id: Optional[str], checker) -> List[dict]:
+    if not criteria:
+        raise HTTPException(status_code=400, detail="O plano deve incluir pelo menos um critério")
+
+    criterion_ids = [item.criterion_id for item in criteria]
+    if len(criterion_ids) != len(set(criterion_ids)):
+        raise HTTPException(status_code=400, detail="O plano contém critérios repetidos")
+
+    criteria_docs = await db.evaluation_criteria.find(
+        {"id": {"$in": criterion_ids}, "is_active": {"$ne": False}},
+        {"_id": 0}
+    ).to_list(500)
+
+    found_ids = {criterion["id"] for criterion in criteria_docs}
+    missing_ids = [criterion_id for criterion_id in criterion_ids if criterion_id not in found_ids]
+    if missing_ids:
+        raise HTTPException(status_code=400, detail=f"Critérios inválidos ou arquivados: {', '.join(missing_ids)}")
+
+    for criterion in criteria_docs:
+        criterion_team_id = criterion.get("team_id")
+        if criterion_team_id and team_id and criterion_team_id != team_id:
+            raise HTTPException(status_code=400, detail=f"O critério '{criterion.get('name')}' pertence a outra equipa")
+        if criterion_team_id and not team_id:
+            raise HTTPException(status_code=400, detail=f"O critério '{criterion.get('name')}' é específico de uma equipa")
+        if criterion_team_id and not checker.is_admin and not checker.can_access_team(criterion_team_id):
+            raise HTTPException(status_code=403, detail=f"Sem acesso ao critério '{criterion.get('name')}'")
+
+    criteria_dicts = []
+    for index, item in enumerate(criteria):
+        item_dict = item.model_dump()
+        item_dict["order"] = item_dict.get("order", index)
+        item_dict["weight"] = float(item_dict.get("weight", 1.0) or 1.0)
+        item_dict["required"] = bool(item_dict.get("required", True))
+        criteria_dicts.append(item_dict)
+
+    return criteria_dicts
+
+
+async def enrich_evaluation_plan(plan: dict) -> dict:
+    if not plan:
+        return plan
+
+    criterion_ids = [item.get("criterion_id") for item in plan.get("criteria", []) if item.get("criterion_id")]
+    criteria_docs = []
+    if criterion_ids:
+        criteria_docs = await db.evaluation_criteria.find({"id": {"$in": criterion_ids}}, {"_id": 0}).to_list(500)
+
+    criteria_map = {criterion["id"]: criterion for criterion in criteria_docs}
+    enriched_criteria = []
+    total_weight = 0.0
+
+    for item in sorted(plan.get("criteria", []), key=lambda value: value.get("order", 0)):
+        weight = float(item.get("weight", 1.0) or 1.0)
+        total_weight += weight
+        enriched_criteria.append({**item, "criterion": criteria_map.get(item.get("criterion_id"))})
+
+    plan["criteria"] = enriched_criteria
+    plan["criteria_count"] = len(enriched_criteria)
+    plan["total_weight"] = round(total_weight, 2)
+    return plan
+
+
+@api_router.post("/evaluations/plans")
+async def create_evaluation_plan(plan_data: EvaluationPlanCreate, current_user: dict = Depends(get_current_user)):
+    checker = await validate_evaluation_plan_access(current_user, plan_data.team_id, write=True)
+
+    if not plan_data.name.strip():
+        raise HTTPException(status_code=400, detail="Indica o nome do plano")
+
+    criteria_dicts = await validate_evaluation_plan_criteria(plan_data.criteria, plan_data.team_id, checker)
+
+    plan = EvaluationPlan(
+        name=plan_data.name.strip(),
+        description=plan_data.description.strip() if plan_data.description else None,
+        category=plan_data.category,
+        team_id=plan_data.team_id,
+        club_id=current_user.get("club_id"),
+        criteria=criteria_dicts,
+        estimated_minutes=plan_data.estimated_minutes,
+        is_active=plan_data.is_active,
+        created_by=current_user["id"]
+    )
+
+    plan_dict = plan.model_dump()
+    plan_dict["created_at"] = plan_dict["created_at"].isoformat()
+    plan_dict["updated_at"] = plan_dict["updated_at"].isoformat()
+
+    await db.evaluation_plans.insert_one(plan_dict)
+    return await enrich_evaluation_plan(plan_dict)
+
+
+@api_router.get("/evaluations/plans")
+async def get_evaluation_plans(
+    team_id: Optional[str] = None,
+    category: Optional[str] = None,
+    include_inactive: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = await validate_evaluation_plan_access(current_user, team_id)
+
+    query: Dict[str, Any] = {}
+
+    if not include_inactive:
+        query["is_active"] = {"$ne": False}
+
+    if category and category != "all":
+        query["category"] = category
+
+    if team_id:
+        query["$or"] = [{"team_id": team_id}, {"team_id": None}, {"team_id": {"$exists": False}}]
+    elif not checker.is_admin:
+        accessible_team_ids = list(checker.team_ids)
+        query["$or"] = [
+            {"team_id": {"$in": accessible_team_ids}},
+            {"team_id": None},
+            {"team_id": {"$exists": False}},
+        ]
+
+    plans = await db.evaluation_plans.find(query, {"_id": 0}).sort("category", 1).sort("name", 1).to_list(500)
+    return [await enrich_evaluation_plan(plan) for plan in plans]
+
+
+@api_router.get("/evaluations/plans/{plan_id}")
+async def get_evaluation_plan(plan_id: str, current_user: dict = Depends(get_current_user)):
+    plan = await db.evaluation_plans.find_one({"id": plan_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+
+    await validate_evaluation_plan_access(current_user, plan.get("team_id"))
+    return await enrich_evaluation_plan(plan)
+
+
+@api_router.put("/evaluations/plans/{plan_id}")
+async def update_evaluation_plan(
+    plan_id: str,
+    updates: EvaluationPlanUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    plan = await db.evaluation_plans.find_one({"id": plan_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+
+    next_team_id = updates.team_id if updates.team_id is not None else plan.get("team_id")
+    await validate_evaluation_plan_access(current_user, next_team_id, write=True)
+
+    if not checker.is_admin:
+        if plan.get("created_by") != current_user.get("id") and not checker.can_access_team(plan.get("team_id")):
+            raise HTTPException(status_code=403, detail="Sem permissão para editar este plano")
+
+    update_data = updates.model_dump(exclude_unset=True)
+
+    if "name" in update_data:
+        if not update_data["name"].strip():
+            raise HTTPException(status_code=400, detail="Indica o nome do plano")
+        update_data["name"] = update_data["name"].strip()
+
+    if "description" in update_data and update_data["description"]:
+        update_data["description"] = update_data["description"].strip()
+
+    if "criteria" in update_data and update_data["criteria"] is not None:
+        update_data["criteria"] = await validate_evaluation_plan_criteria(update_data["criteria"], next_team_id, checker)
+
+    if update_data:
+        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
+        await db.evaluation_plans.update_one({"id": plan_id}, {"$set": update_data})
+
+    updated = await db.evaluation_plans.find_one({"id": plan_id}, {"_id": 0})
+    return await enrich_evaluation_plan(updated)
+
+
+@api_router.post("/evaluations/plans/{plan_id}/duplicate")
+async def duplicate_evaluation_plan(plan_id: str, current_user: dict = Depends(get_current_user)):
+    plan = await db.evaluation_plans.find_one({"id": plan_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+
+    await validate_evaluation_plan_access(current_user, plan.get("team_id"), write=True)
+
+    duplicated = dict(plan)
+    duplicated["id"] = str(uuid.uuid4())
+    duplicated["name"] = f"{plan.get('name', 'Plano')} (cópia)"
+    duplicated["created_by"] = current_user["id"]
+    duplicated["created_at"] = datetime.now(timezone.utc).isoformat()
+    duplicated["updated_at"] = datetime.now(timezone.utc).isoformat()
+    duplicated["is_active"] = True
+
+    await db.evaluation_plans.insert_one(duplicated)
+    return await enrich_evaluation_plan(duplicated)
+
+
+@api_router.delete("/evaluations/plans/{plan_id}")
+async def archive_evaluation_plan(plan_id: str, current_user: dict = Depends(get_current_user)):
+    checker = get_permission_checker(current_user)
+
+    plan = await db.evaluation_plans.find_one({"id": plan_id}, {"_id": 0})
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plano não encontrado")
+
+    if not checker.is_admin:
+        if plan.get("created_by") != current_user.get("id") and not checker.can_access_team(plan.get("team_id")):
+            raise HTTPException(status_code=403, detail="Sem permissão para arquivar este plano")
+
+    await db.evaluation_plans.update_one(
+        {"id": plan_id},
+        {"$set": {"is_active": False, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+
+    return {"message": "Plano arquivado"}
 
 
 
