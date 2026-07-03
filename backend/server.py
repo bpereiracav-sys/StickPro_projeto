@@ -10595,46 +10595,6 @@ async def get_player_evaluations(
 
     return visible
 
-
-@api_router.get("/evaluations/{evaluation_id}")
-async def get_player_evaluation(
-    evaluation_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    evaluation = await db.player_evaluations.find_one({"id": evaluation_id}, {"_id": 0})
-    if not evaluation:
-        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
-
-    if not can_view_player_evaluations(
-        current_user,
-        evaluation.get("player_id"),
-        evaluation.get("team_id"),
-        evaluation
-    ):
-        raise HTTPException(status_code=403, detail="Sem permissão para ver esta avaliação")
-
-    criterion_ids = [item.get("criterion_id") for item in evaluation.get("scores", []) if item.get("criterion_id")]
-    criteria = []
-    if criterion_ids:
-        criteria = await db.evaluation_criteria.find(
-            {"id": {"$in": criterion_ids}},
-            {"_id": 0}
-        ).to_list(500)
-
-    criteria_map = {criterion["id"]: criterion for criterion in criteria}
-
-    enriched_scores = []
-    for item in evaluation.get("scores", []):
-        criterion = criteria_map.get(item.get("criterion_id"))
-        enriched_scores.append({
-            **item,
-            "criterion": criterion
-        })
-
-    evaluation["scores"] = enriched_scores
-    return evaluation
-
-
 @api_router.put("/evaluations/{evaluation_id}")
 async def update_player_evaluation(
     evaluation_id: str,
@@ -11177,6 +11137,43 @@ async def get_team_evaluation_summary(
         "items": result,
     }
 
+@api_router.get("/evaluations/{evaluation_id}")
+async def get_player_evaluation(
+    evaluation_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    evaluation = await db.player_evaluations.find_one({"id": evaluation_id}, {"_id": 0})
+    if not evaluation:
+        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
+
+    if not can_view_player_evaluations(
+        current_user,
+        evaluation.get("player_id"),
+        evaluation.get("team_id"),
+        evaluation
+    ):
+        raise HTTPException(status_code=403, detail="Sem permissão para ver esta avaliação")
+
+    criterion_ids = [item.get("criterion_id") for item in evaluation.get("scores", []) if item.get("criterion_id")]
+    criteria = []
+    if criterion_ids:
+        criteria = await db.evaluation_criteria.find(
+            {"id": {"$in": criterion_ids}},
+            {"_id": 0}
+        ).to_list(500)
+
+    criteria_map = {criterion["id"]: criterion for criterion in criteria}
+
+    enriched_scores = []
+    for item in evaluation.get("scores", []):
+        criterion = criteria_map.get(item.get("criterion_id"))
+        enriched_scores.append({
+            **item,
+            "criterion": criterion
+        })
+
+    evaluation["scores"] = enriched_scores
+    return evaluation
 
 
 # ==================== UNAVAILABILITY ROUTES ====================
