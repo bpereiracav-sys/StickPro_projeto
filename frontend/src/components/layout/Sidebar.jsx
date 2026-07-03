@@ -30,6 +30,7 @@ import {
   BookOpen,
   Building2,
   CreditCard,
+  Sparkles,
   Award,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
@@ -239,6 +240,16 @@ export function Sidebar() {
             href: '/evaluation-plans',
             label: tr('nav.evaluationPlans', 'Planos de Avaliação'),
             icon: ClipboardCheck,
+            visible:
+              permissions.isAdmin ||
+              permissions.isStaff ||
+              permissions.canManageTeam ||
+              permissions.hasPermission?.('view_team_members'),
+          },
+          {
+            href: '/evaluations/new',
+            label: tr('nav.newEvaluation', 'Nova Avaliação'),
+            icon: Sparkles,
             visible:
               permissions.isAdmin ||
               permissions.isStaff ||
