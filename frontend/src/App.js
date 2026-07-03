@@ -37,6 +37,7 @@ import Championships from "./pages/Championships";
 import ChampionshipDetail from "./pages/ChampionshipDetail";
 import MatchStats from "./pages/MatchStats";
 import Attendance from "./pages/Attendance";
+import EvaluationCriteria from "./pages/EvaluationCriteria";
 import ClubPage from "./pages/ClubPage";
 import ProfilePage from "./pages/ProfilePage";
 import MemberProfilePage from "./pages/MemberProfilePage";
@@ -383,6 +384,20 @@ function AppRoutes() {
           <ProtectedRoute>
             <Stats />
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/evaluation-criteria"
+        element={
+          <PermissionRoute
+            allowedRoles={[
+              "admin",
+              "gestor_desportivo",
+              "treinador",
+            ]}
+          >
+            <EvaluationCriteria />
+          </PermissionRoute>
         }
       />
 
