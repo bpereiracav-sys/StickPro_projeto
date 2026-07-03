@@ -1051,6 +1051,31 @@ class EvaluationPlanUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
+
+# Evaluation Execution Models — Sprint 4.2.4.1
+class EvaluationFromPlanScore(BaseModel):
+    criterion_id: str
+    score: float
+    comment: Optional[str] = None
+
+
+class PlayerEvaluationFromPlanItem(BaseModel):
+    player_id: str
+    scores: List[EvaluationFromPlanScore] = []
+    general_comment: Optional[str] = None
+    share_with_player: bool = False
+    share_with_guardian: bool = False
+
+
+class BulkEvaluationFromPlanCreate(BaseModel):
+    plan_id: str
+    team_id: str
+    event_id: Optional[str] = None
+    period_label: Optional[str] = None
+    visibility: EvaluationVisibility = "coach_only"
+    evaluations: List[PlayerEvaluationFromPlanItem] = []
+
+
 # Unavailability Models
 UnavailabilityReason = Literal["ferias", "doenca", "escola", "outro"]
 
@@ -10908,6 +10933,249 @@ async def archive_evaluation_plan(plan_id: str, current_user: dict = Depends(get
     )
 
     return {"message": "Plano arquivado"}
+
+
+
+
+# ==================== EVALUATION EXECUTION ROUTES — Sprint 4.2.4.1 ====================
+
+async def get_team_players_for_evaluation(team_id: str, current_user: dict) -> List[dict]:
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+
+    players = await db.users.find(
+        {
+            "team_ids": team_id,
+            "role": {"$in": ["jogador", "atleta", "player"]}
+        },
+        {
+            "_id": 0,
+            "hashed_password": 0,
+            "password": 0,
+            "reset_token": 0,
+            "reset_token_expires": 0,
+        }
+    ).sort("name", 1).to_list(1000)
+
+    return players
+
+
+def normalize_plan_scores_for_player(
+    scores: List[EvaluationFromPlanScore],
+    plan: dict,
+    criteria_map: Dict[str, dict]
+) -> List[dict]:
+    plan_criterion_ids = {
+        item.get("criterion_id")
+        for item in plan.get("criteria", [])
+        if item.get("criterion_id")
+    }
+
+    score_dicts = []
+    received_ids = set()
+
+    for item in scores or []:
+        if item.criterion_id not in plan_criterion_ids:
+            raise HTTPException(
+                status_code=400,
+                detail=f"O critério {item.criterion_id} não pertence ao plano selecionado"
+            )
+
+        criterion = criteria_map.get(item.criterion_id)
+        if not criterion:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Critério inválido: {item.criterion_id}"
+            )
+
+        scale_min = criterion.get("scale_min", 1)
+        scale_max = criterion.get("scale_max", 5)
+
+        if item.score < scale_min or item.score > scale_max:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Pontuação fora da escala para {criterion.get('name', item.criterion_id)}"
+            )
+
+        received_ids.add(item.criterion_id)
+        score_dicts.append(item.model_dump())
+
+    required_missing = []
+    for plan_item in plan.get("criteria", []):
+        if plan_item.get("required", True) and plan_item.get("criterion_id") not in received_ids:
+            required_missing.append(plan_item.get("criterion_id"))
+
+    if required_missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Existem critérios obrigatórios sem pontuação: {', '.join(required_missing)}"
+        )
+
+    return score_dicts
+
+
+@api_router.get("/evaluations/teams/{team_id}/players")
+async def get_evaluation_team_players(
+    team_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    return await get_team_players_for_evaluation(team_id, current_user)
+
+
+@api_router.post("/evaluations/from-plan")
+async def create_bulk_evaluations_from_plan(
+    payload: BulkEvaluationFromPlanCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_staff and not checker.is_admin:
+        raise HTTPException(status_code=403, detail="Sem permissão para avaliar atletas")
+
+    if not checker.is_admin and not checker.can_access_team(payload.team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+
+    if not payload.evaluations:
+        raise HTTPException(status_code=400, detail="Seleciona pelo menos um atleta para avaliar")
+
+    plan = await db.evaluation_plans.find_one(
+        {"id": payload.plan_id, "is_active": {"$ne": False}},
+        {"_id": 0}
+    )
+    if not plan:
+        raise HTTPException(status_code=404, detail="Plano de avaliação não encontrado")
+
+    if plan.get("team_id") and plan.get("team_id") != payload.team_id:
+        raise HTTPException(status_code=400, detail="Este plano pertence a outra equipa")
+
+    if payload.event_id:
+        event = await db.events.find_one({"id": payload.event_id}, {"_id": 0})
+        if not event:
+            raise HTTPException(status_code=404, detail="Evento não encontrado")
+        if event.get("team_id") and event.get("team_id") != payload.team_id:
+            raise HTTPException(status_code=400, detail="O evento pertence a outra equipa")
+
+    team_players = await get_team_players_for_evaluation(payload.team_id, current_user)
+    valid_player_ids = {player["id"] for player in team_players}
+
+    requested_player_ids = [item.player_id for item in payload.evaluations]
+    invalid_players = [player_id for player_id in requested_player_ids if player_id not in valid_player_ids]
+
+    if invalid_players:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Atletas inválidos para esta equipa: {', '.join(invalid_players)}"
+        )
+
+    criterion_ids = [
+        item.get("criterion_id")
+        for item in plan.get("criteria", [])
+        if item.get("criterion_id")
+    ]
+
+    criteria_docs = await db.evaluation_criteria.find(
+        {"id": {"$in": criterion_ids}},
+        {"_id": 0}
+    ).to_list(500)
+
+    criteria_map = {criterion["id"]: criterion for criterion in criteria_docs}
+
+    created = []
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    for item in payload.evaluations:
+        score_dicts = normalize_plan_scores_for_player(item.scores, plan, criteria_map)
+        overall_score = calculate_evaluation_overall_score(score_dicts, criteria_map)
+
+        evaluation = PlayerEvaluation(
+            player_id=item.player_id,
+            team_id=payload.team_id,
+            event_id=payload.event_id,
+            period_label=payload.period_label,
+            visibility=payload.visibility,
+            scores=score_dicts,
+            general_comment=item.general_comment,
+            share_with_player=item.share_with_player,
+            share_with_guardian=item.share_with_guardian,
+            overall_score=overall_score,
+            created_by=current_user["id"]
+        )
+
+        evaluation_dict = evaluation.model_dump()
+        evaluation_dict["plan_id"] = payload.plan_id
+        evaluation_dict["created_at"] = evaluation_dict["created_at"].isoformat()
+        evaluation_dict["updated_at"] = evaluation_dict["updated_at"].isoformat()
+        evaluation_dict["source"] = "plan"
+        evaluation_dict["created_batch_at"] = now_iso
+
+        await db.player_evaluations.insert_one(evaluation_dict)
+        created.append(evaluation_dict)
+
+    return {
+        "message": "Avaliações criadas",
+        "created_count": len(created),
+        "evaluations": created,
+    }
+
+
+@api_router.get("/evaluations/team/{team_id}/summary")
+async def get_team_evaluation_summary(
+    team_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_admin and not checker.can_access_team(team_id):
+        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+
+    evaluations = await db.player_evaluations.find(
+        {"team_id": team_id},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(1000)
+
+    players = await get_team_players_for_evaluation(team_id, current_user)
+    players_map = {player["id"]: player for player in players}
+
+    by_player: Dict[str, dict] = {}
+
+    for evaluation in evaluations:
+        player_id = evaluation.get("player_id")
+        if not player_id:
+            continue
+
+        if player_id not in by_player:
+            by_player[player_id] = {
+                "player": players_map.get(player_id),
+                "evaluations_count": 0,
+                "latest_evaluation": None,
+                "average_score": None,
+                "scores": [],
+            }
+
+        by_player[player_id]["evaluations_count"] += 1
+        if by_player[player_id]["latest_evaluation"] is None:
+            by_player[player_id]["latest_evaluation"] = evaluation
+
+        if evaluation.get("overall_score") is not None:
+            by_player[player_id]["scores"].append(float(evaluation["overall_score"]))
+
+    result = []
+
+    for player_id, item in by_player.items():
+        scores = item.pop("scores", [])
+        if scores:
+            item["average_score"] = round(sum(scores) / len(scores), 2)
+
+        result.append(item)
+
+    return {
+        "team_id": team_id,
+        "players_evaluated": len(result),
+        "evaluations_count": len(evaluations),
+        "items": result,
+    }
 
 
 
