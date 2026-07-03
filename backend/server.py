@@ -10401,8 +10401,9 @@ async def create_evaluation_criterion(
     criterion_dict["created_at"] = criterion_dict["created_at"].isoformat()
     criterion_dict["updated_at"] = criterion_dict["updated_at"].isoformat()
 
-    await db.evaluation_criteria.insert_one(criterion_dict)
+    await db.evaluation_criteria.insert_one(dict(criterion_dict))
 
+    criterion_dict.pop("_id", None)
     return criterion_dict
 
 
@@ -10770,7 +10771,9 @@ async def create_evaluation_plan(plan_data: EvaluationPlanCreate, current_user: 
     plan_dict["created_at"] = plan_dict["created_at"].isoformat()
     plan_dict["updated_at"] = plan_dict["updated_at"].isoformat()
 
-    await db.evaluation_plans.insert_one(plan_dict)
+    await db.evaluation_plans.insert_one(dict(plan_dict))
+
+    plan_dict.pop("_id", None)
     return await enrich_evaluation_plan(plan_dict)
 
 
@@ -10871,7 +10874,9 @@ async def duplicate_evaluation_plan(plan_id: str, current_user: dict = Depends(g
     duplicated["updated_at"] = datetime.now(timezone.utc).isoformat()
     duplicated["is_active"] = True
 
-    await db.evaluation_plans.insert_one(duplicated)
+    await db.evaluation_plans.insert_one(dict(duplicated))
+
+    duplicated.pop("_id", None)
     return await enrich_evaluation_plan(duplicated)
 
 
@@ -11070,7 +11075,9 @@ async def create_bulk_evaluations_from_plan(
         evaluation_dict["source"] = "plan"
         evaluation_dict["created_batch_at"] = now_iso
 
-        await db.player_evaluations.insert_one(evaluation_dict)
+        await db.player_evaluations.insert_one(dict(evaluation_dict))
+
+        evaluation_dict.pop("_id", None)
         created.append(evaluation_dict)
 
     return {
