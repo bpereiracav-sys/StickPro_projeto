@@ -227,8 +227,18 @@ export function Sidebar() {
           },
           {
             href: '/evaluation-criteria',
-            label: tr('nav.evaluationCriteria', 'Critérios de Avaliação'),
+            label: tr('nav.developmentCenter', 'Centro de Desenvolvimento'),
             icon: Award,
+            visible:
+              permissions.isAdmin ||
+              permissions.isStaff ||
+              permissions.canManageTeam ||
+              permissions.hasPermission?.('view_team_members'),
+          },
+          {
+            href: '/evaluation-plans',
+            label: tr('nav.evaluationPlans', 'Planos de Avaliação'),
+            icon: ClipboardCheck,
             visible:
               permissions.isAdmin ||
               permissions.isStaff ||
