@@ -10650,8 +10650,9 @@ async def create_player_evaluation(
     evaluation_dict["created_at"] = evaluation_dict["created_at"].isoformat()
     evaluation_dict["updated_at"] = evaluation_dict["updated_at"].isoformat()
 
-    await db.player_evaluations.insert_one(evaluation_dict)
+    await db.player_evaluations.insert_one(dict(evaluation_dict))
 
+    evaluation_dict.pop("_id", None)
     return evaluation_dict
 
 
@@ -11271,7 +11272,15 @@ async def get_player_evaluation(
     ):
         raise HTTPException(status_code=403, detail="Sem permissão para ver esta avaliação")
 
-    criterion_ids = [item.get("criterion_id") for item in evaluation.get("scores", []) if item.get("criterion_id")]
+    if is_development_circle_viewer(current_user, evaluation.get("player_id")):
+        return build_public_player_evaluation_view(evaluation)
+
+    criterion_ids = [
+        item.get("criterion_id")
+        for item in evaluation.get("scores", [])
+        if item.get("criterion_id")
+    ]
+
     criteria = []
     if criterion_ids:
         criteria = await db.evaluation_criteria.find(
@@ -11281,9 +11290,6 @@ async def get_player_evaluation(
 
     criteria_map = {criterion["id"]: criterion for criterion in criteria}
 
-    if is_development_circle_viewer(current_user, evaluation.get("player_id")):
-        return build_public_player_evaluation_view(evaluation)
-            
     enriched_scores = []
     for item in evaluation.get("scores", []):
         criterion = criteria_map.get(item.get("criterion_id"))
