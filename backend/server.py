@@ -963,8 +963,17 @@ class PlayerEvaluationCreate(BaseModel):
     visibility: EvaluationVisibility = "coach_only"
     scores: List[PlayerEvaluationScore] = []
     general_comment: Optional[str] = None
+
+    # Regra StickPro:
+    # atleta e responsável veem exatamente a mesma versão motivacional.
     share_with_player: bool = False
     share_with_guardian: bool = False
+
+    # Camada motivacional, visível apenas quando partilhada.
+    public_summary: Optional[str] = None
+    strengths: List[str] = []
+    improvement_goals: List[str] = []
+    motivational_message: Optional[str] = None
 
 
 class PlayerEvaluation(BaseModel):
@@ -978,8 +987,17 @@ class PlayerEvaluation(BaseModel):
     visibility: EvaluationVisibility = "coach_only"
     scores: List[dict] = []
     general_comment: Optional[str] = None
+
+    # Mantemos os dois campos por compatibilidade, mas serão sincronizados.
     share_with_player: bool = False
     share_with_guardian: bool = False
+
+    # Informação pedagógica/motivacional para atleta e responsáveis.
+    public_summary: Optional[str] = None
+    strengths: List[str] = []
+    improvement_goals: List[str] = []
+    motivational_message: Optional[str] = None
+
     overall_score: Optional[float] = None
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -993,6 +1011,10 @@ class PlayerEvaluationUpdate(BaseModel):
     general_comment: Optional[str] = None
     share_with_player: Optional[bool] = None
     share_with_guardian: Optional[bool] = None
+    public_summary: Optional[str] = None
+    strengths: Optional[List[str]] = None
+    improvement_goals: Optional[List[str]] = None
+    motivational_message: Optional[str] = None
 
 
 # Evaluation Plan Models — Sprint 4.2.3.1
@@ -1051,7 +1073,6 @@ class EvaluationPlanUpdate(BaseModel):
     is_active: Optional[bool] = None
 
 
-
 # Evaluation Execution Models — Sprint 4.2.4.1
 class EvaluationFromPlanScore(BaseModel):
     criterion_id: str
@@ -1065,6 +1086,10 @@ class PlayerEvaluationFromPlanItem(BaseModel):
     general_comment: Optional[str] = None
     share_with_player: bool = False
     share_with_guardian: bool = False
+    public_summary: Optional[str] = None
+    strengths: List[str] = []
+    improvement_goals: List[str] = []
+    motivational_message: Optional[str] = None
 
 
 class BulkEvaluationFromPlanCreate(BaseModel):
@@ -10352,27 +10377,77 @@ async def get_evaluation_player_or_404(player_id: str) -> dict:
     return player
 
 
-def can_view_player_evaluations(current_user: dict, player_id: str, team_id: Optional[str] = None, evaluation: Optional[dict] = None) -> bool:
+def is_evaluation_shared_with_development_circle(evaluation: Optional[dict]) -> bool:
+    if not evaluation:
+        return False
+
+    return bool(
+        evaluation.get("share_with_player") or
+        evaluation.get("share_with_guardian") or
+        evaluation.get("visibility") in ["player", "guardian", "all"]
+    )
+
+
+def can_view_player_evaluations(
+    current_user: dict,
+    player_id: str,
+    team_id: Optional[str] = None,
+    evaluation: Optional[dict] = None
+) -> bool:
     checker = get_permission_checker(current_user)
 
     if checker.is_admin:
         return True
 
+    if team_id and checker.is_staff and checker.can_access_team(team_id):
+        return True
+
+    shared = is_evaluation_shared_with_development_circle(evaluation)
+
     if current_user.get("id") == player_id:
-        return bool(evaluation and evaluation.get("share_with_player"))
+        return shared
 
     linked_player_ids = current_user.get("linked_player_ids", []) or []
     linked_player_id = current_user.get("linked_player_id")
+
     if linked_player_id and linked_player_id not in linked_player_ids:
         linked_player_ids.append(linked_player_id)
 
     if player_id in linked_player_ids:
-        return bool(evaluation and evaluation.get("share_with_guardian"))
-
-    if team_id and checker.is_staff and checker.can_access_team(team_id):
-        return True
+        return shared
 
     return False
+
+
+def is_development_circle_viewer(current_user: dict, player_id: str) -> bool:
+    if current_user.get("id") == player_id:
+        return True
+
+    linked_player_ids = current_user.get("linked_player_ids", []) or []
+    linked_player_id = current_user.get("linked_player_id")
+
+    if linked_player_id and linked_player_id not in linked_player_ids:
+        linked_player_ids.append(linked_player_id)
+
+    return player_id in linked_player_ids
+
+
+def build_public_player_evaluation_view(evaluation: dict) -> dict:
+    return {
+        "id": evaluation.get("id"),
+        "player_id": evaluation.get("player_id"),
+        "team_id": evaluation.get("team_id"),
+        "event_id": evaluation.get("event_id"),
+        "period_label": evaluation.get("period_label"),
+        "created_at": evaluation.get("created_at"),
+        "updated_at": evaluation.get("updated_at"),
+        "shared": True,
+        "view_type": "development",
+        "public_summary": evaluation.get("public_summary"),
+        "strengths": evaluation.get("strengths") or [],
+        "improvement_goals": evaluation.get("improvement_goals") or [],
+        "motivational_message": evaluation.get("motivational_message"),
+    }
 
 
 @api_router.post("/evaluations/criteria")
@@ -10547,6 +10622,12 @@ async def create_player_evaluation(
     score_dicts = [item.model_dump() for item in evaluation_data.scores]
     overall_score = calculate_evaluation_overall_score(score_dicts, criteria_map)
 
+    share_with_development_circle = bool(
+        evaluation_data.share_with_player or
+        evaluation_data.share_with_guardian or
+        evaluation_data.visibility in ["player", "guardian", "all"]
+    )    
+    
     evaluation = PlayerEvaluation(
         player_id=evaluation_data.player_id,
         team_id=evaluation_data.team_id,
@@ -10555,8 +10636,12 @@ async def create_player_evaluation(
         visibility=evaluation_data.visibility,
         scores=score_dicts,
         general_comment=evaluation_data.general_comment,
-        share_with_player=evaluation_data.share_with_player,
-        share_with_guardian=evaluation_data.share_with_guardian,
+        share_with_player=share_with_development_circle,
+        share_with_guardian=share_with_development_circle,
+        public_summary=evaluation_data.public_summary,
+        strengths=evaluation_data.strengths,
+        improvement_goals=evaluation_data.improvement_goals,
+        motivational_message=evaluation_data.motivational_message,
         overall_score=overall_score,
         created_by=current_user["id"]
     )
@@ -10592,7 +10677,10 @@ async def get_player_evaluations(
             evaluation.get("team_id"),
             evaluation
         ):
-            visible.append(evaluation)
+            if is_development_circle_viewer(current_user, player_id):
+                visible.append(build_public_player_evaluation_view(evaluation))
+            else:
+                visible.append(evaluation)
 
     return visible
 
@@ -10614,6 +10702,18 @@ async def update_player_evaluation(
 
     update_data = updates.model_dump(exclude_unset=True)
 
+    if "share_with_player" in update_data or "share_with_guardian" in update_data:
+        share_with_development_circle = bool(
+            update_data.get("share_with_player") or
+            update_data.get("share_with_guardian")
+        )
+        update_data["share_with_player"] = share_with_development_circle
+        update_data["share_with_guardian"] = share_with_development_circle
+    
+    if update_data.get("visibility") in ["player", "guardian", "all"]:
+        update_data["share_with_player"] = True
+        update_data["share_with_guardian"] = True
+    
     if "scores" in update_data and update_data["scores"] is not None:
         score_dicts = [
             item.model_dump() if hasattr(item, "model_dump") else item
@@ -11054,6 +11154,12 @@ async def create_bulk_evaluations_from_plan(
         score_dicts = normalize_plan_scores_for_player(item.scores, plan, criteria_map)
         overall_score = calculate_evaluation_overall_score(score_dicts, criteria_map)
 
+        share_with_development_circle = bool(
+        item.share_with_player or
+        item.share_with_guardian or
+        payload.visibility in ["player", "guardian", "all"]
+    )
+    
         evaluation = PlayerEvaluation(
             player_id=item.player_id,
             team_id=payload.team_id,
@@ -11062,8 +11168,12 @@ async def create_bulk_evaluations_from_plan(
             visibility=payload.visibility,
             scores=score_dicts,
             general_comment=item.general_comment,
-            share_with_player=item.share_with_player,
-            share_with_guardian=item.share_with_guardian,
+            share_with_player=share_with_development_circle,
+            share_with_guardian=share_with_development_circle,
+            public_summary=item.public_summary,
+            strengths=item.strengths,
+            improvement_goals=item.improvement_goals,
+            motivational_message=item.motivational_message,
             overall_score=overall_score,
             created_by=current_user["id"]
         )
@@ -11171,6 +11281,9 @@ async def get_player_evaluation(
 
     criteria_map = {criterion["id"]: criterion for criterion in criteria}
 
+    if is_development_circle_viewer(current_user, evaluation.get("player_id")):
+        return build_public_player_evaluation_view(evaluation)
+            
     enriched_scores = []
     for item in evaluation.get("scores", []):
         criterion = criteria_map.get(item.get("criterion_id"))
