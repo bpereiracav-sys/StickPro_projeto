@@ -27,7 +27,9 @@ import TrainingFeedbackModal from '../components/dashboard/TrainingFeedbackModal
 import NextEventCard from '../components/dashboard/NextEventCard';
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard';
 import PendingActionsCard from '../components/dashboard/PendingActionsCard';
-
+import { usePermissions } from '../context/PermissionsContext';
+import DashboardQuickActions from '../components/dashboard/DashboardQuickActions';
+import { getVisibleDashboardQuickActions } from '../config/navigation';
 const locales = { pt, es, fr, it, en: enUS };
 
 const StickIconBase = ({ children, className = '' }) => (
@@ -78,7 +80,8 @@ const StickMessageIcon = ({ className = '' }) => (
 export default function Dashboard() {
   const { user, activeProfile } = useAuth();
   const { t, language } = useLanguage();
-
+  const permissions = usePermissions();
+  
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paymentStatus, setPaymentStatus] = useState(null);
@@ -196,6 +199,33 @@ export default function Dashboard() {
     return queryString ? `/messages?${queryString}` : '/messages';
   };
 
+  const navigationUser = useMemo(() => {
+    const profileRole =
+      activeProfile?.type === 'associated'
+        ? 'jogador'
+        : activeProfile?.role || activeProfile?.active_role || user?.role;
+  
+    return {
+      ...user,
+      role: profileRole,
+    };
+  }, [user, activeProfile]);
+  
+  const quickActions = useMemo(() => {
+    return getVisibleDashboardQuickActions(navigationUser, permissions)
+      .slice(0, 6)
+      .map((item) => ({
+        to: item.path,
+        icon: item.icon,
+        label: item.labelKey
+          ? tr(item.labelKey, item.fallbackLabel)
+          : item.fallbackLabel,
+        description: item.descriptionKey
+          ? tr(item.descriptionKey, item.fallbackDescription)
+          : item.fallbackDescription,
+      }));
+  }, [navigationUser, permissions, tr]);
+  
   const handleUpdateDashboardConvocation = async (attendanceId, status) => {
     if (!attendanceId) return;
 
@@ -379,7 +409,8 @@ export default function Dashboard() {
             : []),
         ]}
       />
-
+      <DashboardQuickActions actions={quickActions} />
+      
       <CommitmentCard commitment={commitment} t={t} tr={tr} />
 
       <TrainingFeedbackModal
