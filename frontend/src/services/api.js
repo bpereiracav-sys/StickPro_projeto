@@ -72,7 +72,8 @@ export const championshipsApi = {
   updateMatch: (matchId, data) => api.put(`/championships/matches/${matchId}`, data),
   updateMatchResult: (matchId, data) =>
     api.put(`/championships/matches/${matchId}/result`, data),
-  deleteMatch: (matchId) => api.delete(`/championships/matches/${matchId}`),
+  archiveMatch: (matchId) => api.put(`/championships/matches/${matchId}/archive`),
+  deleteMatch: (matchId) => api.put(`/championships/matches/${matchId}/archive`),
   getStandings: (id) => api.get(`/championships/${id}/standings`),
   getMatchPlayerStats: (matchId) => api.get(`/matches/${matchId}/player-stats`),
   createMatchPlayerStats: (matchId, data) =>
