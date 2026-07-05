@@ -6078,7 +6078,13 @@ async def get_championship_matches(championship_id: str, current_user: dict = De
     if champ_team_id and not checker.is_admin and not checker.can_access_team(champ_team_id):
         raise HTTPException(status_code=403, detail="Sem acesso a esta competição")
     
-    matches = await db.championship_matches.find({"championship_id": championship_id}, {"_id": 0}).sort("match_date", 1).to_list(100)
+    matches = await matches = await db.championship_matches.find(
+        {
+            "championship_id": championship_id,
+            "archived": {"$ne": True}
+        },
+        {"_id": 0}
+    ).sort("match_date", 1).to_list(100)
     
     for match in matches:
         if isinstance(match.get('match_date'), str):
@@ -6125,10 +6131,16 @@ class MatchUpdate(BaseModel):
 @api_router.put("/championships/matches/{match_id}")
 async def update_match(match_id: str, updates: MatchUpdate, current_user: dict = Depends(get_current_user)):
     """Update match details (date, time, location, opponent)"""
-    checker = get_permission_checker(current_user)
+    championship = await db.championships.find_one(
+        {"id": match["championship_id"]},
+        {"_id": 0}
+    )
     
-    if not checker.can_manage_events:
-        raise HTTPException(status_code=403, detail="Sem permissão para editar jogos")
+    if not await can_edit_competition_game(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para editar jogos desta competição"
+        )
     
     match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
     if not match:
@@ -6144,31 +6156,55 @@ async def update_match(match_id: str, updates: MatchUpdate, current_user: dict =
     
     return {"message": "Jogo atualizado"}
 
-@api_router.delete("/championships/matches/{match_id}")
-async def delete_match(match_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete a championship match"""
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_manage_events:
-        raise HTTPException(status_code=403, detail="Sem permissão para eliminar jogos")
-    
-    match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
+@api_router.put("/championships/matches/{match_id}/archive")
+async def archive_match(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """Archive championship match"""
+
+    match = await db.championship_matches.find_one(
+        {"id": match_id},
+        {"_id": 0}
+    )
+
     if not match:
-        raise HTTPException(status_code=404, detail="Jogo não encontrado")
-    
-    # Check team access
-    if not checker.is_admin and not checker.can_access_team(match.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a este jogo")
-    
-    # Delete associated event and attendance
-    event = await db.events.find_one({"championship_match_id": match_id}, {"_id": 0})
-    if event:
-        await db.attendance.delete_many({"event_id": event['id']})
-        await db.convocations.delete_many({"event_id": event['id']})
-        await db.events.delete_one({"id": event['id']})
-    
-    await db.championship_matches.delete_one({"id": match_id})
-    return {"message": "Jogo eliminado"}
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado"
+        )
+
+    championship = await db.championships.find_one(
+        {"id": match["championship_id"]},
+        {"_id": 0}
+    )
+
+    if not championship:
+        raise HTTPException(
+            status_code=404,
+            detail="Competição não encontrada"
+        )
+
+    if not await can_delete_competition_game(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para arquivar jogos desta competição"
+        )
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {
+            "$set": {
+                "archived": True,
+                "archived_at": datetime.now(timezone.utc).isoformat(),
+                "archived_by": current_user["id"]
+            }
+        }
+    )
+
+    return {
+        "message": "Jogo arquivado com sucesso"
+    }
 
 @api_router.get("/championships/matches/import-template")
 async def download_matches_import_template(token: str = None, current_user: dict = None):
@@ -6300,17 +6336,19 @@ async def import_championship_matches(
     current_user: dict = Depends(get_current_user)
 ):
     """Import matches from Excel/CSV file with multilingual header support"""
-    checker = get_permission_checker(current_user)
+    championship = await db.championships.find_one(
+        {"id": championship_id},
+        {"_id": 0}
+    )
     
-    if not checker.can_manage_events:
-        raise HTTPException(status_code=403, detail="Sem permissão para importar jogos")
-    
-    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
     if not championship:
         raise HTTPException(status_code=404, detail="Campeonato não encontrado")
     
-    if not checker.is_admin and not checker.can_access_team(championship.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a esta competição")
+    if not await can_create_competition_game(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para importar jogos nesta competição"
+        )
     
     # Read file
     content = await file.read()
@@ -6468,20 +6506,26 @@ class GameSheetImport(BaseModel):
 @api_router.post("/championships/matches/import-gamesheet")
 async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(get_current_user)):
     """Import match data from APL game sheet URL"""
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_manage_stats:
-        raise HTTPException(status_code=403, detail="Sem permissão para importar fichas de jogo")
-    
-    # Verify match exists and user has access
+
     match = await db.championship_matches.find_one({"id": data.match_id}, {"_id": 0})
     if not match:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
-    
-    if not checker.is_admin and not checker.can_access_team(match.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a este jogo")
+
+    championship = await db.championships.find_one(
+        {"id": match["championship_id"]},
+        {"_id": 0}
+    )
+    if not championship:
+        raise HTTPException(status_code=404, detail="Competição não encontrada")
+
+    if not await can_import_competition_gamesheet(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para importar boletins desta competição"
+        )
     
     # Fetch and parse the game sheet
+    
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.get(data.url)
@@ -7085,20 +7129,20 @@ class APLCalendarImport(BaseModel):
 @api_router.post("/championships/import-apl-calendar")
 async def import_apl_calendar(data: APLCalendarImport, current_user: dict = Depends(get_current_user)):
     """Import matches calendar from APL division page"""
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_import_data:
-        raise HTTPException(status_code=403, detail="Sem permissão para importar dados")
-    
-    # Verify championship exists
-    championship = await db.championships.find_one({"id": data.championship_id}, {"_id": 0})
+        championship = await db.championships.find_one(
+        {"id": data.championship_id},
+        {"_id": 0}
+    )
+
     if not championship:
         raise HTTPException(status_code=404, detail="Campeonato não encontrado")
-    
-    # Check team access
-    if not checker.is_admin and not checker.can_access_team(championship.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a esta competição")
-    
+
+    if not await can_create_competition_game(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para importar calendário desta competição"
+        )
+
     team_id = championship.get('team_id')
     
     # Fetch the APL calendar page
@@ -7701,38 +7745,62 @@ async def get_championship_standings(championship_id: str, current_user: dict = 
 # ==================== PLAYER MATCH STATS ROUTES ====================
 
 @api_router.post("/matches/{match_id}/player-stats")
-async def create_player_match_stats(match_id: str, stats: PlayerMatchStatsCreate, current_user: dict = Depends(get_current_user)):
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_manage_stats:
-        raise HTTPException(status_code=403, detail="Sem permissão para gerir estatísticas")
-    
-    match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
+async def create_player_match_stats(
+    match_id: str,
+    stats: PlayerMatchStatsCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    match = await db.championship_matches.find_one(
+        {"id": match_id},
+        {"_id": 0}
+    )
+
     if not match:
-        raise HTTPException(status_code=404, detail="Jogo não encontrado")
-    
-    # Check team access
-    if not checker.is_admin and not checker.can_access_team(match.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a este jogo")
-    
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado"
+        )
+
+    championship = await db.championships.find_one(
+        {"id": match["championship_id"]},
+        {"_id": 0}
+    )
+
+    if not championship:
+        raise HTTPException(
+            status_code=404,
+            detail="Competição não encontrada"
+        )
+
+    if not await can_edit_competition_statistics(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para editar estatísticas desta competição"
+        )
+
     player_stats = PlayerMatchStats(
         **stats.model_dump(),
-        team_id=match['team_id'],
-        championship_id=match['championship_id']
+        team_id=match["team_id"],
+        championship_id=match["championship_id"]
     )
-    
+
     stats_dict = player_stats.model_dump()
-    stats_dict['created_at'] = stats_dict['created_at'].isoformat()
-    
-    # Upsert - update if exists, insert if not
+    stats_dict["created_at"] = stats_dict["created_at"].isoformat()
+
+    # Upsert - atualiza se existir, cria se não existir
     await db.player_match_stats.update_one(
-        {"match_id": match_id, "player_id": stats.player_id},
-        {"$set": stats_dict},
+        {
+            "match_id": match_id,
+            "player_id": stats.player_id
+        },
+        {
+            "$set": stats_dict
+        },
         upsert=True
     )
-    
-    return stats_dict
 
+    return stats_dict
+    
 @api_router.get("/matches/{match_id}/player-stats")
 async def get_match_player_stats(match_id: str, current_user: dict = Depends(get_current_user)):
     stats = await db.player_match_stats.find({"match_id": match_id}, {"_id": 0}).to_list(500)
