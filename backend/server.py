@@ -5801,123 +5801,188 @@ async def update_championship_permission_settings(
 # ==================== CHAMPIONSHIP ROUTES ====================
 
 @api_router.post("/championships")
-async def create_championship(data: ChampionshipCreate, current_user: dict = Depends(get_current_user)):
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_manage_events:
-        raise HTTPException(status_code=403, detail="Sem permissão para criar competições")
-    
-    # Check team access if team_id is provided
-    if data.team_id and not checker.is_admin:
-        if not checker.can_access_team(data.team_id):
-            raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
-    
-    championship = Championship(**data.model_dump(), created_by=current_user['id'])
+async def create_championship(
+    data: ChampionshipCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    if not await can_create_competition(current_user, data.team_id):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para criar competições nesta equipa"
+        )
+
+    championship = Championship(**data.model_dump(), created_by=current_user["id"])
     champ_dict = championship.model_dump()
-    champ_dict['created_at'] = champ_dict['created_at'].isoformat()
-    
+    champ_dict["created_at"] = champ_dict["created_at"].isoformat()
+    champ_dict["is_archived"] = False
+    champ_dict["updated_at"] = datetime.now(timezone.utc).isoformat()
+    champ_dict["updated_by"] = current_user["id"]
+
     await db.championships.insert_one(champ_dict)
-    # Remove MongoDB _id before returning
-    champ_dict.pop('_id', None)
+    champ_dict.pop("_id", None)
+
     return champ_dict
 
 @api_router.get("/championships")
-async def get_championships(team_id: Optional[str] = None, season: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+async def get_championships(
+    team_id: Optional[str] = None,
+    season: Optional[str] = None,
+    include_archived: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
     checker = get_permission_checker(current_user)
+
     query = {}
-    
+
+    if not include_archived:
+        query["is_archived"] = {"$ne": True}
+
     if team_id:
-        # Verify user can access the requested team
         if not checker.is_admin and not checker.can_access_team(team_id):
             raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
         query["team_id"] = team_id
+
     elif not checker.is_admin:
-        # Filter by user's accessible teams
         user_teams = list(checker.team_ids)
         if user_teams:
             query["team_id"] = {"$in": user_teams}
         else:
-            return []  # No team access, no championships
-    
+            return []
+
     if season:
         query["season"] = season
-    
-    championships = await db.championships.find(query, {"_id": 0}).to_list(100)
+
+    championships = await db.championships.find(
+        query,
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+
     return championships
 
 @api_router.get("/championships/{championship_id}")
-async def get_championship(championship_id: str, current_user: dict = Depends(get_current_user)):
-    checker = get_permission_checker(current_user)
-    
-    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+async def get_championship(
+    championship_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    championship = await db.championships.find_one(
+        {"id": championship_id},
+        {"_id": 0}
+    )
+
     if not championship:
         raise HTTPException(status_code=404, detail="Campeonato não encontrado")
-    
-    # Check team access
-    champ_team_id = championship.get('team_id')
-    if champ_team_id and not checker.is_admin and not checker.can_access_team(champ_team_id):
+
+    if not await can_view_competition(current_user, championship):
         raise HTTPException(status_code=403, detail="Sem acesso a esta competição")
-    
+
     return championship
 
 @api_router.put("/championships/{championship_id}")
-async def update_championship(championship_id: str, updates: dict, current_user: dict = Depends(get_current_user)):
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_manage_events:
-        raise HTTPException(status_code=403, detail="Sem permissão para editar competições")
-    
-    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+async def update_championship(
+    championship_id: str,
+    updates: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    championship = await db.championships.find_one(
+        {"id": championship_id},
+        {"_id": 0}
+    )
+
     if not championship:
         raise HTTPException(status_code=404, detail="Campeonato não encontrado")
-    
-    # Check team access
-    if not checker.is_admin and not checker.can_access_team(championship.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a esta competição")
-    
-    allowed = ['name', 'description', 'participating_teams']
+
+    if not await can_edit_competition(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para editar esta competição"
+        )
+
+    allowed = [
+        "name",
+        "description",
+        "season",
+        "format",
+        "location",
+        "convocation_type",
+        "age_group",
+        "competition_type",
+        "participating_teams",
+        "team_id",
+    ]
+
     filtered = {k: v for k, v in updates.items() if k in allowed}
-    
+
+    if "team_id" in filtered:
+        if not user_has_team_access(current_user, filtered["team_id"]):
+            raise HTTPException(status_code=403, detail="Sem acesso à nova equipa")
+
     if filtered:
-        await db.championships.update_one({"id": championship_id}, {"$set": filtered})
-    return {"message": "Campeonato atualizado"}
+        filtered["updated_at"] = datetime.now(timezone.utc).isoformat()
+        filtered["updated_by"] = current_user["id"]
+
+        await db.championships.update_one(
+            {"id": championship_id},
+            {"$set": filtered}
+        )
+
+    updated = await db.championships.find_one(
+        {"id": championship_id},
+        {"_id": 0}
+    )
+
+    return updated
 
 @api_router.delete("/championships/{championship_id}")
-async def delete_championship(championship_id: str, current_user: dict = Depends(get_current_user)):
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_manage_team:
-        raise HTTPException(status_code=403, detail="Sem permissão para eliminar competições")
-    
-    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
+async def delete_championship(
+    championship_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    championship = await db.championships.find_one(
+        {"id": championship_id},
+        {"_id": 0}
+    )
+
     if not championship:
         raise HTTPException(status_code=404, detail="Campeonato não encontrado")
-    
-    # Check team access
-    if not checker.is_admin and not checker.can_access_team(championship.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a esta competição")
-    
-    await db.championships.delete_one({"id": championship_id})
-    await db.championship_matches.delete_many({"championship_id": championship_id})
-    return {"message": "Campeonato eliminado"}
+
+    if not await can_archive_competition(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para arquivar esta competição"
+        )
+
+    await db.championships.update_one(
+        {"id": championship_id},
+        {
+            "$set": {
+                "is_archived": True,
+                "archived_at": datetime.now(timezone.utc).isoformat(),
+                "archived_by": current_user["id"],
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_by": current_user["id"],
+            }
+        }
+    )
+
+    return {"message": "Competição arquivada com sucesso"}
 
 # ==================== CHAMPIONSHIP MATCH ROUTES ====================
 
 @api_router.post("/championships/{championship_id}/matches")
 async def create_championship_match(championship_id: str, data: ChampionshipMatchCreate, current_user: dict = Depends(get_current_user)):
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_manage_events:
-        raise HTTPException(status_code=403, detail="Sem permissão para criar jogos")
-    
-    championship = await db.championships.find_one({"id": championship_id}, {"_id": 0})
-    if not championship:
-        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
-    
-    # Check team access
-    if not checker.is_admin and not checker.can_access_team(championship.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a esta competição")
-    
+    championship = await db.championships.find_one(
+    {"id": championship_id},
+    {"_id": 0}
+)
+
+if not championship:
+    raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+
+if not await can_create_competition_game(current_user, championship):
+    raise HTTPException(
+        status_code=403,
+        detail="Sem permissão para criar jogos nesta competição"
+    )    
     match = ChampionshipMatch(
         championship_id=championship_id,
         team_id=championship['team_id'],
