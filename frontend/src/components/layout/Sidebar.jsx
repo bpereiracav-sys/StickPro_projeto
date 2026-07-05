@@ -1,7 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { useTeam } from '../../context/TeamContext';
 import { usePermissions } from '../../context/PermissionsContext';
 import { Button } from '../ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -15,28 +14,20 @@ import {
   DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
 import {
-  Calendar,
-  Users,
-  MessageSquare,
-  Settings,
   LogOut,
-  BarChart3,
-  Home,
   ChevronDown,
-  Trophy,
-  ClipboardCheck,
   RefreshCw,
   Shield,
-  BookOpen,
-  Building2,
-  CreditCard,
-  Sparkles,
-  Award,
+  Users,
 } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { getInitials, getRoleName } from '../../lib/utils';
 import { toast } from 'sonner';
 import { dashboardApi } from '../../services/api';
+import {
+  getVisibleNavigationSections,
+  isNavigationItemActive,
+} from '../../config/navigation';
 
 const CUSTOM_LOGO_URL = '/stickpro-logo.png';
 
@@ -62,7 +53,6 @@ export function Sidebar() {
   } = useAuth();
 
   const { t } = useLanguage();
-  const { selectedTeam, isAllTeamsSelected } = useTeam();
   const permissions = usePermissions();
 
   const location = useLocation();
@@ -163,148 +153,24 @@ export function Sidebar() {
   const displayRole = viewingAs?.role || user?.role;
 
   const navSections = useMemo(() => {
-    const sections = [
-      {
-        title: tr('sidebar.operations', 'Operações'),
-        items: [
-          {
-            href: '/dashboard',
-            label: tr('nav.home', 'Dashboard'),
-            icon: Home,
-            visible: true,
-          },
-          {
-            href: '/calendar',
-            label: tr('nav.calendar', 'Calendário'),
-            icon: Calendar,
-            visible: true,
-          },
-          {
-            href: '/messages',
-            label: tr('nav.messages', 'Mensagens'),
-            icon: MessageSquare,
-            visible: true,
-          },
-        ],
-      },
-      {
-        title: tr('sidebar.sport', 'Desportivo'),
-        items: [
-          {
-            href: '/my-teams',
-            label: tr('nav.myTeams', 'Minhas Equipas'),
-            icon: Users,
-            visible: !permissions.isAdmin,
-          },
-          {
-            href: '/teams',
-            label: tr('nav.teams', 'Equipas'),
-            icon: Users,
-            visible: permissions.canManageTeam,
-          },
-          {
-            href: '/members',
-            label: tr('nav.members', 'Membros'),
-            icon: Users,
-            visible: permissions.hasPermission('view_team_members'),
-          },
-          {
-            href: '/championships',
-            label: tr('nav.championships', 'Competições'),
-            icon: Trophy,
-            visible: true,
-          },
-          {
-            href: '/attendance',
-            label: tr('nav.attendance', 'Presenças'),
-            icon: ClipboardCheck,
-            visible: permissions.hasPermission('view_team_attendance'),
-          },
-          {
-            href: '/stats',
-            label: tr('nav.stats', 'Estatísticas'),
-            icon: BarChart3,
-            visible: true,
-          },
-          {
-            href: '/evaluation-criteria',
-            label: tr('nav.developmentCenter', 'Centro de Desenvolvimento'),
-            icon: Award,
-            visible:
-              permissions.isAdmin ||
-              permissions.isStaff ||
-              permissions.canManageTeam ||
-              permissions.hasPermission?.('view_team_members'),
-          },
-          {
-            href: '/evaluation-plans',
-            label: tr('nav.evaluationPlans', 'Planos de Avaliação'),
-            icon: ClipboardCheck,
-            visible:
-              permissions.isAdmin ||
-              permissions.isStaff ||
-              permissions.canManageTeam ||
-              permissions.hasPermission?.('view_team_members'),
-          },
-          {
-            href: '/evaluations/new',
-            label: tr('nav.newEvaluation', 'Nova Avaliação'),
-            icon: Sparkles,
-            visible:
-              permissions.isAdmin ||
-              permissions.isStaff ||
-              permissions.canManageTeam ||
-              permissions.hasPermission?.('view_team_members'),
-          },
-        ],
-      },
-      {
-        title: tr('sidebar.management', 'Gestão'),
-        items: [
-          {
-            href: '/payments',
-            label: tr('nav.payments', 'Pagamentos'),
-            icon: CreditCard,
-            visible:
-              permissions.isAdmin ||
-              permissions.isPlayer ||
-              permissions.isFamilyMember,
-          },
-          {
-            href: '/library',
-            label: tr('nav.library', 'Biblioteca'),
-            icon: BookOpen,
-            visible: true,
-          },
-          {
-            href: '/club',
-            label: tr('nav.club', 'Clube'),
-            icon: Building2,
-            visible: permissions.isAdmin,
-          },
-          {
-            href: '/subscription',
-            label: tr('nav.subscription', 'Subscrição'),
-            icon: CreditCard,
-            visible: permissions.isAdmin,
-          },
-          {
-            href: '/settings',
-            label: tr('nav.settings', 'Definições'),
-            icon: Settings,
-            visible: true,
-          },
-        ],
-      },
-    ];
-
-    return sections
-      .map((section) => ({
-        ...section,
-        items: section.items.filter((item) => item.visible),
-      }))
-      .filter((section) => section.items.length > 0);
-  }, [t, permissions, pendingNotifications]);
+    return getVisibleNavigationSections(user, permissions).map((section) => ({
+      ...section,
+      title: section.titleKey
+        ? tr(section.titleKey, section.fallbackTitle)
+        : section.fallbackTitle,
+      items: section.items.map((item) => ({
+        ...item,
+        href: item.path,
+        label: item.labelKey
+          ? tr(item.labelKey, item.fallbackLabel)
+          : item.fallbackLabel,
+        notificationCount:
+          item.id === 'calendar' || item.id === 'attendance'
+            ? pendingNotifications
+            : 0,
+      })),
+    }));
+  }, [user, permissions, pendingNotifications, t]);
 
   if (!isAuthenticated) return null;
 
@@ -370,26 +236,25 @@ export function Sidebar() {
           <ScrollArea className="flex-1 px-3 py-4">
             <nav className="space-y-5">
               {navSections.map((section) => (
-                <div key={section.title}>
-                  <p
-                    className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.16em]"
-                    style={{ color: 'hsl(var(--sidebar-muted))' }}
-                  >
-                    {section.title}
-                  </p>
+                <div key={section.id}>
+                  {section.title && (
+                    <p
+                      className="mb-2 px-3 text-[11px] font-bold uppercase tracking-[0.16em]"
+                      style={{ color: 'hsl(var(--sidebar-muted))' }}
+                    >
+                      {section.title}
+                    </p>
+                  )}
 
                   <div className="space-y-1">
                     {section.items.map((link) => {
                       const Icon = link.icon;
-                      const isActive =
-                        location.pathname === link.href ||
-                        location.pathname.startsWith(`${link.href}/`);
-
+                      const isActive = isNavigationItemActive(link, location.pathname);
                       const testId = `nav-${link.href.replace(/\//g, '') || 'root'}`;
 
                       return (
                         <Link
-                          key={link.href}
+                          key={link.id}
                           to={link.href}
                           onClick={() => setMenuOpen(false)}
                           className="flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 relative sidebar-nav-link border-l-2 pl-[10px]"
@@ -408,14 +273,16 @@ export function Sidebar() {
                           }
                           data-testid={testId}
                         >
-                          <Icon
-                            className="w-5 h-5"
-                            style={
-                              isActive
-                                ? { color: 'var(--sidebar-active-text, #22d3ee)' }
-                                : {}
-                            }
-                          />
+                          {Icon && (
+                            <Icon
+                              className="w-5 h-5"
+                              style={
+                                isActive
+                                  ? { color: 'var(--sidebar-active-text, #22d3ee)' }
+                                  : {}
+                              }
+                            />
+                          )}
 
                           <span className="font-medium text-sm">{link.label}</span>
 
@@ -502,7 +369,7 @@ export function Sidebar() {
                   <>
                     <DropdownMenuLabel className="text-slate-400 flex items-center gap-1">
                       <RefreshCw className="w-3 h-3" />
-                      Mudar Perfil
+                      {tr('profiles.switchProfile', 'Mudar Perfil')}
                     </DropdownMenuLabel>
 
                     {otherProfiles.map((profile, idx) => (
