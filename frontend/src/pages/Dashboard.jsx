@@ -30,16 +30,15 @@ import {
   XCircle,
   HelpCircle,
   AlertTriangle,
-  Sparkles,
   ShieldCheck,
-  MessageSquare,
-  ArrowUpRight,
   Loader2,
 } from 'lucide-react';
 import { formatTime, getEventTypeName } from '../lib/utils';
 import { format, isToday, isTomorrow, differenceInCalendarDays } from 'date-fns';
 import { pt, es, fr, it, enUS } from 'date-fns/locale';
 import { toast } from 'sonner';
+import DashboardHero from '../components/dashboard/DashboardHero';
+import DashboardMetricCard from '../components/dashboard/DashboardMetricCard';
 
 const locales = { pt, es, fr, it, en: enUS };
 
@@ -88,32 +87,6 @@ const StickMessageIcon = ({ className = '' }) => (
   </StickIconBase>
 );
 
-const StickSkateIcon = ({ className = '' }) => (
-  <StickIconBase className={className}>
-    <path d="M18 15c6 2 14 2 22 0l5 22H17l1-22Z" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
-    <path d="M17 37h32c3 0 5 2 5 5v3H13v-3c0-3 2-5 4-5Z" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
-    <circle cx="23" cy="51" r="5" stroke="currentColor" strokeWidth="4" />
-    <circle cx="43" cy="51" r="5" stroke="currentColor" strokeWidth="4" />
-    <path d="M25 22h14M26 29h12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-  </StickIconBase>
-);
-
-const StickGoalIcon = ({ className = '' }) => (
-  <StickIconBase className={className}>
-    <path d="M10 50V18h36l8 32" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
-    <path d="M10 18h36M17 18v32M24 18v32M31 18v32M38 18v32M10 28h39M10 38h42" stroke="currentColor" strokeWidth="2.5" opacity="0.65" />
-    <path d="M10 18h36" stroke="#f97316" strokeWidth="5" strokeLinecap="round" />
-    <path d="M10 18v32" stroke="#f97316" strokeWidth="5" strokeLinecap="round" />
-  </StickIconBase>
-);
-
-const StickTrophyIcon = ({ className = '' }) => (
-  <StickIconBase className={className}>
-    <path d="M22 12h20v11c0 9-4 16-10 16S22 32 22 23V12Z" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
-    <path d="M22 17H12v5c0 7 5 11 11 11M42 17h10v5c0 7-5 11-11 11" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
-    <path d="M32 39v9M23 53h18" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
-  </StickIconBase>
-);
 
 
 export default function Dashboard() {
@@ -375,76 +348,7 @@ const fetchDashboard = async () => {
     };
   };
 
-  const MetricCard = ({ icon: Icon, label, value, helper, tone = 'primary', to }) => {
-  const tones = {
-    primary: {
-      card: 'from-white via-cyan-50/70 to-slate-50 border-cyan-100',
-      icon: 'from-cyan-500 to-blue-500 text-white',
-    },
-    secondary: {
-      card: 'from-white via-emerald-50/70 to-slate-50 border-emerald-100',
-      icon: 'from-emerald-500 to-teal-500 text-white',
-    },
-    amber: {
-      card: 'from-white via-amber-50/80 to-slate-50 border-amber-100',
-      icon: 'from-amber-500 to-yellow-500 text-white',
-    },
-    purple: {
-      card: 'from-white via-purple-50/70 to-slate-50 border-purple-100',
-      icon: 'from-purple-500 to-indigo-500 text-white',
-    },
-  };
 
-  const currentTone = tones[tone] || tones.primary;
-
-  const content = (
-    <Card
-      className={`group relative overflow-hidden border bg-gradient-to-br ${currentTone.card} shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/80`}
-    >
-      <div
-        className="pointer-events-none absolute -right-10 -top-10 h-28 w-28 rounded-full bg-white/80 blur-2xl"
-        aria-hidden="true"
-      />
-
-      <CardContent className="relative p-3 sm:p-5">
-        <div className="flex items-start justify-between gap-3">
-          <div className={`rounded-xl bg-gradient-to-br p-2.5 shadow-lg sm:rounded-2xl sm:p-3 ${currentTone.icon}`}>
-            <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
-
-          {to && (
-            <ArrowUpRight className="h-4 w-4 text-slate-300 transition-colors group-hover:text-slate-700" />
-          )}
-        </div>
-
-       <div className="mt-3 sm:mt-5">
-          <p className="font-heading text-3xl leading-none tracking-tight text-slate-950 sm:text-6xl">
-            {value}
-          </p>
-        
-          <p className="mt-1 truncate text-xs font-semibold text-slate-700 sm:text-sm">
-            {label}
-          </p>
-        
-          {helper && (
-            <p className="mt-1 line-clamp-2 text-[11px] leading-4 text-slate-500 sm:text-xs sm:leading-5">
-              {helper}
-            </p>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  );
-
-  if (!to) return content;
-
-  return (
-    <Link to={to} className="block">
-      {content}
-    </Link>
-  );
-};
-  
   const CommitmentCard = () => {
     if (!commitment) return null;
 
@@ -589,52 +493,38 @@ const fetchDashboard = async () => {
 
   return (
     <div className="space-y-4 pb-20 pt-1 lg:space-y-6 lg:-mt-12 lg:pb-0" data-testid="dashboard-page">
-      <section className="relative overflow-hidden rounded-[1.5rem] border border-slate-200/80 bg-slate-950 p-4 text-white shadow-xl shadow-slate-200/70 sm:p-6 lg:rounded-[2rem] lg:p-6">
-        <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.32),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(59,130,246,0.28),transparent_32%)]"
-          aria-hidden="true"
-        />
-
-        <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-          <div className="max-w-3xl">
-            <Badge className="mb-3 border border-white/15 bg-white/10 px-3 py-1 text-white backdrop-blur">
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-              StickPro Club OS
-            </Badge>
-
-            <h1 className="font-heading text-2xl leading-tight tracking-tight sm:text-5xl">
-              {getGreeting()}, {displayName?.split(' ')?.[0] || tr('common.user', 'Utilizador')}.
-            </h1>
-
-            <p className="mt-2 line-clamp-2 max-w-2xl text-xs leading-5 text-slate-300 sm:text-base lg:line-clamp-none">
-              {t('dashboard.heroSubtitle')}
-            </p>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-300 sm:text-sm">
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
-                <Calendar className="h-4 w-4 text-cyan-300" />
-                {format(new Date(), dateFormat, { locale: dateLocale })}
-              </span>
-
-              <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5">
-                <ShieldCheck className="h-4 w-4 text-emerald-300" />
-                {t('dashboard.operationalActive')}
-              </span>
-
-              {paymentHeroStatus && PaymentHeroIcon && (
-                <Link
-                  to="/payments"
-                  className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 transition hover:bg-white/15"
-                >
-                  <PaymentHeroIcon className={`h-4 w-4 ${paymentHeroStatus.iconClass}`} />
-                  {paymentHeroStatus.text}
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-
+      <DashboardHero
+        badge="StickPro Club OS"
+        title={`${getGreeting()}, ${
+          displayName?.split(' ')?.[0] || tr('common.user', 'Utilizador')
+        }.`}
+        subtitle={t('dashboard.heroSubtitle')}
+        meta={[
+          {
+            icon: Calendar,
+            iconClass: 'text-cyan-300',
+            text: format(new Date(), dateFormat, {
+              locale: dateLocale,
+            }),
+          },
+          {
+            icon: ShieldCheck,
+            iconClass: 'text-emerald-300',
+            text: t('dashboard.operationalActive'),
+          },
+          ...(paymentHeroStatus && PaymentHeroIcon
+            ? [
+                {
+                  icon: PaymentHeroIcon,
+                  iconClass: paymentHeroStatus.iconClass,
+                  text: paymentHeroStatus.text,
+                  to: '/payments',
+                },
+              ]
+            : []),
+        ]}
+      />
+      
       <CommitmentCard />
 
 {pendingFeedback.length > 0 && (() => {
@@ -766,7 +656,7 @@ const fetchDashboard = async () => {
 
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4">
-        <MetricCard
+        <DashboardMetricCard
           icon={StickTeamIcon}
           value={data?.teams_count || 0}
           label={t('dashboard.teams')}
@@ -775,7 +665,7 @@ const fetchDashboard = async () => {
           to="/my-teams"
         />
 
-        <MetricCard
+        <DashboardMetricCard
           icon={StickCalendarIcon}
           value={upcomingEvents.length}
           label={t('dashboard.events')}
@@ -784,7 +674,7 @@ const fetchDashboard = async () => {
           to="/calendar"
         />
 
-        <MetricCard
+        <DashboardMetricCard
           icon={StickConvocationIcon}
           value={pendingCount}
           label={tr('dashboard.pendingActions', 'Pendentes')}
@@ -793,7 +683,7 @@ const fetchDashboard = async () => {
           to="/calendar?view=agenda"
         />
 
-        <MetricCard
+        <DashboardMetricCard
           icon={StickMessageIcon}
           value={recentMessages.length}
           label={tr('messages.title', 'Mensagens')}
