@@ -238,3 +238,92 @@ export function isNavigationItemActive(item, pathname) {
     (path) => pathname === path || pathname.startsWith(`${path}/`)
   );
 }
+
+export const DASHBOARD_QUICK_ACTIONS = [
+  {
+    id: 'calendar',
+    path: '/calendar',
+    labelKey: 'nav.calendar',
+    fallbackLabel: 'Calendário',
+    descriptionKey: 'dashboard.quickActions.calendar',
+    fallbackDescription: 'Ver treinos, jogos e eventos',
+    icon: Calendar,
+    visibleFor: ['all'],
+  },
+  {
+    id: 'messages',
+    path: '/messages',
+    labelKey: 'nav.messages',
+    fallbackLabel: 'Mensagens',
+    descriptionKey: 'dashboard.quickActions.messages',
+    fallbackDescription: 'Comunicação da equipa',
+    icon: MessageSquare,
+    visibleFor: ['all'],
+  },
+  {
+    id: 'development_center_staff',
+    path: '/development-center',
+    labelKey: 'nav.developmentCenter',
+    fallbackLabel: 'Centro Desenvolvimento',
+    descriptionKey: 'dashboard.quickActions.developmentCenter',
+    fallbackDescription: 'Avaliar e acompanhar atletas',
+    icon: Award,
+    visibleFor: ['admin', 'gestor_desportivo', 'treinador', 'treinador_adjunto'],
+  },
+  {
+    id: 'my_development',
+    path: '/development-center',
+    labelKey: 'nav.myDevelopment',
+    fallbackLabel: 'O Meu Desenvolvimento',
+    descriptionKey: 'dashboard.quickActions.myDevelopment',
+    fallbackDescription: 'Ver evolução, objetivos e feedback',
+    icon: Award,
+    visibleFor: ['jogador', 'responsavel'],
+  },
+  {
+    id: 'new_evaluation',
+    path: '/evaluations/new',
+    labelKey: 'evaluation.newEvaluation',
+    fallbackLabel: 'Nova Avaliação',
+    descriptionKey: 'dashboard.quickActions.newEvaluation',
+    fallbackDescription: 'Avaliar atletas rapidamente',
+    icon: ClipboardCheck,
+    visibleFor: ['admin', 'gestor_desportivo', 'treinador', 'treinador_adjunto'],
+  },
+  {
+    id: 'competitions',
+    path: '/championships',
+    labelKey: 'nav.championships',
+    fallbackLabel: 'Competições',
+    descriptionKey: 'dashboard.quickActions.competitions',
+    fallbackDescription: 'Jogos, resultados e estatísticas',
+    icon: Trophy,
+    visibleFor: ['all'],
+  },
+  {
+    id: 'attendance',
+    path: '/attendance',
+    labelKey: 'nav.attendance',
+    fallbackLabel: 'Presenças',
+    descriptionKey: 'dashboard.quickActions.attendance',
+    fallbackDescription: 'Assiduidade e convocatórias',
+    icon: ClipboardCheck,
+    permission: 'view_team_attendance',
+  },
+  {
+    id: 'plans',
+    path: '/evaluation-plans',
+    labelKey: 'evaluationPlans.title',
+    fallbackLabel: 'Planos',
+    descriptionKey: 'dashboard.quickActions.plans',
+    fallbackDescription: 'Planos de avaliação',
+    icon: FileText,
+    visibleFor: ['admin', 'gestor_desportivo', 'treinador', 'treinador_adjunto'],
+  },
+];
+
+export function getVisibleDashboardQuickActions(user, permissions) {
+  return DASHBOARD_QUICK_ACTIONS.filter((item) =>
+    canShowNavigationItem(item, user, permissions)
+  );
+}
