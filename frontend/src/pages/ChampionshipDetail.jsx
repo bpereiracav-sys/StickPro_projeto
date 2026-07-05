@@ -168,13 +168,29 @@ export default function ChampionshipDetail() {
   }, [matches]);
 
   const championshipPermissions = championship?.permissions || {};
-  const canEditCompetition = championshipPermissions.can_edit ?? (canCreateGames);
-  const canCreateGames = championshipPermissions.can_create_games ?? canEditCompetition;
-  const canEditGames = championshipPermissions.can_edit_games ?? canEditCompetition;
-  const canEditResults = championshipPermissions.can_edit_results ?? canManageStats;
-  const canImportGamesheet = championshipPermissions.can_import_gamesheet ?? canImportData;
-  const canEditStatistics = championshipPermissions.can_edit_statistics ?? canManageStats;
-  const canEditStandings = championshipPermissions.can_edit_standings ?? (isAdmin || false);
+  const fallbackCanManageCompetition =
+    canManageEvents && (isAdmin || canAccessTeam(championship?.team_id));
+  
+  const canEditCompetition =
+    championshipPermissions.can_edit ?? fallbackCanManageCompetition;
+  
+  const canCreateGames =
+    championshipPermissions.can_create_games ?? fallbackCanManageCompetition;
+  
+  const canEditGames =
+    championshipPermissions.can_edit_games ?? fallbackCanManageCompetition;
+  
+  const canEditResults =
+    championshipPermissions.can_edit_results ?? canManageStats;
+  
+  const canImportGamesheet =
+    championshipPermissions.can_import_gamesheet ?? canImportData;
+  
+  const canEditStatistics =
+    championshipPermissions.can_edit_statistics ?? canManageStats;
+  
+  const canEditStandings =
+    championshipPermissions.can_edit_standings ?? isAdmin;
 
   const [matchForm, setMatchForm] = useState({
     home_team_id: '',
