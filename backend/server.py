@@ -405,6 +405,39 @@ async def can_edit_competition_standings(current_user: dict, championship: dict)
 
     return False
 
+async def enrich_championship_for_response(
+    championship: dict,
+    current_user: dict
+) -> dict:
+    enriched = dict(championship)
+
+    team = None
+    team_id = championship.get("team_id")
+
+    if team_id:
+        team = await db.teams.find_one(
+            {"id": team_id},
+            {"_id": 0, "id": 1, "name": 1, "category": 1, "season": 1}
+        )
+
+    enriched["team"] = team
+    enriched["team_name"] = team.get("name") if team else None
+    enriched["team_category"] = team.get("category") if team else None
+    enriched["team_season"] = team.get("season") if team else None
+
+    enriched["permissions"] = {
+        "can_view": await can_view_competition(current_user, championship),
+        "can_edit": await can_edit_competition(current_user, championship),
+        "can_archive": await can_archive_competition(current_user, championship),
+        "can_create_games": await can_create_competition_game(current_user, championship),
+        "can_edit_games": await can_edit_competition_game(current_user, championship),
+        "can_edit_results": await can_edit_competition_result(current_user, championship),
+        "can_import_gamesheet": await can_import_competition_gamesheet(current_user, championship),
+        "can_edit_statistics": await can_edit_competition_statistics(current_user, championship),
+        "can_edit_standings": await can_edit_competition_standings(current_user, championship),
+    }
+
+    return enriched
 
 # ==================== PERMISSION SYSTEM ====================
 
@@ -5857,7 +5890,14 @@ async def get_championships(
         {"_id": 0}
     ).sort("created_at", -1).to_list(500)
 
-    return championships
+    enriched = []
+    for championship in championships:
+        if await can_view_competition(current_user, championship):
+            enriched.append(
+                await enrich_championship_for_response(championship, current_user)
+            )
+
+    return enriched
 
 @api_router.get("/championships/{championship_id}")
 async def get_championship(
@@ -5875,7 +5915,7 @@ async def get_championship(
     if not await can_view_competition(current_user, championship):
         raise HTTPException(status_code=403, detail="Sem acesso a esta competição")
 
-    return championship
+    return await enrich_championship_for_response(championship, current_user)
 
 @api_router.put("/championships/{championship_id}")
 async def update_championship(
