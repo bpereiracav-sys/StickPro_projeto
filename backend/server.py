@@ -5975,14 +5975,14 @@ async def create_championship_match(championship_id: str, data: ChampionshipMatc
     {"_id": 0}
 )
 
-if not championship:
-    raise HTTPException(status_code=404, detail="Campeonato não encontrado")
-
-if not await can_create_competition_game(current_user, championship):
-    raise HTTPException(
-        status_code=403,
-        detail="Sem permissão para criar jogos nesta competição"
-    )    
+    if not championship:
+        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+    
+    if not await can_create_competition_game(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para criar jogos nesta competição"
+        )    
     match = ChampionshipMatch(
         championship_id=championship_id,
         team_id=championship['team_id'],
