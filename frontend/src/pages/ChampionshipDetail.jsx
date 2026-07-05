@@ -378,12 +378,12 @@ export default function ChampionshipDetail() {
   };
 
   const handleDeleteMatch = async (matchId) => {
-    if (!confirm('Tem a certeza que quer eliminar este jogo?')) return;
+    if (!confirm("Pretende arquivar este jogo? Poderá restaurá-lo posteriormente.")) return;
     setDeleting(matchId);
 
     try {
-      await championshipsApi.deleteMatch(matchId);
-      toast.success('Jogo eliminado!');
+      await championshipsApi.archiveMatch(matchId);
+      toast.success("Jogo arquivado!");
       fetchData();
     } catch (error) {
       toast.error('Erro ao eliminar jogo');
