@@ -7179,15 +7179,22 @@ class APLCalendarImport(BaseModel):
     championship_id: str
 
 @api_router.post("/championships/import-apl-calendar")
-async def import_apl_calendar(data: APLCalendarImport, current_user: dict = Depends(get_current_user)):
+async def import_apl_calendar(
+    data: APLCalendarImport,
+    current_user: dict = Depends(get_current_user)
+):
     """Import matches calendar from APL division page"""
-        championship = await db.championships.find_one(
+
+    championship = await db.championships.find_one(
         {"id": data.championship_id},
         {"_id": 0}
     )
 
     if not championship:
-        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
+        raise HTTPException(
+            status_code=404,
+            detail="Campeonato não encontrado"
+        )
 
     if not await can_create_competition_game(current_user, championship):
         raise HTTPException(
@@ -7195,7 +7202,7 @@ async def import_apl_calendar(data: APLCalendarImport, current_user: dict = Depe
             detail="Sem permissão para importar calendário desta competição"
         )
 
-    team_id = championship.get('team_id')
+    team_id = championship.get("team_id")
     
     # Fetch the APL calendar page
     try:
