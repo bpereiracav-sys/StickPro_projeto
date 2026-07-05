@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { usePermissions } from '../context/PermissionsContext';
@@ -43,8 +43,8 @@ import {
 import { toast } from 'sonner';
 import { 
   ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin, Home, Plane, 
-  Target, Edit, Check, X, Trash2, Users, Zap, FileSpreadsheet, Download, ExternalLink,
-  LayoutGrid, BarChart3, Building, Upload, Palette, ChevronDown, ChevronUp
+  Target, Edit, Check, Trash2, Users, Zap, FileSpreadsheet, Download, ExternalLink,
+  LayoutGrid, BarChart3, Building, Upload, Palette
 } from 'lucide-react';
 import { formatDate, formatTime } from '../lib/utils';
 import { MatchLineupEditor } from '../components/MatchLineupEditor';
@@ -143,6 +143,39 @@ export default function ChampionshipDetail() {
     });
   }, [matchesByRound, t]);
   
+
+  const completedMatches = useMemo(
+    () => matches.filter((match) => match.is_completed).length,
+    [matches]
+  );
+
+  const pendingMatches = useMemo(
+    () => matches.filter((match) => !match.is_completed).length,
+    [matches]
+  );
+
+  const nextMatch = useMemo(() => {
+    const now = new Date();
+    return [...matches]
+      .filter((match) => !match.is_completed && new Date(match.match_date) >= now)
+      .sort((a, b) => new Date(a.match_date) - new Date(b.match_date))[0] || null;
+  }, [matches]);
+
+  const lastCompletedMatch = useMemo(() => {
+    return [...matches]
+      .filter((match) => match.is_completed)
+      .sort((a, b) => new Date(b.match_date) - new Date(a.match_date))[0] || null;
+  }, [matches]);
+
+  const championshipPermissions = championship?.permissions || {};
+  const canEditCompetition = championshipPermissions.can_edit ?? (canCreateGames);
+  const canCreateGames = championshipPermissions.can_create_games ?? canEditCompetition;
+  const canEditGames = championshipPermissions.can_edit_games ?? canEditCompetition;
+  const canEditResults = championshipPermissions.can_edit_results ?? canManageStats;
+  const canImportGamesheet = championshipPermissions.can_import_gamesheet ?? canImportData;
+  const canEditStatistics = championshipPermissions.can_edit_statistics ?? canManageStats;
+  const canEditStandings = championshipPermissions.can_edit_standings ?? (isAdmin || false);
+
   const [matchForm, setMatchForm] = useState({
     home_team_id: '',
     home_team: '',
@@ -329,7 +362,7 @@ export default function ChampionshipDetail() {
   };
 
   const handleDeleteMatch = async (matchId) => {
-    if (!confirm('Tem a certeza que quer eliminar este jogo? Esta ação é irreversível.')) return;
+    if (!confirm('Tem a certeza que quer eliminar este jogo?')) return;
     setDeleting(matchId);
 
     try {
@@ -611,62 +644,181 @@ export default function ChampionshipDetail() {
   return (
     <div className="space-y-6" data-testid="championship-detail-page">
       {/* Back Button */}
-      <Link 
-        to="/championships" 
-        className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Voltar aos Campeonatos
-      </Link>
+      <Button asChild variant="ghost" className="w-fit -ml-2 text-muted-foreground hover:text-foreground">
+        <Link to="/championships" className="inline-flex items-center gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Voltar às Competições
+        </Link>
+      </Button>
 
-      {/* Header */}
-      <div className="flex flex-col gap-4">
-        <div>
-          <h1 className="font-heading text-2xl sm:text-2xl sm:text-3xl lg:text-4xl text-foreground tracking-tight flex items-start gap-2">
-            <Trophy className="w-6 h-6 sm:w-8 sm:h-8 text-primary flex-shrink-0 mt-1" />
-            <span className="break-words">{championship.name}</span>
-          </h1>
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            <Badge variant="outline" className="text-xs">{championship.season}</Badge>
-            <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-              <Users className="w-3 h-3" />
-              {championship.format || '5x5'}
+      {/* Premium Header */}
+      <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-6 lg:p-8">
+        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl" />
+
+        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <Badge className="mb-3 border-white/20 bg-white/10 text-white hover:bg-white/10">
+              Centro de Gestão Competitiva
             </Badge>
-            <Badge variant={championship.convocation_type === 'automatica' ? 'default' : 'outline'} className="flex items-center gap-1 text-xs whitespace-nowrap">
-              <Zap className="w-3 h-3" />
-              <span className="hidden sm:inline">{championship.convocation_type === 'automatica' ? 'Conv. Automática' : 'Conv. Manual'}</span>
-              <span className="sm:hidden">{championship.convocation_type === 'automatica' ? 'Auto' : 'Manual'}</span>
-            </Badge>
-            <span className="text-muted-foreground text-sm truncate max-w-[150px] sm:max-w-none">{team?.name}</span>
+            <h1 className="font-heading text-2xl tracking-tight sm:text-3xl lg:text-4xl">
+              {championship.name}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-cyan-50/90">
+              <Badge variant="outline" className="border-white/25 bg-white/10 text-white">
+                {championship.season}
+              </Badge>
+              <Badge variant="outline" className="border-white/25 bg-white/10 text-white">
+                {team?.name || championship.team_name || 'Equipa'}
+              </Badge>
+              <Badge variant="outline" className="border-white/25 bg-white/10 text-white">
+                {championship.format || '5x5'}
+              </Badge>
+              <Badge variant="outline" className="border-white/25 bg-white/10 text-white">
+                {championship.convocation_type === 'automatica' ? 'Convocatória automática' : 'Convocatória manual'}
+              </Badge>
+            </div>
+            {championship.description && (
+              <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-200">
+                {championship.description}
+              </p>
+            )}
           </div>
+
+          {canCreateGames && (
+            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
+              <Button onClick={() => setMatchDialogOpen(true)} data-testid="add-match-btn" className="bg-white text-slate-950 hover:bg-cyan-50">
+                <Plus className="mr-2 h-4 w-4" />
+                {t('championships.addGame') || 'Adicionar Jogo'}
+              </Button>
+              <Button variant="outline" onClick={() => setMatchImportDialogOpen(true)} data-testid="import-matches-btn" className="border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white">
+                <Upload className="mr-2 h-4 w-4" />
+                {t('championships.importMatches') || 'Importar Jogos'}
+              </Button>
+            </div>
+          )}
         </div>
 
-        {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setMatchDialogOpen(true)} data-testid="add-match-btn" className="w-full sm:w-auto">
-              <Plus className="w-4 h-4 mr-2" />
-              {t('championships.addGame')}
-            </Button>
-            <Button 
-              variant="outline" 
-              onClick={() => setMatchImportDialogOpen(true)} 
-              data-testid="import-matches-btn" 
-              className="w-full sm:w-auto"
-            >
-              <Upload className="w-4 h-4 mr-2" />
-              {t('championships.importMatches')}
-            </Button>
+        <div className="relative z-10 mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+            <p className="text-xs uppercase tracking-wide text-cyan-100/80">Jogos</p>
+            <p className="mt-1 text-2xl font-bold">{matches.length}</p>
           </div>
-        )}
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+            <p className="text-xs uppercase tracking-wide text-cyan-100/80">Realizados</p>
+            <p className="mt-1 text-2xl font-bold">{completedMatches}</p>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+            <p className="text-xs uppercase tracking-wide text-cyan-100/80">Por realizar</p>
+            <p className="mt-1 text-2xl font-bold">{pendingMatches}</p>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+            <p className="text-xs uppercase tracking-wide text-cyan-100/80">Equipas</p>
+            <p className="mt-1 text-2xl font-bold">{competitionTeams.length}</p>
+          </div>
+        </div>
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="matches" className="space-y-6">
-        <TabsList className="bg-muted">
-          <TabsTrigger value="matches">Jogos ({matches.length})</TabsTrigger>
-          <TabsTrigger value="teams">Equipas ({competitionTeams.length})</TabsTrigger>
-          <TabsTrigger value="standings">Classificação</TabsTrigger>
+      <Tabs defaultValue="summary" className="space-y-6">
+        <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-2">
+          <TabsTrigger value="summary" className="rounded-xl">Resumo</TabsTrigger>
+          <TabsTrigger value="matches" className="rounded-xl">Jogos ({matches.length})</TabsTrigger>
+          <TabsTrigger value="standings" className="rounded-xl">Classificação</TabsTrigger>
+          <TabsTrigger value="teams" className="rounded-xl">Equipas ({competitionTeams.length})</TabsTrigger>
+          <TabsTrigger value="stats" className="rounded-xl">Estatísticas</TabsTrigger>
+          <TabsTrigger value="imports" className="rounded-xl">Importações</TabsTrigger>
+          <TabsTrigger value="settings" className="rounded-xl">Configuração</TabsTrigger>
         </TabsList>
+
+        {/* Summary Tab */}
+        <TabsContent value="summary" className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            <Card className="overflow-hidden border-white/70 bg-white/90 shadow-lg shadow-slate-200/70 lg:col-span-2">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+                  <Calendar className="h-5 w-5 text-primary" />
+                  Próximo jogo
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {nextMatch ? (
+                  <div className="rounded-2xl border bg-slate-50 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">{formatDate(nextMatch.match_date)} · {formatTime(nextMatch.match_date)}</p>
+                        <p className="mt-1 text-lg font-semibold">
+                          {nextMatch.is_club_match === false ? nextMatch.home_team : team?.name} vs {nextMatch.opponent_team}
+                        </p>
+                        {nextMatch.venue && <p className="mt-1 text-sm text-muted-foreground">{nextMatch.venue}</p>}
+                      </div>
+                      <Badge variant="outline">Jornada {nextMatch.matchday || '-'}</Badge>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Não existem jogos futuros agendados.</p>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+                  <Trophy className="h-5 w-5 text-primary" />
+                  Último resultado
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {lastCompletedMatch ? (
+                  <div>
+                    <p className="text-sm text-muted-foreground">{formatDate(lastCompletedMatch.match_date)}</p>
+                    <p className="mt-2 text-lg font-semibold">{lastCompletedMatch.is_club_match === false ? lastCompletedMatch.home_team : team?.name} vs {lastCompletedMatch.opponent_team}</p>
+                    <p className="mt-2 font-heading text-3xl">{lastCompletedMatch.home_score} - {lastCompletedMatch.away_score}</p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Ainda não existem resultados registados.</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Card className="border-white/70 bg-gradient-to-br from-white to-cyan-50/70 shadow-md shadow-slate-200/70">
+              <CardHeader>
+                <CardTitle className="text-base">Pendências</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                <p>{pendingMatches} jogos por realizar.</p>
+                <p>{matches.filter((match) => !match.gamesheet_url && match.is_completed).length} jogos realizados sem boletim importado.</p>
+                <p>{competitionTeams.length === 0 ? 'Ainda não existem equipas participantes registadas.' : 'Equipas participantes registadas.'}</p>
+              </CardContent>
+            </Card>
+            <Card className="border-white/70 bg-gradient-to-br from-white to-amber-50/70 shadow-md shadow-slate-200/70">
+              <CardHeader>
+                <CardTitle className="text-base">Classificação</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm text-muted-foreground">
+                {standings.slice(0, 3).map((row, index) => (
+                  <div key={row.team} className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2">
+                    <span>{index + 1}. {row.team}</span>
+                    <strong>{row.points} pts</strong>
+                  </div>
+                ))}
+                {standings.length === 0 && <p>Sem dados de classificação.</p>}
+              </CardContent>
+            </Card>
+            <Card className="border-white/70 bg-gradient-to-br from-white to-slate-50 shadow-md shadow-slate-200/70">
+              <CardHeader>
+                <CardTitle className="text-base">Permissões</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                <Badge variant={canEditGames ? 'default' : 'outline'}>{canEditGames ? 'Edita jogos' : 'Só leitura'}</Badge>
+                <Badge variant={canEditResults ? 'default' : 'outline'}>{canEditResults ? 'Edita resultados' : 'Resultados bloqueados'}</Badge>
+                <Badge variant={canImportGamesheet ? 'default' : 'outline'}>{canImportGamesheet ? 'Importa boletins' : 'Sem importação'}</Badge>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
         {/* Matches Tab - Grouped by Round */}
         <TabsContent value="matches" className="space-y-4">
@@ -765,7 +917,7 @@ export default function ChampionshipDetail() {
                         )}
 
                         {/* Show action buttons based on permissions */}
-                        {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
+                        {canEditGames && (
                           <div className="flex flex-wrap gap-1.5 sm:gap-2">
                             <Button 
                               variant="outline" 
@@ -776,7 +928,7 @@ export default function ChampionshipDetail() {
                             >
                               <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                             </Button>
-                            {canManageStats && (
+                            {canEditResults && (
                               <Button 
                                 variant="outline" 
                                 size="sm"
@@ -790,7 +942,7 @@ export default function ChampionshipDetail() {
                             {/* Only show stats/lineup buttons for club matches */}
                             {match.is_club_match !== false && (
                               <>
-                                {canImportData && (
+                                {canImportGamesheet && (
                                   <Button 
                                     variant="outline" 
                                     size="sm"
@@ -811,7 +963,7 @@ export default function ChampionshipDetail() {
                                     <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                   </Link>
                                 </Button>
-                                {canManageLineups && (
+                                {canManageLineups && canEditGames && (
                                   <Button 
                                     variant="outline" 
                                     size="sm"
@@ -853,7 +1005,7 @@ export default function ChampionshipDetail() {
               <CardContent className="py-12 text-center">
                 <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                 <p className="text-muted-foreground">Nenhum jogo agendado</p>
-                {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
+                {canCreateGames && (
                   <Button className="mt-4" onClick={() => setMatchDialogOpen(true)}>
                     <Plus className="w-4 h-4 mr-2" />
                     Adicionar Jogo
@@ -867,13 +1019,13 @@ export default function ChampionshipDetail() {
         {/* Competition Teams Tab */}
         <TabsContent value="teams" className="space-y-4">
           {/* Team Actions */}
-          {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
+          {canCreateGames && (
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => { resetTeamForm(); setTeamDialogOpen(true); }} data-testid="add-team-btn">
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Equipa
               </Button>
-              {canImportData && (
+              {canImportGamesheet && (
                 <Button variant="outline" onClick={() => setTeamImportDialogOpen(true)}>
                   <Upload className="w-4 h-4 mr-2" />
                   Importar Excel
@@ -897,7 +1049,7 @@ export default function ChampionshipDetail() {
                           </CardDescription>
                         )}
                       </div>
-                      {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
+                      {canCreateGames && (
                         <div className="flex gap-1">
                           <Button 
                             variant="ghost" 
@@ -982,7 +1134,7 @@ export default function ChampionshipDetail() {
                 <p className="text-sm text-muted-foreground mt-1">
                   Adicione as equipas participantes para poder criar jogos
                 </p>
-                {canManageEvents && (isAdmin || canAccessTeam(championship?.team_id)) && (
+                {canCreateGames && (
                   <Button className="mt-4" onClick={() => { resetTeamForm(); setTeamDialogOpen(true); }}>
                     <Plus className="w-4 h-4 mr-2" />
                     Adicionar Equipa
@@ -1058,7 +1210,139 @@ export default function ChampionshipDetail() {
             </CardContent>
           </Card>
         </TabsContent>
+
+
+        {/* Statistics Tab */}
+        <TabsContent value="stats" className="space-y-4">
+          <Card className="border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+                <BarChart3 className="h-5 w-5 text-primary" />
+                Estatísticas da Competição
+              </CardTitle>
+              <CardDescription>
+                Esta área será ligada aos rankings individuais e às estatísticas detalhadas dos jogos.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-muted-foreground">Jogos realizados</p>
+                <p className="mt-1 text-2xl font-bold">{completedMatches}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-muted-foreground">Equipas</p>
+                <p className="mt-1 text-2xl font-bold">{competitionTeams.length}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-muted-foreground">Golos registados</p>
+                <p className="mt-1 text-2xl font-bold">
+                  {matches.reduce((sum, match) => sum + (match.home_score || 0) + (match.away_score || 0), 0)}
+                </p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-sm text-muted-foreground">Boletins importados</p>
+                <p className="mt-1 text-2xl font-bold">{matches.filter((match) => match.gamesheet_url).length}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Imports Tab */}
+        <TabsContent value="imports" className="space-y-4">
+          <Card className="border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+                <Upload className="h-5 w-5 text-primary" />
+                Importações
+              </CardTitle>
+              <CardDescription>
+                Importação assistida de jogos, equipas e boletins APL/FPP.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <Button variant="outline" onClick={() => setMatchImportDialogOpen(true)} disabled={!canCreateGames}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" />
+                Importar jogos
+              </Button>
+              <Button variant="outline" onClick={() => setTeamImportDialogOpen(true)} disabled={!canImportGamesheet}>
+                <Users className="mr-2 h-4 w-4" />
+                Importar equipas
+              </Button>
+              <Button variant="outline" onClick={() => setAplImportDialogOpen(true)} disabled={!canImportGamesheet}>
+                <Download className="mr-2 h-4 w-4" />
+                Importar calendário APL/FPP
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-4">
+          <Card className="border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
+            <CardHeader>
+              <CardTitle className="font-heading text-xl tracking-tight">Configuração</CardTitle>
+              <CardDescription>
+                Informação estrutural da competição. A edição detalhada será desenvolvida no sprint seguinte.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Competição</p>
+                <p className="mt-1 font-semibold">{championship.name}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Equipa</p>
+                <p className="mt-1 font-semibold">{team?.name || championship.team_name || '-'}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Época</p>
+                <p className="mt-1 font-semibold">{championship.season}</p>
+              </div>
+              <div className="rounded-2xl bg-slate-50 p-4">
+                <p className="text-xs uppercase tracking-wide text-muted-foreground">Modo</p>
+                <p className="mt-1 font-semibold">{canEditCompetition ? 'Editável para este perfil' : 'Apenas visualização'}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      {/* Import APL/FPP Calendar Dialog */}
+      <Dialog open={aplImportDialogOpen} onOpenChange={setAplImportDialogOpen}>
+        <DialogContent className="bg-white max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl tracking-tight flex items-center gap-2">
+              <Download className="w-5 h-5 text-primary" />
+              Importar calendário APL/FPP
+            </DialogTitle>
+            <DialogDescription>
+              Cole o URL da página de calendário ou ficha oficial para criar jogos na competição.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>URL APL/FPP</Label>
+              <Input
+                placeholder="https://aplisboa.assyssoftware.es/..."
+                value={aplCalendarUrl}
+                onChange={(e) => setAplCalendarUrl(e.target.value)}
+              />
+            </div>
+            <div className="rounded-2xl border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800">
+              A importação deve ser sempre validada antes de ser usada para estatísticas oficiais.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setAplImportDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleImportAplCalendar} disabled={importingApl || !aplCalendarUrl}>
+              {importingApl ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+              Importar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Add Match Dialog */}
       <Dialog open={matchDialogOpen} onOpenChange={setMatchDialogOpen}>
