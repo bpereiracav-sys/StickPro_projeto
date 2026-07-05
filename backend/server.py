@@ -117,6 +117,295 @@ def is_admin_role(role: str) -> bool:
     """Check if a role has admin-level permissions"""
     return role in ADMIN_ROLES
 
+# ==================== COMPETITION PERMISSION SETTINGS ====================
+
+DEFAULT_COMPETITION_PERMISSIONS = {
+    "coach_can_create_competitions": False,
+    "coach_can_archive_competitions": False,
+    "coach_can_edit_standings": False,
+
+    "delegate_can_create_competitions": False,
+    "delegate_can_edit_competitions": False,
+    "delegate_can_archive_competitions": False,
+    "delegate_can_create_games": False,
+    "delegate_can_edit_games": False,
+    "delegate_can_edit_results": False,
+    "delegate_can_import_gamesheet": False,
+    "delegate_can_edit_statistics": False,
+    "delegate_can_edit_standings": False,
+}
+
+
+class CompetitionPermissionSettingsUpdate(BaseModel):
+    coach_can_create_competitions: Optional[bool] = None
+    coach_can_archive_competitions: Optional[bool] = None
+    coach_can_edit_standings: Optional[bool] = None
+
+    delegate_can_create_competitions: Optional[bool] = None
+    delegate_can_edit_competitions: Optional[bool] = None
+    delegate_can_archive_competitions: Optional[bool] = None
+    delegate_can_create_games: Optional[bool] = None
+    delegate_can_edit_games: Optional[bool] = None
+    delegate_can_edit_results: Optional[bool] = None
+    delegate_can_import_gamesheet: Optional[bool] = None
+    delegate_can_edit_statistics: Optional[bool] = None
+    delegate_can_edit_standings: Optional[bool] = None
+
+
+async def get_current_club_for_user(current_user: dict) -> Optional[dict]:
+    club_id = current_user.get("club_id")
+
+    if club_id:
+        club = await db.clubs.find_one({"id": club_id}, {"_id": 0})
+        if club:
+            return club
+
+    return await db.clubs.find_one({}, {"_id": 0})
+
+
+async def get_competition_permission_settings(current_user: dict) -> dict:
+    club = await get_current_club_for_user(current_user)
+
+    settings = DEFAULT_COMPETITION_PERMISSIONS.copy()
+
+    if club:
+        stored = club.get("competition_permissions") or {}
+        if isinstance(stored, dict):
+            for key in DEFAULT_COMPETITION_PERMISSIONS.keys():
+                if key in stored:
+                    settings[key] = bool(stored[key])
+
+    return settings
+
+
+def get_user_competition_role(current_user: dict) -> str:
+    return current_user.get("role") or "jogador"
+
+
+def user_has_team_access(current_user: dict, team_id: Optional[str]) -> bool:
+    if not team_id:
+        return False
+
+    if is_admin_role(current_user.get("role")):
+        return True
+
+    return team_id in (current_user.get("team_ids") or [])
+
+
+async def can_view_competition(current_user: dict, championship: dict) -> bool:
+    if is_admin_role(current_user.get("role")):
+        return True
+
+    return user_has_team_access(current_user, championship.get("team_id"))
+
+
+async def can_create_competition(current_user: dict, team_id: Optional[str]) -> bool:
+    role = get_user_competition_role(current_user)
+
+    if is_admin_role(role):
+        return True
+
+    if role in ["jogador", "responsavel"]:
+        return False
+
+    if not user_has_team_access(current_user, team_id):
+        return False
+
+    settings = await get_competition_permission_settings(current_user)
+
+    if role in ["treinador", "treinador_adjunto"]:
+        return settings["coach_can_create_competitions"]
+
+    if role == "delegado":
+        return settings["delegate_can_create_competitions"]
+
+    return False
+
+
+async def can_edit_competition(current_user: dict, championship: dict) -> bool:
+    role = get_user_competition_role(current_user)
+
+    if is_admin_role(role):
+        return True
+
+    if role in ["jogador", "responsavel"]:
+        return False
+
+    if not user_has_team_access(current_user, championship.get("team_id")):
+        return False
+
+    settings = await get_competition_permission_settings(current_user)
+
+    if role in ["treinador", "treinador_adjunto"]:
+        return True
+
+    if role == "delegado":
+        return settings["delegate_can_edit_competitions"]
+
+    return False
+
+
+async def can_archive_competition(current_user: dict, championship: dict) -> bool:
+    role = get_user_competition_role(current_user)
+
+    if is_admin_role(role):
+        return True
+
+    if role in ["jogador", "responsavel"]:
+        return False
+
+    if not user_has_team_access(current_user, championship.get("team_id")):
+        return False
+
+    settings = await get_competition_permission_settings(current_user)
+
+    if role in ["treinador", "treinador_adjunto"]:
+        return settings["coach_can_archive_competitions"]
+
+    if role == "delegado":
+        return settings["delegate_can_archive_competitions"]
+
+    return False
+
+
+async def can_create_competition_game(current_user: dict, championship: dict) -> bool:
+    role = get_user_competition_role(current_user)
+
+    if is_admin_role(role):
+        return True
+
+    if role in ["jogador", "responsavel"]:
+        return False
+
+    if not user_has_team_access(current_user, championship.get("team_id")):
+        return False
+
+    settings = await get_competition_permission_settings(current_user)
+
+    if role in ["treinador", "treinador_adjunto"]:
+        return True
+
+    if role == "delegado":
+        return settings["delegate_can_create_games"]
+
+    return False
+
+
+async def can_edit_competition_game(current_user: dict, championship: dict) -> bool:
+    role = get_user_competition_role(current_user)
+
+    if is_admin_role(role):
+        return True
+
+    if role in ["jogador", "responsavel"]:
+        return False
+
+    if not user_has_team_access(current_user, championship.get("team_id")):
+        return False
+
+    settings = await get_competition_permission_settings(current_user)
+
+    if role in ["treinador", "treinador_adjunto"]:
+        return True
+
+    if role == "delegado":
+        return settings["delegate_can_edit_games"]
+
+    return False
+
+
+async def can_edit_competition_result(current_user: dict, championship: dict) -> bool:
+    role = get_user_competition_role(current_user)
+
+    if is_admin_role(role):
+        return True
+
+    if role in ["jogador", "responsavel"]:
+        return False
+
+    if not user_has_team_access(current_user, championship.get("team_id")):
+        return False
+
+    settings = await get_competition_permission_settings(current_user)
+
+    if role in ["treinador", "treinador_adjunto"]:
+        return True
+
+    if role == "delegado":
+        return settings["delegate_can_edit_results"]
+
+    return False
+
+
+async def can_import_competition_gamesheet(current_user: dict, championship: dict) -> bool:
+    role = get_user_competition_role(current_user)
+
+    if is_admin_role(role):
+        return True
+
+    if role in ["jogador", "responsavel"]:
+        return False
+
+    if not user_has_team_access(current_user, championship.get("team_id")):
+        return False
+
+    settings = await get_competition_permission_settings(current_user)
+
+    if role in ["treinador", "treinador_adjunto"]:
+        return True
+
+    if role == "delegado":
+        return settings["delegate_can_import_gamesheet"]
+
+    return False
+
+
+async def can_edit_competition_statistics(current_user: dict, championship: dict) -> bool:
+    role = get_user_competition_role(current_user)
+
+    if is_admin_role(role):
+        return True
+
+    if role in ["jogador", "responsavel"]:
+        return False
+
+    if not user_has_team_access(current_user, championship.get("team_id")):
+        return False
+
+    settings = await get_competition_permission_settings(current_user)
+
+    if role in ["treinador", "treinador_adjunto"]:
+        return True
+
+    if role == "delegado":
+        return settings["delegate_can_edit_statistics"]
+
+    return False
+
+
+async def can_edit_competition_standings(current_user: dict, championship: dict) -> bool:
+    role = get_user_competition_role(current_user)
+
+    if is_admin_role(role):
+        return True
+
+    if role in ["jogador", "responsavel"]:
+        return False
+
+    if not user_has_team_access(current_user, championship.get("team_id")):
+        return False
+
+    settings = await get_competition_permission_settings(current_user)
+
+    if role in ["treinador", "treinador_adjunto"]:
+        return settings["coach_can_edit_standings"]
+
+    if role == "delegado":
+        return settings["delegate_can_edit_standings"]
+
+    return False
+
+
 # ==================== PERMISSION SYSTEM ====================
 
 # Default permissions by role
@@ -5443,6 +5732,71 @@ async def send_activation_reminder(member_id: str, current_user: dict = Depends(
         logging.error(f"Failed to send activation email: {e}")
     
     return {"message": "Lembrete enviado"}
+
+# ==================== COMPETITION PERMISSION ROUTES ====================
+
+@api_router.get("/championships/permissions/settings")
+async def get_championship_permission_settings(
+    current_user: dict = Depends(get_current_user)
+):
+    if not is_admin_role(current_user.get("role")):
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas administradores e coordenadores técnicos podem ver estas permissões"
+        )
+
+    settings = await get_competition_permission_settings(current_user)
+
+    return {
+        "settings": settings,
+        "defaults": DEFAULT_COMPETITION_PERMISSIONS,
+    }
+
+
+@api_router.put("/championships/permissions/settings")
+async def update_championship_permission_settings(
+    updates: CompetitionPermissionSettingsUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    if not is_admin_role(current_user.get("role")):
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas administradores e coordenadores técnicos podem alterar estas permissões"
+        )
+
+    club = await get_current_club_for_user(current_user)
+    if not club:
+        raise HTTPException(status_code=404, detail="Clube não encontrado")
+
+    update_data = updates.model_dump(exclude_unset=True)
+
+    filtered = {
+        key: bool(value)
+        for key, value in update_data.items()
+        if key in DEFAULT_COMPETITION_PERMISSIONS
+    }
+
+    if filtered:
+        await db.clubs.update_one(
+            {"id": club["id"]},
+            {
+                "$set": {
+                    **{
+                        f"competition_permissions.{key}": value
+                        for key, value in filtered.items()
+                    },
+                    "competition_permissions_updated_at": datetime.now(timezone.utc).isoformat(),
+                    "competition_permissions_updated_by": current_user["id"],
+                }
+            }
+        )
+
+    settings = await get_competition_permission_settings(current_user)
+
+    return {
+        "message": "Permissões das competições atualizadas",
+        "settings": settings,
+    }
 
 # ==================== CHAMPIONSHIP ROUTES ====================
 
