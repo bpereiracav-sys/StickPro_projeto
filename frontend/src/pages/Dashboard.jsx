@@ -29,6 +29,7 @@ import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard';
 import PendingActionsCard from '../components/dashboard/PendingActionsCard';
 import { usePermissions } from '../context/PermissionsContext';
 import DashboardQuickActions from '../components/dashboard/DashboardQuickActions';
+import DashboardTodayPanel from '../components/dashboard/DashboardTodayPanel';
 import { getVisibleDashboardQuickActions } from '../config/navigation';
 const locales = { pt, es, fr, it, en: enUS };
 
@@ -210,6 +211,8 @@ export default function Dashboard() {
       role: profileRole,
     };
   }, [user, activeProfile]);
+
+  const activeDashboardRole = navigationUser?.role || user?.role || 'jogador';
   
   const quickActions = useMemo(() => {
     return getVisibleDashboardQuickActions(navigationUser, permissions)
@@ -410,6 +413,16 @@ export default function Dashboard() {
         ]}
       />
       <DashboardQuickActions actions={quickActions} />
+
+      <DashboardTodayPanel
+        nextEvent={nextEvent}
+        pendingCount={pendingCount}
+        messagesCount={recentMessages.length}
+        role={activeDashboardRole}
+        getEventDayLink={getEventDayLink}
+        formatTime={formatTime}
+        tr={tr}
+      />      
       
       <CommitmentCard commitment={commitment} t={t} tr={tr} />
 
