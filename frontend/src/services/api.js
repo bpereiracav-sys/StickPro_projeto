@@ -131,7 +131,21 @@ export const championshipsApi = {
       player_id: playerId,
       ...data,
     }),
-};
+  
+  // Match Center
+  getMatch: (matchId) =>
+    api.get(`/championships/matches/${matchId}`),
+  
+  getTechnicalAssistant: (matchId) =>
+    api.get(`/matches/${matchId}/technical-assistant`),
+  
+  regenerateTechnicalAssistant: (matchId) =>
+    api.post(`/matches/${matchId}/technical-assistant/regenerate`),
+  
+  publishTechnicalAssistant: (matchId) =>
+    api.post(`/matches/${matchId}/technical-assistant/publish`),
+  
+  };
 
 // Events API
 export const eventsApi = {
