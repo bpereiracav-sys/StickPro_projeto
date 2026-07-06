@@ -7801,6 +7801,259 @@ async def get_championship_standings(championship_id: str, current_user: dict = 
     
     return sorted_standings
 
+# ==================== MATCH CENTER / TECHNICAL ASSISTANT ROUTES ====================
+
+async def get_match_or_404(match_id: str) -> dict:
+    match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+    return match
+
+
+async def get_championship_for_match_or_404(match: dict) -> dict:
+    championship = await db.championships.find_one(
+        {"id": match.get("championship_id")},
+        {"_id": 0}
+    )
+    if not championship:
+        raise HTTPException(status_code=404, detail="Competição não encontrada")
+    return championship
+
+
+async def build_technical_assistant(match_id: str, current_user: dict) -> dict:
+    match = await get_match_or_404(match_id)
+    championship = await get_championship_for_match_or_404(match)
+
+    if not await can_view_competition(current_user, championship):
+        raise HTTPException(status_code=403, detail="Sem acesso a este jogo")
+
+    stats = await db.player_match_stats.find(
+        {"match_id": match_id},
+        {"_id": 0}
+    ).to_list(500)
+
+    team = await db.teams.find_one(
+        {"id": match.get("team_id")},
+        {"_id": 0, "name": 1}
+    )
+
+    total_goals = sum(s.get("goals", 0) for s in stats)
+    total_assists = sum(s.get("assists", 0) for s in stats)
+    total_saves = sum(s.get("saves", 0) for s in stats)
+    total_blue_cards = sum(s.get("blue_cards", 0) for s in stats)
+    total_yellow_cards = sum(s.get("yellow_cards", 0) for s in stats)
+    total_red_cards = sum(s.get("red_cards", 0) for s in stats)
+
+    top_scorer = None
+    top_assistant = None
+    top_goalkeeper = None
+
+    if stats:
+        top_scorer = max(stats, key=lambda s: s.get("goals", 0), default=None)
+        top_assistant = max(stats, key=lambda s: s.get("assists", 0), default=None)
+        top_goalkeeper = max(stats, key=lambda s: s.get("saves", 0), default=None)
+
+    async def enrich_player(stat):
+        if not stat:
+            return None
+        player = await db.users.find_one(
+            {"id": stat.get("player_id")},
+            {"_id": 0, "id": 1, "name": 1}
+        )
+        return {
+            "player_id": stat.get("player_id"),
+            "player_name": player.get("name") if player else "Jogador",
+            "value": stat,
+        }
+
+    top_scorer = await enrich_player(top_scorer) if top_scorer and top_scorer.get("goals", 0) > 0 else None
+    top_assistant = await enrich_player(top_assistant) if top_assistant and top_assistant.get("assists", 0) > 0 else None
+    top_goalkeeper = await enrich_player(top_goalkeeper) if top_goalkeeper and top_goalkeeper.get("saves", 0) > 0 else None
+
+    highlights = []
+
+    if top_scorer:
+        highlights.append({
+            "type": "top_scorer",
+            "title": "Melhor marcador",
+            "text": f"{top_scorer['player_name']} marcou {top_scorer['value'].get('goals', 0)} golo(s).",
+        })
+
+    if top_assistant:
+        highlights.append({
+            "type": "top_assistant",
+            "title": "Melhor assistente",
+            "text": f"{top_assistant['player_name']} fez {top_assistant['value'].get('assists', 0)} assistência(s).",
+        })
+
+    if top_goalkeeper:
+        highlights.append({
+            "type": "goalkeeper",
+            "title": "Guarda-redes",
+            "text": f"{top_goalkeeper['player_name']} registou {top_goalkeeper['value'].get('saves', 0)} defesa(s).",
+        })
+
+    alerts = []
+
+    if total_blue_cards > 0:
+        alerts.append({
+            "type": "discipline",
+            "level": "warning",
+            "text": f"A equipa registou {total_blue_cards} cartão/cartões azul(is).",
+        })
+
+    if total_red_cards > 0:
+        alerts.append({
+            "type": "discipline",
+            "level": "danger",
+            "text": f"A equipa registou {total_red_cards} cartão/cartões vermelho(s).",
+        })
+
+    if match.get("gamesheet_url") and not match.get("technical_assistant_validated"):
+        alerts.append({
+            "type": "validation",
+            "level": "info",
+            "text": "Boletim importado. Recomenda-se validação das estatísticas.",
+        })
+
+    summary = {
+        "result": None,
+        "outcome": None,
+    }
+
+    if match.get("is_completed"):
+        home_score = match.get("home_score", 0)
+        away_score = match.get("away_score", 0)
+        summary["result"] = f"{home_score} - {away_score}"
+
+        if home_score > away_score:
+            summary["outcome"] = "Vitória da equipa da casa"
+        elif home_score < away_score:
+            summary["outcome"] = "Vitória da equipa visitante"
+        else:
+            summary["outcome"] = "Empate"
+
+    assistant = {
+        "match_id": match_id,
+        "championship_id": match.get("championship_id"),
+        "team_id": match.get("team_id"),
+        "team_name": team.get("name") if team else None,
+        "version": match.get("technical_assistant_version", 1),
+        "status": match.get("technical_assistant_status", "draft"),
+        "validated": match.get("technical_assistant_validated", False),
+        "published": match.get("technical_assistant_published", False),
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "summary": summary,
+        "totals": {
+            "goals": total_goals,
+            "assists": total_assists,
+            "saves": total_saves,
+            "yellow_cards": total_yellow_cards,
+            "blue_cards": total_blue_cards,
+            "red_cards": total_red_cards,
+        },
+        "highlights": highlights,
+        "alerts": alerts,
+        "development_notes": [
+            {
+                "type": "rotation",
+                "text": "A análise de rotação e cumprimento RTP será ligada ao módulo de line-up."
+            }
+        ],
+        "source": {
+            "stats_count": len(stats),
+            "gamesheet_url": match.get("gamesheet_url"),
+            "gamesheet_imported_at": match.get("gamesheet_imported_at"),
+        }
+    }
+
+    return assistant
+
+
+@api_router.get("/championships/matches/{match_id}")
+async def get_single_championship_match(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    match = await get_match_or_404(match_id)
+    championship = await get_championship_for_match_or_404(match)
+
+    if not await can_view_competition(current_user, championship):
+        raise HTTPException(status_code=403, detail="Sem acesso a este jogo")
+
+    return match
+
+
+@api_router.get("/matches/{match_id}/technical-assistant")
+async def get_match_technical_assistant(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    return await build_technical_assistant(match_id, current_user)
+
+
+@api_router.post("/matches/{match_id}/technical-assistant/regenerate")
+async def regenerate_match_technical_assistant(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    match = await get_match_or_404(match_id)
+    championship = await get_championship_for_match_or_404(match)
+
+    if not await can_edit_competition_statistics(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para recalcular o Assistente Técnico"
+        )
+
+    version = int(match.get("technical_assistant_version", 1)) + 1
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {
+            "$set": {
+                "technical_assistant_version": version,
+                "technical_assistant_status": "draft",
+                "technical_assistant_validated": False,
+                "technical_assistant_published": False,
+                "technical_assistant_regenerated_at": datetime.now(timezone.utc).isoformat(),
+                "technical_assistant_regenerated_by": current_user["id"],
+            }
+        }
+    )
+
+    return await build_technical_assistant(match_id, current_user)
+
+
+@api_router.post("/matches/{match_id}/technical-assistant/publish")
+async def publish_match_technical_assistant(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    match = await get_match_or_404(match_id)
+    championship = await get_championship_for_match_or_404(match)
+
+    if not await can_edit_competition_statistics(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para publicar o Assistente Técnico"
+        )
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {
+            "$set": {
+                "technical_assistant_status": "published",
+                "technical_assistant_validated": True,
+                "technical_assistant_published": True,
+                "technical_assistant_published_at": datetime.now(timezone.utc).isoformat(),
+                "technical_assistant_published_by": current_user["id"],
+            }
+        }
+    )
+
+    return await build_technical_assistant(match_id, current_user)
+
 # ==================== PLAYER MATCH STATS ROUTES ====================
 
 @api_router.post("/matches/{match_id}/player-stats")
