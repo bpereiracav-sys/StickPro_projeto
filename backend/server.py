@@ -1101,22 +1101,22 @@ class PlayerMatchStats(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     class MatchLineup(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-
-    match_id: str
-    championship_id: str
-    team_id: str
-
-    starting_five: List[str] = Field(default_factory=list)
-    bench: List[str] = Field(default_factory=list)
-
-    captain_id: Optional[str] = None
-    goalkeeper_id: Optional[str] = None
-
-    created_by: str
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+        model_config = ConfigDict(extra="ignore")
+    
+        id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    
+        match_id: str
+        championship_id: str
+        team_id: str
+    
+        starting_five: List[str] = Field(default_factory=list)
+        bench: List[str] = Field(default_factory=list)
+    
+        captain_id: Optional[str] = None
+        goalkeeper_id: Optional[str] = None
+    
+        created_by: str
+        updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
 # Event Models
 class EventCreate(BaseModel):
