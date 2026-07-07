@@ -7558,7 +7558,7 @@ async def save_match_lineup(
             status=status,
             version=1,
             created_by=current_user["id"],
-            updated_by=current_user["id"]
+            updated_by=current_user["id"],
             ball_center_id=ball_center_id,
             last_free_kick_id=last_free_kick_id,
             timeout_leader_id=timeout_leader_id,
