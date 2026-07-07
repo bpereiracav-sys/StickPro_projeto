@@ -10,6 +10,7 @@ import { Label } from '../components/ui/label';
 import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { Checkbox } from '../components/ui/checkbox';
+import MatchLineup from '../components/game-center/MatchLineup';
 import {
   Dialog,
   DialogContent,
@@ -694,6 +695,14 @@ export default function MatchStats() {
       <GameTabs
         canSeeStaffTabs={canManageEvents}
         summaryContent={renderSummaryContent()}
+        lineupContent={
+          <MatchLineup
+            match={match}
+            team={team}
+            members={members}
+            canEdit={canManageEvents}
+          />
+        }
         gamesheetContent={renderGamesheetContent()}
         statisticsContent={renderStatisticsContent()}
         assistantContent={renderAssistantContent()}
