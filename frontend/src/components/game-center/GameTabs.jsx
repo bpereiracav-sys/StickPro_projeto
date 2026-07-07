@@ -68,6 +68,7 @@ export default function GameTabs({
   summaryContent,
   gamesheetContent,
   statisticsContent,
+  lineupContent,
   assistantContent,
 }) {
   const visibleTabs = GAME_TABS.filter((tab) => {
@@ -109,10 +110,12 @@ export default function GameTabs({
 
       {canSeeStaffTabs && (
         <TabsContent value="lineup" className="space-y-4">
-          <PlaceholderTab
-            title="Line-up"
-            description="Aqui será preparada a organização da equipa e a validação das semi-partes."
-          />
+          {lineupContent || (
+            <PlaceholderTab
+              title="Line-up"
+              description="Aqui será preparada a organização da equipa e a validação das semi-partes."
+            />
+          )}
         </TabsContent>
       )}
 
