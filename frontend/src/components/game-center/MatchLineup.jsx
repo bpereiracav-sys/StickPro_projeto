@@ -23,7 +23,6 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Avatar, AvatarFallback } from '../ui/avatar';
-import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { getInitials } from '../../lib/utils';
@@ -87,6 +86,11 @@ export default function MatchLineup({ match, team, members = [], canEdit }) {
   const [goalkeeperBenchId, setGoalkeeperBenchId] = useState(null);
   const [penaltyOrder, setPenaltyOrder] = useState([]);
   const [freeKickOrder, setFreeKickOrder] = useState([]);
+  const [penaltyMainId, setPenaltyMainId] = useState(null);
+  const [freeKickMainId, setFreeKickMainId] = useState(null);
+  const [ballCenterId, setBallCenterId] = useState(null);
+  const [lastFreeKickId, setLastFreeKickId] = useState(null);
+  const [timeoutLeaderId, setTimeoutLeaderId] = useState(null);
   const [rotationPlan, setRotationPlan] = useState(DEFAULT_ROTATION_PLAN);
   const [tacticalPlan, setTacticalPlan] = useState('');
   const [coachNotes, setCoachNotes] = useState('');
@@ -127,6 +131,11 @@ export default function MatchLineup({ match, team, members = [], canEdit }) {
       setGoalkeeperBenchId(data.goalkeeper_bench_id || null);
       setPenaltyOrder(normalizeArray(data.penalty_order));
       setFreeKickOrder(normalizeArray(data.free_kick_order));
+      setPenaltyMainId(data.penalty_main_id || null);
+      setFreeKickMainId(data.free_kick_main_id || null);
+      setBallCenterId(data.ball_center_id || null);
+      setLastFreeKickId(data.last_free_kick_id || null);
+      setTimeoutLeaderId(data.timeout_leader_id || null);
       setRotationPlan(
         Array.isArray(data.rotation_plan) && data.rotation_plan.length > 0
           ? data.rotation_plan
@@ -161,11 +170,6 @@ export default function MatchLineup({ match, team, members = [], canEdit }) {
   const availablePlayers = useMemo(
     () => members.filter((player) => !selectedIds.has(player.id)),
     [members, selectedIds]
-  );
-
-  const selectedGoalkeepers = useMemo(
-    () => allSelectedPlayers.filter(isGoalkeeper),
-    [allSelectedPlayers]
   );
 
   const alerts = useMemo(() => {
@@ -232,6 +236,11 @@ export default function MatchLineup({ match, team, members = [], canEdit }) {
     setBench((prev) => prev.filter((player) => player.id !== playerId));
     setPenaltyOrder((prev) => prev.filter((id) => id !== playerId));
     setFreeKickOrder((prev) => prev.filter((id) => id !== playerId));
+    if (penaltyMainId === playerId) setPenaltyMainId(null);
+    if (freeKickMainId === playerId) setFreeKickMainId(null);
+    if (ballCenterId === playerId) setBallCenterId(null);
+    if (lastFreeKickId === playerId) setLastFreeKickId(null);
+    if (timeoutLeaderId === playerId) setTimeoutLeaderId(null);
     setRotationPlan((prev) =>
       prev.map((segment) => ({
         ...segment,
@@ -323,6 +332,11 @@ export default function MatchLineup({ match, team, members = [], canEdit }) {
         goalkeeper_bench_id: goalkeeperBenchId,
         penalty_order: penaltyOrder,
         free_kick_order: freeKickOrder,
+        penalty_main_id: penaltyMainId,
+        free_kick_main_id: freeKickMainId,
+        ball_center_id: ballCenterId,
+        last_free_kick_id: lastFreeKickId,
+        timeout_leader_id: timeoutLeaderId,
         rotation_plan: rotationPlan,
         tactical_plan: tacticalPlan,
         coach_notes: coachNotes,
@@ -360,6 +374,11 @@ export default function MatchLineup({ match, team, members = [], canEdit }) {
       setGoalkeeperBenchId(null);
       setPenaltyOrder([]);
       setFreeKickOrder([]);
+      setPenaltyMainId(null);
+      setFreeKickMainId(null);
+      setBallCenterId(null);
+      setLastFreeKickId(null);
+      setTimeoutLeaderId(null);
       setRotationPlan(DEFAULT_ROTATION_PLAN);
       setTacticalPlan('');
       setCoachNotes('');
@@ -548,6 +567,16 @@ export default function MatchLineup({ match, team, members = [], canEdit }) {
             selectedPlayers={allSelectedPlayers}
             penaltyOrder={penaltyOrder}
             freeKickOrder={freeKickOrder}
+            penaltyMainId={penaltyMainId}
+            freeKickMainId={freeKickMainId}
+            ballCenterId={ballCenterId}
+            lastFreeKickId={lastFreeKickId}
+            timeoutLeaderId={timeoutLeaderId}
+            setPenaltyMainId={setPenaltyMainId}
+            setFreeKickMainId={setFreeKickMainId}
+            setBallCenterId={setBallCenterId}
+            setLastFreeKickId={setLastFreeKickId}
+            setTimeoutLeaderId={setTimeoutLeaderId}
             canEdit={canEdit}
             onAddToPenalty={(playerId) => addToOrder('penalty', playerId)}
             onAddToFreeKick={(playerId) => addToOrder('freeKick', playerId)}
@@ -750,6 +779,16 @@ function SpecialistsCard({
   selectedPlayers,
   penaltyOrder,
   freeKickOrder,
+  penaltyMainId,
+  freeKickMainId,
+  ballCenterId,
+  lastFreeKickId,
+  timeoutLeaderId,
+  setPenaltyMainId,
+  setFreeKickMainId,
+  setBallCenterId,
+  setLastFreeKickId,
+  setTimeoutLeaderId,
   canEdit,
   onAddToPenalty,
   onAddToFreeKick,
@@ -766,9 +805,50 @@ function SpecialistsCard({
           Especialistas
         </CardTitle>
       </CardHeader>
+
       <CardContent className="space-y-4">
+        <SpecialistSelect
+          label="Penálti principal"
+          value={penaltyMainId}
+          players={selectedPlayers}
+          disabled={!canEdit}
+          onChange={setPenaltyMainId}
+        />
+
+        <SpecialistSelect
+          label="Livre direto principal"
+          value={freeKickMainId}
+          players={selectedPlayers}
+          disabled={!canEdit}
+          onChange={setFreeKickMainId}
+        />
+
+        <SpecialistSelect
+          label="Bola ao centro"
+          value={ballCenterId}
+          players={selectedPlayers}
+          disabled={!canEdit}
+          onChange={setBallCenterId}
+        />
+
+        <SpecialistSelect
+          label="Último livre"
+          value={lastFreeKickId}
+          players={selectedPlayers}
+          disabled={!canEdit}
+          onChange={setLastFreeKickId}
+        />
+
+        <SpecialistSelect
+          label="Time-out"
+          value={timeoutLeaderId}
+          players={selectedPlayers}
+          disabled={!canEdit}
+          onChange={setTimeoutLeaderId}
+        />
+
         <OrderEditor
-          title="Penáltis"
+          title="Ordem de penáltis"
           icon={<Target className="h-4 w-4" />}
           players={selectedPlayers}
           order={penaltyOrder}
@@ -777,8 +857,9 @@ function SpecialistsCard({
           onRemove={onRemovePenalty}
           onMove={onMovePenalty}
         />
+
         <OrderEditor
-          title="Livres diretos"
+          title="Ordem de livres diretos"
           icon={<Zap className="h-4 w-4" />}
           players={selectedPlayers}
           order={freeKickOrder}
@@ -789,6 +870,36 @@ function SpecialistsCard({
         />
       </CardContent>
     </Card>
+  );
+}
+
+function SpecialistSelect({ label, value, players, disabled, onChange }) {
+  const selectedPlayer = players.find((player) => player.id === value);
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+      <Label className="text-sm font-semibold">{label}</Label>
+
+      <select
+        value={value || ''}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value || null)}
+        className="mt-2 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+      >
+        <option value="">Não definido</option>
+        {players.map((player) => (
+          <option key={player.id} value={player.id}>
+            #{getJerseyNumber(player)} {getPlayerName(player)}
+          </option>
+        ))}
+      </select>
+
+      {selectedPlayer && (
+        <p className="mt-2 text-xs text-muted-foreground">
+          Selecionado: #{getJerseyNumber(selectedPlayer)} {getPlayerName(selectedPlayer)}
+        </p>
+      )}
+    </div>
   );
 }
 
