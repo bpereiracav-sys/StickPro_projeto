@@ -1102,20 +1102,21 @@ class PlayerMatchStats(BaseModel):
 
 class MatchLineup(BaseModel):
     model_config = ConfigDict(extra="ignore")
-    
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    
     match_id: str
     championship_id: str
     team_id: str
-    
+
     starting_five: List[str] = Field(default_factory=list)
     bench: List[str] = Field(default_factory=list)
-    
+
     captain_id: Optional[str] = None
     goalkeeper_id: Optional[str] = None
-    
+
     created_by: str
+    updated_by: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     
 # Event Models
@@ -7388,115 +7389,147 @@ async def import_apl_calendar(
 
 
 # =====================
-# Match Lineup Endpoints (for coaches)
+# Match Lineup Endpoints
 # =====================
 
 @api_router.get("/championships/matches/{match_id}/lineup")
-async def get_match_lineup(match_id: str, current_user: dict = Depends(get_current_user)):
-    """Get lineup for a match with visibility check"""
-    lineup = await db.match_lineups.find_one({"match_id": match_id}, {"_id": 0})
-    if not lineup:
-        # Return empty lineup structure
-        return {
-            "match_id": match_id,
-            "periods": [],
-            "visibility": "coach_only",
-            "created_at": None
-        }
-    
-    # Check visibility permissions
-    checker = get_permission_checker(current_user)
-    visibility = lineup.get('visibility', 'coach_only')
-    
-    # Coaches and admins always see the lineup
-    if checker.can_manage_lineups:
-        return lineup
-    
-    # Check visibility setting
-    user_role = current_user.get('role', '')
-    can_view = False
-    
-    if visibility == 'assistant':
-        can_view = user_role == 'treinador_adjunto'
-    elif visibility == 'delegate':
-        can_view = user_role == 'delegado'
-    elif visibility == 'assistant_and_delegate':
-        can_view = user_role in ['treinador_adjunto', 'delegado']
-    
-    if not can_view:
-        # Return empty if not allowed to see
-        return {
-            "match_id": match_id,
-            "periods": [],
-            "visibility": visibility,
-            "restricted": True,
-            "created_at": None
-        }
-    
-    return lineup
-
-@api_router.post("/championships/matches/{match_id}/lineup")
-async def save_match_lineup(match_id: str, lineup_data: dict, current_user: dict = Depends(get_current_user)):
-    """Save or update lineup for a match - Coaches and Admins only"""
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_manage_lineups:
-        raise HTTPException(status_code=403, detail="Sem permissão para gerir line-ups")
-    
-    # Verify match exists
+async def get_match_lineup(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
     match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
     if not match:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
-    
-    # Check team access
-    if not checker.is_admin and not checker.can_access_team(match.get('team_id')):
+
+    championship = await db.championships.find_one(
+        {"id": match["championship_id"]},
+        {"_id": 0}
+    )
+    if not championship:
+        raise HTTPException(status_code=404, detail="Competição não encontrada")
+
+    if not await can_view_competition(current_user, championship):
         raise HTTPException(status_code=403, detail="Sem acesso a este jogo")
-    
-    # Check if lineup already exists
-    existing = await db.match_lineups.find_one({"match_id": match_id})
-    
+
+    lineup = await db.match_lineups.find_one({"match_id": match_id}, {"_id": 0})
+
+    if not lineup:
+        return {
+            "match_id": match_id,
+            "championship_id": match["championship_id"],
+            "team_id": match["team_id"],
+            "starting_five": [],
+            "bench": [],
+            "captain_id": None,
+            "goalkeeper_id": None,
+            "exists": False
+        }
+
+    lineup["exists"] = True
+    return lineup
+
+
+@api_router.post("/championships/matches/{match_id}/lineup")
+async def save_match_lineup(
+    match_id: str,
+    lineup_data: dict,
+    current_user: dict = Depends(get_current_user)
+):
+    match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    championship = await db.championships.find_one(
+        {"id": match["championship_id"]},
+        {"_id": 0}
+    )
+    if not championship:
+        raise HTTPException(status_code=404, detail="Competição não encontrada")
+
+    if not await can_edit_competition_game(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para gerir line-up deste jogo"
+        )
+
+    starting_five = lineup_data.get("starting_five", [])
+    bench = lineup_data.get("bench", [])
+    captain_id = lineup_data.get("captain_id")
+    goalkeeper_id = lineup_data.get("goalkeeper_id")
+
+    if len(starting_five) > 5:
+        raise HTTPException(
+            status_code=400,
+            detail="O 5 inicial não pode ter mais de 5 jogadores"
+        )
+
+    existing = await db.match_lineups.find_one({"match_id": match_id}, {"_id": 0})
+
+    now = datetime.now(timezone.utc)
+
     if existing:
-        # Update existing lineup
         await db.match_lineups.update_one(
             {"match_id": match_id},
-            {"$set": {
-                "periods": lineup_data.get('periods', []),
-                "visibility": lineup_data.get('visibility', 'coach_only'),
-                "updated_at": datetime.now(timezone.utc),
-                "updated_by": current_user['id']
-            }}
+            {
+                "$set": {
+                    "starting_five": starting_five,
+                    "bench": bench,
+                    "captain_id": captain_id,
+                    "goalkeeper_id": goalkeeper_id,
+                    "updated_at": now.isoformat(),
+                    "updated_by": current_user["id"],
+                }
+            }
         )
-        updated = await db.match_lineups.find_one({"match_id": match_id}, {"_id": 0})
-        return updated
     else:
-        # Create new lineup
         lineup = MatchLineup(
             match_id=match_id,
-            team_id=match.get('team_id') or match.get('championship_id'),
-            periods=lineup_data.get('periods', []),
-            visibility=lineup_data.get('visibility', 'coach_only'),
-            created_by=current_user['id']
+            championship_id=match["championship_id"],
+            team_id=match["team_id"],
+            starting_five=starting_five,
+            bench=bench,
+            captain_id=captain_id,
+            goalkeeper_id=goalkeeper_id,
+            created_by=current_user["id"],
+            updated_by=current_user["id"]
         )
-        await db.match_lineups.insert_one(lineup.model_dump())
-        return {**lineup.model_dump(), "_id": None}
+
+        lineup_dict = lineup.model_dump()
+        lineup_dict["created_at"] = lineup_dict["created_at"].isoformat()
+        lineup_dict["updated_at"] = lineup_dict["updated_at"].isoformat()
+
+        await db.match_lineups.insert_one(lineup_dict)
+
+    updated = await db.match_lineups.find_one({"match_id": match_id}, {"_id": 0})
+    updated["exists"] = True
+
+    return updated
+
 
 @api_router.delete("/championships/matches/{match_id}/lineup")
-async def delete_match_lineup(match_id: str, current_user: dict = Depends(get_current_user)):
-    """Delete lineup for a match"""
-    checker = get_permission_checker(current_user)
-    
-    if not checker.can_manage_lineups:
-        raise HTTPException(status_code=403, detail="Sem permissão para eliminar line-ups")
-    
-    # Verify match exists and check access
+async def delete_match_lineup(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
     match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
-    if match and not checker.is_admin and not checker.can_access_team(match.get('team_id')):
-        raise HTTPException(status_code=403, detail="Sem acesso a este jogo")
-    
-    result = await db.match_lineups.delete_one({"match_id": match_id})
-    if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Line-up não encontrado")
-    
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    championship = await db.championships.find_one(
+        {"id": match["championship_id"]},
+        {"_id": 0}
+    )
+    if not championship:
+        raise HTTPException(status_code=404, detail="Competição não encontrada")
+
+    if not await can_edit_competition_game(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para eliminar line-up deste jogo"
+        )
+
+    await db.match_lineups.delete_one({"match_id": match_id})
+
     return {"message": "Line-up eliminado"}
 
 
