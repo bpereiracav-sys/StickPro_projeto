@@ -1120,6 +1120,12 @@ class MatchLineup(BaseModel):
     penalty_order: List[str] = Field(default_factory=list)
     free_kick_order: List[str] = Field(default_factory=list)
 
+    ball_center_id: Optional[str] = None
+    last_free_kick_id: Optional[str] = None
+    timeout_leader_id: Optional[str] = None
+    penalty_main_id: Optional[str] = None
+    free_kick_main_id: Optional[str] = None
+
     rotation_plan: List[dict] = Field(default_factory=list)
 
     tactical_plan: Optional[str] = None
@@ -7478,7 +7484,13 @@ async def save_match_lineup(
     
     penalty_order = lineup_data.get("penalty_order", [])
     free_kick_order = lineup_data.get("free_kick_order", [])
-    
+
+    ball_center_id = lineup_data.get("ball_center_id")
+    last_free_kick_id = lineup_data.get("last_free_kick_id")
+    timeout_leader_id = lineup_data.get("timeout_leader_id")
+    penalty_main_id = lineup_data.get("penalty_main_id")
+    free_kick_main_id = lineup_data.get("free_kick_main_id")
+
     rotation_plan = lineup_data.get("rotation_plan", [])
     
     tactical_plan = lineup_data.get("tactical_plan")
@@ -7518,6 +7530,11 @@ async def save_match_lineup(
                     "version": int(existing.get("version", 1)) + 1,
                     "updated_at": now.isoformat(),
                     "updated_by": current_user["id"],
+                    "ball_center_id": ball_center_id,
+                    "last_free_kick_id": last_free_kick_id,
+                    "timeout_leader_id": timeout_leader_id,
+                    "penalty_main_id": penalty_main_id,
+                    "free_kick_main_id": free_kick_main_id,
                 }
             }
         )
@@ -7542,6 +7559,11 @@ async def save_match_lineup(
             version=1,
             created_by=current_user["id"],
             updated_by=current_user["id"]
+            ball_center_id=ball_center_id,
+            last_free_kick_id=last_free_kick_id,
+            timeout_leader_id=timeout_leader_id,
+            penalty_main_id=penalty_main_id,
+            free_kick_main_id=free_kick_main_id,
         )
 
         lineup_dict = lineup.model_dump()
