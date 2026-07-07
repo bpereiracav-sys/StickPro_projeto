@@ -1112,7 +1112,22 @@ class MatchLineup(BaseModel):
     bench: List[str] = Field(default_factory=list)
 
     captain_id: Optional[str] = None
-    goalkeeper_id: Optional[str] = None
+    vice_captain_id: Optional[str] = None
+
+    goalkeeper_starting_id: Optional[str] = None
+    goalkeeper_bench_id: Optional[str] = None
+
+    penalty_order: List[str] = Field(default_factory=list)
+    free_kick_order: List[str] = Field(default_factory=list)
+
+    rotation_plan: List[dict] = Field(default_factory=list)
+
+    tactical_plan: Optional[str] = None
+    coach_notes: Optional[str] = None
+    assistant_notes: Optional[str] = None
+
+    status: str = "draft"
+    version: int = 1
 
     created_by: str
     updated_by: Optional[str] = None
@@ -7454,8 +7469,23 @@ async def save_match_lineup(
 
     starting_five = lineup_data.get("starting_five", [])
     bench = lineup_data.get("bench", [])
+    
     captain_id = lineup_data.get("captain_id")
-    goalkeeper_id = lineup_data.get("goalkeeper_id")
+    vice_captain_id = lineup_data.get("vice_captain_id")
+    
+    goalkeeper_starting_id = lineup_data.get("goalkeeper_starting_id")
+    goalkeeper_bench_id = lineup_data.get("goalkeeper_bench_id")
+    
+    penalty_order = lineup_data.get("penalty_order", [])
+    free_kick_order = lineup_data.get("free_kick_order", [])
+    
+    rotation_plan = lineup_data.get("rotation_plan", [])
+    
+    tactical_plan = lineup_data.get("tactical_plan")
+    coach_notes = lineup_data.get("coach_notes")
+    assistant_notes = lineup_data.get("assistant_notes")
+    
+    status = lineup_data.get("status", "draft")
 
     if len(starting_five) > 5:
         raise HTTPException(
@@ -7475,7 +7505,17 @@ async def save_match_lineup(
                     "starting_five": starting_five,
                     "bench": bench,
                     "captain_id": captain_id,
-                    "goalkeeper_id": goalkeeper_id,
+                    "vice_captain_id": vice_captain_id,
+                    "goalkeeper_starting_id": goalkeeper_starting_id,
+                    "goalkeeper_bench_id": goalkeeper_bench_id,
+                    "penalty_order": penalty_order,
+                    "free_kick_order": free_kick_order,
+                    "rotation_plan": rotation_plan,
+                    "tactical_plan": tactical_plan,
+                    "coach_notes": coach_notes,
+                    "assistant_notes": assistant_notes,
+                    "status": status,
+                    "version": int(existing.get("version", 1)) + 1,
                     "updated_at": now.isoformat(),
                     "updated_by": current_user["id"],
                 }
@@ -7489,7 +7529,17 @@ async def save_match_lineup(
             starting_five=starting_five,
             bench=bench,
             captain_id=captain_id,
-            goalkeeper_id=goalkeeper_id,
+            vice_captain_id=vice_captain_id,
+            goalkeeper_starting_id=goalkeeper_starting_id,
+            goalkeeper_bench_id=goalkeeper_bench_id,
+            penalty_order=penalty_order,
+            free_kick_order=free_kick_order,
+            rotation_plan=rotation_plan,
+            tactical_plan=tactical_plan,
+            coach_notes=coach_notes,
+            assistant_notes=assistant_notes,
+            status=status,
+            version=1,
             created_by=current_user["id"],
             updated_by=current_user["id"]
         )
