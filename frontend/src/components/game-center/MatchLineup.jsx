@@ -1,15 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  ArrowDown,
-  ArrowUp,
-  Crown,
-  Goal,
   Loader2,
   RotateCcw,
   Save,
   Shield,
-  Star,
   Target,
   Trash2,
   UserPlus,
@@ -22,10 +17,11 @@ import { championshipsApi } from '../../services/api';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
-import { Avatar, AvatarFallback } from '../ui/avatar';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
-import { getInitials } from '../../lib/utils';
+import PlayerCard from './lineup/PlayerCard';
+import LineupPlayerRow from './lineup/LineupPlayerRow';
+import EmptyBox from './lineup/EmptyBox';
 
 const DEFAULT_ROTATION_PLAN = [
   { segment: 1, label: '1.ª parte - período 1', players: [] },
@@ -630,104 +626,6 @@ export default function MatchLineup({ match, team, members = [], canEdit }) {
   );
 }
 
-function PlayerCard({ player, canEdit, onAddStarter, onAddBench }) {
-  const name = getPlayerName(player);
-  const goalkeeper = isGoalkeeper(player);
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <PlayerIdentity player={player} />
-      {canEdit && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button size="sm" variant="outline" onClick={onAddStarter}>5 Inicial</Button>
-          <Button size="sm" variant="outline" onClick={onAddBench}>Banco</Button>
-          {goalkeeper && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">GR disponível</Badge>}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PlayerIdentity({ player, extraBadges = null }) {
-  const name = getPlayerName(player);
-  const jersey = getJerseyNumber(player);
-  const goalkeeper = isGoalkeeper(player);
-
-  return (
-    <div className="flex items-center gap-3">
-      <Avatar className="h-9 w-9">
-        <AvatarFallback className="bg-primary text-xs text-primary-foreground">
-          {getInitials(name)}
-        </AvatarFallback>
-      </Avatar>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate font-medium text-slate-950">{name}</p>
-          <Badge variant="outline" className="text-xs">#{jersey}</Badge>
-          {goalkeeper && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">GR</Badge>}
-          {extraBadges}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LineupPlayerRow({
-  label,
-  player,
-  canEdit,
-  captainId,
-  viceCaptainId,
-  goalkeeperStartingId,
-  goalkeeperBenchId,
-  onMoveUp,
-  onMoveDown,
-  onRemove,
-  onSetCaptain,
-  onSetViceCaptain,
-  onSetGoalkeeperStarting,
-  onSetGoalkeeperBench,
-}) {
-  const extraBadges = (
-    <>
-      {captainId === player.id && <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100">Capitão</Badge>}
-      {viceCaptainId === player.id && <Badge className="bg-yellow-100 text-yellow-700 hover:bg-yellow-100">Sub-capitão</Badge>}
-      {goalkeeperStartingId === player.id && <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100">GR titular</Badge>}
-      {goalkeeperBenchId === player.id && <Badge className="bg-cyan-100 text-cyan-700 hover:bg-cyan-100">GR suplente</Badge>}
-    </>
-  );
-
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <Badge variant="outline">{label}</Badge>
-        {canEdit && (
-          <div className="flex gap-1">
-            <Button size="icon" variant="outline" onClick={onMoveUp}><ArrowUp className="h-4 w-4" /></Button>
-            <Button size="icon" variant="outline" onClick={onMoveDown}><ArrowDown className="h-4 w-4" /></Button>
-          </div>
-        )}
-      </div>
-
-      <PlayerIdentity player={player} extraBadges={extraBadges} />
-
-      {canEdit && (
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button size="sm" variant="ghost" onClick={onSetCaptain}><Crown className="mr-1 h-3.5 w-3.5" />Capitão</Button>
-          <Button size="sm" variant="ghost" onClick={onSetViceCaptain}><Star className="mr-1 h-3.5 w-3.5" />Sub</Button>
-          {isGoalkeeper(player) && (
-            <>
-              <Button size="sm" variant="ghost" onClick={onSetGoalkeeperStarting}><Goal className="mr-1 h-3.5 w-3.5" />GR titular</Button>
-              <Button size="sm" variant="ghost" onClick={onSetGoalkeeperBench}><Goal className="mr-1 h-3.5 w-3.5" />GR suplente</Button>
-            </>
-          )}
-          <Button size="sm" variant="ghost" onClick={onRemove}>Remover</Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function RotationPlanCard({ selectedPlayers, rotationPlan, canEdit, onTogglePlayer }) {
   return (
     <Card className="border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
@@ -1043,12 +941,3 @@ function InfoLine({ label, value }) {
     </div>
   );
 }
-
-function EmptyBox({ text }) {
-  return (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-muted-foreground">
-      {text}
-    </div>
-  );
-}
-
