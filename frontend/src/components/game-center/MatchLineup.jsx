@@ -25,6 +25,7 @@ import LineupPlayerRow from './lineup/LineupPlayerRow';
 import EmptyBox from './lineup/EmptyBox';
 import StatusCard from './lineup/StatusCard';
 import SpecialistsCard from './lineup/SpecialistsCard';
+import GamePlanAssistant from './lineup/GamePlanAssistant';
 
 const DEFAULT_ROTATION_PLAN = [
   { segment: 1, label: '1.ª parte - período 1', players: [] },
@@ -562,6 +563,22 @@ export default function MatchLineup({ match, team, members = [], canEdit }) {
             updatedAt={updatedAt}
           />
 
+          <GamePlanAssistant
+            startingFive={startingFive}
+            bench={bench}
+            captainId={captainId}
+            viceCaptainId={viceCaptainId}
+            goalkeeperStartingId={goalkeeperStartingId}
+            goalkeeperBenchId={goalkeeperBenchId}
+            penaltyMainId={penaltyMainId}
+            freeKickMainId={freeKickMainId}
+            ballCenterId={ballCenterId}
+            lastFreeKickId={lastFreeKickId}
+            timeoutLeaderId={timeoutLeaderId}
+            rotationPlan={rotationPlan}
+            selectedPlayers={allSelectedPlayers}
+          />
+          
           <SpecialistsCard
             selectedPlayers={allSelectedPlayers}
             penaltyOrder={penaltyOrder}
