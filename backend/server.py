@@ -980,6 +980,34 @@ class AIChatRequest(BaseModel):
     language: Optional[str] = "pt"
 
 # Championship Models
+class CompetitionRules(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    class CompetitionRules(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    # normal | rtp | apl_cup | custom
+    game_format: CompetitionGameFormat = "normal"
+
+    # número de segmentos/semi-partes
+    segments_count: int = 2
+
+    # jogadores por segmento
+    players_per_segment: int = 5
+
+    # existe obrigatoriedade de participação?
+    mandatory_participation: bool = False
+
+    # segmentos onde todos têm de participar
+    mandatory_segments: List[int] = Field(default_factory=list)
+
+    # segmentos livres
+    free_segments: List[int] = Field(default_factory=list)
+
+    # validação automática pelo assistente
+    automatic_validation: bool = True
+
+
 class ChampionshipCreate(BaseModel):
     name: str
     season: str
@@ -1003,6 +1031,9 @@ class Championship(BaseModel):
     convocation_type: ConvocationType = "manual"
     age_group: Optional[str] = None
     competition_type: Optional[str] = "campeonato_distrital"
+    competition_rules: CompetitionRules = Field(
+        default_factory=CompetitionRules
+    )
     participating_teams: List[str] = []
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
