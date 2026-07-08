@@ -22,6 +22,7 @@ import { Textarea } from '../ui/textarea';
 import PlayerCard from './lineup/PlayerCard';
 import LineupPlayerRow from './lineup/LineupPlayerRow';
 import EmptyBox from './lineup/EmptyBox';
+import StatusCard from './lineup/StatusCard';
 
 const DEFAULT_ROTATION_PLAN = [
   { segment: 1, label: '1.ª parte - período 1', players: [] },
@@ -843,23 +844,6 @@ function OrderEditor({ title, icon, players, order, canEdit, onAdd, onRemove, on
   );
 }
 
-function StatusCard({
-  match,
-  team,
-  status,
-  setStatus,
-  canEdit,
-  startingFive,
-  bench,
-  captainId,
-  viceCaptainId,
-  goalkeeperStartingId,
-  goalkeeperBenchId,
-  selectedPlayers,
-  alerts,
-  exists,
-  updatedAt,
-}) {
   const captain = selectedPlayers.find((player) => player.id === captainId);
   const viceCaptain = selectedPlayers.find((player) => player.id === viceCaptainId);
   const goalkeeperStarting = selectedPlayers.find((player) => player.id === goalkeeperStartingId);
@@ -930,14 +914,5 @@ function StatusCard({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function InfoLine({ label, value }) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-right text-sm font-semibold">{value}</span>
-    </div>
   );
 }
