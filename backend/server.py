@@ -1038,6 +1038,9 @@ class Championship(BaseModel):
 class ChampionshipMatchCreate(BaseModel):
     championship_id: str
     home_team: Optional[str] = None  # Nome da equipa da casa (pode ser qualquer equipa)
+    away_team: Optional[str] = None
+    club_side: Optional[str] = None  # home | away | neutral
+    official_match_url: Optional[str] = None    
     opponent_team: str  # Nome da equipa visitante
     match_date: datetime
     match_time: Optional[str] = None  # Hora do jogo (HH:MM)
@@ -1054,6 +1057,9 @@ class ChampionshipMatch(BaseModel):
     championship_id: str
     team_id: str
     home_team: Optional[str] = None
+    away_team: Optional[str] = None
+    club_side: Optional[str] = None  # home | away | neutral
+    official_match_url: Optional[str] = None
     opponent_team: str
     match_date: datetime
     match_time: Optional[str] = None  # Hora do jogo (HH:MM)
@@ -6096,11 +6102,39 @@ async def create_championship_match(
             detail="Sem permissão para criar jogos nesta competição"
         )
 
+    team_name = championship.get("team_name") or championship.get("name") or ""
+
+    club_side = data.club_side
+    if not club_side:
+        if data.location == "casa":
+            club_side = "home"
+        elif data.location == "fora":
+            club_side = "away"
+        else:
+            club_side = "neutral"
+
+    home_team = data.home_team
+    away_team = data.away_team
+
+    if not home_team or not away_team:
+        if club_side == "home":
+            home_team = home_team or team_name
+            away_team = away_team or data.opponent_team
+        elif club_side == "away":
+            home_team = home_team or data.opponent_team
+            away_team = away_team or team_name
+        else:
+            home_team = home_team or team_name
+            away_team = away_team or data.opponent_team
+
     match = ChampionshipMatch(
         championship_id=championship_id,
         team_id=championship["team_id"],
-        home_team=data.home_team,
+        home_team=home_team,
+        away_team=away_team,
         opponent_team=data.opponent_team,
+        club_side=club_side,
+        official_match_url=data.official_match_url,
         match_date=data.match_date,
         match_time=data.match_time,
         location=data.location,
@@ -6122,7 +6156,7 @@ async def create_championship_match(
     event = Event(
         team_id=championship["team_id"],
         event_type="jogo_campeonato",
-        title=f"vs {data.opponent_team}",
+        title=f"{home_team} vs {away_team}",
         location=data.venue or ("Casa" if data.location == "casa" else "Fora"),
         start_time=data.match_date,
         opponent=data.opponent_team,
@@ -6221,6 +6255,9 @@ async def update_match_result(
 
 class MatchUpdate(BaseModel):
     home_team: Optional[str] = None
+    away_team: Optional[str] = None
+    club_side: Optional[str] = None
+    official_match_url: Optional[str] = None
     opponent_team: Optional[str] = None
     match_date: Optional[datetime] = None
     match_time: Optional[str] = None
