@@ -85,6 +85,64 @@ const COMPETITION_TYPES = [
   { value: 'outro', label: 'Outro' },
 ];
 
+const GAME_FORMAT_OPTIONS = [
+  {
+    value: 'normal',
+    label: 'Jogo Normal',
+    description: '2 partes. O treinador gere substituições livremente.',
+  },
+  {
+    value: 'rtp',
+    label: 'Regulamento Técnico-Pedagógico',
+    description: '4 semi-partes. Todos os atletas devem participar conforme RTP.',
+  },
+  {
+    value: 'apl_cup',
+    label: 'Taça APL Lisboa',
+    description: '3 segmentos. Todos participam na 1.ª parte; 2.ª parte livre.',
+  },
+  {
+    value: 'custom',
+    label: 'Personalizado',
+    description: 'Define manualmente número de segmentos e regras.',
+  },
+];
+
+function buildCompetitionRules(gameFormat) {
+  if (gameFormat === 'rtp') {
+    return {
+      game_format: 'rtp',
+      segments_count: 4,
+      players_per_segment: 5,
+      mandatory_participation: true,
+      mandatory_segments: [1, 2, 3, 4],
+      free_segments: [],
+      automatic_validation: true,
+    };
+  }
+
+  if (gameFormat === 'apl_cup') {
+    return {
+      game_format: 'apl_cup',
+      segments_count: 3,
+      players_per_segment: 5,
+      mandatory_participation: true,
+      mandatory_segments: [1, 2],
+      free_segments: [3],
+      automatic_validation: true,
+    };
+  }
+
+  return {
+    game_format: 'normal',
+    segments_count: 2,
+    players_per_segment: 5,
+    mandatory_participation: false,
+    mandatory_segments: [],
+    free_segments: [1, 2],
+    automatic_validation: true,
+  };
+}
 const getCurrentSeason = () => {
   const now = new Date();
   const year = now.getFullYear();
@@ -108,6 +166,7 @@ const DEFAULT_FORM_DATA = {
   competition_type: 'campeonato_distrital',
   description: '',
   team_id: '',
+  game_format: 'normal',
 };
 
 function getLabel(options, value, fallback = '') {
@@ -285,6 +344,7 @@ export default function Championships() {
         convocation_type: formData.convocation_type,
         age_group: formData.age_group || null,
         competition_type: formData.competition_type,
+        competition_rules: buildCompetitionRules(formData.game_format),
         description: formData.description,
         team_id: targetTeamId,
       });
