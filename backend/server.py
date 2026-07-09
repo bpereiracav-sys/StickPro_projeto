@@ -984,7 +984,7 @@ class CompetitionRules(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     # normal | rtp | apl_cup | custom
-    game_format: CompetitionGameFormat = "normal"
+    game_format: str = "normal"
 
     # número de segmentos/semi-partes
     segments_count: int = 2
