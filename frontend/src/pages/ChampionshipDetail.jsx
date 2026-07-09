@@ -635,6 +635,38 @@ export default function ChampionshipDetail() {
     return 'Neutro';
   };
 
+  const getMatchTeams = (match) => {
+    const fallbackClubName = team?.name || championship?.team_name || 'Equipa';
+  
+    const clubSide =
+      match.club_side ||
+      (match.location === 'casa'
+        ? 'home'
+        : match.location === 'fora'
+          ? 'away'
+          : 'neutral');
+  
+    const homeTeam =
+      match.home_team ||
+      (clubSide === 'home' ? fallbackClubName : match.opponent_team);
+  
+    const awayTeam =
+      match.away_team ||
+      (clubSide === 'away' ? fallbackClubName : match.opponent_team);
+  
+    return {
+      homeTeam,
+      awayTeam,
+      clubSide,
+    };
+  };
+
+const getMatchScore = (match) => {
+  if (!match?.is_completed) return null;
+
+  return `${match.home_score ?? 0} - ${match.away_score ?? 0}`;
+};
+  
   if (loading) {
     return (
       <div className="space-y-6">
@@ -881,13 +913,22 @@ export default function ChampionshipDetail() {
 
                         <div className="flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                            <span className="font-semibold text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">
-                              {match.is_club_match === false ? match.home_team : team?.name}
-                            </span>
-                            <span className="text-muted-foreground text-sm">vs</span>
-                            <span className="font-semibold text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">
-                              {match.opponent_team}
-                            </span>
+                            {(() => {
+                              const { homeTeam, awayTeam } = getMatchTeams(match);
+                            
+                              return (
+                                <>
+                                  <span className="font-semibold text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">
+                                    {homeTeam}
+                                  </span>
+                                  <span className="text-muted-foreground text-sm">vs</span>
+                                  <span className="font-semibold text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">
+                                    {awayTeam}
+                                  </span>
+                                </>
+                              );
+                            })()}
+                            
                             {match.is_club_match === false && (
                               <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">Externo</Badge>
                             )}
@@ -907,12 +948,7 @@ export default function ChampionshipDetail() {
                           <div className="flex items-center gap-2">
                             <div className="text-center px-3 py-1.5 sm:px-4 sm:py-2 bg-muted rounded-sm">
                               <span className="font-heading text-xl sm:text-2xl">
-                                {match.is_club_match === false
-                                  ? `${match.home_score} - ${match.away_score}`
-                                  : match.location === 'casa' 
-                                    ? `${match.home_score} - ${match.away_score}`
-                                    : `${match.away_score} - ${match.home_score}`
-                                }
+                                {getMatchScore(match)}
                               </span>
                             </div>
                             {(match.bonus_points > 0 || match.penalty_points > 0) && (
@@ -958,6 +994,20 @@ export default function ChampionshipDetail() {
                             {/* Only show stats/lineup buttons for club matches */}
                             {match.is_club_match !== false && (
                               <>
+                                {canManageLineups && canEditGames && (
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    className="h-8 px-2 sm:px-3"
+                                    onClick={() => {
+                                      setLineupMatch(match);
+                                      setLineupDialogOpen(true);
+                                    }}
+                                    data-testid={`lineup-${match.id}`}
+                                  >
+                                    <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                  </Button>
+                                )}
                                 {canImportGamesheet && (
                                   <Button 
                                     variant="outline" 
@@ -979,21 +1029,7 @@ export default function ChampionshipDetail() {
                                     <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                   </Link>
                                 </Button>
-                                {canManageLineups && canEditGames && (
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="h-8 px-2 sm:px-3"
-                                    onClick={() => {
-                                      setLineupMatch(match);
-                                      setLineupDialogOpen(true);
-                                    }}
-                                    data-testid={`lineup-${match.id}`}
-                                  >
-                                    <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                  </Button>
-                                )}
-                              </>
+                                                              </>
                             )}
                             <Button 
                               variant="outline" 
