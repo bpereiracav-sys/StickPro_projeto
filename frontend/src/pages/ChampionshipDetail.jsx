@@ -290,11 +290,11 @@ export default function ChampionshipDetail() {
       let awayTeam;
       
       if (clubSide === "home") {
-        homeTeam = team?.name;
+        homeTeam = team?.name || homeTeamName;
         awayTeam = opponentName;
       } else if (clubSide === "away") {
         homeTeam = opponentName;
-        awayTeam = team?.name;
+        awayTeam = team?.name || homeTeamName;
       } else {
         homeTeam = homeTeamName;
         awayTeam = opponentName;
