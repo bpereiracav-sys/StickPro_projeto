@@ -6130,11 +6130,14 @@ async def create_championship_match(
     match = ChampionshipMatch(
         championship_id=championship_id,
         team_id=championship["team_id"],
+    
         home_team=home_team,
         away_team=away_team,
+    
         opponent_team=data.opponent_team,
         club_side=club_side,
         official_match_url=data.official_match_url,
+    
         match_date=data.match_date,
         match_time=data.match_time,
         location=data.location,
@@ -6142,7 +6145,7 @@ async def create_championship_match(
         is_club_match=data.is_club_match,
         bonus_points=data.bonus_points,
         penalty_points=data.penalty_points,
-        matchday=data.matchday
+        matchday=data.matchday,
     )
 
     match_dict = match.model_dump()
