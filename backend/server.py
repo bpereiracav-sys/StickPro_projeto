@@ -983,9 +983,6 @@ class AIChatRequest(BaseModel):
 class CompetitionRules(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
-    class CompetitionRules(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
     # normal | rtp | apl_cup | custom
     game_format: CompetitionGameFormat = "normal"
 
