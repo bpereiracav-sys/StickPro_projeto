@@ -277,11 +277,42 @@ export default function ChampionshipDetail() {
         opponentName = selectedOpponent?.name || matchForm.opponent_team;
       }
       
+      // Determinar automaticamente quem joga em casa e fora
+      let clubSide = "home";
+      
+      if (matchForm.location === "fora") {
+        clubSide = "away";
+      } else if (matchForm.location === "neutro") {
+        clubSide = "neutral";
+      }
+      
+      let homeTeam;
+      let awayTeam;
+      
+      if (clubSide === "home") {
+        homeTeam = team?.name;
+        awayTeam = opponentName;
+      } else if (clubSide === "away") {
+        homeTeam = opponentName;
+        awayTeam = team?.name;
+      } else {
+        homeTeam = homeTeamName;
+        awayTeam = opponentName;
+      }
+      
       const matchData = {
         ...matchForm,
+      
         championship_id: championshipId,
+      
         match_date: new Date(matchForm.match_date).toISOString(),
-        home_team: homeTeamName,
+      
+        club_side: clubSide,
+      
+        home_team: homeTeam,
+      
+        away_team: awayTeam,
+      
         opponent_team: opponentName,
       };
       
