@@ -190,14 +190,65 @@ function getCompetitionStatus(championship) {
   return { label: 'Em curso', className: 'border-emerald-200 bg-emerald-50 text-emerald-700' };
 }
 
-function CompetitionMetric({ icon: Icon, label, value }) {
+function getGameFormatMeta(championship) {
+  const rules = championship?.competition_rules || {};
+  const gameFormat = rules.game_format || 'normal';
+
+  if (gameFormat === 'rtp') {
+    return {
+      label: 'Regulamento Técnico-Pedagógico',
+      shortLabel: 'RTP',
+      description: 'Participação obrigatória nas quatro semi-partes.',
+      badgeClassName:
+        'border-emerald-200 bg-emerald-50 text-emerald-700',
+    };
+  }
+
+  if (gameFormat === 'apl_cup') {
+    return {
+      label: 'Taça APL Lisboa',
+      shortLabel: 'Taça APL',
+      description:
+        'Primeira parte com participação obrigatória e segunda parte livre.',
+      badgeClassName:
+        'border-amber-200 bg-amber-50 text-amber-700',
+    };
+  }
+
+  if (gameFormat === 'custom') {
+    return {
+      label: 'Formato Personalizado',
+      shortLabel: 'Personalizado',
+      description: 'Regras configuradas especificamente para esta competição.',
+      badgeClassName:
+        'border-violet-200 bg-violet-50 text-violet-700',
+    };
+  }
+
+  return {
+    label: 'Jogo Normal',
+    shortLabel: 'Normal',
+    description: 'Gestão livre da utilização e substituição dos atletas.',
+    badgeClassName:
+      'border-cyan-200 bg-cyan-50 text-cyan-700',
+  };
+}
+
+function CompetitionInfo({ icon: Icon, label, value }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-white/80 p-3 shadow-sm">
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
-        <Icon className="h-4 w-4 text-primary" />
-        {label}
+    <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white text-primary shadow-sm">
+        <Icon className="h-4 w-4" />
       </div>
-      <p className="mt-1 text-lg font-semibold text-slate-950">{value}</p>
+
+      <div className="min-w-0">
+        <p className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
+          {label}
+        </p>
+        <p className="truncate text-sm font-semibold text-slate-800">
+          {value}
+        </p>
+      </div>
     </div>
   );
 }
@@ -551,115 +602,229 @@ export default function Championships() {
             const permissions = championship.permissions || {};
             const canArchive = Boolean(permissions.can_archive);
             const teamName = championship.team_name || championship.team?.name || 'Equipa não identificada';
-
+            const rules = championship.competition_rules || {};
+            const formatMeta = getGameFormatMeta(championship);
+          
+            const segmentsCount =
+              rules.segments_count ||
+              (rules.game_format === 'rtp'
+                ? 4
+                : rules.game_format === 'apl_cup'
+                  ? 3
+                  : 2);
+          
+            const segmentsLabel =
+              segmentsCount === 1
+                ? '1 parte'
+                : `${segmentsCount} partes`;
+          
+            const participationLabel = rules.mandatory_participation
+              ? 'Participação obrigatória'
+              : 'Gestão livre';
+          
+            const validationLabel =
+              rules.automatic_validation === false
+                ? 'Validação manual'
+                : 'Validação automática';
+          
             return (
               <CardWithStripe
                 key={championship.id}
-                className="group overflow-hidden border-white/70 bg-white/90 shadow-sm shadow-slate-200/70 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-slate-200/80"
+                className="group overflow-hidden border-white/70 bg-white/95 shadow-sm shadow-slate-200/70 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/80"
                 stripeClassName="from-primary via-cyan-400 to-sky-500"
                 data-testid={`championship-card-${championship.id}`}
               >
                 <CardStripeHeader className="p-5 pb-3">
-                  <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="min-w-0">
-                      <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <Badge className={status.className} variant="outline">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <Badge
+                          className={status.className}
+                          variant="outline"
+                        >
                           {status.label}
                         </Badge>
-                        <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
+              
+                        <Badge
+                          variant="outline"
+                          className="border-slate-200 bg-white text-slate-600"
+                        >
                           {championship.season}
                         </Badge>
                       </div>
-                      <CardStripeTitle className="line-clamp-2 text-xl text-slate-950">
+              
+                      <CardStripeTitle className="line-clamp-2 text-xl leading-tight text-slate-950">
                         {championship.name}
                       </CardStripeTitle>
-                      <p className="mt-1 flex items-center gap-1.5 text-sm font-medium text-slate-500">
-                        <Users className="h-4 w-4 text-primary" />
-                        {teamName}
+              
+                      <p className="mt-2 flex min-w-0 items-center gap-1.5 text-sm font-medium text-slate-500">
+                        <Users className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="truncate">{teamName}</span>
                       </p>
                     </div>
-
-                    <div className="rounded-2xl bg-primary/10 p-3 text-primary">
+              
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-cyan-100 text-primary shadow-sm">
                       <Trophy className="h-6 w-6" />
                     </div>
                   </div>
                 </CardStripeHeader>
-
+              
                 <CardStripeContent className="space-y-4 p-5 pt-2">
                   {championship.description && (
                     <p className="line-clamp-2 text-sm leading-6 text-slate-500">
                       {championship.description}
                     </p>
                   )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <CompetitionMetric
+              
+                  {/* Modelo e regras da competição */}
+                  <div className="rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+                          Modelo de jogo
+                        </p>
+              
+                        <p className="mt-1 font-heading text-lg font-semibold text-slate-950">
+                          {formatMeta.label}
+                        </p>
+              
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          {formatMeta.description}
+                        </p>
+                      </div>
+              
+                      <Badge
+                        variant="outline"
+                        className={formatMeta.badgeClassName}
+                      >
+                        {formatMeta.shortLabel}
+                      </Badge>
+                    </div>
+              
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Badge
+                        variant="outline"
+                        className="border-slate-200 bg-white text-slate-600"
+                      >
+                        {segmentsLabel}
+                      </Badge>
+              
+                      <Badge
+                        variant="outline"
+                        className="border-slate-200 bg-white text-slate-600"
+                      >
+                        {rules.players_per_segment || 5} jogadores
+                      </Badge>
+              
+                      <Badge
+                        variant="outline"
+                        className={
+                          rules.mandatory_participation
+                            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                            : 'border-slate-200 bg-white text-slate-600'
+                        }
+                      >
+                        {participationLabel}
+                      </Badge>
+                    </div>
+                  </div>
+              
+                  {/* Informação compacta */}
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <CompetitionInfo
                       icon={ListChecks}
                       label="Formato"
                       value={championship.format || '5x5'}
                     />
-                    <CompetitionMetric
+              
+                    <CompetitionInfo
                       icon={Zap}
                       label="Convocatória"
-                      value={championship.convocation_type === 'automatica' ? 'Auto' : 'Manual'}
+                      value={
+                        championship.convocation_type === 'automatica'
+                          ? 'Automática'
+                          : 'Manual'
+                      }
+                    />
+              
+                    <CompetitionInfo
+                      icon={ShieldCheck}
+                      label="Validação"
+                      value={validationLabel}
+                    />
+              
+                    <CompetitionInfo
+                      icon={Settings}
+                      label="Tipo"
+                      value={getLabel(
+                        COMPETITION_TYPES,
+                        championship.competition_type,
+                        'Competição'
+                      )}
                     />
                   </div>
-
+              
+                  {/* Escalão e equipas */}
                   <div className="flex flex-wrap gap-2">
                     {championship.age_group && (
-                      <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+                      <Badge
+                        variant="secondary"
+                        className="bg-slate-100 text-slate-700"
+                      >
                         {getLabel(AGE_GROUPS, championship.age_group)}
                       </Badge>
                     )}
-                    {championship.competition_type && (
-                      <Badge variant="secondary" className="bg-slate-100 text-slate-700">
-                        {getLabel(COMPETITION_TYPES, championship.competition_type)}
-                      </Badge>
-                    )}
+              
                     {championship.participating_teams?.length > 0 && (
-                      <Badge variant="outline" className="border-slate-200 text-slate-500">
+                      <Badge
+                        variant="outline"
+                        className="border-slate-200 text-slate-500"
+                      >
+                        <Users className="mr-1 h-3.5 w-3.5" />
                         {championship.participating_teams.length} equipas
                       </Badge>
                     )}
                   </div>
-
-                  <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500 sm:grid-cols-4">
-                    <div className="flex items-center gap-1.5">
-                      <CalendarDays className="h-3.5 w-3.5" />
-                      Jogos
+              
+                  {/* Áreas disponíveis */}
+                  <div className="grid grid-cols-2 gap-2 border-t border-slate-100 pt-4 text-xs text-slate-500">
+                    <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
+                      <CalendarDays className="h-3.5 w-3.5 text-primary" />
+                      Jornadas e jogos
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <BarChart3 className="h-3.5 w-3.5" />
+              
+                    <div className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2">
+                      <BarChart3 className="h-3.5 w-3.5 text-primary" />
                       Estatísticas
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck className="h-3.5 w-3.5" />
-                      Classificação
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <Settings className="h-3.5 w-3.5" />
-                      Configuração
-                    </div>
                   </div>
-
-                  <div className="flex flex-col gap-2 sm:flex-row">
-                    <Button asChild className="flex-1 rounded-2xl" data-testid={`view-championship-${championship.id}`}>
+              
+                  {/* Ações */}
+                  <div className="flex flex-col gap-2 pt-1 sm:flex-row">
+                    <Button
+                      asChild
+                      className="flex-1 rounded-2xl"
+                      data-testid={`view-championship-${championship.id}`}
+                    >
                       <Link to={`/championships/${championship.id}`}>
                         <Eye className="mr-2 h-4 w-4" />
                         Abrir Competição
                         <ChevronRight className="ml-1 h-4 w-4" />
                       </Link>
                     </Button>
-
+              
                     {canArchive && !championship.is_archived && (
                       <Button
                         type="button"
                         variant="outline"
-                        className="rounded-2xl border-amber-200 text-amber-700 hover:bg-amber-50"
+                        size="icon"
+                        title="Arquivar competição"
+                        aria-label="Arquivar competição"
+                        className="h-10 w-full rounded-2xl border-amber-200 text-amber-700 hover:bg-amber-50 sm:w-10"
                         onClick={() => handleArchive(championship)}
                       >
-                        <Archive className="mr-2 h-4 w-4" />
-                        Arquivar
+                        <Archive className="h-4 w-4" />
+                        <span className="ml-2 sm:hidden">Arquivar</span>
                       </Button>
                     )}
                   </div>
