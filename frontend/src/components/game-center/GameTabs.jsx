@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from 'react';
 import {
   ClipboardList,
   FileSpreadsheet,
@@ -64,6 +65,7 @@ function PlaceholderTab({ title, description }) {
 }
 
 export default function GameTabs({
+  match,
   canSeeStaffTabs,
   summaryContent,
   gamesheetContent,
@@ -71,13 +73,50 @@ export default function GameTabs({
   lineupContent,
   assistantContent,
 }) {
+  const initialTab = useMemo(() => {
+    /*
+     * Quando já existe boletim importado, a prioridade é validar
+     * as estatísticas extraídas.
+     */
+    if (match?.gamesheet_url) {
+      return 'statistics';
+    }
+
+    /*
+     * Jogos terminados abrem no resumo.
+     */
+    if (match?.is_completed) {
+      return 'summary';
+    }
+
+    /*
+     * Jogos futuros abrem diretamente no Line-up para perfis
+     * com acesso técnico.
+     */
+    if (canSeeStaffTabs) {
+      return 'lineup';
+    }
+
+    return 'summary';
+  }, [match?.gamesheet_url, match?.is_completed, canSeeStaffTabs]);
+
+  const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab, match?.id]);
+
   const visibleTabs = GAME_TABS.filter((tab) => {
     if (tab.staffOnly && !canSeeStaffTabs) return false;
     return true;
   });
 
   return (
-    <Tabs defaultValue="summary" className="space-y-6">
+    <Tabs
+      value={activeTab}
+      onValueChange={setActiveTab}
+      className="space-y-6"
+    >
       <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-2">
         {visibleTabs.map((tab) => {
           const Icon = tab.icon;
