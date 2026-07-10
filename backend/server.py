@@ -6316,6 +6316,118 @@ async def update_match(
 
     return {"message": "Jogo atualizado"}
 
+@api_router.post("/championships/{championship_id}/matches/fix-home-away")
+async def fix_championship_matches_home_away(
+    championship_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Apenas administradores podem executar esta migração"
+        )
+
+    championship = await db.championships.find_one(
+        {"id": championship_id},
+        {"_id": 0}
+    )
+
+    if not championship:
+        raise HTTPException(status_code=404, detail="Competição não encontrada")
+
+    team = await db.teams.find_one(
+        {"id": championship.get("team_id")},
+        {"_id": 0}
+    )
+
+    club_team_name = (
+        team.get("name")
+        if team
+        else championship.get("team_name") or championship.get("name") or "Equipa"
+    )
+
+    matches = await db.championship_matches.find(
+        {
+            "championship_id": championship_id,
+            "archived": {"$ne": True}
+        },
+        {"_id": 0}
+    ).to_list(500)
+
+    fixed = 0
+    unchanged = 0
+    inspected = []
+
+    for match in matches:
+        location = match.get("location", "casa")
+        opponent_team = match.get("opponent_team") or match.get("away_team") or "Adversário"
+
+        if location == "fora":
+            club_side = "away"
+            home_team = opponent_team
+            away_team = club_team_name
+        elif location == "neutro":
+            club_side = "neutral"
+            home_team = match.get("home_team") or club_team_name
+            away_team = match.get("away_team") or opponent_team
+        else:
+            club_side = "home"
+            home_team = club_team_name
+            away_team = opponent_team
+
+        update_data = {
+            "home_team": home_team,
+            "away_team": away_team,
+            "club_side": club_side,
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+            "updated_by": current_user["id"],
+            "home_away_fixed_at": datetime.now(timezone.utc).isoformat()
+        }
+
+        needs_update = (
+            match.get("home_team") != home_team or
+            match.get("away_team") != away_team or
+            match.get("club_side") != club_side
+        )
+
+        if needs_update:
+            await db.championship_matches.update_one(
+                {"id": match["id"]},
+                {"$set": update_data}
+            )
+            fixed += 1
+        else:
+            unchanged += 1
+
+        inspected.append({
+            "match_id": match.get("id"),
+            "location": location,
+            "before": {
+                "home_team": match.get("home_team"),
+                "away_team": match.get("away_team"),
+                "club_side": match.get("club_side"),
+                "opponent_team": match.get("opponent_team"),
+            },
+            "after": {
+                "home_team": home_team,
+                "away_team": away_team,
+                "club_side": club_side,
+            },
+            "updated": needs_update
+        })
+
+    return {
+        "message": "Migração casa/fora concluída",
+        "championship_id": championship_id,
+        "club_team_name": club_team_name,
+        "total": len(matches),
+        "fixed": fixed,
+        "unchanged": unchanged,
+        "matches": inspected
+    }
+
 @api_router.put("/championships/matches/{match_id}/archive")
 async def archive_match(
     match_id: str,
