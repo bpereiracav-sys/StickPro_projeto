@@ -78,7 +78,9 @@ export const championshipsApi = {
   getMatchPlayerStats: (matchId) => api.get(`/matches/${matchId}/player-stats`),
   createMatchPlayerStats: (matchId, data) =>
     api.post(`/matches/${matchId}/player-stats`, data),
-
+  fixMatchesHomeAway: (championshipId) =>
+    api.post(`/championships/${championshipId}/matches/fix-home-away`),
+  
   // Match Lineups
   getMatchLineup: (matchId) => api.get(`/championships/matches/${matchId}/lineup`),
   saveMatchLineup: (matchId, data) =>
