@@ -693,6 +693,7 @@ export default function MatchStats() {
       />
 
       <GameTabs
+        match={match}
         canSeeStaffTabs={canManageEvents}
         summaryContent={renderSummaryContent()}
         lineupContent={
