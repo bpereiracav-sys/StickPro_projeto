@@ -5930,6 +5930,344 @@ async def create_championship(
 
     return champ_dict
 
+def parse_match_datetime(value):
+    """
+    Converte datas guardadas como datetime ou string ISO.
+    Devolve None quando o valor não é válido.
+    """
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value
+
+    if isinstance(value, str):
+        try:
+            parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(tzinfo=timezone.utc)
+
+            return parsed
+        except ValueError:
+            return None
+
+    return None
+
+
+def build_match_team_names(match: dict, club_team_name: str):
+    """
+    Normaliza os nomes oficiais da equipa da casa e visitante,
+    mantendo compatibilidade com jogos antigos.
+    """
+    is_club_match = match.get("is_club_match", True)
+
+    if not is_club_match:
+        home_team = (
+            match.get("home_team")
+            or "Equipa da casa"
+        )
+
+        away_team = (
+            match.get("away_team")
+            or match.get("opponent_team")
+            or "Equipa visitante"
+        )
+
+        return {
+            "home_team": home_team,
+            "away_team": away_team,
+            "club_side": None,
+        }
+
+    club_side = (
+        match.get("club_side")
+        or (
+            "away"
+            if match.get("location") == "fora"
+            else "neutral"
+            if match.get("location") == "neutro"
+            else "home"
+        )
+    )
+
+    opponent_team = (
+        match.get("opponent_team")
+        or "Adversário"
+    )
+
+    if club_side == "away":
+        home_team = (
+            match.get("home_team")
+            or opponent_team
+        )
+
+        away_team = (
+            match.get("away_team")
+            or club_team_name
+        )
+
+    elif club_side == "neutral":
+        home_team = (
+            match.get("home_team")
+            or club_team_name
+        )
+
+        away_team = (
+            match.get("away_team")
+            or opponent_team
+        )
+
+    else:
+        home_team = (
+            match.get("home_team")
+            or club_team_name
+        )
+
+        away_team = (
+            match.get("away_team")
+            or opponent_team
+        )
+
+    return {
+        "home_team": home_team,
+        "away_team": away_team,
+        "club_side": club_side,
+    }
+
+
+def get_club_match_result(
+    match: dict,
+    club_side: Optional[str]
+):
+    """
+    Calcula vitória, empate ou derrota na perspetiva da equipa do clube.
+    """
+    if (
+        match.get("is_club_match", True) is False
+        or not match.get("is_completed")
+    ):
+        return None
+
+    home_score = match.get("home_score")
+    away_score = match.get("away_score")
+
+    if home_score is None or away_score is None:
+        return None
+
+    if club_side == "away":
+        club_score = away_score
+        opponent_score = home_score
+    else:
+        club_score = home_score
+        opponent_score = away_score
+
+    if club_score > opponent_score:
+        return "win"
+
+    if club_score < opponent_score:
+        return "loss"
+
+    return "draw"
+
+
+async def enrich_championship_dashboard(
+    championship: dict
+):
+    """
+    Acrescenta ao campeonato os indicadores necessários
+    para o dashboard vivo da página de Competições.
+    """
+    championship_id = championship.get("id")
+    team_id = championship.get("team_id")
+
+    team = await db.teams.find_one(
+        {"id": team_id},
+        {
+            "_id": 0,
+            "name": 1,
+        }
+    )
+
+    club_team_name = (
+        team.get("name")
+        if team
+        else championship.get("team_name")
+        or "Nossa Equipa"
+    )
+
+    matches = await db.championship_matches.find(
+        {
+            "championship_id": championship_id,
+            "archived": {"$ne": True},
+        },
+        {"_id": 0}
+    ).to_list(500)
+
+    now = datetime.now(timezone.utc)
+
+    club_matches = [
+        match
+        for match in matches
+        if match.get("is_club_match", True) is not False
+    ]
+
+    completed_matches = [
+        match
+        for match in club_matches
+        if match.get("is_completed") is True
+    ]
+
+    pending_matches = [
+        match
+        for match in club_matches
+        if match.get("is_completed") is not True
+    ]
+
+    wins = 0
+    draws = 0
+    losses = 0
+
+    for match in completed_matches:
+        names = build_match_team_names(
+            match,
+            club_team_name
+        )
+
+        result = get_club_match_result(
+            match,
+            names.get("club_side")
+        )
+
+        if result == "win":
+            wins += 1
+        elif result == "draw":
+            draws += 1
+        elif result == "loss":
+            losses += 1
+
+    pending_gamesheets = sum(
+        1
+        for match in completed_matches
+        if not match.get("gamesheet_url")
+    )
+
+    dated_pending_matches = []
+
+    for match in pending_matches:
+        match_datetime = parse_match_datetime(
+            match.get("match_date")
+        )
+
+        if match_datetime:
+            dated_pending_matches.append(
+                (match_datetime, match)
+            )
+
+    future_matches = [
+        item
+        for item in dated_pending_matches
+        if item[0] >= now
+    ]
+
+    if future_matches:
+        future_matches.sort(
+            key=lambda item: item[0]
+        )
+        next_match = future_matches[0][1]
+    elif dated_pending_matches:
+        dated_pending_matches.sort(
+            key=lambda item: item[0]
+        )
+        next_match = dated_pending_matches[0][1]
+    else:
+        next_match = None
+
+    dated_completed_matches = []
+
+    for match in completed_matches:
+        match_datetime = parse_match_datetime(
+            match.get("match_date")
+        )
+
+        if match_datetime:
+            dated_completed_matches.append(
+                (match_datetime, match)
+            )
+
+    dated_completed_matches.sort(
+        key=lambda item: item[0],
+        reverse=True
+    )
+
+    last_match = (
+        dated_completed_matches[0][1]
+        if dated_completed_matches
+        else None
+    )
+
+    next_match_data = None
+
+    if next_match:
+        next_names = build_match_team_names(
+            next_match,
+            club_team_name
+        )
+
+        next_match_data = {
+            "id": next_match.get("id"),
+            "match_date": next_match.get("match_date"),
+            "match_time": next_match.get("match_time"),
+            "matchday": next_match.get("matchday"),
+            "venue": next_match.get("venue"),
+            "location": next_match.get("location"),
+            "home_team": next_names["home_team"],
+            "away_team": next_names["away_team"],
+            "club_side": next_names["club_side"],
+        }
+
+    last_result_data = None
+
+    if last_match:
+        last_names = build_match_team_names(
+            last_match,
+            club_team_name
+        )
+
+        last_result_data = {
+            "id": last_match.get("id"),
+            "match_date": last_match.get("match_date"),
+            "matchday": last_match.get("matchday"),
+            "home_team": last_names["home_team"],
+            "away_team": last_names["away_team"],
+            "home_score": last_match.get("home_score"),
+            "away_score": last_match.get("away_score"),
+            "club_side": last_names["club_side"],
+            "club_result": get_club_match_result(
+                last_match,
+                last_names["club_side"]
+            ),
+        }
+
+    dashboard = {
+        "summary": {
+            "matches_total": len(club_matches),
+            "matches_completed": len(completed_matches),
+            "matches_pending": len(pending_matches),
+            "wins": wins,
+            "draws": draws,
+            "losses": losses,
+            "pending_gamesheets": pending_gamesheets,
+        },
+        "next_match": next_match_data,
+        "last_result": last_result_data,
+        "standing_position": None,
+    }
+
+    return {
+        **championship,
+        "dashboard": dashboard,
+    }
+
 @api_router.get("/championships")
 async def get_championships(
     team_id: Optional[str] = None,
@@ -5965,12 +6303,29 @@ async def get_championships(
     ).sort("created_at", -1).to_list(500)
 
     enriched = []
-    for championship in championships:
-        if await can_view_competition(current_user, championship):
-            enriched.append(
-                await enrich_championship_for_response(championship, current_user)
-            )
 
+    for championship in championships:
+        if not await can_view_competition(
+            current_user,
+            championship
+        ):
+            continue
+    
+        championship_response = (
+            await enrich_championship_for_response(
+                championship,
+                current_user
+            )
+        )
+    
+        championship_response = (
+            await enrich_championship_dashboard(
+                championship_response
+            )
+        )
+    
+        enriched.append(championship_response)
+    
     return enriched
 
 @api_router.get("/championships/{championship_id}")
