@@ -78,6 +78,7 @@ export default function ChampionshipDetail() {
   const [matchImportDialogOpen, setMatchImportDialogOpen] = useState(false);
   const [importingMatches, setImportingMatches] = useState(false);
   const [matchImportResults, setMatchImportResults] = useState(null);
+  const [fixingHomeAway, setFixingHomeAway] = useState(false);
   
   // Competition Teams state
   const [competitionTeams, setCompetitionTeams] = useState([]);
@@ -249,6 +250,41 @@ export default function ChampionshipDetail() {
     }
   };
 
+  const handleFixHomeAway = async () => {
+    const confirmed = window.confirm(
+      'Pretende corrigir automaticamente a identificação das equipas da casa e visitantes nos jogos já existentes desta competição?'
+    );
+  
+    if (!confirmed) return;
+  
+    setFixingHomeAway(true);
+  
+    try {
+      const response = await championshipsApi.fixMatchesHomeAway(
+        championshipId
+      );
+  
+      const result = response.data;
+  
+      toast.success(
+        `Migração concluída: ${result.fixed || 0} jogo(s) corrigido(s) e ${
+          result.unchanged || 0
+        } sem alterações.`
+      );
+  
+      await fetchData();
+    } catch (error) {
+      console.error('Erro ao corrigir casa/fora:', error);
+  
+      toast.error(
+        error.response?.data?.detail ||
+          'Não foi possível corrigir os jogos existentes.'
+      );
+    } finally {
+      setFixingHomeAway(false);
+    }
+  };
+  
   const handleCreateMatch = async (e) => {
     e.preventDefault();
     
@@ -1387,6 +1423,47 @@ const getMatchScore = (match) => {
               </div>
             </CardContent>
           </Card>
+          {isAdmin && (
+            <Card className="border-amber-200 bg-gradient-to-br from-white to-amber-50/70 shadow-lg shadow-slate-200/70">
+              <CardHeader>
+                <CardTitle className="font-heading text-xl tracking-tight">
+                  Manutenção dos jogos
+                </CardTitle>
+          
+                <CardDescription>
+                  Corrige a identificação das equipas da casa e visitantes nos jogos
+                  criados antes da atualização do modelo Casa/Fora.
+                </CardDescription>
+              </CardHeader>
+          
+              <CardContent>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleFixHomeAway}
+                  disabled={fixingHomeAway}
+                  className="border-amber-300 bg-white text-amber-800 hover:bg-amber-50"
+                >
+                  {fixingHomeAway ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      A corrigir jogos...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="mr-2 h-4 w-4" />
+                      Corrigir Casa/Fora dos jogos existentes
+                    </>
+                  )}
+                </Button>
+          
+                <p className="mt-3 text-xs leading-5 text-muted-foreground">
+                  A operação preserva resultados, estatísticas, convocatórias,
+                  line-ups e boletins já registados.
+                </p>
+              </CardContent>
+            </Card>
+          )}          
         </TabsContent>
       </Tabs>
 
