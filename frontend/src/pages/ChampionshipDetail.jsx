@@ -47,7 +47,7 @@ import {
   LayoutGrid, BarChart3, Building, Upload, Palette
 } from 'lucide-react';
 import { formatDate, formatTime } from '../lib/utils';
-import { MatchLineupEditor } from '../components/MatchLineupEditor';
+
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -70,8 +70,6 @@ export default function ChampionshipDetail() {
   const [deleting, setDeleting] = useState(null);
   const [importing, setImporting] = useState(false);
   const [gamesheetUrl, setGamesheetUrl] = useState('');
-  const [lineupDialogOpen, setLineupDialogOpen] = useState(false);
-  const [lineupMatch, setLineupMatch] = useState(null);
   const [aplImportDialogOpen, setAplImportDialogOpen] = useState(false);
   const [aplCalendarUrl, setAplCalendarUrl] = useState('');
   const [importingApl, setImportingApl] = useState(false);
@@ -1972,36 +1970,6 @@ const getMatchScore = (match) => {
               Fechar
             </Button>
           </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Lineup Dialog */}
-      <Dialog open={lineupDialogOpen} onOpenChange={setLineupDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <LayoutGrid className="w-5 h-5 text-primary" />
-              Line-up do Jogo
-            </DialogTitle>
-            <DialogDescription>
-              {lineupMatch && (
-                <>
-                  {team?.name} vs {lineupMatch.opponent_team} - {formatDate(lineupMatch.match_date)}
-                </>
-              )}
-            </DialogDescription>
-          </DialogHeader>
-          
-          {lineupMatch && (
-            <MatchLineupEditor 
-              matchId={lineupMatch.id}
-              teamId={championship?.team_id}
-              onClose={() => {
-                setLineupDialogOpen(false);
-                setLineupMatch(null);
-              }}
-            />
-          )}
         </DialogContent>
       </Dialog>
 
