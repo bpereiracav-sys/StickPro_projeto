@@ -1058,45 +1058,38 @@ const getMatchScore = (match) => {
                                 {match.is_completed ? 'Resultado' : 'Inserir'}
                               </Button>
                             )}
-                            {/* Only show stats/lineup buttons for club matches */}
+                            
+                            {/* Centro do Jogo disponível antes, durante e depois da partida */}
                             {match.is_club_match !== false && (
                               <>
-                                {canManageLineups && canEditGames && (
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    className="h-8 px-2 sm:px-3"
-                                    onClick={() => {
-                                      setLineupMatch(match);
-                                      setLineupDialogOpen(true);
-                                    }}
-                                    data-testid={`lineup-${match.id}`}
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="h-8 gap-2 px-3 text-xs sm:text-sm"
+                                  asChild
+                                  data-testid={`match-center-${match.id}`}
+                                >
+                                  <Link
+                                    to={`/championships/${championshipId}/matches/${match.id}/stats`}
                                   >
-                                    <LayoutGrid className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                  </Button>
-                                )}
+                                    <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                    <span>Centro do Jogo</span>
+                                  </Link>
+                                </Button>
+                            
                                 {canImportGamesheet && (
-                                  <Button 
-                                    variant="outline" 
+                                  <Button
+                                    variant="outline"
                                     size="sm"
                                     className="h-8 px-2 sm:px-3"
                                     onClick={() => openImportDialog(match)}
                                     data-testid={`import-gamesheet-${match.id}`}
+                                    title="Importar ficha oficial"
                                   >
-                                    <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                    <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                   </Button>
                                 )}
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  className="h-8 px-2 sm:px-3"
-                                  asChild
-                                >
-                                  <Link to={`/championships/${championshipId}/matches/${match.id}/stats`}>
-                                    <BarChart3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                  </Link>
-                                </Button>
-                                                              </>
+                              </>
                             )}
                             <Button 
                               variant="outline" 
