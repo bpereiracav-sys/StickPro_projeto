@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { championshipsApi } from '../services/api';
+import { formatDate } from '../lib/utils';
 import { Card, CardContent } from '../components/ui/card';
 import {
   CardWithStripe,
