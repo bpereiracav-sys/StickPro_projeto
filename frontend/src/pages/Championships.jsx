@@ -604,6 +604,10 @@ export default function Championships() {
             const teamName = championship.team_name || championship.team?.name || 'Equipa não identificada';
             const rules = championship.competition_rules || {};
             const formatMeta = getGameFormatMeta(championship);
+            const dashboard = championship.dashboard || {};
+            const summary = dashboard.summary || {};
+            const nextMatch = dashboard.next_match;
+            const lastResult = dashboard.last_result;
           
             const segmentsCount =
               rules.segments_count ||
@@ -728,7 +732,117 @@ export default function Championships() {
                       </Badge>
                     </div>
                   </div>
-              
+
+                  {/* Dashboard da competição */}
+
+                  <div className="grid gap-3">
+                  
+                    {nextMatch && (
+                      <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+                  
+                        <p className="text-xs uppercase tracking-wide text-cyan-700 font-semibold">
+                          Próximo jogo
+                        </p>
+                  
+                        <div className="mt-2 flex items-center justify-between">
+                  
+                          <div>
+                  
+                            <p className="font-semibold text-slate-900">
+                              {nextMatch.home_team}
+                              {" "}
+                              vs
+                              {" "}
+                              {nextMatch.away_team}
+                            </p>
+                  
+                            <p className="text-sm text-slate-500">
+                  
+                              {formatDate(nextMatch.match_date)}
+                  
+                            </p>
+                  
+                          </div>
+                  
+                          <Badge>
+                  
+                            {nextMatch.location === "fora"
+                              ? "Fora"
+                              : nextMatch.location === "casa"
+                              ? "Casa"
+                              : "Neutro"}
+                  
+                          </Badge>
+                  
+                        </div>
+                  
+                      </div>
+                    )}
+                  
+                    {lastResult && (
+                  
+                      <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                  
+                        <p className="text-xs uppercase tracking-wide text-emerald-700 font-semibold">
+                          Último resultado
+                        </p>
+                  
+                        <div className="mt-2 flex items-center justify-between">
+                  
+                          <div>
+                  
+                            <p className="font-semibold">
+                  
+                              {lastResult.home_team}
+                  
+                              {" "}
+                  
+                              {lastResult.home_score}
+                  
+                              -
+                  
+                              {lastResult.away_score}
+                  
+                              {" "}
+                  
+                              {lastResult.away_team}
+                  
+                            </p>
+                  
+                          </div>
+                  
+                          <Badge
+                            className={
+                              lastResult.club_result === "win"
+                                ? "bg-emerald-500"
+                  
+                                : lastResult.club_result === "draw"
+                  
+                                ? "bg-amber-500"
+                  
+                                : "bg-red-500"
+                            }
+                          >
+                  
+                            {lastResult.club_result === "win"
+                              ? "Vitória"
+                  
+                              : lastResult.club_result === "draw"
+                  
+                              ? "Empate"
+                  
+                              : "Derrota"}
+                  
+                          </Badge>
+                  
+                        </div>
+                  
+                      </div>
+                  
+                    )}
+                  
+                  </div>
+                  
                   {/* Informação compacta */}
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <CompetitionInfo
@@ -736,7 +850,51 @@ export default function Championships() {
                       label="Formato"
                       value={championship.format || '5x5'}
                     />
-              
+
+                  <div className="grid grid-cols-2 gap-2">
+
+                    <CompetitionInfo
+                  
+                      icon={Trophy}
+                  
+                      label="Vitórias"
+                  
+                      value={summary.wins ?? 0}
+                  
+                    />
+                  
+                    <CompetitionInfo
+                  
+                      icon={CalendarDays}
+                  
+                      label="Por disputar"
+                  
+                      value={summary.matches_pending ?? 0}
+                  
+                    />
+                  
+                    <CompetitionInfo
+                  
+                      icon={BarChart3}
+                  
+                      label="Jogos"
+                  
+                      value={summary.matches_total ?? 0}
+                  
+                    />
+                  
+                    <CompetitionInfo
+                  
+                      icon={ClipboardList}
+                  
+                      label="Boletins"
+                  
+                      value={summary.pending_gamesheets ?? 0}
+                  
+                    />
+                  
+                  </div>
+                    
                     <CompetitionInfo
                       icon={Zap}
                       label="Convocatória"
