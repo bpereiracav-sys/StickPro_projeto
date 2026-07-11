@@ -1,13 +1,17 @@
 import { useEffect } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { Activity } from 'lucide-react';
+
 import { Sidebar } from './Sidebar';
 import { TopNavBar } from './TopNavBar';
 import { BottomNav } from './BottomNav';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
-import { Activity } from 'lucide-react';
 
-const ONBOARDING_REQUIRED_ROLES = new Set(['admin', 'gestor_desportivo']);
+const ONBOARDING_REQUIRED_ROLES = new Set([
+  'admin',
+  'gestor_desportivo',
+]);
 
 export function AppLayout({ children }) {
   const { isAuthenticated, user } = useAuth();
@@ -29,6 +33,7 @@ export function AppLayout({ children }) {
   }
 
   const role = user?.role;
+
   const needsOnboarding =
     role &&
     ONBOARDING_REQUIRED_ROLES.has(role) &&
@@ -50,8 +55,17 @@ export function AppLayout({ children }) {
       <Sidebar />
 
       <main className="relative z-10 min-h-screen pb-20 lg:ml-64 lg:pb-0">
-        <div className="mx-auto w-full max-w-7xl px-3 py-2 sm:px-5 sm:py-3 lg:px-8 lg:pb-6 lg:pt-8">
-          <div className="rounded-[1.5rem] border border-white/70 bg-white/78 p-3 shadow-sm shadow-slate-200/70 backdrop-blur-xl sm:p-5 lg:rounded-[2rem] lg:p-5">
+        {/*
+          Área segura global:
+          - Mobile: 16 px entre TopNavBar e conteúdo
+          - Tablet: 20 px
+          - Desktop: 24 px
+
+          A TopNavBar é sticky, por isso o conteúdo inicia sempre
+          abaixo dela e nunca fica escondido.
+        */}
+        <div className="mx-auto w-full max-w-7xl px-3 pb-3 pt-2 sm:px-5 sm:pb-5 sm:pt-3 lg:px-8 lg:pb-6 lg:pt-3">
+          <div className="rounded-[1.5rem] border border-white/70 bg-white/78 p-2 shadow-sm shadow-slate-200/70 backdrop-blur-xl sm:p-3 lg:rounded-[2rem] lg:p-3">
             {children}
           </div>
         </div>
@@ -63,7 +77,10 @@ export function AppLayout({ children }) {
         className="pointer-events-none fixed bottom-6 right-6 z-0 hidden lg:block"
         aria-hidden="true"
       >
-        <Activity className="h-28 w-28 text-primary/[0.035]" strokeWidth={1} />
+        <Activity
+          className="h-28 w-28 text-primary/[0.035]"
+          strokeWidth={1}
+        />
       </div>
     </div>
   );
