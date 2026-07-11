@@ -48,6 +48,7 @@ import {
   Eye,
   CalendarDays,
   BarChart3,
+  ClipboardList,
   ListChecks,
   Settings,
   Sparkles,
@@ -844,58 +845,14 @@ export default function Championships() {
                   
                   </div>
                   
-                  {/* Informação compacta */}
+                  {/* Informação da competição */}
                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     <CompetitionInfo
                       icon={ListChecks}
                       label="Formato"
                       value={championship.format || '5x5'}
                     />
-
-                  <div className="grid grid-cols-2 gap-2">
-
-                    <CompetitionInfo
                   
-                      icon={Trophy}
-                  
-                      label="Vitórias"
-                  
-                      value={summary.wins ?? 0}
-                  
-                    />
-                  
-                    <CompetitionInfo
-                  
-                      icon={CalendarDays}
-                  
-                      label="Por disputar"
-                  
-                      value={summary.matches_pending ?? 0}
-                  
-                    />
-                  
-                    <CompetitionInfo
-                  
-                      icon={BarChart3}
-                  
-                      label="Jogos"
-                  
-                      value={summary.matches_total ?? 0}
-                  
-                    />
-                  
-                    <CompetitionInfo
-                  
-                      icon={ClipboardList}
-                  
-                      label="Boletins"
-                  
-                      value={summary.pending_gamesheets ?? 0}
-                  
-                    />
-                  
-                  </div>
-                    
                     <CompetitionInfo
                       icon={Zap}
                       label="Convocatória"
@@ -905,13 +862,17 @@ export default function Championships() {
                           : 'Manual'
                       }
                     />
-              
+                  
                     <CompetitionInfo
                       icon={ShieldCheck}
                       label="Validação"
-                      value={validationLabel}
+                      value={
+                        validationLabel === 'Validação automática'
+                          ? 'Automática'
+                          : 'Manual'
+                      }
                     />
-              
+                  
                     <CompetitionInfo
                       icon={Settings}
                       label="Tipo"
@@ -920,6 +881,33 @@ export default function Championships() {
                         championship.competition_type,
                         'Competição'
                       )}
+                    />
+                  </div>
+                  
+                  {/* Indicadores da competição */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <CompetitionInfo
+                      icon={Trophy}
+                      label="Vitórias"
+                      value={summary.wins ?? 0}
+                    />
+                  
+                    <CompetitionInfo
+                      icon={CalendarDays}
+                      label="Por disputar"
+                      value={summary.matches_pending ?? 0}
+                    />
+                  
+                    <CompetitionInfo
+                      icon={BarChart3}
+                      label="Jogos"
+                      value={summary.matches_total ?? 0}
+                    />
+                  
+                    <CompetitionInfo
+                      icon={ClipboardList}
+                      label="Boletins pendentes"
+                      value={summary.pending_gamesheets ?? 0}
                     />
                   </div>
               
