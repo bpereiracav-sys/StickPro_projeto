@@ -380,7 +380,10 @@ export default function Dashboard() {
   const PaymentHeroIcon = paymentHeroStatus?.icon;
 
   return (
-    <div className="space-y-4 pb-20 pt-1 lg:space-y-6 lg:-mt-12 lg:pb-0" data-testid="dashboard-page">
+    <div
+      className="space-y-4 pb-20 lg:space-y-6 lg:pb-0"
+      data-testid="dashboard-page"
+    >
       <DashboardHero
         badge="StickPro Club OS"
         title={`${getGreeting()}, ${
