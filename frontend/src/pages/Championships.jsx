@@ -446,8 +446,11 @@ export default function Championships() {
   }
 
   return (
-    <div className="space-y-5" data-testid="championships-page">
-      <div className="flex items-center justify-between gap-3">
+    <div
+      className="space-y-4 lg:space-y-5"
+      data-testid="championships-page"
+    >
+      <div className="-mb-1 flex items-center justify-between gap-3">
         <Button
           type="button"
           variant="ghost"
