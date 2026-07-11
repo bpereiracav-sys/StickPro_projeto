@@ -2289,7 +2289,7 @@ export default function CalendarPage() {
 
   return (
     <div
-      className="flex h-[calc(100dvh-92px)] flex-col gap-3 overflow-hidden md:block md:h-auto md:space-y-4 md:-mt-10 md:overflow-visible"
+      className="flex h-[calc(100dvh-92px)] flex-col gap-3 overflow-hidden md:block md:h-auto md:space-y-4 md:overflow-visible"
       data-testid="calendar-page"
     >
       <CalendarHeader
