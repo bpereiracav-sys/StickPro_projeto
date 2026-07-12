@@ -24,6 +24,10 @@ import CalendarViewControls from '../components/calendar/CalendarViewControls';
 import CalendarAgenda from '../components/calendar/CalendarAgenda';
 import EventCard from '../components/calendar/EventCard';
 import {
+  PageShell,
+  PageSection,
+} from '../components/layout';
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -2288,9 +2292,11 @@ export default function CalendarPage() {
   }
 
   return (
-    <div
-      className="flex h-[calc(100dvh-92px)] flex-col gap-3 overflow-hidden md:block md:h-auto md:space-y-4 md:overflow-visible"
-      data-testid="calendar-page"
+    <PageShell
+      compact
+      fullHeight
+      className="flex h-[calc(100dvh-92px)] flex-col overflow-hidden md:block md:h-auto md:overflow-visible"
+      testId="calendar-page"
     >
       <CalendarHeader
         t={t}
@@ -2308,20 +2314,33 @@ export default function CalendarPage() {
         onCreateEvent={() => setCreateDialogOpen(true)}
       />
 
-      <CalendarViewControls
-        t={t}
-        viewMode={viewMode}
-        viewTitle={getViewTitle()}
-        isMobile={isMobile}
-        viewModes={isMobile ? VIEW_MODES : { day: VIEW_MODES.day, week: VIEW_MODES.week, month: VIEW_MODES.month }}
-        onPrevious={navigatePrevious}
-        onToday={navigateToday}
-        onNext={navigateNext}
-        onChangeView={(key) => {
-          setSelectedDate(new Date());
-          setViewMode(key);
-        }}
-      />
+      <PageSection
+        compact
+        testId="calendar-view-controls-section"
+      >
+        <CalendarViewControls
+          t={t}
+          viewMode={viewMode}
+          viewTitle={getViewTitle()}
+          isMobile={isMobile}
+          viewModes={
+            isMobile
+              ? VIEW_MODES
+              : {
+                  day: VIEW_MODES.day,
+                  week: VIEW_MODES.week,
+                  month: VIEW_MODES.month,
+                }
+          }
+          onPrevious={navigatePrevious}
+          onToday={navigateToday}
+          onNext={navigateNext}
+          onChangeView={(key) => {
+            setSelectedDate(new Date());
+            setViewMode(key);
+          }}
+        />
+      </PageSection>
 
       {isRefreshing && (
         <div className="flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 md:w-fit">
@@ -2331,12 +2350,19 @@ export default function CalendarPage() {
       )}
 
       {/* Calendar View */}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-24 pr-1 md:block md:overflow-visible md:pb-0 md:pr-0">
-        {viewMode === 'agenda' && renderAgendaView()}
-        {viewMode === 'day' && renderDayView()}
-        {viewMode === 'week' && renderWeekView()}
-        {viewMode === 'month' && renderMonthView()}
-      </div>
+      <PageSection
+        compact
+        className="min-h-0 flex-1"
+        contentClassName="min-h-0 h-full"
+        testId="calendar-view-section"
+      >
+        <div className="min-h-0 h-full overflow-y-auto overscroll-contain pb-24 pr-1 md:block md:overflow-visible md:pb-0 md:pr-0">
+          {viewMode === 'agenda' && renderAgendaView()}
+          {viewMode === 'day' && renderDayView()}
+          {viewMode === 'week' && renderWeekView()}
+          {viewMode === 'month' && renderMonthView()}
+        </div>
+      </PageSection>
 
       {/* Create Event Dialog */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -3112,6 +3138,6 @@ export default function CalendarPage() {
         onOpenChange={setUnavailabilityDialogOpen}
         onSuccess={() => fetchData({ silent: true })}
       />
-    </div>
-  );
+      </PageShell>
+      );
 }
