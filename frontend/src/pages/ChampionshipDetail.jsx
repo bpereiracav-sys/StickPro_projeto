@@ -715,10 +715,9 @@ export default function ChampionshipDetail() {
       <CompetitionHero
         championship={championship}
         team={team}
-        matchesCount={matches.length}
-        completedMatches={completedMatches}
-        pendingMatches={pendingMatches}
-        competitionTeamsCount={competitionTeams.length}
+        matches={matches}
+        standings={standings}
+        nextMatch={nextMatch}
         canCreateGames={canCreateGames}
         onAddMatch={() => setMatchDialogOpen(true)}
         onImportMatches={() => setMatchImportDialogOpen(true)}
@@ -744,6 +743,10 @@ export default function ChampionshipDetail() {
           canEditGames={canEditGames}
           canEditResults={canEditResults}
           canImportGamesheet={canImportGamesheet}
+          canCreateGames={canCreateGames}
+          onAddMatch={() => setMatchDialogOpen(true)}
+          onImportMatches={() => setMatchImportDialogOpen(true)}
+          onImportCalendar={() => setAplImportDialogOpen(true)}
         />
 
         <CompetitionMatches
