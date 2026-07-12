@@ -47,6 +47,9 @@ import {
   LayoutGrid, BarChart3, Building, Upload, Palette
 } from 'lucide-react';
 import { formatDate, formatTime } from '../lib/utils';
+import CompetitionHero from '../components/competition/CompetitionHero';
+import CompetitionNavigation from '../components/competition/CompetitionNavigation';
+import CompetitionOverview from '../components/competition/CompetitionOverview';
 
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -764,174 +767,39 @@ const getMatchScore = (match) => {
         </Link>
       </Button>
 
-      {/* Premium Header */}
-      <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-6 lg:p-8">
-        <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-cyan-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-20 h-56 w-56 rounded-full bg-amber-300/10 blur-3xl" />
-
-        <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-          <div className="min-w-0">
-            <Badge className="mb-3 border-white/20 bg-white/10 text-white hover:bg-white/10">
-              Centro de Gestão Competitiva
-            </Badge>
-            <h1 className="font-heading text-2xl tracking-tight sm:text-3xl lg:text-4xl">
-              {championship.name}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-cyan-50/90">
-              <Badge variant="outline" className="border-white/25 bg-white/10 text-white">
-                {championship.season}
-              </Badge>
-              <Badge variant="outline" className="border-white/25 bg-white/10 text-white">
-                {team?.name || championship.team_name || 'Equipa'}
-              </Badge>
-              <Badge variant="outline" className="border-white/25 bg-white/10 text-white">
-                {championship.format || '5x5'}
-              </Badge>
-              <Badge variant="outline" className="border-white/25 bg-white/10 text-white">
-                {championship.convocation_type === 'automatica' ? 'Convocatória automática' : 'Convocatória manual'}
-              </Badge>
-            </div>
-            {championship.description && (
-              <p className="mt-4 max-w-3xl text-sm leading-6 text-slate-200">
-                {championship.description}
-              </p>
-            )}
-          </div>
-
-          {canCreateGames && (
-            <div className="flex flex-col gap-2 sm:flex-row lg:flex-col xl:flex-row">
-              <Button onClick={() => setMatchDialogOpen(true)} data-testid="add-match-btn" className="bg-white text-slate-950 hover:bg-cyan-50">
-                <Plus className="mr-2 h-4 w-4" />
-                {t('championships.addGame') || 'Adicionar Jogo'}
-              </Button>
-              <Button variant="outline" onClick={() => setMatchImportDialogOpen(true)} data-testid="import-matches-btn" className="border-white/25 bg-white/10 text-white hover:bg-white/20 hover:text-white">
-                <Upload className="mr-2 h-4 w-4" />
-                {t('championships.importMatches') || 'Importar Jogos'}
-              </Button>
-            </div>
-          )}
-        </div>
-
-        <div className="relative z-10 mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-            <p className="text-xs uppercase tracking-wide text-cyan-100/80">Jogos</p>
-            <p className="mt-1 text-2xl font-bold">{matches.length}</p>
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-            <p className="text-xs uppercase tracking-wide text-cyan-100/80">Realizados</p>
-            <p className="mt-1 text-2xl font-bold">{completedMatches}</p>
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-            <p className="text-xs uppercase tracking-wide text-cyan-100/80">Por realizar</p>
-            <p className="mt-1 text-2xl font-bold">{pendingMatches}</p>
-          </div>
-          <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
-            <p className="text-xs uppercase tracking-wide text-cyan-100/80">Equipas</p>
-            <p className="mt-1 text-2xl font-bold">{competitionTeams.length}</p>
-          </div>
-        </div>
-      </div>
+      <CompetitionHero
+        championship={championship}
+        team={team}
+        matchesCount={matches.length}
+        completedMatches={completedMatches}
+        pendingMatches={pendingMatches}
+        competitionTeamsCount={competitionTeams.length}
+        canCreateGames={canCreateGames}
+        onAddMatch={() => setMatchDialogOpen(true)}
+        onImportMatches={() => setMatchImportDialogOpen(true)}
+        addMatchLabel={t('championships.addGame') || 'Adicionar Jogo'}
+        importMatchesLabel={t('championships.importMatches') || 'Importar Jogos'}
+      />
 
       {/* Tabs */}
       <Tabs defaultValue="summary" className="space-y-6">
-        <TabsList className="flex h-auto flex-wrap justify-start gap-2 rounded-2xl bg-slate-100 p-2">
-          <TabsTrigger value="summary" className="rounded-xl">Resumo</TabsTrigger>
-          <TabsTrigger value="matches" className="rounded-xl">Jogos ({matches.length})</TabsTrigger>
-          <TabsTrigger value="standings" className="rounded-xl">Classificação</TabsTrigger>
-          <TabsTrigger value="teams" className="rounded-xl">Equipas ({competitionTeams.length})</TabsTrigger>
-          <TabsTrigger value="stats" className="rounded-xl">Estatísticas</TabsTrigger>
-          <TabsTrigger value="imports" className="rounded-xl">Importações</TabsTrigger>
-          <TabsTrigger value="settings" className="rounded-xl">Configuração</TabsTrigger>
-        </TabsList>
+        <CompetitionNavigation
+          matchesCount={matches.length}
+          competitionTeamsCount={competitionTeams.length}
+        />
 
-        {/* Summary Tab */}
-        <TabsContent value="summary" className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <Card className="overflow-hidden border-white/70 bg-white/90 shadow-lg shadow-slate-200/70 lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
-                  <Calendar className="h-5 w-5 text-primary" />
-                  Próximo jogo
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {nextMatch ? (
-                  <div className="rounded-2xl border bg-slate-50 p-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm text-muted-foreground">{formatDate(nextMatch.match_date)} · {formatTime(nextMatch.match_date)}</p>
-                        <p className="mt-1 text-lg font-semibold">
-                          {nextMatch.is_club_match === false ? nextMatch.home_team : team?.name} vs {nextMatch.opponent_team}
-                        </p>
-                        {nextMatch.venue && <p className="mt-1 text-sm text-muted-foreground">{nextMatch.venue}</p>}
-                      </div>
-                      <Badge variant="outline">Jornada {nextMatch.matchday || '-'}</Badge>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Não existem jogos futuros agendados.</p>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="overflow-hidden border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
-                  <Trophy className="h-5 w-5 text-primary" />
-                  Último resultado
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {lastCompletedMatch ? (
-                  <div>
-                    <p className="text-sm text-muted-foreground">{formatDate(lastCompletedMatch.match_date)}</p>
-                    <p className="mt-2 text-lg font-semibold">{lastCompletedMatch.is_club_match === false ? lastCompletedMatch.home_team : team?.name} vs {lastCompletedMatch.opponent_team}</p>
-                    <p className="mt-2 font-heading text-3xl">{lastCompletedMatch.home_score} - {lastCompletedMatch.away_score}</p>
-                  </div>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Ainda não existem resultados registados.</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Card className="border-white/70 bg-gradient-to-br from-white to-cyan-50/70 shadow-md shadow-slate-200/70">
-              <CardHeader>
-                <CardTitle className="text-base">Pendências</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                <p>{pendingMatches} jogos por realizar.</p>
-                <p>{matches.filter((match) => !match.gamesheet_url && match.is_completed).length} jogos realizados sem boletim importado.</p>
-                <p>{competitionTeams.length === 0 ? 'Ainda não existem equipas participantes registadas.' : 'Equipas participantes registadas.'}</p>
-              </CardContent>
-            </Card>
-            <Card className="border-white/70 bg-gradient-to-br from-white to-amber-50/70 shadow-md shadow-slate-200/70">
-              <CardHeader>
-                <CardTitle className="text-base">Classificação</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm text-muted-foreground">
-                {standings.slice(0, 3).map((row, index) => (
-                  <div key={row.team} className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2">
-                    <span>{index + 1}. {row.team}</span>
-                    <strong>{row.points} pts</strong>
-                  </div>
-                ))}
-                {standings.length === 0 && <p>Sem dados de classificação.</p>}
-              </CardContent>
-            </Card>
-            <Card className="border-white/70 bg-gradient-to-br from-white to-slate-50 shadow-md shadow-slate-200/70">
-              <CardHeader>
-                <CardTitle className="text-base">Permissões</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-wrap gap-2">
-                <Badge variant={canEditGames ? 'default' : 'outline'}>{canEditGames ? 'Edita jogos' : 'Só leitura'}</Badge>
-                <Badge variant={canEditResults ? 'default' : 'outline'}>{canEditResults ? 'Edita resultados' : 'Resultados bloqueados'}</Badge>
-                <Badge variant={canImportGamesheet ? 'default' : 'outline'}>{canImportGamesheet ? 'Importa boletins' : 'Sem importação'}</Badge>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
+        <CompetitionOverview
+          nextMatch={nextMatch}
+          lastCompletedMatch={lastCompletedMatch}
+          team={team}
+          pendingMatches={pendingMatches}
+          matches={matches}
+          competitionTeams={competitionTeams}
+          standings={standings}
+          canEditGames={canEditGames}
+          canEditResults={canEditResults}
+          canImportGamesheet={canImportGamesheet}
+        />
 
         {/* Matches Tab - Grouped by Round */}
         <TabsContent value="matches" className="space-y-4">
