@@ -731,10 +731,7 @@ export default function ChampionshipDetail() {
       {/* Tabs */}
       <Tabs defaultValue="summary" className="space-y-6">
         <CompetitionNavigation />
-          matchesCount={matches.length}
-          competitionTeamsCount={competitionTeams.length}
-        />
-
+      
         <CompetitionOverview
           nextMatch={nextMatch}
           lastCompletedMatch={lastCompletedMatch}
