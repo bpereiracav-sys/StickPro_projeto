@@ -26,14 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../components/ui/table';
+
 import { toast } from 'sonner';
 import { 
   ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin,
@@ -787,69 +780,11 @@ export default function ChampionshipDetail() {
         />
 
         {/* Standings Tab */}
-        <TabsContent value="standings">
-          <Card className="border border-border">
-            <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-tight">Classificação</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {standings.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead className="w-12">#</TableHead>
-                        <TableHead>Equipa</TableHead>
-                        <TableHead className="text-center">J</TableHead>
-                        <TableHead className="text-center">V</TableHead>
-                        <TableHead className="text-center">E</TableHead>
-                        <TableHead className="text-center">D</TableHead>
-                        <TableHead className="text-center">GM</TableHead>
-                        <TableHead className="text-center">GS</TableHead>
-                        <TableHead className="text-center">DG</TableHead>
-                        <TableHead className="text-center">B</TableHead>
-                        <TableHead className="text-center">P</TableHead>
-                        <TableHead className="text-center font-bold">Pts</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {standings.map((row, index) => (
-                        <TableRow 
-                          key={row.team} 
-                          className={row.team === team?.name ? 'bg-primary/5' : ''}
-                        >
-                          <TableCell className="font-bold">{index + 1}</TableCell>
-                          <TableCell className="font-semibold">
-                            {row.team === team?.name && <Trophy className="w-4 h-4 inline mr-2 text-primary" />}
-                            {row.team}
-                          </TableCell>
-                          <TableCell className="text-center">{row.played}</TableCell>
-                          <TableCell className="text-center text-secondary">{row.won}</TableCell>
-                          <TableCell className="text-center">{row.drawn}</TableCell>
-                          <TableCell className="text-center text-destructive">{row.lost}</TableCell>
-                          <TableCell className="text-center">{row.goals_for}</TableCell>
-                          <TableCell className="text-center">{row.goals_against}</TableCell>
-                          <TableCell className="text-center font-mono">
-                            {row.goal_diff > 0 ? `+${row.goal_diff}` : row.goal_diff}
-                          </TableCell>
-                          <TableCell className="text-center text-secondary">{row.bonus}</TableCell>
-                          <TableCell className="text-center text-destructive">{row.penalty}</TableCell>
-                          <TableCell className="text-center font-bold text-lg">{row.points}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-8">
-                  Sem dados de classificação. Adicione resultados aos jogos.
-                </p>
-              )}
-              <p className="text-xs text-muted-foreground mt-4">
-                J=Jogos | V=Vitórias (3pts) | E=Empates (1pt) | D=Derrotas | GM=Golos Marcados | GS=Golos Sofridos | DG=Diferença | B=Bónus | P=Penalização
-              </p>
-            </CardContent>
-          </Card>
+        <TabsContent value="standings" className="space-y-4">
+          <CompetitionStandings
+            standings={standings}
+            clubTeamName={team?.name || championship?.team_name || ''}
+          />
         </TabsContent>
 
 
