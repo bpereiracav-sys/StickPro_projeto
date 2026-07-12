@@ -39,6 +39,9 @@ import CompetitionOverview from '../components/competition/CompetitionOverview';
 import CompetitionMatches from '../components/competition/CompetitionMatches';
 import CompetitionTeams from '../components/competition/CompetitionTeams';
 import { CompetitionStandings } from '../components/competition/CompetitionStandings';
+import CompetitionStatistics from '../components/competition/CompetitionStatistics';
+import CompetitionImports from '../components/competition/CompetitionImports';
+import CompetitionSettings from '../components/competition/CompetitionSettings';
 
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -727,7 +730,7 @@ export default function ChampionshipDetail() {
 
       {/* Tabs */}
       <Tabs defaultValue="summary" className="space-y-6">
-        <CompetitionNavigation
+        <CompetitionNavigation />
           matchesCount={matches.length}
           competitionTeamsCount={competitionTeams.length}
         />
@@ -792,139 +795,36 @@ export default function ChampionshipDetail() {
 
 
         {/* Statistics Tab */}
-        <TabsContent value="stats" className="space-y-4">
-          <Card className="border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
-                <BarChart3 className="h-5 w-5 text-primary" />
-                Estatísticas da Competição
-              </CardTitle>
-              <CardDescription>
-                Esta área será ligada aos rankings individuais e às estatísticas detalhadas dos jogos.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm text-muted-foreground">Jogos realizados</p>
-                <p className="mt-1 text-2xl font-bold">{completedMatches}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm text-muted-foreground">Equipas</p>
-                <p className="mt-1 text-2xl font-bold">{competitionTeams.length}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm text-muted-foreground">Golos registados</p>
-                <p className="mt-1 text-2xl font-bold">
-                  {matches.reduce((sum, match) => sum + (match.home_score || 0) + (match.away_score || 0), 0)}
-                </p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-sm text-muted-foreground">Boletins importados</p>
-                <p className="mt-1 text-2xl font-bold">{matches.filter((match) => match.gamesheet_url).length}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <CompetitionStatistics
+          matches={matches}
+          teamName={team?.name || championship?.team_name || ''}
+          competitionTeamsCount={competitionTeams.length}
+          importedGamesheets={
+            matches.filter((match) => match.gamesheet_url).length
+          }
+        />
 
-        {/* Imports Tab */}
-        <TabsContent value="imports" className="space-y-4">
-          <Card className="border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
-                <Upload className="h-5 w-5 text-primary" />
-                Importações
-              </CardTitle>
-              <CardDescription>
-                Importação assistida de jogos, equipas e boletins APL/FPP.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <Button variant="outline" onClick={() => setMatchImportDialogOpen(true)} disabled={!canCreateGames}>
-                <FileSpreadsheet className="mr-2 h-4 w-4" />
-                Importar jogos
-              </Button>
-              <Button variant="outline" onClick={() => setTeamImportDialogOpen(true)} disabled={!canImportGamesheet}>
-                <Users className="mr-2 h-4 w-4" />
-                Importar equipas
-              </Button>
-              <Button variant="outline" onClick={() => setAplImportDialogOpen(true)} disabled={!canImportGamesheet}>
-                <Download className="mr-2 h-4 w-4" />
-                Importar calendário APL/FPP
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        <CompetitionImports
+          canCreateGames={canCreateGames}
+          canImportGamesheet={canImportGamesheet}
+          onImportMatches={() => setMatchImportDialogOpen(true)}
+          onImportTeams={() => setTeamImportDialogOpen(true)}
+          onImportCalendar={() => setAplImportDialogOpen(true)}
+          matchesCount={matches.length}
+          teamsCount={competitionTeams.length}
+          importedGamesheets={
+            matches.filter((match) => match.gamesheet_url).length
+          }
+        />
 
-        {/* Settings Tab */}
-        <TabsContent value="settings" className="space-y-4">
-          <Card className="border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
-            <CardHeader>
-              <CardTitle className="font-heading text-xl tracking-tight">Configuração</CardTitle>
-              <CardDescription>
-                Informação estrutural da competição. A edição detalhada será desenvolvida no sprint seguinte.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Competição</p>
-                <p className="mt-1 font-semibold">{championship.name}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Equipa</p>
-                <p className="mt-1 font-semibold">{team?.name || championship.team_name || '-'}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Época</p>
-                <p className="mt-1 font-semibold">{championship.season}</p>
-              </div>
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Modo</p>
-                <p className="mt-1 font-semibold">{canEditCompetition ? 'Editável para este perfil' : 'Apenas visualização'}</p>
-              </div>
-            </CardContent>
-          </Card>
-          {isAdmin && (
-            <Card className="border-amber-200 bg-gradient-to-br from-white to-amber-50/70 shadow-lg shadow-slate-200/70">
-              <CardHeader>
-                <CardTitle className="font-heading text-xl tracking-tight">
-                  Manutenção dos jogos
-                </CardTitle>
-          
-                <CardDescription>
-                  Corrige a identificação das equipas da casa e visitantes nos jogos
-                  criados antes da atualização do modelo Casa/Fora.
-                </CardDescription>
-              </CardHeader>
-          
-              <CardContent>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleFixHomeAway}
-                  disabled={fixingHomeAway}
-                  className="border-amber-300 bg-white text-amber-800 hover:bg-amber-50"
-                >
-                  {fixingHomeAway ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      A corrigir jogos...
-                    </>
-                  ) : (
-                    <>
-                      <Zap className="mr-2 h-4 w-4" />
-                      Corrigir Casa/Fora dos jogos existentes
-                    </>
-                  )}
-                </Button>
-          
-                <p className="mt-3 text-xs leading-5 text-muted-foreground">
-                  A operação preserva resultados, estatísticas, convocatórias,
-                  line-ups e boletins já registados.
-                </p>
-              </CardContent>
-            </Card>
-          )}          
-        </TabsContent>
+        <CompetitionSettings
+          championship={championship}
+          team={team}
+          canEditCompetition={canEditCompetition}
+          isAdmin={isAdmin}
+          fixingHomeAway={fixingHomeAway}
+          onFixHomeAway={handleFixHomeAway}
+        />
       </Tabs>
 
       {/* Import APL/FPP Calendar Dialog */}
