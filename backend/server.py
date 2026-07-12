@@ -1053,26 +1053,47 @@ class ChampionshipMatchCreate(BaseModel):
 
 class ChampionshipMatch(BaseModel):
     model_config = ConfigDict(extra="ignore")
+
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     championship_id: str
     team_id: str
+
     home_team: Optional[str] = None
     away_team: Optional[str] = None
     club_side: Optional[str] = None  # home | away | neutral
-    official_match_url: Optional[str] = None
     opponent_team: str
+
     match_date: datetime
-    match_time: Optional[str] = None  # Hora do jogo (HH:MM)
+    match_time: Optional[str] = None
     location: MatchLocation
     venue: Optional[str] = None
+    matchday: Optional[int] = None
+
     home_score: Optional[int] = None
     away_score: Optional[int] = None
     is_completed: bool = False
     is_club_match: bool = True
+
     bonus_points: int = 0
     penalty_points: int = 0
-    matchday: Optional[int] = None  # Número da jornada
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    official_match_url: Optional[str] = None
+
+    # Sprint 2.0C — origem, sincronização e validação
+    source: str = "manual"  # manual | apl | fpp
+    source_url: Optional[str] = None
+    external_match_id: Optional[str] = None
+
+    is_verified: bool = False
+    verified_by: Optional[str] = None
+    verified_at: Optional[datetime] = None
+
+    last_synced_at: Optional[datetime] = None
+    sync_status: str = "manual"  # manual | imported | synced | conflict
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
 
 class MatchResultUpdate(BaseModel):
     home_score: int
@@ -6507,6 +6528,14 @@ async def create_championship_match(
     match_dict["match_date"] = match_dict["match_date"].isoformat()
     match_dict["created_at"] = match_dict["created_at"].isoformat()
     match_dict["archived"] = False
+    match_dict["source"] = "manual"
+    match_dict["sync_status"] = "manual"
+    match_dict["is_verified"] = False
+    match_dict["verified_by"] = None
+    match_dict["verified_at"] = None
+    match_dict["external_match_id"] = None
+    match_dict["source_url"] = None
+    match_dict["last_synced_at"] = None
 
     await db.championship_matches.insert_one(match_dict)
     match_dict.pop("_id", None)
@@ -6564,6 +6593,97 @@ async def get_championship_matches(
 
     return matches
 
+async def sync_calendar_event_from_match(
+    match_id: str,
+    *,
+    championship: dict,
+    match_data: dict,
+    current_user_id: str
+) -> None:
+    """
+    Mantém o evento do calendário sincronizado com o jogo.
+
+    Compatibilidade:
+    - procura primeiro por championship_match_id;
+    - usa championship_id + team_id como fallback para dados antigos;
+    - cria o evento caso não exista.
+    """
+    home_team = (
+        match_data.get("home_team")
+        or championship.get("team_name")
+        or "Equipa"
+    )
+
+    away_team = (
+        match_data.get("away_team")
+        or match_data.get("opponent_team")
+        or "Adversário"
+    )
+
+    match_date = parse_match_datetime(match_data.get("match_date"))
+
+    if not match_date:
+        raise HTTPException(
+            status_code=400,
+            detail="Data do jogo inválida"
+        )
+
+    location_value = (
+        match_data.get("venue")
+        or (
+            "Casa"
+            if match_data.get("location") == "casa"
+            else "Fora"
+            if match_data.get("location") == "fora"
+            else "Neutro"
+        )
+    )
+
+    event_update = {
+        "team_id": championship["team_id"],
+        "event_type": "jogo_campeonato",
+        "title": f"{home_team} vs {away_team}",
+        "location": location_value,
+        "start_time": match_date.isoformat(),
+        "opponent": match_data.get("opponent_team"),
+        "championship_id": championship["id"],
+        "championship_match_id": match_id,
+        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_by": current_user_id,
+    }
+
+    event = await db.events.find_one(
+        {"championship_match_id": match_id},
+        {"_id": 0}
+    )
+
+    if not event:
+        event = await db.events.find_one(
+            {
+                "championship_id": championship["id"],
+                "team_id": championship["team_id"],
+                "start_time": match_data.get("match_date"),
+                "opponent": match_data.get("opponent_team"),
+            },
+            {"_id": 0}
+        )
+
+    if event:
+        await db.events.update_one(
+            {"id": event["id"]},
+            {"$set": event_update}
+        )
+        return
+
+    new_event = {
+        "id": str(uuid.uuid4()),
+        **event_update,
+        "status": "scheduled",
+        "created_by": current_user_id,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    await db.events.insert_one(new_event)
 
 @api_router.put("/championships/matches/{match_id}/result")
 async def update_match_result(
@@ -6572,12 +6692,15 @@ async def update_match_result(
     current_user: dict = Depends(get_current_user)
 ):
     match = await db.championship_matches.find_one(
-        {"id": match_id},
+        {"id": match_id, "archived": {"$ne": True}},
         {"_id": 0}
     )
 
     if not match:
-        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado"
+        )
 
     championship = await db.championships.find_one(
         {"id": match["championship_id"]},
@@ -6585,30 +6708,58 @@ async def update_match_result(
     )
 
     if not championship:
-        raise HTTPException(status_code=404, detail="Competição não encontrada")
+        raise HTTPException(
+            status_code=404,
+            detail="Competição não encontrada"
+        )
 
-    if not await can_edit_competition_result(current_user, championship):
+    if not await can_edit_competition_result(
+        current_user,
+        championship
+    ):
         raise HTTPException(
             status_code=403,
             detail="Sem permissão para atualizar resultados desta competição"
         )
 
+    now = datetime.now(timezone.utc)
+
+    update_data = {
+        "home_score": result.home_score,
+        "away_score": result.away_score,
+        "bonus_points": result.bonus_points,
+        "penalty_points": result.penalty_points,
+        "is_completed": True,
+
+        # Um resultado manual fica validado pelo utilizador que o inseriu.
+        "source": match.get("source") or "manual",
+        "sync_status": (
+            match.get("sync_status")
+            if match.get("source") in ["apl", "fpp"]
+            else "manual"
+        ),
+        "is_verified": True,
+        "verified_by": current_user["id"],
+        "verified_at": now.isoformat(),
+
+        "updated_at": now.isoformat(),
+        "updated_by": current_user["id"],
+    }
+
     await db.championship_matches.update_one(
         {"id": match_id},
-        {
-            "$set": {
-                "home_score": result.home_score,
-                "away_score": result.away_score,
-                "bonus_points": result.bonus_points,
-                "penalty_points": result.penalty_points,
-                "is_completed": True,
-                "updated_at": datetime.now(timezone.utc).isoformat(),
-                "updated_by": current_user["id"],
-            }
-        }
+        {"$set": update_data}
     )
 
-    return {"message": "Resultado atualizado"}
+    updated_match = await db.championship_matches.find_one(
+        {"id": match_id},
+        {"_id": 0}
+    )
+
+    return {
+        "message": "Resultado atualizado",
+        "match": updated_match
+    }
 
 
 class MatchUpdate(BaseModel):
@@ -6617,11 +6768,16 @@ class MatchUpdate(BaseModel):
     club_side: Optional[str] = None
     official_match_url: Optional[str] = None
     opponent_team: Optional[str] = None
+
     match_date: Optional[datetime] = None
     match_time: Optional[str] = None
     location: Optional[MatchLocation] = None
     venue: Optional[str] = None
     matchday: Optional[int] = None
+
+    is_club_match: Optional[bool] = None
+    bonus_points: Optional[int] = None
+    penalty_points: Optional[int] = None
 
 
 @api_router.put("/championships/matches/{match_id}")
@@ -6631,12 +6787,15 @@ async def update_match(
     current_user: dict = Depends(get_current_user)
 ):
     match = await db.championship_matches.find_one(
-        {"id": match_id},
+        {"id": match_id, "archived": {"$ne": True}},
         {"_id": 0}
     )
 
     if not match:
-        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado"
+        )
 
     championship = await db.championships.find_one(
         {"id": match["championship_id"]},
@@ -6644,32 +6803,122 @@ async def update_match(
     )
 
     if not championship:
-        raise HTTPException(status_code=404, detail="Competição não encontrada")
+        raise HTTPException(
+            status_code=404,
+            detail="Competição não encontrada"
+        )
 
-    if not await can_edit_competition_game(current_user, championship):
+    if not await can_edit_competition_game(
+        current_user,
+        championship
+    ):
         raise HTTPException(
             status_code=403,
-            detail="Sem permissão para arquivar jogos desta competição"
+            detail="Sem permissão para editar jogos desta competição"
         )
 
-    update_data = {
-        k: v for k, v in updates.model_dump().items()
-        if v is not None
+    update_data = updates.model_dump(exclude_unset=True)
+
+    if "match_date" in update_data:
+        update_data["match_date"] = (
+            update_data["match_date"].isoformat()
+        )
+
+    # Mantém localização e club_side coerentes.
+    if "location" in update_data and "club_side" not in update_data:
+        update_data["club_side"] = (
+            "home"
+            if update_data["location"] == "casa"
+            else "away"
+            if update_data["location"] == "fora"
+            else "neutral"
+        )
+
+    merged_match = {
+        **match,
+        **update_data,
     }
 
-    if update_data:
-        if "match_date" in update_data and hasattr(update_data["match_date"], "isoformat"):
-            update_data["match_date"] = update_data["match_date"].isoformat()
-
-        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        update_data["updated_by"] = current_user["id"]
-
-        await db.championship_matches.update_one(
-            {"id": match_id},
-            {"$set": update_data}
+    # Corrige nomes quando a equipa do clube muda de lado.
+    if merged_match.get("is_club_match", True):
+        team = await db.teams.find_one(
+            {"id": championship.get("team_id")},
+            {"_id": 0, "name": 1}
         )
 
-    return {"message": "Jogo atualizado"}
+        club_team_name = (
+            team.get("name")
+            if team
+            else championship.get("team_name")
+            or "Equipa"
+        )
+
+        club_side = (
+            merged_match.get("club_side")
+            or (
+                "away"
+                if merged_match.get("location") == "fora"
+                else "neutral"
+                if merged_match.get("location") == "neutro"
+                else "home"
+            )
+        )
+
+        opponent_team = (
+            merged_match.get("opponent_team")
+            or "Adversário"
+        )
+
+        if club_side == "away":
+            update_data["home_team"] = (
+                merged_match.get("home_team")
+                or opponent_team
+            )
+            update_data["away_team"] = club_team_name
+
+        elif club_side == "home":
+            update_data["home_team"] = club_team_name
+            update_data["away_team"] = (
+                merged_match.get("away_team")
+                or opponent_team
+            )
+
+        else:
+            update_data["home_team"] = (
+                merged_match.get("home_team")
+                or club_team_name
+            )
+            update_data["away_team"] = (
+                merged_match.get("away_team")
+                or opponent_team
+            )
+
+    update_data["updated_at"] = (
+        datetime.now(timezone.utc).isoformat()
+    )
+    update_data["updated_by"] = current_user["id"]
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {"$set": update_data}
+    )
+
+    updated_match = await db.championship_matches.find_one(
+        {"id": match_id},
+        {"_id": 0}
+    )
+
+    await sync_calendar_event_from_match(
+        match_id,
+        championship=championship,
+        match_data=updated_match,
+        current_user_id=current_user["id"]
+    )
+
+    return {
+        "message": "Jogo e calendário atualizados",
+        "match": updated_match
+    }
 
 @api_router.post("/championships/{championship_id}/matches/fix-home-away")
 async def fix_championship_matches_home_away(
@@ -6788,10 +7037,11 @@ async def archive_match(
     match_id: str,
     current_user: dict = Depends(get_current_user)
 ):
-    """Archive championship match"""
-
+    """
+    Arquiva o jogo sem apagar o histórico e retira o evento do calendário.
+    """
     match = await db.championship_matches.find_one(
-        {"id": match_id},
+        {"id": match_id, "archived": {"$ne": True}},
         {"_id": 0}
     )
 
@@ -6812,25 +7062,48 @@ async def archive_match(
             detail="Competição não encontrada"
         )
 
-    if not await can_edit_competition_statistics(current_user, championship):
+    # CORREÇÃO:
+    # arquivar jogo é gestão de jogo, não edição de estatísticas.
+    if not await can_edit_competition_game(
+        current_user,
+        championship
+    ):
         raise HTTPException(
             status_code=403,
             detail="Sem permissão para arquivar jogos desta competição"
         )
+
+    now = datetime.now(timezone.utc).isoformat()
 
     await db.championship_matches.update_one(
         {"id": match_id},
         {
             "$set": {
                 "archived": True,
-                "archived_at": datetime.now(timezone.utc).isoformat(),
-                "archived_by": current_user["id"]
+                "archived_at": now,
+                "archived_by": current_user["id"],
+                "updated_at": now,
+                "updated_by": current_user["id"],
+            }
+        }
+    )
+
+    await db.events.update_many(
+        {"championship_match_id": match_id},
+        {
+            "$set": {
+                "status": "cancelled",
+                "archived": True,
+                "archived_at": now,
+                "archived_by": current_user["id"],
+                "updated_at": now,
+                "updated_by": current_user["id"],
             }
         }
     )
 
     return {
-        "message": "Jogo arquivado com sucesso"
+        "message": "Jogo arquivado e removido do calendário"
     }
 
 @api_router.get("/championships/matches/import-template")
