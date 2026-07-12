@@ -44,6 +44,7 @@ import CompetitionHero from '../components/competition/CompetitionHero';
 import CompetitionNavigation from '../components/competition/CompetitionNavigation';
 import CompetitionOverview from '../components/competition/CompetitionOverview';
 import CompetitionMatches from '../components/competition/CompetitionMatches';
+import CompetitionTeams from '../components/competition/CompetitionTeams';
 
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -770,134 +771,19 @@ export default function ChampionshipDetail() {
           onDeleteMatch={handleDeleteMatch}
         />
 
-        {/* Competition Teams Tab */}
-        <TabsContent value="teams" className="space-y-4">
-          {/* Team Actions */}
-          {canCreateGames && (
-            <div className="flex flex-wrap gap-2">
-              <Button onClick={() => { resetTeamForm(); setTeamDialogOpen(true); }} data-testid="add-team-btn">
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Equipa
-              </Button>
-              {canImportGamesheet && (
-                <Button variant="outline" onClick={() => setTeamImportDialogOpen(true)}>
-                  <Upload className="w-4 h-4 mr-2" />
-                  Importar Excel
-                </Button>
-              )}
-            </div>
-          )}
-
-          {competitionTeams.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {competitionTeams.map((compTeam) => (
-                <Card key={compTeam.id} className="border border-border" data-testid={`team-${compTeam.id}`}>
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="text-lg">{compTeam.name}</CardTitle>
-                        {compTeam.pavilion_name && (
-                          <CardDescription className="flex items-center gap-1 mt-1">
-                            <Building className="w-3 h-3" />
-                            {compTeam.pavilion_name}
-                          </CardDescription>
-                        )}
-                      </div>
-                      {canCreateGames && (
-                        <div className="flex gap-1">
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            onClick={() => openEditTeamDialog(compTeam)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button 
-                            variant="ghost" 
-                            size="sm"
-                            className="text-destructive"
-                            onClick={() => handleDeleteTeam(compTeam.id)}
-                            disabled={deleting === compTeam.id}
-                          >
-                            {deleting === compTeam.id ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="w-4 h-4" />
-                            )}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    {compTeam.pavilion_address && (
-                      <p className="text-xs text-muted-foreground flex items-start gap-1 mb-3">
-                        <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                        {compTeam.pavilion_address}
-                      </p>
-                    )}
-                    
-                    {/* Kit Colors Preview */}
-                    {(compTeam.field_player_kit?.primary_shirt || compTeam.goalkeeper_kit?.primary_shirt) && (
-                      <div className="flex gap-4 mt-2">
-                        {compTeam.field_player_kit?.primary_shirt && (
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-6 h-6 rounded border"
-                              style={{ backgroundColor: compTeam.field_player_kit.primary_shirt }}
-                              title="Cor principal jogador"
-                            />
-                            {compTeam.field_player_kit.secondary_shirt && (
-                              <div 
-                                className="w-6 h-6 rounded border"
-                                style={{ backgroundColor: compTeam.field_player_kit.secondary_shirt }}
-                                title="Cor secundária jogador"
-                              />
-                            )}
-                            <span className="text-xs text-muted-foreground">Jogador</span>
-                          </div>
-                        )}
-                        {compTeam.goalkeeper_kit?.primary_shirt && (
-                          <div className="flex items-center gap-2">
-                            <div 
-                              className="w-6 h-6 rounded border"
-                              style={{ backgroundColor: compTeam.goalkeeper_kit.primary_shirt }}
-                              title="Cor principal GR"
-                            />
-                            {compTeam.goalkeeper_kit.secondary_shirt && (
-                              <div 
-                                className="w-6 h-6 rounded border"
-                                style={{ backgroundColor: compTeam.goalkeeper_kit.secondary_shirt }}
-                                title="Cor secundária GR"
-                              />
-                            )}
-                            <span className="text-xs text-muted-foreground">GR</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : (
-            <Card className="border border-border">
-              <CardContent className="py-12 text-center">
-                <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Nenhuma equipa registada</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Adicione as equipas participantes para poder criar jogos
-                </p>
-                {canCreateGames && (
-                  <Button className="mt-4" onClick={() => { resetTeamForm(); setTeamDialogOpen(true); }}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Adicionar Equipa
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+        <CompetitionTeams
+          teams={competitionTeams}
+          canManageTeams={canCreateGames}
+          canImportTeams={canImportGamesheet}
+          deletingId={deleting}
+          onAddTeam={() => {
+            resetTeamForm();
+            setTeamDialogOpen(true);
+          }}
+          onEditTeam={openEditTeamDialog}
+          onDeleteTeam={handleDeleteTeam}
+          onImportTeams={() => setTeamImportDialogOpen(true)}
+        />
 
         {/* Standings Tab */}
         <TabsContent value="standings">
