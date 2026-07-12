@@ -3140,4 +3140,3 @@ export default function CalendarPage() {
       />
       </PageShell>
       );
-}
