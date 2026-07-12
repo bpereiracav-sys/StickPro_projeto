@@ -12,7 +12,42 @@ import {
   TableHeader,
   TableRow,
 } from '../ui/table';
-import { Trophy } from 'lucide-react';
+import { Badge } from '../ui/badge';
+import { Medal, Trophy } from 'lucide-react';
+
+const PODIUM_STYLES = [
+  'bg-gradient-to-r from-amber-50 to-white',
+  'bg-gradient-to-r from-slate-100 to-white',
+  'bg-gradient-to-r from-orange-50 to-white',
+];
+
+function PositionMark({ index }) {
+  if (index > 2) {
+    return (
+      <span className="font-bold text-slate-600">
+        {index + 1}
+      </span>
+    );
+  }
+
+  const labels = ['Ouro', 'Prata', 'Bronze'];
+
+  return (
+    <span
+      className={[
+        'flex h-8 w-8 items-center justify-center rounded-xl',
+        index === 0
+          ? 'bg-amber-100 text-amber-700'
+          : index === 1
+            ? 'bg-slate-200 text-slate-700'
+            : 'bg-orange-100 text-orange-700',
+      ].join(' ')}
+      title={labels[index]}
+    >
+      <Medal className="h-4 w-4" />
+    </span>
+  );
+}
 
 export function CompetitionStandings({
   standings = [],
@@ -34,7 +69,7 @@ export function CompetitionStandings({
               <Table>
                 <TableHeader>
                   <TableRow className="border-slate-100 bg-slate-50/80 hover:bg-slate-50/80">
-                    <TableHead className="w-12">#</TableHead>
+                    <TableHead className="w-14">#</TableHead>
                     <TableHead className="min-w-[180px]">Equipa</TableHead>
                     <TableHead className="text-center">J</TableHead>
                     <TableHead className="text-center">V</TableHead>
@@ -58,71 +93,59 @@ export function CompetitionStandings({
                     return (
                       <TableRow
                         key={`${row.team}-${index}`}
-                        className={
+                        className={[
+                          'border-slate-100 transition-colors',
+                          PODIUM_STYLES[index] || 'hover:bg-slate-50/70',
                           isClubTeam
-                            ? 'border-primary/10 bg-primary/5 hover:bg-primary/10'
-                            : 'border-slate-100 hover:bg-slate-50/70'
-                        }
+                            ? 'ring-1 ring-inset ring-primary/25'
+                            : '',
+                        ].join(' ')}
                       >
-                        <TableCell className="font-bold text-slate-700">
-                          {index + 1}
+                        <TableCell>
+                          <PositionMark index={index} />
                         </TableCell>
 
                         <TableCell className="font-semibold text-slate-900">
                           <div className="flex items-center gap-2">
-                            {isClubTeam && (
-                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                                <Trophy className="h-3.5 w-3.5" />
-                              </span>
-                            )}
-
                             <span className="truncate">
                               {row.team}
                             </span>
+
+                            {isClubTeam && (
+                              <Badge className="border-primary/15 bg-primary/10 text-primary hover:bg-primary/10">
+                                Clube
+                              </Badge>
+                            )}
                           </div>
                         </TableCell>
 
-                        <TableCell className="text-center">
-                          {row.played ?? 0}
-                        </TableCell>
-
-                        <TableCell className="text-center font-medium text-emerald-700">
-                          {row.won ?? 0}
-                        </TableCell>
-
-                        <TableCell className="text-center">
-                          {row.drawn ?? 0}
-                        </TableCell>
-
-                        <TableCell className="text-center font-medium text-red-600">
-                          {row.lost ?? 0}
-                        </TableCell>
+                        <TableCell className="text-center">{row.played ?? 0}</TableCell>
+                        <TableCell className="text-center font-medium text-emerald-700">{row.won ?? 0}</TableCell>
+                        <TableCell className="text-center">{row.drawn ?? 0}</TableCell>
+                        <TableCell className="text-center font-medium text-red-600">{row.lost ?? 0}</TableCell>
+                        <TableCell className="text-center">{row.goals_for ?? 0}</TableCell>
+                        <TableCell className="text-center">{row.goals_against ?? 0}</TableCell>
 
                         <TableCell className="text-center">
-                          {row.goals_for ?? 0}
+                          <Badge
+                            variant="outline"
+                            className={
+                              (row.goal_diff ?? 0) > 0
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : (row.goal_diff ?? 0) < 0
+                                  ? 'border-red-200 bg-red-50 text-red-700'
+                                  : 'border-slate-200 bg-slate-50 text-slate-600'
+                            }
+                          >
+                            {(row.goal_diff ?? 0) > 0
+                              ? `+${row.goal_diff}`
+                              : row.goal_diff ?? 0}
+                          </Badge>
                         </TableCell>
 
-                        <TableCell className="text-center">
-                          {row.goals_against ?? 0}
-                        </TableCell>
-
-                        <TableCell className="text-center font-mono">
-                          {(row.goal_diff ?? 0) > 0
-                            ? `+${row.goal_diff}`
-                            : row.goal_diff ?? 0}
-                        </TableCell>
-
-                        <TableCell className="text-center text-emerald-700">
-                          {row.bonus ?? 0}
-                        </TableCell>
-
-                        <TableCell className="text-center text-red-600">
-                          {row.penalty ?? 0}
-                        </TableCell>
-
-                        <TableCell className="text-center text-lg font-bold text-slate-950">
-                          {row.points ?? 0}
-                        </TableCell>
+                        <TableCell className="text-center text-emerald-700">{row.bonus ?? 0}</TableCell>
+                        <TableCell className="text-center text-red-600">{row.penalty ?? 0}</TableCell>
+                        <TableCell className="text-center text-lg font-bold text-slate-950">{row.points ?? 0}</TableCell>
                       </TableRow>
                     );
                   })}
@@ -150,7 +173,7 @@ export function CompetitionStandings({
 
             <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">
               A classificação será apresentada quando existirem equipas e
-              resultados registados nesta competição.
+              resultados registados.
             </p>
           </div>
         )}
