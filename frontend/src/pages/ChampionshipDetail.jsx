@@ -10,7 +10,7 @@ import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Skeleton } from '../components/ui/skeleton';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Tabs, TabsContent } from '../components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -34,22 +34,16 @@ import {
   TableHeader,
   TableRow,
 } from '../components/ui/table';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '../components/ui/accordion';
 import { toast } from 'sonner';
 import { 
-  ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin, Home, Plane, 
-  Target, Edit, Check, Trash2, Users, Zap, FileSpreadsheet, Download, ExternalLink,
-  LayoutGrid, BarChart3, Building, Upload, Palette
+  ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin,
+  Edit, Check, Trash2, Users, Zap, FileSpreadsheet, Download, ExternalLink,
+  BarChart3, Building, Upload, Palette
 } from 'lucide-react';
-import { formatDate, formatTime } from '../lib/utils';
 import CompetitionHero from '../components/competition/CompetitionHero';
 import CompetitionNavigation from '../components/competition/CompetitionNavigation';
 import CompetitionOverview from '../components/competition/CompetitionOverview';
+import CompetitionMatches from '../components/competition/CompetitionMatches';
 
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -691,50 +685,6 @@ export default function ChampionshipDetail() {
     });
   };
 
-  const getLocationIcon = (loc) => {
-    if (loc === 'casa') return <Home className="w-4 h-4 text-secondary" />;
-    if (loc === 'fora') return <Plane className="w-4 h-4 text-primary" />;
-    return <Target className="w-4 h-4 text-muted-foreground" />;
-  };
-
-  const getLocationLabel = (loc) => {
-    if (loc === 'casa') return 'Casa';
-    if (loc === 'fora') return 'Fora';
-    return 'Neutro';
-  };
-
-  const getMatchTeams = (match) => {
-    const fallbackClubName = team?.name || championship?.team_name || 'Equipa';
-  
-    const clubSide =
-      match.club_side ||
-      (match.location === 'casa'
-        ? 'home'
-        : match.location === 'fora'
-          ? 'away'
-          : 'neutral');
-  
-    const homeTeam =
-      match.home_team ||
-      (clubSide === 'home' ? fallbackClubName : match.opponent_team);
-  
-    const awayTeam =
-      match.away_team ||
-      (clubSide === 'away' ? fallbackClubName : match.opponent_team);
-  
-    return {
-      homeTeam,
-      awayTeam,
-      clubSide,
-    };
-  };
-
-const getMatchScore = (match) => {
-  if (!match?.is_completed) return null;
-
-  return `${match.home_score ?? 0} - ${match.away_score ?? 0}`;
-};
-  
   if (loading) {
     return (
       <div className="space-y-6">
@@ -801,198 +751,24 @@ const getMatchScore = (match) => {
           canImportGamesheet={canImportGamesheet}
         />
 
-        {/* Matches Tab - Grouped by Round */}
-        <TabsContent value="matches" className="space-y-4">
-          {matches.length > 0 ? (
-            <Accordion type="multiple" defaultValue={sortedRounds.map(String)} className="space-y-3">
-              {sortedRounds.map((round) => (
-                <AccordionItem key={round} value={String(round)} className="border rounded-lg overflow-hidden">
-                  <AccordionTrigger className="px-4 py-3 bg-muted/50 hover:bg-muted">
-                    <div className="flex items-center gap-3">
-                      <Badge variant="secondary" className="font-mono">
-                        {round === 'Sem Jornada' ? 'S/J' : `J${round}`}
-                      </Badge>
-                      <span className="font-heading">
-                        {round === 'Sem Jornada' ? 'Sem Jornada' : `Jornada ${round}`}
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {matchesByRound[round].length} {matchesByRound[round].length === 1 ? 'jogo' : 'jogos'}
-                      </Badge>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-0 pb-0">
-                    <div className="divide-y divide-border">
-                      {matchesByRound[round].map((match) => (
-                  <div key={match.id} className="p-3 sm:p-4 hover:bg-muted/30 transition-colors" data-testid={`match-${match.id}`}>
-                    {/* Mobile: Stack layout, Desktop: Row layout */}
-                    <div className="flex flex-col gap-3">
-                      {/* Date, Location and Teams */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
-                        <div className="flex items-center gap-3 sm:gap-4">
-                          <div className="text-center min-w-[70px] sm:min-w-[80px]">
-                            <p className="text-xs text-muted-foreground uppercase">
-                              {formatDate(match.match_date)}
-                            </p>
-                            <p className="font-heading text-base sm:text-lg">{formatTime(match.match_date)}</p>
-                          </div>
-                          
-                          <div className="flex items-center gap-1">
-                            {getLocationIcon(match.location)}
-                            <Badge variant="outline" className="text-[10px] sm:text-xs px-1.5">
-                              {getLocationLabel(match.location)}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        <div className="flex-1 min-w-0">
-                          <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                            {(() => {
-                              const { homeTeam, awayTeam } = getMatchTeams(match);
-                            
-                              return (
-                                <>
-                                  <span className="font-semibold text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">
-                                    {homeTeam}
-                                  </span>
-                                  <span className="text-muted-foreground text-sm">vs</span>
-                                  <span className="font-semibold text-sm sm:text-base truncate max-w-[120px] sm:max-w-none">
-                                    {awayTeam}
-                                  </span>
-                                </>
-                              );
-                            })()}
-                            
-                            {match.is_club_match === false && (
-                              <Badge variant="outline" className="text-[10px] bg-blue-50 text-blue-700 border-blue-200">Externo</Badge>
-                            )}
-                          </div>
-                          {match.venue && (
-                            <p className="text-xs sm:text-sm text-muted-foreground flex items-center gap-1 mt-1 truncate">
-                              <MapPin className="w-3 h-3 flex-shrink-0" />
-                              <span className="truncate">{match.venue}</span>
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Result and Actions */}
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-end">
-                        {match.is_completed ? (
-                          <div className="flex items-center gap-2">
-                            <div className="text-center px-3 py-1.5 sm:px-4 sm:py-2 bg-muted rounded-sm">
-                              <span className="font-heading text-xl sm:text-2xl">
-                                {getMatchScore(match)}
-                              </span>
-                            </div>
-                            {(match.bonus_points > 0 || match.penalty_points > 0) && (
-                              <div className="text-xs">
-                                {match.bonus_points > 0 && (
-                                  <span className="text-secondary">+{match.bonus_points}</span>
-                                )}
-                                {match.penalty_points > 0 && (
-                                  <span className="text-destructive ml-1">-{match.penalty_points}</span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <Badge variant="outline" className="text-amber-600 border-amber-600 w-fit">
-                            Por jogar
-                          </Badge>
-                        )}
-
-                        {/* Show action buttons based on permissions */}
-                        {canEditGames && (
-                          <div className="flex flex-wrap gap-1.5 sm:gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 px-2 sm:px-3"
-                              onClick={() => openEditMatchDialog(match)}
-                              data-testid={`edit-match-${match.id}`}
-                            >
-                              <Edit className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            </Button>
-                            {canEditResults && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                className="h-8 px-2 sm:px-3 text-xs sm:text-sm"
-                                onClick={() => openResultDialog(match)}
-                                data-testid={`edit-result-${match.id}`}
-                              >
-                                {match.is_completed ? 'Resultado' : 'Inserir'}
-                              </Button>
-                            )}
-                            
-                            {/* Centro do Jogo disponível antes, durante e depois da partida */}
-                            {match.is_club_match !== false && (
-                              <>
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  className="h-8 gap-2 px-3 text-xs sm:text-sm"
-                                  asChild
-                                  data-testid={`match-center-${match.id}`}
-                                >
-                                  <Link
-                                    to={`/championships/${championshipId}/matches/${match.id}/stats`}
-                                  >
-                                    <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                    <span>Centro do Jogo</span>
-                                  </Link>
-                                </Button>
-                            
-                                {canImportGamesheet && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 px-2 sm:px-3"
-                                    onClick={() => openImportDialog(match)}
-                                    data-testid={`import-gamesheet-${match.id}`}
-                                    title="Importar ficha oficial"
-                                  >
-                                    <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                  </Button>
-                                )}
-                              </>
-                            )}
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              className="h-8 px-2 sm:px-3 text-destructive border-destructive hover:bg-destructive/10"
-                              onClick={() => handleDeleteMatch(match.id)}
-                              disabled={deleting === match.id}
-                              data-testid={`delete-match-${match.id}`}
-                            >
-                              {deleting === match.id ? <Loader2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" /> : <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                      ))}
-                    </div>
-                  </AccordionContent>
-                </AccordionItem>
-              ))}
-            </Accordion>
-          ) : (
-            <Card className="border border-border">
-              <CardContent className="py-12 text-center">
-                <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">Nenhum jogo agendado</p>
-                {canCreateGames && (
-                  <Button className="mt-4" onClick={() => setMatchDialogOpen(true)}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Adicionar Jogo
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )}
-        </TabsContent>
+        <CompetitionMatches
+          championshipId={championshipId}
+          championship={championship}
+          team={team}
+          matches={matches}
+          matchesByRound={matchesByRound}
+          sortedRounds={sortedRounds}
+          canCreateGames={canCreateGames}
+          canEditGames={canEditGames}
+          canEditResults={canEditResults}
+          canImportGamesheet={canImportGamesheet}
+          deleting={deleting}
+          onAddMatch={() => setMatchDialogOpen(true)}
+          onEditMatch={openEditMatchDialog}
+          onEditResult={openResultDialog}
+          onImportGamesheet={openImportDialog}
+          onDeleteMatch={handleDeleteMatch}
+        />
 
         {/* Competition Teams Tab */}
         <TabsContent value="teams" className="space-y-4">
