@@ -2291,14 +2291,14 @@ export default function CalendarPage() {
     );
   }
 
-  return (
-    <PageShell
-      compact
-      fullHeight
-      className="flex h-[calc(100dvh-92px)] flex-col overflow-hidden md:block md:h-auto md:overflow-visible"
-      testId="calendar-page"
-    >
-      <CalendarHeader
+    return (
+      <PageShell
+        compact
+        fullHeight
+        className="flex h-[calc(100dvh-92px)] flex-col overflow-hidden md:block md:h-auto md:overflow-visible"
+        testId="calendar-page"
+      >
+        <CalendarHeader
         t={t}
         teams={teams}
         eventTypes={EVENT_TYPES}
@@ -2353,10 +2353,10 @@ export default function CalendarPage() {
       <PageSection
         compact
         className="min-h-0 flex-1"
-        contentClassName="min-h-0 h-full"
+        contentClassName="h-full min-h-0"
         testId="calendar-view-section"
       >
-        <div className="min-h-0 h-full overflow-y-auto overscroll-contain pb-24 pr-1 md:block md:overflow-visible md:pb-0 md:pr-0">
+        <div className="h-full min-h-0 overflow-y-auto overscroll-contain pb-24 pr-1 md:block md:overflow-visible md:pb-0 md:pr-0">
           {viewMode === 'agenda' && renderAgendaView()}
           {viewMode === 'day' && renderDayView()}
           {viewMode === 'week' && renderWeekView()}
@@ -3138,5 +3138,6 @@ export default function CalendarPage() {
         onOpenChange={setUnavailabilityDialogOpen}
         onSuccess={() => fetchData({ silent: true })}
       />
-      </PageShell>
-      );
+    </PageShell>
+  );
+}
