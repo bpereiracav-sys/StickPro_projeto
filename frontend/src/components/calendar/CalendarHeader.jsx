@@ -5,7 +5,7 @@ import {
   Plus,
 } from 'lucide-react';
 
-import PageHero from '../common/PageHero.jsx';
+import PageHero from '../common/PageHero';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import CalendarFilters from './CalendarFilters';
