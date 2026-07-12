@@ -45,6 +45,7 @@ import CompetitionNavigation from '../components/competition/CompetitionNavigati
 import CompetitionOverview from '../components/competition/CompetitionOverview';
 import CompetitionMatches from '../components/competition/CompetitionMatches';
 import CompetitionTeams from '../components/competition/CompetitionTeams';
+import { CompetitionStandings } from '../components/competition/CompetitionStandings';
 
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
