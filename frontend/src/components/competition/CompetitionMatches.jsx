@@ -74,6 +74,67 @@ function getMatchScore(match) {
   return `${match.home_score ?? 0} - ${match.away_score ?? 0}`;
 }
 
+function getMatchOutcome(match, team, championship) {
+  if (!match?.is_completed || match.is_club_match === false) {
+    return null;
+  }
+
+  const fallbackClubName =
+    team?.name || championship?.team_name || 'Equipa';
+
+  const clubSide =
+    match.club_side ||
+    (match.location === 'fora'
+      ? 'away'
+      : match.location === 'casa'
+        ? 'home'
+        : null);
+
+  const homeScore = Number(match.home_score ?? 0);
+  const awayScore = Number(match.away_score ?? 0);
+
+  let clubScore;
+  let opponentScore;
+
+  if (clubSide === 'home') {
+    clubScore = homeScore;
+    opponentScore = awayScore;
+  } else if (clubSide === 'away') {
+    clubScore = awayScore;
+    opponentScore = homeScore;
+  } else if (match.home_team === fallbackClubName) {
+    clubScore = homeScore;
+    opponentScore = awayScore;
+  } else if (match.away_team === fallbackClubName) {
+    clubScore = awayScore;
+    opponentScore = homeScore;
+  } else {
+    return null;
+  }
+
+  if (clubScore > opponentScore) {
+    return {
+      label: 'Vitória',
+      className:
+        'border-emerald-200 bg-emerald-50 text-emerald-700',
+    };
+  }
+
+  if (clubScore < opponentScore) {
+    return {
+      label: 'Derrota',
+      className:
+        'border-red-200 bg-red-50 text-red-700',
+    };
+  }
+
+  return {
+    label: 'Empate',
+    className:
+      'border-amber-200 bg-amber-50 text-amber-700',
+  };
+}
+
 export default function CompetitionMatches({
   championshipId,
   championship,
@@ -131,6 +192,12 @@ export default function CompetitionMatches({
                 <div className="divide-y divide-slate-100">
                   {matchesByRound[round].map((match) => {
                     const { homeTeam, awayTeam } = getMatchTeams(
+                      match,
+                      team,
+                      championship
+                    );
+
+                    const outcome = getMatchOutcome(
                       match,
                       team,
                       championship
@@ -200,12 +267,21 @@ export default function CompetitionMatches({
 
                           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
                             {match.is_completed ? (
-                              <div className="flex items-center gap-2">
-                                <div className="rounded-xl bg-slate-100 px-4 py-2 text-center">
-                                  <span className="font-heading text-xl sm:text-2xl">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className="rounded-xl border border-slate-200 bg-slate-100 px-4 py-2 text-center">
+                                  <span className="font-heading text-xl font-bold text-slate-950 sm:text-2xl">
                                     {getMatchScore(match)}
                                   </span>
                                 </div>
+
+                                {outcome && (
+                                  <Badge
+                                    variant="outline"
+                                    className={outcome.className}
+                                  >
+                                    {outcome.label}
+                                  </Badge>
+                                )}
 
                                 {(match.bonus_points > 0 ||
                                   match.penalty_points > 0) && (
@@ -224,11 +300,8 @@ export default function CompetitionMatches({
                                 )}
                               </div>
                             ) : (
-                              <Badge
-                                variant="outline"
-                                className="w-fit border-amber-600 text-amber-600"
-                              >
-                                Por jogar
+                              <Badge className="w-fit border border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
+                                Por disputar
                               </Badge>
                             )}
 
@@ -338,3 +411,4 @@ export default function CompetitionMatches({
     </TabsContent>
   );
 }
+
