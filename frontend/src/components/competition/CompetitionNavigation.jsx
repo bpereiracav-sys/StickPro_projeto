@@ -8,6 +8,11 @@ import {
   Volleyball,
 } from 'lucide-react';
 
+import {
+  TabsList,
+  TabsTrigger,
+} from '../ui/tabs';
+
 const items = [
   { value: 'summary', label: 'Resumo', icon: BarChart3 },
   { value: 'matches', label: 'Jogos', icon: Volleyball },
