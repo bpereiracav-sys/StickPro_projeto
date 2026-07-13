@@ -1,4 +1,3 @@
-import { TabsContent } from '../ui/tabs';
 import {
   Card,
   CardContent,
@@ -55,16 +54,16 @@ export default function CompetitionSettings({
           : 'Jogo normal';
 
   return (
-    <TabsContent value="settings" className="space-y-4">
-      <Card className="border-white/70 bg-white/95 shadow-lg shadow-slate-200/70">
-        <CardHeader className="border-b border-slate-100">
-          <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+    <TabsContent value="settings" className="space-y-6">
+      <Card className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
+        <CardHeader className="border-b border-slate-100 p-5 sm:p-6">
+          <CardTitle className="flex items-center gap-2 font-heading text-xl font-semibold tracking-tight">
             <Cog className="h-5 w-5 text-primary" />
             Centro Técnico
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="p-5">
+        <CardContent className="p-5 sm:p-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <InfoCard label="Competição" value={championship?.name} icon={Trophy} />
             <InfoCard label="Equipa" value={team?.name || championship?.team_name} icon={Users} />
@@ -123,14 +122,14 @@ export default function CompetitionSettings({
       </Card>
 
       {isAdmin && (
-        <Card className="border-amber-200 bg-gradient-to-br from-white to-amber-50/70 shadow-lg shadow-slate-200/70">
-          <CardHeader>
-            <CardTitle className="font-heading text-xl tracking-tight">
+        <Card className="rounded-3xl border border-amber-200 bg-gradient-to-br from-white to-amber-50/70 shadow-sm transition-all duration-300 hover:shadow-md">
+          <CardHeader className="p-5 pb-3 sm:p-6 sm:pb-3">
+            <CardTitle className="font-heading text-xl font-semibold tracking-tight">
               Manutenção da competição
             </CardTitle>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="p-5 pt-0 sm:p-6 sm:pt-0">
             <Button
               type="button"
               variant="outline"
