@@ -95,6 +95,24 @@ export const championshipsApi = {
     api.put(`/championships/teams/${teamId}`, data),
   deleteCompetitionTeam: (teamId) => api.delete(`/championships/teams/${teamId}`),
 
+  // Live Match Center / Timeline
+  getMatchTimeline: (matchId) =>
+    api.get(`/championships/matches/${matchId}/timeline`),
+
+  createMatchTimelineEvent: (matchId, data) =>
+    api.post(`/championships/matches/${matchId}/timeline`, data),
+
+  updateMatchTimelineEvent: (matchId, eventId, data) =>
+    api.put(
+      `/championships/matches/${matchId}/timeline/${eventId}`,
+      data
+    ),
+
+  deleteMatchTimelineEvent: (matchId, eventId) =>
+    api.delete(
+      `/championships/matches/${matchId}/timeline/${eventId}`
+    ),
+  
   importCompetitionTeams: (championshipId, file) => {
     const formData = new FormData();
     formData.append('file', file);
