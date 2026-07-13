@@ -11,6 +11,8 @@ import { Avatar, AvatarFallback } from '../components/ui/avatar';
 import { Skeleton } from '../components/ui/skeleton';
 import { Checkbox } from '../components/ui/checkbox';
 import MatchLineup from '../components/game-center/MatchLineup';
+import MatchPremiumHero from '../components/game-center/MatchPremiumHero';
+import MatchOverviewDashboard from '../components/game-center/MatchOverviewDashboard';
 import {
   Dialog,
   DialogContent,
@@ -388,21 +390,14 @@ export default function MatchStats() {
   };
 
   const renderSummaryContent = () => (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-      <Card className="border-white/70 bg-white/90 shadow-lg shadow-slate-200/70 lg:col-span-2">
-        <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-tight">Resumo do jogo</CardTitle>
-          <CardDescription>Informação principal do jogo e estado atual.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <InfoBox label="Data" value={formatDate(match.match_date)} />
-          <InfoBox label="Hora" value={formatTime(match.match_date)} />
-          <InfoBox label="Jornada" value={match.matchday ? `Jornada ${match.matchday}` : '-'} />
-          <InfoBox label="Pavilhão" value={match.venue || '-'} />
-          <InfoBox label="Estado" value={match.is_completed ? 'Terminado' : 'Por jogar'} />
-          <InfoBox label="Boletim" value={match.gamesheet_url ? 'Importado' : 'Não importado'} />
-        </CardContent>
-      </Card>
+    <MatchOverviewDashboard
+      match={match}
+      members={members}
+      existingStats={existingStats}
+      technicalAssistant={technicalAssistant}
+      canManageEvents={canManageEvents}
+    />
+  );
 
       <Card className="border-white/70 bg-gradient-to-br from-white to-cyan-50/70 shadow-lg shadow-slate-200/70">
         <CardHeader>
@@ -681,15 +676,12 @@ export default function MatchStats() {
 
   return (
     <div className="space-y-6" data-testid="match-stats-page">
-      <GameHeader
+      <MatchPremiumHero
         championshipId={championshipId}
         match={match}
         team={team}
-        canManageEvents={canManageEvents}
         homeScore={homeScore}
         awayScore={awayScore}
-        setHomeScore={setHomeScore}
-        setAwayScore={setAwayScore}
       />
 
       <GameTabs
