@@ -99,9 +99,18 @@ function getCurrentStreak(matches = [], teamName = '') {
   }
 
   const labels = {
-    win: count === 1 ? '1 vitória consecutiva' : `${count} vitórias consecutivas`,
-    draw: count === 1 ? '1 empate consecutivo' : `${count} empates consecutivos`,
-    loss: count === 1 ? '1 derrota consecutiva' : `${count} derrotas consecutivas`,
+    win:
+      count === 1
+        ? '1 vitória consecutiva'
+        : `${count} vitórias consecutivas`,
+    draw:
+      count === 1
+        ? '1 empate consecutivo'
+        : `${count} empates consecutivos`,
+    loss:
+      count === 1
+        ? '1 derrota consecutiva'
+        : `${count} derrotas consecutivas`,
   };
 
   return {
@@ -118,18 +127,34 @@ function getNextOpponent(nextMatch, teamName) {
     (nextMatch.location === 'fora' ? 'away' : 'home');
 
   if (clubSide === 'home') {
-    return nextMatch.away_team || nextMatch.opponent_team || 'Adversário';
+    return (
+      nextMatch.away_team ||
+      nextMatch.opponent_team ||
+      'Adversário'
+    );
   }
 
   if (clubSide === 'away') {
-    return nextMatch.home_team || nextMatch.opponent_team || 'Adversário';
+    return (
+      nextMatch.home_team ||
+      nextMatch.opponent_team ||
+      'Adversário'
+    );
   }
 
   if (nextMatch.home_team === teamName) {
-    return nextMatch.away_team || nextMatch.opponent_team || 'Adversário';
+    return (
+      nextMatch.away_team ||
+      nextMatch.opponent_team ||
+      'Adversário'
+    );
   }
 
-  return nextMatch.home_team || nextMatch.opponent_team || 'Adversário';
+  return (
+    nextMatch.home_team ||
+    nextMatch.opponent_team ||
+    'Adversário'
+  );
 }
 
 export default function CompetitionHero({
@@ -144,10 +169,17 @@ export default function CompetitionHero({
   addMatchLabel,
   importMatchesLabel,
 }) {
-  const teamName = team?.name || championship?.team_name || 'Equipa';
-  const { position, points } = getClubStanding(standings, teamName);
+  const teamName =
+    team?.name || championship?.team_name || 'Equipa';
+
+  const { position, points } = getClubStanding(
+    standings,
+    teamName
+  );
+
   const streak = getCurrentStreak(matches, teamName);
   const nextOpponent = getNextOpponent(nextMatch, teamName);
+
   const nextLocation =
     nextMatch?.location === 'fora'
       ? 'Fora'
@@ -168,11 +200,11 @@ export default function CompetitionHero({
   ).length;
 
   return (
-    <section className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-6 lg:p-8">
-      <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-cyan-400/20 blur-3xl" />
-      <div className="pointer-events-none absolute -bottom-24 -left-20 h-72 w-72 rounded-full bg-emerald-300/10 blur-3xl" />
+    <section className="relative overflow-hidden rounded-[1.75rem] border border-white/70 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-6">
+      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
+      <div className="pointer-events-none absolute -bottom-24 -left-20 h-64 w-64 rounded-full bg-emerald-300/10 blur-3xl" />
 
-      <div className="relative z-10 flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+      <div className="relative z-10 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="border-white/20 bg-white/10 text-white hover:bg-white/10">
@@ -197,11 +229,11 @@ export default function CompetitionHero({
             </Badge>
           </div>
 
-          <h1 className="mt-4 font-heading text-2xl font-bold tracking-tight sm:text-3xl lg:text-4xl">
+          <h1 className="mt-3 font-heading text-2xl font-bold tracking-tight sm:text-3xl">
             {championship.name}
           </h1>
 
-          <div className="mt-3 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
               className="border-white/25 bg-white/10 text-white"
@@ -234,19 +266,21 @@ export default function CompetitionHero({
           </div>
 
           {nextMatch && (
-            <div className="mt-5 flex max-w-2xl flex-col gap-2 rounded-2xl border border-white/15 bg-white/[0.08] p-4 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-4 flex max-w-xl flex-col gap-2 rounded-2xl border border-white/15 bg-white/[0.08] px-4 py-3 backdrop-blur sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-wide text-cyan-100/70">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-cyan-100/70">
                   Próximo adversário
                 </p>
 
-                <p className="mt-1 truncate text-lg font-semibold text-white">
+                <p className="mt-0.5 truncate text-base font-semibold text-white sm:text-lg">
                   {nextOpponent}
                 </p>
 
-                <p className="mt-1 text-sm text-white/65">
+                <p className="mt-0.5 text-xs text-white/65 sm:text-sm">
                   {formatDate(nextMatch.match_date)}
-                  {nextMatch.matchday ? ` · Jornada ${nextMatch.matchday}` : ''}
+                  {nextMatch.matchday
+                    ? ` · Jornada ${nextMatch.matchday}`
+                    : ''}
                 </p>
               </div>
 
@@ -291,11 +325,23 @@ export default function CompetitionHero({
         )}
       </div>
 
-      <div className="relative z-10 mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="relative z-10 mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {[
-          { label: 'Posição', value: position, icon: Medal },
-          { label: 'Vitórias', value: wins, icon: Trophy },
-          { label: 'Pontos', value: points, icon: Target },
+          {
+            label: 'Posição',
+            value: position,
+            icon: Medal,
+          },
+          {
+            label: 'Vitórias',
+            value: wins,
+            icon: Trophy,
+          },
+          {
+            label: 'Pontos',
+            value: points,
+            icon: Target,
+          },
           {
             label: 'Próximo jogo',
             value: nextMatch?.matchday
@@ -308,19 +354,19 @@ export default function CompetitionHero({
         ].map(({ label, value, icon: Icon }) => (
           <div
             key={label}
-            className="rounded-2xl border border-white/20 bg-white/[0.13] p-4 shadow-inner shadow-white/5 backdrop-blur-md transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.17]"
+            className="rounded-2xl border border-white/20 bg-white/[0.13] px-4 py-3 shadow-inner shadow-white/5 backdrop-blur-md transition duration-200 hover:-translate-y-0.5 hover:bg-white/[0.17]"
           >
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-cyan-100/80">
+              <p className="text-[11px] font-medium uppercase tracking-wide text-cyan-100/80">
                 {label}
               </p>
 
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10 text-cyan-100">
-                <Icon className="h-4 w-4" />
+              <span className="flex h-7 w-7 items-center justify-center rounded-xl bg-white/10 text-cyan-100">
+                <Icon className="h-3.5 w-3.5" />
               </span>
             </div>
 
-            <p className="mt-2 text-2xl font-bold text-white">
+            <p className="mt-1.5 text-xl font-bold text-white sm:text-2xl">
               {value}
             </p>
           </div>
