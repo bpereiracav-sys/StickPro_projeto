@@ -13,6 +13,7 @@ import { Checkbox } from '../components/ui/checkbox';
 import MatchLineup from '../components/game-center/MatchLineup';
 import MatchPremiumHero from '../components/game-center/MatchPremiumHero';
 import MatchOverviewDashboard from '../components/game-center/MatchOverviewDashboard';
+import MatchTimeline from '../components/game-center/MatchTimeline';
 import {
   Dialog,
   DialogContent,
@@ -672,6 +673,13 @@ export default function MatchStats() {
           <MatchLineup
             match={match}
             team={team}
+            members={members}
+            canEdit={canManageEvents}
+          />
+        }
+        liveContent={
+          <MatchTimeline
+            match={match}
             members={members}
             canEdit={canManageEvents}
           />
