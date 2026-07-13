@@ -80,6 +80,16 @@ export const championshipsApi = {
     api.post(`/matches/${matchId}/player-stats`, data),
   fixMatchesHomeAway: (championshipId) =>
     api.post(`/championships/${championshipId}/matches/fix-home-away`),
+  // Timeline → Resultado e Estatísticas
+  getMatchTimelineSyncPreview: (matchId) =>
+    api.get(
+      `/championships/matches/${matchId}/timeline-sync-preview`
+    ),
+
+  applyMatchTimelineSync: (matchId) =>
+    api.post(
+      `/championships/matches/${matchId}/timeline-sync`
+    ),  
   
   // Match Lineups
   getMatchLineup: (matchId) => api.get(`/championships/matches/${matchId}/lineup`),
@@ -164,8 +174,23 @@ export const championshipsApi = {
   
   publishTechnicalAssistant: (matchId) =>
     api.post(`/matches/${matchId}/technical-assistant/publish`),
-  
-  };
+
+  deleteMatchTimelineEvent: (matchId, eventId) =>
+    api.delete(
+      `/championships/matches/${matchId}/timeline/${eventId}`
+    ),
+
+  getMatchTimelineSyncPreview: (matchId) =>
+    api.get(
+      `/championships/matches/${matchId}/timeline-sync-preview`
+    ),
+
+  applyMatchTimelineSync: (matchId) =>
+    api.post(
+      `/championships/matches/${matchId}/timeline-sync`
+    ),
+};
+
 
 // Events API
 export const eventsApi = {
