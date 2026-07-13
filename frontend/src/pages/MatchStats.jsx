@@ -399,26 +399,6 @@ export default function MatchStats() {
     />
   );
 
-      <Card className="border-white/70 bg-gradient-to-br from-white to-cyan-50/70 shadow-lg shadow-slate-200/70">
-        <CardHeader>
-          <CardTitle className="font-heading text-xl tracking-tight">Resultado</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {match.is_completed || homeScore || awayScore ? (
-            <div className="font-heading text-4xl font-bold">
-              {homeScore || 0} × {awayScore || 0}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Ainda sem resultado.</p>
-          )}
-          <p className="mt-3 text-sm text-muted-foreground">
-            {team?.name || 'Equipa'} vs {match.opponent_team || 'Adversário'}
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-
   const renderGamesheetContent = () => (
     <Card className="border-white/70 bg-white/90 shadow-lg shadow-slate-200/70">
       <CardHeader>
