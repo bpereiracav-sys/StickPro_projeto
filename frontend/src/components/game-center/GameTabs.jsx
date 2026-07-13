@@ -31,20 +31,15 @@ export default function GameTabs({
   canSeeStaffTabs = false,
   summaryContent,
   lineupContent,
+  liveContent,
   gamesheetContent,
   statisticsContent,
   assistantContent,
 }) {
-  const visibleItems = tabItems.filter(
-    (item) => !item.staffOnly || canSeeStaffTabs
-  );
+  const visibleItems = tabItems.filter((item) => !item.staffOnly || canSeeStaffTabs);
 
   return (
-    <Tabs
-      defaultValue="summary"
-      className="space-y-6"
-      data-testid="match-center-tabs"
-    >
+    <Tabs defaultValue="summary" className="space-y-6" data-testid="match-center-tabs">
       <TabsList className="flex h-auto w-full flex-nowrap justify-start gap-1 overflow-x-auto rounded-3xl border border-slate-200/80 bg-slate-100/90 p-1.5 shadow-sm">
         {visibleItems.map(({ value, label, icon: Icon }) => (
           <TabsTrigger
@@ -59,9 +54,7 @@ export default function GameTabs({
         ))}
       </TabsList>
 
-      <TabsContent value="summary" className="space-y-6">
-        {summaryContent}
-      </TabsContent>
+      <TabsContent value="summary" className="space-y-6">{summaryContent}</TabsContent>
 
       {canSeeStaffTabs && (
         <TabsContent value="convocation" className="space-y-6">
@@ -75,49 +68,16 @@ export default function GameTabs({
               'Ausências e respetivos motivos',
               'Estado e fecho da convocatória',
             ]}
-            nextSprint="Sprint 2.3D"
+            nextSprint="Sprint 2.3E"
           />
         </TabsContent>
       )}
 
-      {canSeeStaffTabs && (
-        <TabsContent value="lineup" className="space-y-6">
-          {lineupContent}
-        </TabsContent>
-      )}
-
-      {canSeeStaffTabs && (
-        <TabsContent value="live" className="space-y-6">
-          <MatchCenterPlaceholder
-            icon={Activity}
-            title="Live Match"
-            description="Cockpit operacional para registar os acontecimentos do jogo em tempo real."
-            features={[
-              'Golos e assistências',
-              'Cartões e exclusões',
-              'Substituições e time-outs',
-              'Cronologia completa do encontro',
-            ]}
-            nextSprint="Sprint 2.3F"
-          />
-        </TabsContent>
-      )}
-
-      <TabsContent value="statistics" className="space-y-6">
-        {statisticsContent}
-      </TabsContent>
-
-      {canSeeStaffTabs && (
-        <TabsContent value="gamesheet" className="space-y-6">
-          {gamesheetContent}
-        </TabsContent>
-      )}
-
-      {canSeeStaffTabs && (
-        <TabsContent value="assistant" className="space-y-6">
-          {assistantContent}
-        </TabsContent>
-      )}
+      {canSeeStaffTabs && <TabsContent value="lineup" className="space-y-6">{lineupContent}</TabsContent>}
+      {canSeeStaffTabs && <TabsContent value="live" className="space-y-6">{liveContent}</TabsContent>}
+      <TabsContent value="statistics" className="space-y-6">{statisticsContent}</TabsContent>
+      {canSeeStaffTabs && <TabsContent value="gamesheet" className="space-y-6">{gamesheetContent}</TabsContent>}
+      {canSeeStaffTabs && <TabsContent value="assistant" className="space-y-6">{assistantContent}</TabsContent>}
 
       {canSeeStaffTabs && (
         <TabsContent value="evaluation" className="space-y-6">
@@ -170,4 +130,3 @@ export default function GameTabs({
     </Tabs>
   );
 }
-
