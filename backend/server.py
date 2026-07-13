@@ -9027,6 +9027,197 @@ async def delete_match_timeline_event(
 
     return {"message": "Acontecimento eliminado"}
 
+# ==================== MATCH WORKFLOW ENGINE ====================
+
+MATCH_WORKFLOW_STAGES = [
+    "draft",
+    "convocation",
+    "lineup",
+    "ready",
+    "live",
+    "finished",
+    "stats",
+    "assistant",
+    "evaluation",
+    "feedback",
+    "closed",
+]
+
+
+MATCH_WORKFLOW_PROGRESS = {
+    "draft": 0,
+    "convocation": 10,
+    "lineup": 20,
+    "ready": 30,
+    "live": 45,
+    "finished": 60,
+    "stats": 75,
+    "assistant": 85,
+    "evaluation": 92,
+    "feedback": 97,
+    "closed": 100,
+}
+
+
+MATCH_WORKFLOW_LABELS = {
+    "draft": "Pré-convocatória",
+    "convocation": "Convocatória",
+    "lineup": "Line-up",
+    "ready": "Pronto para iniciar",
+    "live": "Ao vivo",
+    "finished": "Jogo terminado",
+    "stats": "Estatísticas validadas",
+    "assistant": "Assistente atualizado",
+    "evaluation": "Avaliações concluídas",
+    "feedback": "Feedback concluído",
+    "closed": "Jogo encerrado",
+}
+
+
+def build_match_workflow(
+    stage: str = "draft",
+    updated_by: Optional[str] = None,
+) -> dict:
+    """
+    Cria uma estrutura de workflow válida para um jogo.
+    """
+
+    valid_stage = (
+        stage
+        if stage in MATCH_WORKFLOW_PROGRESS
+        else "draft"
+    )
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    return {
+        "stage": valid_stage,
+        "label": MATCH_WORKFLOW_LABELS[valid_stage],
+        "progress": MATCH_WORKFLOW_PROGRESS[valid_stage],
+        "updated_at": now_iso,
+        "updated_by": updated_by,
+    }
+
+
+async def ensure_match_workflow(
+    match: dict,
+    updated_by: Optional[str] = None,
+) -> dict:
+    """
+    Garante que jogos antigos também possuem workflow.
+
+    Se o jogo ainda não tiver workflow, cria-o de forma automática
+    sem obrigar a uma migração manual da base de dados.
+    """
+
+    if not match:
+        return match
+
+    workflow = match.get("workflow")
+
+    if (
+        isinstance(workflow, dict)
+        and workflow.get("stage") in MATCH_WORKFLOW_PROGRESS
+    ):
+        return match
+
+    initial_stage = (
+        "finished"
+        if match.get("is_completed")
+        else "draft"
+    )
+
+    new_workflow = build_match_workflow(
+        stage=initial_stage,
+        updated_by=updated_by,
+    )
+
+    await db.championship_matches.update_one(
+        {"id": match.get("id")},
+        {
+            "$set": {
+                "workflow": new_workflow,
+            }
+        },
+    )
+
+    match["workflow"] = new_workflow
+
+    return match
+
+
+async def update_match_workflow(
+    match_id: str,
+    stage: str,
+    updated_by: Optional[str] = None,
+    allow_regression: bool = False,
+) -> dict:
+    """
+    Atualiza o estado do workflow de um jogo.
+
+    Por defeito, impede que o workflow recue acidentalmente.
+    """
+
+    if stage not in MATCH_WORKFLOW_PROGRESS:
+        raise HTTPException(
+            status_code=400,
+            detail="Estado de workflow inválido",
+        )
+
+    match = await db.championship_matches.find_one(
+        {
+            "id": match_id,
+            "archived": {"$ne": True},
+        },
+        {"_id": 0},
+    )
+
+    if not match:
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado",
+        )
+
+    match = await ensure_match_workflow(
+        match,
+        updated_by=updated_by,
+    )
+
+    current_stage = match["workflow"].get(
+        "stage",
+        "draft",
+    )
+
+    current_index = MATCH_WORKFLOW_STAGES.index(
+        current_stage
+        if current_stage in MATCH_WORKFLOW_STAGES
+        else "draft"
+    )
+
+    new_index = MATCH_WORKFLOW_STAGES.index(stage)
+
+    if new_index < current_index and not allow_regression:
+        return match["workflow"]
+
+    workflow = build_match_workflow(
+        stage=stage,
+        updated_by=updated_by,
+    )
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {
+            "$set": {
+                "workflow": workflow,
+                "updated_at": datetime.now(
+                    timezone.utc
+                ).isoformat(),
+            }
+        },
+    )
+
+    return workflow
+    
 # ==================== MATCH TIMELINE SYNC ====================
 
 TIMELINE_SCORING_TYPES = {
@@ -9454,6 +9645,12 @@ async def apply_match_timeline_sync(
             upsert=True
         )
 
+    await update_match_workflow(
+        match_id=match_id,
+        stage="stats",
+        updated_by=current_user["id"],
+    )
+    
     updated_match = await db.championship_matches.find_one(
         {"id": match_id},
         {"_id": 0}
@@ -9476,6 +9673,9 @@ async def get_match_or_404(match_id: str) -> dict:
     match = await db.championship_matches.find_one({"id": match_id}, {"_id": 0})
     if not match:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    match = await ensure_match_workflow(match)
+    
     return match
 
 
@@ -9669,13 +9869,18 @@ async def regenerate_match_technical_assistant(
     match = await get_match_or_404(match_id)
     championship = await get_championship_for_match_or_404(match)
 
-    if not await can_edit_competition_statistics(current_user, championship):
+    if not await can_edit_competition_statistics(
+        current_user,
+        championship
+    ):
         raise HTTPException(
             status_code=403,
             detail="Sem permissão para recalcular o Assistente Técnico"
         )
 
-    version = int(match.get("technical_assistant_version", 1)) + 1
+    version = int(
+        match.get("technical_assistant_version", 1)
+    ) + 1
 
     await db.championship_matches.update_one(
         {"id": match_id},
@@ -9685,13 +9890,26 @@ async def regenerate_match_technical_assistant(
                 "technical_assistant_status": "draft",
                 "technical_assistant_validated": False,
                 "technical_assistant_published": False,
-                "technical_assistant_regenerated_at": datetime.now(timezone.utc).isoformat(),
+                "technical_assistant_regenerated_at": datetime.now(
+                    timezone.utc
+                ).isoformat(),
                 "technical_assistant_regenerated_by": current_user["id"],
             }
         }
     )
 
-    return await build_technical_assistant(match_id, current_user)
+    assistant = await build_technical_assistant(
+        match_id,
+        current_user,
+    )
+
+    await update_match_workflow(
+        match_id=match_id,
+        stage="assistant",
+        updated_by=current_user["id"],
+    )
+
+    return assistant
 
 
 @api_router.post("/matches/{match_id}/technical-assistant/publish")
