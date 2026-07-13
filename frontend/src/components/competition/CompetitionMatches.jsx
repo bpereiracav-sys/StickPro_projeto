@@ -154,20 +154,20 @@ export default function CompetitionMatches({
   onDeleteMatch,
 }) {
   return (
-    <TabsContent value="matches" className="space-y-4">
+    <TabsContent value="matches" className="space-y-6">
       {matches.length > 0 ? (
         <Accordion
           type="multiple"
           defaultValue={sortedRounds.map(String)}
-          className="space-y-3"
+          className="space-y-4"
         >
           {sortedRounds.map((round) => (
             <AccordionItem
               key={round}
               value={String(round)}
-              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+              className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md"
             >
-              <AccordionTrigger className="bg-slate-50/80 px-4 py-3 hover:bg-slate-100 hover:no-underline">
+              <AccordionTrigger className="bg-slate-50/80 px-5 py-4 transition-colors hover:bg-slate-100 hover:no-underline sm:px-6">
                 <div className="flex flex-wrap items-center gap-3">
                   <Badge variant="secondary" className="font-mono">
                     {round === 'Sem Jornada' ? 'S/J' : `J${round}`}
@@ -206,7 +206,7 @@ export default function CompetitionMatches({
                     return (
                       <div
                         key={match.id}
-                        className="p-4 transition-colors hover:bg-slate-50/70"
+                        className="p-5 transition-colors duration-200 hover:bg-slate-50/70 sm:p-6"
                         data-testid={`match-${match.id}`}
                       >
                         <div className="flex flex-col gap-4">
@@ -392,8 +392,8 @@ export default function CompetitionMatches({
           ))}
         </Accordion>
       ) : (
-        <Card className="border border-border">
-          <CardContent className="py-12 text-center">
+        <Card className="rounded-3xl border border-dashed border-slate-200 bg-white shadow-sm">
+          <CardContent className="px-6 py-14 text-center">
             <Calendar className="mx-auto mb-4 h-12 w-12 text-muted-foreground" />
             <p className="text-muted-foreground">
               Nenhum jogo agendado
@@ -411,4 +411,3 @@ export default function CompetitionMatches({
     </TabsContent>
   );
 }
-
