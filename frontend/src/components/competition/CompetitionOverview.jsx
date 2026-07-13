@@ -70,17 +70,17 @@ export default function CompetitionOverview({
     : null;
 
   return (
-    <TabsContent value="summary" className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="overflow-hidden border-white/70 bg-white/95 shadow-lg shadow-slate-200/70 lg:col-span-2">
-          <CardHeader className="border-b border-slate-100">
-            <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+    <TabsContent value="summary" className="space-y-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md lg:col-span-2">
+          <CardHeader className="border-b border-slate-100 p-5 sm:p-6">
+            <CardTitle className="flex items-center gap-2 font-heading text-xl font-semibold tracking-tight">
               <Calendar className="h-5 w-5 text-primary" />
               Próximo jogo
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="p-5">
+          <CardContent className="p-5 sm:p-6">
             {nextMatch ? (
               <div className="rounded-2xl border border-cyan-100 bg-gradient-to-br from-cyan-50/80 to-white p-4">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -120,15 +120,15 @@ export default function CompetitionOverview({
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden border-white/70 bg-white/95 shadow-lg shadow-slate-200/70">
-          <CardHeader className="border-b border-slate-100">
-            <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+        <Card className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
+          <CardHeader className="border-b border-slate-100 p-5 sm:p-6">
+            <CardTitle className="flex items-center gap-2 font-heading text-xl font-semibold tracking-tight">
               <Trophy className="h-5 w-5 text-primary" />
               Último resultado
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="p-5">
+          <CardContent className="p-5 sm:p-6">
             {lastCompletedMatch ? (
               <div>
                 <p className="text-sm text-slate-500">
@@ -157,16 +157,16 @@ export default function CompetitionOverview({
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <Card className="border-white/70 bg-gradient-to-br from-white to-cyan-50/70 shadow-md shadow-slate-200/70">
-          <CardHeader>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card className="rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white to-cyan-50/70 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+          <CardHeader className="p-5 pb-3 sm:p-6 sm:pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <ListChecks className="h-4 w-4 text-primary" />
               Pendências
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="space-y-3 text-sm">
+          <CardContent className="space-y-3 p-5 pt-0 text-sm sm:p-6 sm:pt-0">
             <div className="flex items-center justify-between rounded-xl bg-white/80 px-3 py-2">
               <span className="text-slate-500">Jogos por realizar</span>
               <strong className="text-slate-950">{pendingMatches}</strong>
@@ -186,15 +186,15 @@ export default function CompetitionOverview({
           </CardContent>
         </Card>
 
-        <Card className="border-white/70 bg-gradient-to-br from-white to-amber-50/70 shadow-md shadow-slate-200/70">
-          <CardHeader>
+        <Card className="rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white to-amber-50/70 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+          <CardHeader className="p-5 pb-3 sm:p-6 sm:pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <Trophy className="h-4 w-4 text-amber-600" />
               Classificação
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="space-y-2 text-sm">
+          <CardContent className="space-y-2 p-5 pt-0 text-sm sm:p-6 sm:pt-0">
             {standings.slice(0, 3).map((row, index) => (
               <div
                 key={row.team}
@@ -218,15 +218,15 @@ export default function CompetitionOverview({
           </CardContent>
         </Card>
 
-        <Card className="border-white/70 bg-gradient-to-br from-white to-slate-50 shadow-md shadow-slate-200/70">
-          <CardHeader>
+        <Card className="rounded-3xl border border-slate-200/80 bg-gradient-to-br from-white to-slate-50 shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md">
+          <CardHeader className="p-5 pb-3 sm:p-6 sm:pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
               <ShieldCheck className="h-4 w-4 text-primary" />
               Ações rápidas
             </CardTitle>
           </CardHeader>
 
-          <CardContent className="grid gap-2">
+          <CardContent className="grid gap-2 p-5 pt-0 sm:p-6 sm:pt-0">
             {canCreateGames && (
               <Button
                 type="button"
@@ -287,3 +287,4 @@ export default function CompetitionOverview({
     </TabsContent>
   );
 }
+
