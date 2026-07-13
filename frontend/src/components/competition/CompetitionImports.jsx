@@ -1,4 +1,3 @@
-import { TabsContent } from '../ui/tabs';
 import {
   Card,
   CardContent,
@@ -27,7 +26,7 @@ function SyncCard({
   statusLabel,
 }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md">
+    <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <Icon className="h-5 w-5" />
@@ -73,16 +72,16 @@ export default function CompetitionImports({
   importedGamesheets = 0,
 }) {
   return (
-    <TabsContent value="imports" className="space-y-4">
-      <Card className="overflow-hidden border-white/70 bg-white/95 shadow-lg shadow-slate-200/70">
-        <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-white to-cyan-50/50">
-          <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+    <TabsContent value="imports" className="space-y-6">
+      <Card className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
+        <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-white to-cyan-50/50 p-5 sm:p-6">
+          <CardTitle className="flex items-center gap-2 font-heading text-xl font-semibold tracking-tight">
             <RefreshCw className="h-5 w-5 text-primary" />
             Centro de Sincronização
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="p-5">
+        <CardContent className="p-5 sm:p-6">
           <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-2xl bg-slate-50 p-4">
               <p className="text-xs uppercase tracking-wide text-slate-500">Jogos</p>
@@ -151,5 +150,3 @@ export default function CompetitionImports({
         </CardContent>
       </Card>
     </TabsContent>
-  );
-}
