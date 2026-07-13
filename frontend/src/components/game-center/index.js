@@ -4,3 +4,4 @@ export { default as MatchLineup } from './MatchLineup';
 export { default as TechnicalAssistantCard } from './TechnicalAssistantCard';
 export { default as MatchCenterPlaceholder } from './MatchCenterPlaceholder';
 export { default as MatchTimeline } from './MatchTimeline';
+export { default as TimelineSyncPanel } from './TimelineSyncPanel';
