@@ -1,3 +1,4 @@
+import { TabsContent } from '../ui/tabs';
 import {
   Card,
   CardContent,
@@ -22,7 +23,7 @@ function SyncCard({
   icon: Icon,
   actionLabel,
   onAction,
-  disabled,
+  disabled = false,
   statusLabel,
 }) {
   return (
@@ -40,7 +41,7 @@ function SyncCard({
         </Badge>
       </div>
 
-      <h3 className="mt-4 font-heading text-lg text-slate-950">
+      <h3 className="mt-4 font-heading text-lg font-semibold text-slate-950">
         {title}
       </h3>
 
@@ -62,8 +63,8 @@ function SyncCard({
 }
 
 export default function CompetitionImports({
-  canCreateGames,
-  canImportGamesheet,
+  canCreateGames = false,
+  canImportGamesheet = false,
   onImportMatches,
   onImportTeams,
   onImportCalendar,
@@ -72,7 +73,10 @@ export default function CompetitionImports({
   importedGamesheets = 0,
 }) {
   return (
-    <TabsContent value="imports" className="space-y-6">
+    <TabsContent
+      value="imports"
+      className="space-y-6"
+    >
       <Card className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
         <CardHeader className="border-b border-slate-100 bg-gradient-to-r from-white to-cyan-50/50 p-5 sm:p-6">
           <CardTitle className="flex items-center gap-2 font-heading text-xl font-semibold tracking-tight">
@@ -84,18 +88,33 @@ export default function CompetitionImports({
         <CardContent className="p-5 sm:p-6">
           <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Jogos</p>
-              <p className="mt-1 text-2xl font-bold text-slate-950">{matchesCount}</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">
+                Jogos
+              </p>
+
+              <p className="mt-1 text-2xl font-bold text-slate-950">
+                {matchesCount}
+              </p>
             </div>
 
             <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Equipas</p>
-              <p className="mt-1 text-2xl font-bold text-slate-950">{teamsCount}</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">
+                Equipas
+              </p>
+
+              <p className="mt-1 text-2xl font-bold text-slate-950">
+                {teamsCount}
+              </p>
             </div>
 
             <div className="rounded-2xl bg-slate-50 p-4">
-              <p className="text-xs uppercase tracking-wide text-slate-500">Boletins</p>
-              <p className="mt-1 text-2xl font-bold text-slate-950">{importedGamesheets}</p>
+              <p className="text-xs uppercase tracking-wide text-slate-500">
+                Boletins
+              </p>
+
+              <p className="mt-1 text-2xl font-bold text-slate-950">
+                {importedGamesheets}
+              </p>
             </div>
           </div>
 
@@ -150,3 +169,5 @@ export default function CompetitionImports({
         </CardContent>
       </Card>
     </TabsContent>
+  );
+}
