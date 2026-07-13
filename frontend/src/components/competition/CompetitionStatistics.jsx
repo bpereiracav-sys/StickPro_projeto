@@ -1,4 +1,3 @@
-import { TabsContent } from '../ui/tabs';
 import {
   Card,
   CardContent,
@@ -90,7 +89,7 @@ function calculateStatistics(matches = [], teamName = '') {
 
 function MetricCard({ label, value, icon: Icon, helper }) {
   return (
-    <div className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-md">
+    <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4 transition-all duration-300 hover:-translate-y-0.5 hover:bg-white hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-sm text-slate-500">{label}</p>
@@ -121,16 +120,16 @@ export default function CompetitionStatistics({
   const stats = calculateStatistics(matches, teamName);
 
   return (
-    <TabsContent value="stats" className="space-y-4">
-      <Card className="border-white/70 bg-white/95 shadow-lg shadow-slate-200/70">
-        <CardHeader className="border-b border-slate-100">
-          <CardTitle className="flex items-center gap-2 font-heading text-xl tracking-tight">
+    <TabsContent value="stats" className="space-y-6">
+      <Card className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md">
+        <CardHeader className="border-b border-slate-100 p-5 sm:p-6">
+          <CardTitle className="flex items-center gap-2 font-heading text-xl font-semibold tracking-tight">
             <BarChart3 className="h-5 w-5 text-primary" />
             Estatísticas da Competição
           </CardTitle>
         </CardHeader>
 
-        <CardContent className="p-5">
+        <CardContent className="p-5 sm:p-6">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard label="Jogos realizados" value={stats.played} icon={Activity} />
             <MetricCard label="Vitórias" value={stats.wins} icon={Trophy} />
@@ -175,5 +174,3 @@ export default function CompetitionStatistics({
         </CardContent>
       </Card>
     </TabsContent>
-  );
-}
