@@ -182,4 +182,4 @@ export function CompetitionStandings({
   );
 }
 
-export default CompetitionStandings;
+
