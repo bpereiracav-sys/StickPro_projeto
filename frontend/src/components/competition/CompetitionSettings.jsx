@@ -1,4 +1,4 @@
-import {
+import { TabsContent } from '../ui/tabs';import {
   Card,
   CardContent,
   CardHeader,
