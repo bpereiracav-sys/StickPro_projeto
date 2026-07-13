@@ -14,6 +14,7 @@ import MatchLineup from '../components/game-center/MatchLineup';
 import MatchPremiumHero from '../components/game-center/MatchPremiumHero';
 import MatchOverviewDashboard from '../components/game-center/MatchOverviewDashboard';
 import MatchTimeline from '../components/game-center/MatchTimeline';
+import TimelineSyncPanel from '../components/game-center/TimelineSyncPanel';
 import {
   Dialog,
   DialogContent,
@@ -68,6 +69,7 @@ export default function MatchStats() {
   const [importResult, setImportResult] = useState(null);
   const [homeScore, setHomeScore] = useState('');
   const [awayScore, setAwayScore] = useState('');
+  const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -678,11 +680,23 @@ export default function MatchStats() {
           />
         }
         liveContent={
-          <MatchTimeline
-            match={match}
-            members={members}
-            canEdit={canManageEvents}
-          />
+          <div className="space-y-6">
+            <MatchTimeline
+              match={match}
+              members={members}
+              canEdit={canManageEvents}
+              onTimelineChange={() =>
+                setTimelineRefreshKey((value) => value + 1)
+              }
+            />
+        
+            <TimelineSyncPanel
+              matchId={match.id}
+              canEdit={canManageEvents}
+              refreshKey={timelineRefreshKey}
+              onSynced={fetchData}
+            />
+          </div>
         }
         gamesheetContent={renderGamesheetContent()}
         statisticsContent={renderStatisticsContent()}
