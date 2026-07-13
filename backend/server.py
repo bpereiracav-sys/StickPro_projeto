@@ -8732,6 +8732,301 @@ async def get_championship_standings(championship_id: str, current_user: dict = 
     
     return sorted_standings
 
+class MatchTimelineEventCreate(BaseModel):
+    event_type: str
+    period: int = 1
+    minute: int = 0
+    second: int = 0
+    team_side: Optional[str] = None
+    player_id: Optional[str] = None
+    player_name: Optional[str] = None
+    secondary_player_id: Optional[str] = None
+    secondary_player_name: Optional[str] = None
+    notes: Optional[str] = None
+    score_home: Optional[int] = None
+    score_away: Optional[int] = None
+    source: str = "manual"
+
+
+class MatchTimelineEventUpdate(BaseModel):
+    event_type: Optional[str] = None
+    period: Optional[int] = None
+    minute: Optional[int] = None
+    second: Optional[int] = None
+    team_side: Optional[str] = None
+    player_id: Optional[str] = None
+    player_name: Optional[str] = None
+    secondary_player_id: Optional[str] = None
+    secondary_player_name: Optional[str] = None
+    notes: Optional[str] = None
+    score_home: Optional[int] = None
+    score_away: Optional[int] = None
+
+
+MATCH_TIMELINE_EVENT_TYPES = {
+    "match_start",
+    "goal",
+    "own_goal",
+    "yellow_card",
+    "blue_card",
+    "red_card",
+    "substitution",
+    "timeout",
+    "penalty_scored",
+    "penalty_missed",
+    "direct_free_kick_scored",
+    "direct_free_kick_missed",
+    "save",
+    "period_start",
+    "period_end",
+    "halftime",
+    "match_end",
+    "technical_note",
+}
+
+
+def validate_match_timeline_payload(payload: dict):
+    event_type = payload.get("event_type")
+    period = payload.get("period", 1)
+    minute = payload.get("minute", 0)
+    second = payload.get("second", 0)
+    team_side = payload.get("team_side")
+
+    if event_type not in MATCH_TIMELINE_EVENT_TYPES:
+        raise HTTPException(status_code=400, detail="Tipo de acontecimento inválido")
+
+    if period not in [1, 2, 3, 4]:
+        raise HTTPException(status_code=400, detail="Período inválido")
+
+    if minute < 0 or minute > 120:
+        raise HTTPException(status_code=400, detail="Minuto inválido")
+
+    if second < 0 or second > 59:
+        raise HTTPException(status_code=400, detail="Segundo inválido")
+
+    if team_side not in [None, "home", "away", "neutral"]:
+        raise HTTPException(status_code=400, detail="Lado da equipa inválido")
+
+
+async def get_timeline_match_context(match_id: str):
+    match = await db.championship_matches.find_one(
+        {"id": match_id, "archived": {"$ne": True}},
+        {"_id": 0}
+    )
+
+    if not match:
+        raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    championship = await db.championships.find_one(
+        {"id": match.get("championship_id")},
+        {"_id": 0}
+    )
+
+    if not championship:
+        raise HTTPException(status_code=404, detail="Competição não encontrada")
+
+    return match, championship
+
+
+@api_router.get("/championships/matches/{match_id}/timeline")
+async def get_match_timeline(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    match, championship = await get_timeline_match_context(match_id)
+
+    if not await can_view_competition(current_user, championship):
+        raise HTTPException(status_code=403, detail="Sem acesso a este jogo")
+
+    events = await db.match_timeline_events.find(
+        {"match_id": match_id},
+        {"_id": 0}
+    ).sort([
+        ("period", 1),
+        ("minute", 1),
+        ("second", 1),
+        ("created_at", 1),
+    ]).to_list(1000)
+
+    return {
+        "match_id": match_id,
+        "events": events,
+        "total": len(events),
+    }
+
+
+@api_router.post("/championships/matches/{match_id}/timeline")
+async def create_match_timeline_event(
+    match_id: str,
+    event_data: MatchTimelineEventCreate,
+    current_user: dict = Depends(get_current_user)
+):
+    match, championship = await get_timeline_match_context(match_id)
+
+    if not await can_edit_competition_statistics(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para gerir acontecimentos deste jogo"
+        )
+
+    payload = event_data.model_dump()
+    validate_match_timeline_payload(payload)
+
+    if payload.get("player_id"):
+        player = await db.users.find_one(
+            {"id": payload["player_id"]},
+            {"_id": 0, "id": 1, "name": 1}
+        )
+        if not player:
+            raise HTTPException(status_code=404, detail="Atleta não encontrado")
+        payload["player_name"] = payload.get("player_name") or player.get("name")
+
+    if payload.get("secondary_player_id"):
+        secondary_player = await db.users.find_one(
+            {"id": payload["secondary_player_id"]},
+            {"_id": 0, "id": 1, "name": 1}
+        )
+        if not secondary_player:
+            raise HTTPException(status_code=404, detail="Segundo atleta não encontrado")
+        payload["secondary_player_name"] = (
+            payload.get("secondary_player_name") or secondary_player.get("name")
+        )
+
+    now = datetime.now(timezone.utc)
+
+    timeline_event = {
+        "id": str(uuid.uuid4()),
+        "match_id": match_id,
+        "championship_id": match.get("championship_id"),
+        "team_id": match.get("team_id"),
+        **payload,
+        "created_by": current_user["id"],
+        "created_at": now.isoformat(),
+        "updated_by": current_user["id"],
+        "updated_at": now.isoformat(),
+    }
+
+    await db.match_timeline_events.insert_one(timeline_event)
+    timeline_event.pop("_id", None)
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {"$set": {
+            "timeline_updated_at": now.isoformat(),
+            "timeline_updated_by": current_user["id"],
+        }}
+    )
+
+    return timeline_event
+
+
+@api_router.put("/championships/matches/{match_id}/timeline/{event_id}")
+async def update_match_timeline_event(
+    match_id: str,
+    event_id: str,
+    updates: MatchTimelineEventUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    match, championship = await get_timeline_match_context(match_id)
+
+    if not await can_edit_competition_statistics(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para editar acontecimentos deste jogo"
+        )
+
+    existing = await db.match_timeline_events.find_one(
+        {"id": event_id, "match_id": match_id},
+        {"_id": 0}
+    )
+
+    if not existing:
+        raise HTTPException(status_code=404, detail="Acontecimento não encontrado")
+
+    update_data = updates.model_dump(exclude_unset=True)
+    validate_match_timeline_payload({**existing, **update_data})
+
+    if update_data.get("player_id"):
+        player = await db.users.find_one(
+            {"id": update_data["player_id"]},
+            {"_id": 0, "id": 1, "name": 1}
+        )
+        if not player:
+            raise HTTPException(status_code=404, detail="Atleta não encontrado")
+        update_data["player_name"] = player.get("name")
+
+    if update_data.get("secondary_player_id"):
+        secondary_player = await db.users.find_one(
+            {"id": update_data["secondary_player_id"]},
+            {"_id": 0, "id": 1, "name": 1}
+        )
+        if not secondary_player:
+            raise HTTPException(status_code=404, detail="Segundo atleta não encontrado")
+        update_data["secondary_player_name"] = secondary_player.get("name")
+
+    now = datetime.now(timezone.utc)
+    update_data["updated_by"] = current_user["id"]
+    update_data["updated_at"] = now.isoformat()
+
+    await db.match_timeline_events.update_one(
+        {"id": event_id, "match_id": match_id},
+        {"$set": update_data}
+    )
+
+    updated = await db.match_timeline_events.find_one(
+        {"id": event_id, "match_id": match_id},
+        {"_id": 0}
+    )
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {"$set": {
+            "timeline_updated_at": now.isoformat(),
+            "timeline_updated_by": current_user["id"],
+        }}
+    )
+
+    return updated
+
+
+@api_router.delete("/championships/matches/{match_id}/timeline/{event_id}")
+async def delete_match_timeline_event(
+    match_id: str,
+    event_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    match, championship = await get_timeline_match_context(match_id)
+
+    if not await can_edit_competition_statistics(current_user, championship):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para eliminar acontecimentos deste jogo"
+        )
+
+    existing = await db.match_timeline_events.find_one(
+        {"id": event_id, "match_id": match_id},
+        {"_id": 0}
+    )
+
+    if not existing:
+        raise HTTPException(status_code=404, detail="Acontecimento não encontrado")
+
+    await db.match_timeline_events.delete_one(
+        {"id": event_id, "match_id": match_id}
+    )
+
+    now = datetime.now(timezone.utc)
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {"$set": {
+            "timeline_updated_at": now.isoformat(),
+            "timeline_updated_by": current_user["id"],
+        }}
+    )
+
+    return {"message": "Acontecimento eliminado"}
+
 # ==================== MATCH CENTER / TECHNICAL ASSISTANT ROUTES ====================
 
 async def get_match_or_404(match_id: str) -> dict:
