@@ -9027,6 +9027,449 @@ async def delete_match_timeline_event(
 
     return {"message": "Acontecimento eliminado"}
 
+# ==================== MATCH TIMELINE SYNC ====================
+
+TIMELINE_SCORING_TYPES = {
+    "goal",
+    "own_goal",
+    "penalty_scored",
+    "direct_free_kick_scored",
+}
+
+TIMELINE_PLAYER_STAT_FIELDS = [
+    "goals",
+    "assists",
+    "saves",
+    "penalties_scored",
+    "penalties_missed",
+    "free_kicks_scored",
+    "free_kicks_missed",
+    "yellow_cards",
+    "blue_cards",
+    "red_cards",
+]
+
+
+def empty_timeline_player_stats():
+    return {
+        "goals": 0,
+        "assists": 0,
+        "saves": 0,
+        "penalties_scored": 0,
+        "penalties_missed": 0,
+        "free_kicks_scored": 0,
+        "free_kicks_missed": 0,
+        "yellow_cards": 0,
+        "blue_cards": 0,
+        "red_cards": 0,
+    }
+
+
+def increment_timeline_player_stat(
+    stats_by_player: dict,
+    player_id: Optional[str],
+    field: str,
+    amount: int = 1
+):
+    if not player_id:
+        return
+
+    if player_id not in stats_by_player:
+        stats_by_player[player_id] = empty_timeline_player_stats()
+
+    stats_by_player[player_id][field] = (
+        int(stats_by_player[player_id].get(field, 0))
+        + amount
+    )
+
+
+async def calculate_timeline_sync_data(match_id: str):
+    match = await db.championship_matches.find_one(
+        {"id": match_id, "archived": {"$ne": True}},
+        {"_id": 0}
+    )
+
+    if not match:
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado"
+        )
+
+    championship = await db.championships.find_one(
+        {"id": match.get("championship_id")},
+        {"_id": 0}
+    )
+
+    if not championship:
+        raise HTTPException(
+            status_code=404,
+            detail="Competição não encontrada"
+        )
+
+    timeline = await db.match_timeline_events.find(
+        {"match_id": match_id},
+        {"_id": 0}
+    ).sort([
+        ("period", 1),
+        ("minute", 1),
+        ("second", 1),
+        ("created_at", 1),
+    ]).to_list(1000)
+
+    home_score = 0
+    away_score = 0
+    stats_by_player = {}
+    warnings = []
+
+    for event in timeline:
+        event_type = event.get("event_type")
+        team_side = event.get("team_side")
+        player_id = event.get("player_id")
+        secondary_player_id = event.get("secondary_player_id")
+
+        if event_type in TIMELINE_SCORING_TYPES:
+            scoring_side = team_side
+
+            if event_type == "own_goal":
+                if team_side == "home":
+                    scoring_side = "away"
+                elif team_side == "away":
+                    scoring_side = "home"
+                else:
+                    warnings.append(
+                        "Existe um autogolo sem equipa definida."
+                    )
+                    scoring_side = None
+
+            if scoring_side == "home":
+                home_score += 1
+            elif scoring_side == "away":
+                away_score += 1
+            else:
+                warnings.append(
+                    f"Acontecimento de golo sem equipa definida: "
+                    f"{event.get('id')}"
+                )
+
+        if event_type == "goal":
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "goals"
+            )
+            increment_timeline_player_stat(
+                stats_by_player,
+                secondary_player_id,
+                "assists"
+            )
+
+        elif event_type == "own_goal":
+            # Mantém o autogolo apenas na timeline.
+            # Não é somado a "goals" do atleta.
+            pass
+
+        elif event_type == "penalty_scored":
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "goals"
+            )
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                 "penalties_scored"
+            )
+
+        elif event_type == "penalty_missed":
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "penalties_missed"
+            )
+
+        elif event_type == "direct_free_kick_scored":
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "goals"
+            )
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "free_kicks_scored"
+            )
+
+        elif event_type == "direct_free_kick_missed":
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "free_kicks_missed"
+            )
+
+        elif event_type == "save":
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "saves"
+            )
+
+        elif event_type == "yellow_card":
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "yellow_cards"
+            )
+
+        elif event_type == "blue_card":
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "blue_cards"
+            )
+
+        elif event_type == "red_card":
+            increment_timeline_player_stat(
+                stats_by_player,
+                player_id,
+                "red_cards"
+            )
+
+    current_stats = await db.player_match_stats.find(
+        {"match_id": match_id},
+        {"_id": 0}
+    ).to_list(500)
+
+    current_stats_by_player = {
+        row.get("player_id"): row
+        for row in current_stats
+        if row.get("player_id")
+    }
+
+    player_ids = list(stats_by_player.keys())
+    players = []
+
+    if player_ids:
+        players = await db.users.find(
+            {"id": {"$in": player_ids}},
+            {"_id": 0, "id": 1, "name": 1}
+        ).to_list(len(player_ids))
+
+    player_name_map = {
+        player.get("id"): player.get("name", "Atleta")
+        for player in players
+    }
+
+    player_changes = []
+
+    for player_id, calculated in stats_by_player.items():
+        current = current_stats_by_player.get(player_id, {})
+
+        changes = {}
+
+        for field in TIMELINE_PLAYER_STAT_FIELDS:
+            current_value = int(current.get(field, 0) or 0)
+            calculated_value = int(calculated.get(field, 0) or 0)
+
+            if current_value != calculated_value:
+                changes[field] = {
+                    "current": current_value,
+                    "timeline": calculated_value,
+                }
+
+        player_changes.append({
+            "player_id": player_id,
+            "player_name": player_name_map.get(
+                player_id,
+                current.get("player", {}).get("name", "Atleta")
+            ),
+            "calculated": calculated,
+            "changes": changes,
+            "has_changes": bool(changes),
+        })
+
+    current_home_score = int(match.get("home_score", 0) or 0)
+    current_away_score = int(match.get("away_score", 0) or 0)
+
+    score_has_changes = (
+        current_home_score != home_score
+        or current_away_score != away_score
+    )
+
+    return {
+        "match": match,
+        "championship": championship,
+        "timeline_events": timeline,
+        "calculated": {
+            "home_score": home_score,
+            "away_score": away_score,
+            "player_stats": stats_by_player,
+        },
+        "preview": {
+            "timeline_events_count": len(timeline),
+            "current_score": {
+                "home": current_home_score,
+                "away": current_away_score,
+            },
+            "timeline_score": {
+                "home": home_score,
+                "away": away_score,
+            },
+            "score_has_changes": score_has_changes,
+            "player_changes": player_changes,
+            "players_with_changes": len([
+                item
+                for item in player_changes
+                if item["has_changes"]
+            ]),
+            "warnings": warnings,
+        },
+    }
+
+
+@api_router.get("/championships/matches/{match_id}/timeline-sync-preview"
+)
+async def get_match_timeline_sync_preview(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    sync_data = await calculate_timeline_sync_data(match_id)
+    championship = sync_data["championship"]
+
+    if not await can_view_competition(
+        current_user,
+        championship
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a este jogo"
+        )
+
+    return sync_data["preview"]
+
+
+@api_router.post(
+    "/championships/matches/{match_id}/timeline-sync"
+)
+async def apply_match_timeline_sync(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    sync_data = await calculate_timeline_sync_data(match_id)
+    match = sync_data["match"]
+    championship = sync_data["championship"]
+    calculated = sync_data["calculated"]
+    preview = sync_data["preview"]
+
+    if not await can_edit_competition_statistics(
+        current_user,
+        championship
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para sincronizar este jogo"
+        )
+
+    if preview["timeline_events_count"] == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="A timeline ainda não possui acontecimentos"
+        )
+
+    now = datetime.now(timezone.utc)
+    now_iso = now.isoformat()
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {
+            "$set": {
+                "home_score": calculated["home_score"],
+                "away_score": calculated["away_score"],
+                "is_completed": bool(
+                    match.get("is_completed")
+                    or any(
+                        event.get("event_type") == "match_end"
+                        for event in sync_data["timeline_events"]
+                    )
+                ),
+                "timeline_sync_status": "synced",
+                "timeline_synced_at": now_iso,
+                "timeline_synced_by": current_user["id"],
+                "timeline_sync_event_count": (
+                    preview["timeline_events_count"]
+                ),
+                "updated_at": now_iso,
+                "updated_by": current_user["id"],
+            }
+        }
+    )
+
+    for player_id, calculated_stats in (
+        calculated["player_stats"].items()
+    ):
+        existing = await db.player_match_stats.find_one(
+            {
+                "match_id": match_id,
+                "player_id": player_id,
+            },
+            {"_id": 0}
+        )
+
+        stat_document = {
+            "id": (
+                existing.get("id")
+                if existing
+                else f"{match_id}_{player_id}"
+            ),
+            "match_id": match_id,
+            "championship_id": match.get("championship_id"),
+            "team_id": match.get("team_id"),
+            "player_id": player_id,
+            **calculated_stats,
+            # Campos não derivados da timeline são preservados.
+            "started_match": (
+                existing.get("started_match", False)
+                if existing
+                else False
+            ),
+            "timeline_synced": True,
+            "timeline_synced_at": now_iso,
+            "timeline_synced_by": current_user["id"],
+            "updated_at": now_iso,
+        }
+
+        if existing:
+            stat_document["created_at"] = existing.get(
+                "created_at",
+                now_iso
+            )
+        else:
+            stat_document["created_at"] = now_iso
+
+        await db.player_match_stats.update_one(
+            {
+                "match_id": match_id,
+                "player_id": player_id,
+            },
+            {"$set": stat_document},
+            upsert=True
+        )
+
+    updated_match = await db.championship_matches.find_one(
+        {"id": match_id},
+        {"_id": 0}
+    )
+
+    return {
+        "message": (
+            "Resultado e estatísticas sincronizados "
+            "com a timeline"
+        ),
+        "match": updated_match,
+        "preview": preview,
+        "synced_at": now_iso,
+    }
+
+
 # ==================== MATCH CENTER / TECHNICAL ASSISTANT ROUTES ====================
 
 async def get_match_or_404(match_id: str) -> dict:
