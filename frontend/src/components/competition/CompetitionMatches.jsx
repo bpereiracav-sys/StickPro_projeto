@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import {
+  Archive,
   Calendar,
+  ClipboardCheck,
   Edit,
   FileSpreadsheet,
   Home,
@@ -10,8 +12,6 @@ import {
   Plane,
   Plus,
   Target,
-  Trash2,
-  Trophy,
 } from 'lucide-react';
 import { TabsContent } from '../ui/tabs';
 import {
@@ -27,20 +27,40 @@ import { formatDate, formatTime } from '../../lib/utils';
 
 function getLocationIcon(location) {
   if (location === 'casa') {
-    return <Home className="h-4 w-4 text-secondary" />;
+    return <Home className="h-3.5 w-3.5 text-secondary" />;
   }
 
   if (location === 'fora') {
-    return <Plane className="h-4 w-4 text-primary" />;
+    return <Plane className="h-3.5 w-3.5 text-primary" />;
   }
 
-  return <Target className="h-4 w-4 text-muted-foreground" />;
+  return (
+    <Target className="h-3.5 w-3.5 text-muted-foreground" />
+  );
 }
 
 function getLocationLabel(location) {
   if (location === 'casa') return 'Casa';
   if (location === 'fora') return 'Fora';
   return 'Neutro';
+}
+
+function getCompactDate(value) {
+  if (!value) return '—';
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return formatDate(value);
+  }
+
+  return new Intl.DateTimeFormat('pt-PT', {
+    day: '2-digit',
+    month: 'short',
+  })
+    .format(date)
+    .replace('.', '')
+    .toUpperCase();
 }
 
 function getMatchTeams(match, team, championship) {
@@ -219,12 +239,12 @@ export default function CompetitionMatches({
   onDeleteMatch,
 }) {
   return (
-    <TabsContent value="matches" className="space-y-6">
+    <TabsContent value="matches" className="space-y-5">
       {matches.length > 0 ? (
         <Accordion
           type="multiple"
           defaultValue={sortedRounds.map(String)}
-          className="space-y-4"
+          className="space-y-3"
         >
           {sortedRounds.map((round) => (
             <AccordionItem
@@ -232,19 +252,27 @@ export default function CompetitionMatches({
               value={String(round)}
               className="overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:shadow-md"
             >
-              <AccordionTrigger className="bg-slate-50/80 px-5 py-4 transition-colors hover:bg-slate-100 hover:no-underline sm:px-6">
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge variant="secondary" className="font-mono">
-                    {round === 'Sem Jornada' ? 'S/J' : `J${round}`}
+              <AccordionTrigger className="bg-slate-50/80 px-5 py-3.5 transition-colors hover:bg-slate-100 hover:no-underline sm:px-6">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <Badge
+                    variant="secondary"
+                    className="font-mono text-[11px]"
+                  >
+                    {round === 'Sem Jornada'
+                      ? 'S/J'
+                      : `J${round}`}
                   </Badge>
 
-                  <span className="font-heading">
+                  <span className="font-heading text-sm sm:text-base">
                     {round === 'Sem Jornada'
                       ? 'Sem Jornada'
                       : `Jornada ${round}`}
                   </span>
 
-                  <Badge variant="outline" className="text-xs">
+                  <Badge
+                    variant="outline"
+                    className="text-[10px]"
+                  >
                     {matchesByRound[round].length}{' '}
                     {matchesByRound[round].length === 1
                       ? 'jogo'
@@ -271,75 +299,73 @@ export default function CompetitionMatches({
                     return (
                       <div
                         key={match.id}
-                        className="group p-5 transition-all duration-300 hover:bg-slate-50/70 sm:p-6"
+                        className="group px-5 py-4 transition-all duration-300 hover:bg-slate-50/70 sm:px-6"
                         data-testid={`match-${match.id}`}
                       >
-                        <div className="flex flex-col gap-4">
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                            <div className="flex items-center gap-3 sm:gap-4">
-                              <div className="min-w-[78px] text-center">
-                                <p className="text-xs uppercase tracking-wide text-muted-foreground">
-                                  {formatDate(match.match_date)}
-                                </p>
+                        <div className="grid gap-4 lg:grid-cols-[92px_minmax(0,1fr)_auto] lg:items-center">
+                          <div className="flex items-center gap-3 lg:flex-col lg:items-start lg:gap-1">
+                            <div>
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                                {getCompactDate(match.match_date)}
+                              </p>
 
-                                <p className="font-heading text-base sm:text-lg">
-                                  {formatTime(match.match_date)}
-                                </p>
-                              </div>
-
-                              <div className="flex items-center gap-1">
-                                {getLocationIcon(match.location)}
-
-                                <Badge
-                                  variant="outline"
-                                  className="px-1.5 text-[10px] sm:text-xs"
-                                >
-                                  {getLocationLabel(match.location)}
-                                </Badge>
-                              </div>
+                              <p className="font-heading text-lg font-semibold text-slate-950">
+                                {formatTime(match.match_date)}
+                              </p>
                             </div>
 
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-1 sm:gap-2">
-                                <span className="max-w-[130px] truncate text-sm font-semibold text-slate-950 sm:max-w-none sm:text-base">
-                                  {homeTeam}
-                                </span>
+                            <div className="flex items-center gap-1">
+                              {getLocationIcon(match.location)}
 
-                                <span className="text-sm text-muted-foreground">
-                                  vs
-                                </span>
-
-                                <span className="max-w-[130px] truncate text-sm font-semibold text-slate-950 sm:max-w-none sm:text-base">
-                                  {awayTeam}
-                                </span>
-
-                                {match.is_club_match === false && (
-                                  <Badge
-                                    variant="outline"
-                                    className="border-blue-200 bg-blue-50 text-[10px] text-blue-700"
-                                  >
-                                    Externo
-                                  </Badge>
-                                )}
-                              </div>
-
-                              {match.venue && (
-                                <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground sm:text-sm">
-                                  <MapPin className="h-3 w-3 shrink-0" />
-                                  <span className="truncate">
-                                    {match.venue}
-                                  </span>
-                                </p>
-                              )}
+                              <Badge
+                                variant="outline"
+                                className="px-1.5 py-0 text-[10px]"
+                              >
+                                {getLocationLabel(match.location)}
+                              </Badge>
                             </div>
                           </div>
 
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-1.5">
+                              <span className="truncate text-sm font-semibold text-slate-950 sm:text-base">
+                                {homeTeam}
+                              </span>
+
+                              <span className="text-xs text-muted-foreground">
+                                vs
+                              </span>
+
+                              <span className="truncate text-sm font-semibold text-slate-950 sm:text-base">
+                                {awayTeam}
+                              </span>
+
+                              {match.is_club_match === false && (
+                                <Badge
+                                  variant="outline"
+                                  className="border-blue-200 bg-blue-50 px-1.5 py-0 text-[10px] text-blue-700"
+                                >
+                                  Externo
+                                </Badge>
+                              )}
+                            </div>
+
+                            {match.venue && (
+                              <p className="mt-1 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                <span className="truncate">
+                                  {match.venue}
+                                </span>
+                              </p>
+                            )}
+                          </div>
+
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
                             <div className="flex flex-wrap items-center gap-2">
                               {match.is_completed ? (
                                 <>
-                                  <div className="rounded-2xl border border-slate-200 bg-white px-4 py-2 text-center shadow-sm">
-                                    <span className="font-heading text-2xl font-bold text-slate-950 sm:text-3xl">
+                                  <div className="rounded-2xl border border-slate-200 bg-white px-3.5 py-1.5 text-center shadow-sm">
+                                    <span className="font-heading text-xl font-bold text-slate-950 sm:text-2xl">
                                       {getMatchScore(match)}
                                     </span>
                                   </div>
@@ -349,7 +375,7 @@ export default function CompetitionMatches({
                                       variant="outline"
                                       className={[
                                         outcome.className,
-                                        'gap-1.5',
+                                        'gap-1.5 px-2 py-0.5 text-[11px]',
                                       ].join(' ')}
                                     >
                                       <span
@@ -380,7 +406,7 @@ export default function CompetitionMatches({
                                   )}
                                 </>
                               ) : (
-                                <Badge className="w-fit border border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">
+                                <Badge className="w-fit border border-amber-200 bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800 hover:bg-amber-100">
                                   Por disputar
                                 </Badge>
                               )}
@@ -402,7 +428,7 @@ export default function CompetitionMatches({
                                         ? 'Editar resultado'
                                         : 'Inserir resultado'
                                     }
-                                    icon={Trophy}
+                                    icon={ClipboardCheck}
                                     onClick={() => onEditResult(match)}
                                     testId={`edit-result-${match.id}`}
                                   />
@@ -432,8 +458,10 @@ export default function CompetitionMatches({
                                   type="button"
                                   variant="outline"
                                   size="icon"
-                                  className="h-9 w-9 shrink-0 rounded-xl border-red-200 text-red-600 transition-all duration-200 hover:-translate-y-0.5 hover:border-red-300 hover:bg-red-50 hover:text-red-700 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-red-200"
-                                  onClick={() => onDeleteMatch(match.id)}
+                                  className="h-9 w-9 shrink-0 rounded-xl border-amber-200 text-amber-700 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-800 hover:shadow-sm focus-visible:ring-2 focus-visible:ring-amber-200"
+                                  onClick={() =>
+                                    onDeleteMatch(match.id)
+                                  }
                                   disabled={deleting === match.id}
                                   data-testid={`delete-match-${match.id}`}
                                   title="Arquivar jogo"
@@ -442,7 +470,7 @@ export default function CompetitionMatches({
                                   {deleting === match.id ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                   ) : (
-                                    <Trash2 className="h-4 w-4" />
+                                    <Archive className="h-4 w-4" />
                                   )}
 
                                   <span className="sr-only">
