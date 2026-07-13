@@ -68,7 +68,7 @@ export default function CompetitionTeams({
   onImportTeams,
 }) {
   return (
-    <TabsContent value="teams" className="space-y-4">
+    <TabsContent value="teams" className="space-y-6">
       {canManageTeams && (
         <div className="flex flex-wrap gap-2">
           <Button
@@ -94,14 +94,14 @@ export default function CompetitionTeams({
       )}
 
       {teams.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
           {teams.map((competitionTeam) => (
             <Card
               key={competitionTeam.id}
-              className="group overflow-hidden border-white/80 bg-white/95 shadow-sm shadow-slate-200/70 transition-all hover:-translate-y-0.5 hover:shadow-lg hover:shadow-slate-200/80"
+              className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md"
               data-testid={`team-${competitionTeam.id}`}
             >
-              <CardHeader className="border-b border-slate-100 pb-4">
+              <CardHeader className="border-b border-slate-100 p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-primary/15 to-cyan-100 font-heading text-sm font-bold text-primary">
@@ -157,7 +157,7 @@ export default function CompetitionTeams({
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-4 p-5">
+              <CardContent className="space-y-4 p-5 sm:p-6">
                 {competitionTeam.pavilion_address && (
                   <p className="flex items-start gap-2 text-sm text-slate-500">
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -181,7 +181,7 @@ export default function CompetitionTeams({
           ))}
         </div>
       ) : (
-        <Card className="border border-dashed border-slate-200 bg-white/90">
+        <Card className="rounded-3xl border border-dashed border-slate-200 bg-white shadow-sm">
           <CardContent className="py-14 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
               <Users className="h-7 w-7" />
