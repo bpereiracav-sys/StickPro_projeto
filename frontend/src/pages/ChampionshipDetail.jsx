@@ -383,8 +383,13 @@ export default function ChampionshipDetail() {
         ),
       };
   
-      await championshipsApi.createMatch(
-        championshipId,
+      console.log(
+        'championshipId =',
+        championshipId
+      );
+      
+      console.log(
+        'matchData =',
         matchData
       );
   
