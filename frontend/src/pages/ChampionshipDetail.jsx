@@ -280,82 +280,142 @@ export default function ChampionshipDetail() {
   
   const handleCreateMatch = async (e) => {
     e.preventDefault();
-    
-    // Validation
-    if (!matchForm.is_club_match && matchForm.home_team_id === matchForm.opponent_team_id && matchForm.home_team_id !== '') {
-      toast.error(t('championships.sameTeamError'));
-      return;
+  
+    const isClubMatch = Boolean(
+      matchForm.is_club_match
+    );
+  
+    const externalHomeTeam = (
+      matchForm.home_team || ''
+    ).trim();
+  
+    const externalAwayTeam = (
+      matchForm.opponent_team || ''
+    ).trim();
+  
+    if (!isClubMatch) {
+      if (!externalHomeTeam || !externalAwayTeam) {
+        toast.error(
+          'Indique a equipa da casa e a equipa visitante'
+        );
+        return;
+      }
+  
+      if (
+        externalHomeTeam.toLowerCase()
+        === externalAwayTeam.toLowerCase()
+      ) {
+        toast.error(
+          t('championships.sameTeamError')
+        );
+        return;
+      }
     }
-    
+  
     setCreating(true);
-
+  
     try {
-      // Build home_team name
-      let homeTeamName = matchForm.is_club_match ? team?.name : '';
-      if (!matchForm.is_club_match && matchForm.home_team_id) {
-        const selectedHomeTeam = competitionTeams.find(t => t.id === matchForm.home_team_id);
-        homeTeamName = selectedHomeTeam?.name || matchForm.home_team;
-      } else if (!matchForm.is_club_match) {
-        homeTeamName = matchForm.home_team;
-      }
-      
-      // Build opponent name
-      let opponentName = matchForm.opponent_team;
-      if (matchForm.opponent_team_id) {
-        const selectedOpponent = competitionTeams.find(t => t.id === matchForm.opponent_team_id);
-        opponentName = selectedOpponent?.name || matchForm.opponent_team;
-      }
-      
-      // Determinar automaticamente quem joga em casa e fora
-      let clubSide = "home";
-      
-      if (matchForm.location === "fora") {
-        clubSide = "away";
-      } else if (matchForm.location === "neutro") {
-        clubSide = "neutral";
-      }
-      
-      let homeTeam;
-      let awayTeam;
-      
-      if (clubSide === "home") {
-        homeTeam = team?.name || homeTeamName;
-        awayTeam = opponentName;
-      } else if (clubSide === "away") {
-        homeTeam = opponentName;
-        awayTeam = team?.name || homeTeamName;
+      let clubSide = 'neutral';
+      let homeTeam = '';
+      let awayTeam = '';
+      let opponentTeam = null;
+      let location = matchForm.location;
+  
+      if (isClubMatch) {
+        const clubTeamName = (
+          team?.name || ''
+        ).trim();
+  
+        opponentTeam = externalAwayTeam;
+  
+        if (!opponentTeam) {
+          toast.error(
+            'Indique a equipa adversária'
+          );
+          return;
+        }
+  
+        if (matchForm.location === 'fora') {
+          clubSide = 'away';
+          homeTeam = opponentTeam;
+          awayTeam = clubTeamName;
+        } else if (
+          matchForm.location === 'neutro'
+        ) {
+          clubSide = 'neutral';
+          homeTeam = clubTeamName;
+          awayTeam = opponentTeam;
+        } else {
+          clubSide = 'home';
+          homeTeam = clubTeamName;
+          awayTeam = opponentTeam;
+          location = 'casa';
+        }
       } else {
-        homeTeam = homeTeamName;
-        awayTeam = opponentName;
+        clubSide = 'neutral';
+        location = 'neutro';
+        homeTeam = externalHomeTeam;
+        awayTeam = externalAwayTeam;
+        opponentTeam = null;
       }
-      
+  
       const matchData = {
-        ...matchForm,
-      
         championship_id: championshipId,
-      
-        match_date: new Date(matchForm.match_date).toISOString(),
-      
+        match_date: new Date(
+          matchForm.match_date
+        ).toISOString(),
+        match_time: matchForm.match_time,
+        location,
+        venue: matchForm.venue,
+        is_club_match: isClubMatch,
         club_side: clubSide,
-      
         home_team: homeTeam,
-      
         away_team: awayTeam,
-      
-        opponent_team: opponentName,
+        opponent_team: opponentTeam,
+        bonus_points: Number(
+          matchForm.bonus_points || 0
+        ),
+        penalty_points: Number(
+          matchForm.penalty_points || 0
+        ),
+        matchday: Number(
+          matchForm.matchday || 1
+        ),
       };
-      
-      await championshipsApi.createMatch(championshipId, matchData);
-      toast.success(t('championships.matchCreated'));
+  
+      await championshipsApi.createMatch(
+        championshipId,
+        matchData
+      );
+  
+      toast.success(
+        t('championships.matchCreated')
+      );
+  
       setMatchDialogOpen(false);
-      setMatchForm({ 
-        home_team_id: '', home_team: '', opponent_team_id: '', opponent_team: '', 
-        match_date: '', match_time: '', location: 'casa', venue: '', 
-        is_club_match: true, bonus_points: 0, penalty_points: 0, matchday: 1 
+  
+      setMatchForm({
+        home_team_id: '',
+        home_team: '',
+        opponent_team_id: '',
+        opponent_team: '',
+        match_date: '',
+        match_time: '',
+        location: 'casa',
+        venue: '',
+        is_club_match: true,
+        bonus_points: 0,
+        penalty_points: 0,
+        matchday: 1,
       });
-      fetchData(); // Auto-refresh
+  
+      await fetchData();
     } catch (error) {
-      toast.error('Erro ao adicionar jogo');
+      const message =
+        error?.response?.data?.detail
+        || 'Erro ao adicionar jogo';
+  
+      toast.error(message);
     } finally {
       setCreating(false);
     }
