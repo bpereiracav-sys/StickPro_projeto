@@ -1074,6 +1074,11 @@ class ChampionshipMatch(BaseModel):
     is_completed: bool = False
     is_club_match: bool = True
 
+    # Sprint 2.7A — estado operacional do jogo
+    match_status: str = "scheduled"
+    match_status_updated_at: Optional[datetime] = None
+    match_status_updated_by: Optional[str] = None
+
     bonus_points: int = 0
     penalty_points: int = 0
 
@@ -6528,6 +6533,12 @@ async def create_championship_match(
     match_dict["match_date"] = match_dict["match_date"].isoformat()
     match_dict["created_at"] = match_dict["created_at"].isoformat()
     match_dict["archived"] = False
+    match_dict.update(
+        build_match_status_payload(
+            "scheduled",
+            updated_by=current_user["id"],
+        )
+    )
     match_dict["source"] = "manual"
     match_dict["sync_status"] = "manual"
     match_dict["is_verified"] = False
@@ -6536,6 +6547,7 @@ async def create_championship_match(
     match_dict["external_match_id"] = None
     match_dict["source_url"] = None
     match_dict["last_synced_at"] = None
+    
 
     await db.championship_matches.insert_one(match_dict)
     match_dict.pop("_id", None)
@@ -6650,6 +6662,12 @@ async def sync_calendar_event_from_match(
         "championship_match_id": match_id,
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "updated_by": current_user_id,
+        "home_team": home_team,
+        "away_team": away_team,
+        "home_score": match_data.get("home_score"),
+        "away_score": match_data.get("away_score"),
+        "is_completed": bool(match_data.get("is_completed")),
+        "match_status": infer_match_status(match_data),
     }
 
     event = await db.events.find_one(
@@ -6678,7 +6696,11 @@ async def sync_calendar_event_from_match(
     new_event = {
         "id": str(uuid.uuid4()),
         **event_update,
-        "status": "scheduled",
+        "status": (
+            "completed"
+            if match_data.get("is_completed")
+            else "scheduled"
+        ),
         "created_by": current_user_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -6730,6 +6752,10 @@ async def update_match_result(
         "bonus_points": result.bonus_points,
         "penalty_points": result.penalty_points,
         "is_completed": True,
+        "match_status": "finished",
+        "match_status_label": MATCH_STATUS_LABELS["finished"],
+        "match_status_updated_at": now.isoformat(),
+        "match_status_updated_by": current_user["id"],
 
         # Um resultado manual fica validado pelo utilizador que o inseriu.
         "source": match.get("source") or "manual",
@@ -6756,6 +6782,12 @@ async def update_match_result(
         {"_id": 0}
     )
 
+    await update_match_workflow(
+        match_id=match_id,
+        stage="finished",
+        updated_by=current_user["id"],
+    )
+    
     return {
         "message": "Resultado atualizado",
         "match": updated_match
@@ -7075,31 +7107,39 @@ async def archive_match(
 
     now = datetime.now(timezone.utc).isoformat()
 
+    status_payload = build_match_status_payload(
+        "archived",
+        updated_by=current_user["id"],
+    )
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
     await db.championship_matches.update_one(
         {"id": match_id},
         {
             "$set": {
+                **status_payload,
                 "archived": True,
-                "archived_at": now,
+                "archived_at": now_iso,
                 "archived_by": current_user["id"],
-                "updated_at": now,
+                "updated_at": now_iso,
                 "updated_by": current_user["id"],
             }
-        }
+        },
     )
 
     await db.events.update_many(
         {"championship_match_id": match_id},
         {
             "$set": {
-                "status": "cancelled",
-                "archived": True,
-                "archived_at": now,
+                "status": "archived",
+                "is_archived": True,
+                "archived_at": now_iso,
                 "archived_by": current_user["id"],
-                "updated_at": now,
+                "updated_at": now_iso,
                 "updated_by": current_user["id"],
             }
-        }
+        },
     )
 
     return {
@@ -8917,6 +8957,30 @@ async def create_match_timeline_event(
         }}
     )
 
+    event_type = data.event_type
+
+    if event_type in {"match_start", "period_start"}:
+        await update_match_status(
+            match_id=match_id,
+            status="live",
+            updated_by=current_user["id"],
+        )
+
+    elif event_type == "halftime":
+        await update_match_status(
+            match_id=match_id,
+            status="half_time",
+            updated_by=current_user["id"],
+            sync_workflow=False,
+        )
+
+    elif event_type == "match_end":
+        await update_match_status(
+            match_id=match_id,
+            status="finished",
+            updated_by=current_user["id"],
+        )
+    
     return timeline_event
 
 
@@ -9026,6 +9090,225 @@ async def delete_match_timeline_event(
     )
 
     return {"message": "Acontecimento eliminado"}
+
+# ==================== MATCH STATUS ENGINE ====================
+
+MATCH_STATUS_VALUES = {
+    "scheduled",
+    "pre_match",
+    "ready",
+    "live",
+    "half_time",
+    "finished",
+    "archived",
+}
+
+MATCH_STATUS_LABELS = {
+    "scheduled": "Agendado",
+    "pre_match": "Pré-jogo",
+    "ready": "Pronto",
+    "live": "Em jogo",
+    "half_time": "Intervalo",
+    "finished": "Finalizado",
+    "archived": "Arquivado",
+}
+
+MATCH_STATUS_WORKFLOW_STAGE = {
+    "scheduled": "draft",
+    "pre_match": "convocation",
+    "ready": "ready",
+    "live": "live",
+    "half_time": "live",
+    "finished": "finished",
+    "archived": None,
+}
+
+
+def infer_match_status(match: dict) -> str:
+    if not match:
+        return "scheduled"
+
+    if match.get("archived") is True or match.get("is_archived") is True:
+        return "archived"
+
+    stored_status = match.get("match_status")
+    if stored_status in MATCH_STATUS_VALUES:
+        return stored_status
+
+    if match.get("is_completed") is True:
+        return "finished"
+
+    workflow_stage = (match.get("workflow") or {}).get("stage")
+
+    if workflow_stage in {
+        "finished",
+        "stats",
+        "assistant",
+        "evaluation",
+        "feedback",
+        "closed",
+    }:
+        return "finished"
+
+    if workflow_stage == "live":
+        return "live"
+
+    if workflow_stage == "ready":
+        return "ready"
+
+    if workflow_stage in {"convocation", "lineup"}:
+        return "pre_match"
+
+    match_date = parse_match_datetime(match.get("match_date"))
+
+    if match_date:
+        now = datetime.now(timezone.utc)
+
+        if match_date.tzinfo is None:
+            match_date = match_date.replace(tzinfo=timezone.utc)
+
+        hours_until_match = (match_date - now).total_seconds() / 3600
+
+        if -6 <= hours_until_match <= 48:
+            return "pre_match"
+
+    return "scheduled"
+
+
+def build_match_status_payload(
+    status: str,
+    updated_by: Optional[str] = None,
+) -> dict:
+    if status not in MATCH_STATUS_VALUES:
+        raise HTTPException(
+            status_code=400,
+            detail="Estado de jogo inválido",
+        )
+
+    now_iso = datetime.now(timezone.utc).isoformat()
+
+    return {
+        "match_status": status,
+        "match_status_label": MATCH_STATUS_LABELS[status],
+        "match_status_updated_at": now_iso,
+        "match_status_updated_by": updated_by,
+    }
+
+
+async def ensure_match_status(
+    match: dict,
+    updated_by: Optional[str] = None,
+) -> dict:
+    if not match:
+        return match
+
+    current_status = match.get("match_status")
+
+    if current_status in MATCH_STATUS_VALUES:
+        if not match.get("match_status_label"):
+            payload = build_match_status_payload(
+                current_status,
+                updated_by=updated_by,
+            )
+
+            await db.championship_matches.update_one(
+                {"id": match.get("id")},
+                {"$set": payload},
+            )
+
+            match.update(payload)
+
+        return match
+
+    inferred_status = infer_match_status(match)
+
+    payload = build_match_status_payload(
+        inferred_status,
+        updated_by=updated_by,
+    )
+
+    await db.championship_matches.update_one(
+        {"id": match.get("id")},
+        {"$set": payload},
+    )
+
+    match.update(payload)
+
+    return match
+
+
+async def update_match_status(
+    match_id: str,
+    status: str,
+    updated_by: Optional[str] = None,
+    sync_workflow: bool = True,
+) -> dict:
+    if status not in MATCH_STATUS_VALUES:
+        raise HTTPException(
+            status_code=400,
+            detail="Estado de jogo inválido",
+        )
+
+    match = await db.championship_matches.find_one(
+        {"id": match_id},
+        {"_id": 0},
+    )
+
+    if not match:
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado",
+        )
+
+    payload = build_match_status_payload(
+        status,
+        updated_by=updated_by,
+    )
+
+    if status == "archived":
+        payload.update({
+            "archived": True,
+            "archived_at": datetime.now(timezone.utc).isoformat(),
+            "archived_by": updated_by,
+        })
+
+    await db.championship_matches.update_one(
+        {"id": match_id},
+        {
+            "$set": {
+                **payload,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "updated_by": updated_by,
+            }
+        },
+    )
+
+    workflow_stage = MATCH_STATUS_WORKFLOW_STAGE.get(status)
+
+    if (
+        sync_workflow
+        and workflow_stage
+        and "update_match_workflow" in globals()
+    ):
+        await update_match_workflow(
+            match_id=match_id,
+            stage=workflow_stage,
+            updated_by=updated_by,
+        )
+
+    return payload
+
+
+class MatchStatusUpdate(BaseModel):
+    status: Literal[
+        "scheduled",
+        "pre_match",
+        "ready",
+        "live",
+        "half_time",
+        "finished",
+        "archived",
+    ]
 
 # ==================== MATCH WORKFLOW ENGINE ====================
 
@@ -9675,7 +9958,8 @@ async def get_match_or_404(match_id: str) -> dict:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
 
     match = await ensure_match_workflow(match)
-    
+    match = await ensure_match_status(match)
+
     return match
 
 
@@ -9910,6 +10194,75 @@ async def regenerate_match_technical_assistant(
     )
 
     return assistant
+
+@api_router.put(
+    "/championships/matches/{match_id}/status"
+)
+async def update_championship_match_status(
+    match_id: str,
+    data: MatchStatusUpdate,
+    current_user: dict = Depends(get_current_user),
+):
+    match = await db.championship_matches.find_one(
+        {
+            "id": match_id,
+            "archived": {"$ne": True},
+        },
+        {"_id": 0},
+    )
+
+    if not match:
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado",
+        )
+
+    championship = await db.championships.find_one(
+        {"id": match.get("championship_id")},
+        {"_id": 0},
+    )
+
+    if not championship:
+        raise HTTPException(
+            status_code=404,
+            detail="Competição não encontrada",
+        )
+
+    if not await can_edit_competition_game(
+        current_user,
+        championship,
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para alterar o estado do jogo",
+        )
+
+    if data.status == "archived":
+        if not await can_archive_competition(
+            current_user,
+            championship,
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Sem permissão para arquivar este jogo",
+            )
+
+    status_payload = await update_match_status(
+        match_id=match_id,
+        status=data.status,
+        updated_by=current_user["id"],
+    )
+
+    updated_match = await db.championship_matches.find_one(
+        {"id": match_id},
+        {"_id": 0},
+    )
+
+    return {
+        "message": "Estado do jogo atualizado",
+        "status": status_payload,
+        "match": updated_match,
+    }
 
 
 @api_router.post("/matches/{match_id}/technical-assistant/publish")
