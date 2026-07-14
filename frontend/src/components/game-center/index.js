@@ -5,3 +5,6 @@ export { default as TechnicalAssistantCard } from './TechnicalAssistantCard';
 export { default as MatchCenterPlaceholder } from './MatchCenterPlaceholder';
 export { default as MatchTimeline } from './MatchTimeline';
 export { default as TimelineSyncPanel } from './TimelineSyncPanel';
+export { default as MatchWorkflowHero } from './MatchWorkflowHero';
+export { default as WorkflowChecklist } from './WorkflowChecklist';
+export { default as WorkflowNextAction } from './WorkflowNextAction';
