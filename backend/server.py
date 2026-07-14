@@ -6463,7 +6463,9 @@ async def delete_championship(
 
 # ==================== CHAMPIONSHIP MATCH ROUTES ====================
 
-@api_router.post("/championships/{championship_id}/matches")
+@api_router.post(
+    "/championships/{championship_id}/matches"
+)
 async def create_championship_match(
     championship_id: str,
     data: ChampionshipMatchCreate,
@@ -6475,102 +6477,226 @@ async def create_championship_match(
     )
 
     if not championship:
-        raise HTTPException(status_code=404, detail="Campeonato não encontrado")
-
-    if not await can_create_competition_game(current_user, championship):
         raise HTTPException(
-            status_code=403,
-            detail="Sem permissão para criar jogos nesta competição"
+            status_code=404,
+            detail="Campeonato não encontrado"
         )
 
-    team_name = championship.get("team_name") or championship.get("name") or ""
+    if not await can_create_competition_game(
+        current_user,
+        championship
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para criar jogos "
+                "nesta competição"
+            )
+        )
 
-    club_side = data.club_side
-    if not club_side:
-        if data.location == "casa":
-            club_side = "home"
-        elif data.location == "fora":
-            club_side = "away"
-        else:
-            club_side = "neutral"
+    club_team_name = (
+        await get_championship_club_team_name(
+            championship
+        )
+    )
 
-    home_team = data.home_team
-    away_team = data.away_team
+    is_club_match = data.is_club_match
 
-    if not home_team or not away_team:
+    if is_club_match is None:
+        is_club_match = True
+
+    if is_club_match:
+        club_side = data.club_side
+
+        if not club_side:
+            club_side = {
+                "casa": "home",
+                "fora": "away",
+                "neutro": "neutral",
+            }.get(
+                data.location,
+                "home"
+            )
+
+        opponent_team = (
+            data.opponent_team or ""
+        ).strip()
+
+        if not opponent_team:
+            if club_side == "home":
+                opponent_team = (
+                    data.away_team or ""
+                ).strip()
+            elif club_side == "away":
+                opponent_team = (
+                    data.home_team or ""
+                ).strip()
+            else:
+                candidate_home = (
+                    data.home_team or ""
+                ).strip()
+                candidate_away = (
+                    data.away_team or ""
+                ).strip()
+
+                opponent_team = (
+                    candidate_away
+                    if normalize_team_name(
+                        candidate_home
+                    )
+                    == normalize_team_name(
+                        club_team_name
+                    )
+                    else candidate_home
+                )
+
+        if not opponent_team:
+            raise HTTPException(
+                status_code=400,
+                detail="Indique a equipa adversária"
+            )
+
+        if (
+            normalize_team_name(opponent_team)
+            == normalize_team_name(
+                club_team_name
+            )
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "A equipa adversária não pode "
+                    "ser igual à equipa do clube"
+                )
+            )
+
         if club_side == "home":
-            home_team = home_team or team_name
-            away_team = away_team or data.opponent_team
+            home_team = club_team_name
+            away_team = opponent_team
+            location = "casa"
+
         elif club_side == "away":
-            home_team = home_team or data.opponent_team
-            away_team = away_team or team_name
+            home_team = opponent_team
+            away_team = club_team_name
+            location = "fora"
+
         else:
-            home_team = home_team or team_name
-            away_team = away_team or data.opponent_team
+            requested_home = (
+                data.home_team or ""
+            ).strip()
+
+            requested_away = (
+                data.away_team or ""
+            ).strip()
+
+            if (
+                requested_home
+                and requested_away
+            ):
+                home_team = requested_home
+                away_team = requested_away
+            else:
+                home_team = club_team_name
+                away_team = opponent_team
+
+            location = "neutro"
+
+    else:
+        # Jogo entre duas equipas externas.
+        home_team = (
+            data.home_team or ""
+        ).strip()
+
+        away_team = (
+            data.away_team or ""
+        ).strip()
+
+        if not home_team or not away_team:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Indique a equipa da casa e "
+                    "a equipa visitante"
+                )
+            )
+
+        if (
+            normalize_team_name(home_team)
+            == normalize_team_name(away_team)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "As equipas não podem ser iguais"
+                )
+            )
+
+        club_side = "neutral"
+        location = "neutro"
+        opponent_team = None
 
     match = ChampionshipMatch(
         championship_id=championship_id,
         team_id=championship["team_id"],
-    
         home_team=home_team,
         away_team=away_team,
-    
-        opponent_team=data.opponent_team,
+        opponent_team=opponent_team,
         club_side=club_side,
-        official_match_url=data.official_match_url,
-    
+        official_match_url=(
+            data.official_match_url
+        ),
         match_date=data.match_date,
         match_time=data.match_time,
-        location=data.location,
+        location=location,
         venue=data.venue,
-        is_club_match=data.is_club_match,
+        is_club_match=is_club_match,
         bonus_points=data.bonus_points,
         penalty_points=data.penalty_points,
         matchday=data.matchday,
     )
 
     match_dict = match.model_dump()
-    match_dict["match_date"] = match_dict["match_date"].isoformat()
-    match_dict["created_at"] = match_dict["created_at"].isoformat()
+
+    match_dict["match_date"] = (
+        match_dict["match_date"].isoformat()
+    )
+    match_dict["created_at"] = (
+        match_dict["created_at"].isoformat()
+    )
     match_dict["archived"] = False
+
     match_dict.update(
         build_match_status_payload(
             "scheduled",
             updated_by=current_user["id"],
         )
     )
-    match_dict["source"] = "manual"
-    match_dict["sync_status"] = "manual"
-    match_dict["is_verified"] = False
-    match_dict["verified_by"] = None
-    match_dict["verified_at"] = None
-    match_dict["external_match_id"] = None
-    match_dict["source_url"] = None
-    match_dict["last_synced_at"] = None
-    
 
-    await db.championship_matches.insert_one(match_dict)
-    match_dict.pop("_id", None)
+    match_dict.update({
+        "source": "manual",
+        "sync_status": "manual",
+        "is_verified": False,
+        "verified_by": None,
+        "verified_at": None,
+        "external_match_id": None,
+        "source_url": None,
+        "last_synced_at": None,
+    })
 
-    event = Event(
-        team_id=championship["team_id"],
-        event_type="jogo_campeonato",
-        title=f"{home_team} vs {away_team}",
-        location=data.venue or ("Casa" if data.location == "casa" else "Fora"),
-        start_time=data.match_date,
-        opponent=data.opponent_team,
-        championship_id=championship_id,
-        championship_match_id=match.id,
-        created_by=current_user["id"]
+    await db.championship_matches.insert_one(
+        match_dict
     )
 
-    event_dict = event.model_dump()
-    event_dict["start_time"] = event_dict["start_time"].isoformat()
-    event_dict["created_at"] = event_dict["created_at"].isoformat()
-    await db.events.insert_one(event_dict)
+    match_dict.pop("_id", None)
+
+    await sync_calendar_event_from_match(
+        match.id,
+        championship=championship,
+        match_data=match_dict,
+        current_user_id=current_user["id"]
+    )
 
     return match_dict
-
 
 @api_router.get("/championships/{championship_id}/matches")
 async def get_championship_matches(
@@ -6793,7 +6919,72 @@ async def update_match_result(
         "match": updated_match
     }
 
+def normalize_team_name(value: Optional[str]) -> str:
+    return re.sub(
+        r"\s+",
+        " ",
+        (value or "").strip()
+    ).casefold()
 
+
+async def get_championship_club_team_name(
+    championship: dict
+) -> str:
+    team = await db.teams.find_one(
+        {"id": championship.get("team_id")},
+        {"_id": 0, "name": 1}
+    )
+
+    if team and team.get("name"):
+        return team["name"].strip()
+
+    if championship.get("team_name"):
+        return championship["team_name"].strip()
+
+    return "Equipa do clube"
+
+
+def get_existing_opponent_name(
+    match: dict,
+    club_team_name: str
+) -> str:
+    explicit_opponent = (
+        match.get("opponent_team") or ""
+    ).strip()
+
+    if explicit_opponent:
+        return explicit_opponent
+
+    current_side = match.get("club_side")
+
+    if current_side == "home":
+        return (
+            match.get("away_team")
+            or "Adversário"
+        ).strip()
+
+    if current_side == "away":
+        return (
+            match.get("home_team")
+            or "Adversário"
+        ).strip()
+
+    home_team = (
+        match.get("home_team") or ""
+    ).strip()
+
+    away_team = (
+        match.get("away_team") or ""
+    ).strip()
+
+    if (
+        normalize_team_name(home_team)
+        != normalize_team_name(club_team_name)
+    ):
+        return home_team or "Adversário"
+
+    return away_team or "Adversário"
+    
 class MatchUpdate(BaseModel):
     home_team: Optional[str] = None
     away_team: Optional[str] = None
@@ -6819,7 +7010,10 @@ async def update_match(
     current_user: dict = Depends(get_current_user)
 ):
     match = await db.championship_matches.find_one(
-        {"id": match_id, "archived": {"$ne": True}},
+        {
+            "id": match_id,
+            "archived": {"$ne": True}
+        },
         {"_id": 0}
     )
 
@@ -6846,24 +7040,34 @@ async def update_match(
     ):
         raise HTTPException(
             status_code=403,
-            detail="Sem permissão para editar jogos desta competição"
+            detail=(
+                "Sem permissão para editar jogos "
+                "desta competição"
+            )
         )
 
-    update_data = updates.model_dump(exclude_unset=True)
+    update_data = updates.model_dump(
+        exclude_unset=True
+    )
 
     if "match_date" in update_data:
         update_data["match_date"] = (
             update_data["match_date"].isoformat()
         )
 
-    # Mantém localização e club_side coerentes.
-    if "location" in update_data and "club_side" not in update_data:
-        update_data["club_side"] = (
-            "home"
-            if update_data["location"] == "casa"
-            else "away"
-            if update_data["location"] == "fora"
-            else "neutral"
+    # A localização determina o lado, salvo quando
+    # club_side é enviado explicitamente.
+    if (
+        "location" in update_data
+        and "club_side" not in update_data
+    ):
+        update_data["club_side"] = {
+            "casa": "home",
+            "fora": "away",
+            "neutro": "neutral",
+        }.get(
+            update_data["location"],
+            "neutral"
         )
 
     merged_match = {
@@ -6871,63 +7075,156 @@ async def update_match(
         **update_data,
     }
 
-    # Corrige nomes quando a equipa do clube muda de lado.
-    if merged_match.get("is_club_match", True):
-        team = await db.teams.find_one(
-            {"id": championship.get("team_id")},
-            {"_id": 0, "name": 1}
-        )
+    is_club_match = merged_match.get(
+        "is_club_match",
+        True
+    )
 
+    if is_club_match:
         club_team_name = (
-            team.get("name")
-            if team
-            else championship.get("team_name")
-            or "Equipa"
-        )
-
-        club_side = (
-            merged_match.get("club_side")
-            or (
-                "away"
-                if merged_match.get("location") == "fora"
-                else "neutral"
-                if merged_match.get("location") == "neutro"
-                else "home"
+            await get_championship_club_team_name(
+                championship
             )
         )
 
         opponent_team = (
-            merged_match.get("opponent_team")
-            or "Adversário"
+            update_data.get("opponent_team")
+            or get_existing_opponent_name(
+                match,
+                club_team_name
+            )
+        ).strip()
+
+        if (
+            normalize_team_name(opponent_team)
+            == normalize_team_name(club_team_name)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "A equipa adversária não pode "
+                    "ser igual à equipa do clube"
+                )
+            )
+
+        club_side = merged_match.get(
+            "club_side",
+            "home"
         )
 
-        if club_side == "away":
+        if club_side == "home":
             update_data["home_team"] = (
-                merged_match.get("home_team")
-                or opponent_team
+                club_team_name
             )
-            update_data["away_team"] = club_team_name
-
-        elif club_side == "home":
-            update_data["home_team"] = club_team_name
             update_data["away_team"] = (
-                merged_match.get("away_team")
-                or opponent_team
+                opponent_team
             )
+            update_data["location"] = "casa"
+
+        elif club_side == "away":
+            update_data["home_team"] = (
+                opponent_team
+            )
+            update_data["away_team"] = (
+                club_team_name
+            )
+            update_data["location"] = "fora"
 
         else:
-            update_data["home_team"] = (
-                merged_match.get("home_team")
-                or club_team_name
+            # Num jogo da nossa equipa em campo neutro,
+            # preserva-se a ordem escolhida pelo utilizador.
+            requested_home = (
+                update_data.get("home_team")
+                or merged_match.get("home_team")
             )
-            update_data["away_team"] = (
-                merged_match.get("away_team")
-                or opponent_team
+            requested_away = (
+                update_data.get("away_team")
+                or merged_match.get("away_team")
             )
 
-    update_data["updated_at"] = (
-        datetime.now(timezone.utc).isoformat()
-    )
+            if (
+                normalize_team_name(requested_home)
+                == normalize_team_name(
+                    club_team_name
+                )
+            ):
+                update_data["home_team"] = (
+                    club_team_name
+                )
+                update_data["away_team"] = (
+                    opponent_team
+                )
+
+            elif (
+                normalize_team_name(requested_away)
+                == normalize_team_name(
+                    club_team_name
+                )
+            ):
+                update_data["home_team"] = (
+                    opponent_team
+                )
+                update_data["away_team"] = (
+                    club_team_name
+                )
+
+            else:
+                update_data["home_team"] = (
+                    club_team_name
+                )
+                update_data["away_team"] = (
+                    opponent_team
+                )
+
+            update_data["location"] = "neutro"
+
+        update_data["opponent_team"] = opponent_team
+
+    else:
+        # Jogo entre equipas externas.
+        home_team = (
+            update_data.get("home_team")
+            or merged_match.get("home_team")
+            or ""
+        ).strip()
+
+        away_team = (
+            update_data.get("away_team")
+            or merged_match.get("away_team")
+            or ""
+        ).strip()
+
+        if not home_team or not away_team:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Indique a equipa da casa e "
+                    "a equipa visitante"
+                )
+            )
+
+        if (
+            normalize_team_name(home_team)
+            == normalize_team_name(away_team)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "As equipas não podem ser iguais"
+                )
+            )
+
+        update_data["home_team"] = home_team
+        update_data["away_team"] = away_team
+        update_data["club_side"] = "neutral"
+        update_data["location"] = "neutro"
+        update_data["opponent_team"] = None
+
+    now_iso = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    update_data["updated_at"] = now_iso
     update_data["updated_by"] = current_user["id"]
 
     await db.championship_matches.update_one(
@@ -6935,9 +7232,11 @@ async def update_match(
         {"$set": update_data}
     )
 
-    updated_match = await db.championship_matches.find_one(
-        {"id": match_id},
-        {"_id": 0}
+    updated_match = (
+        await db.championship_matches.find_one(
+            {"id": match_id},
+            {"_id": 0}
+        )
     )
 
     await sync_calendar_event_from_match(
@@ -6951,7 +7250,7 @@ async def update_match(
         "message": "Jogo e calendário atualizados",
         "match": updated_match
     }
-
+    
 @api_router.post("/championships/{championship_id}/matches/fix-home-away")
 async def fix_championship_matches_home_away(
     championship_id: str,
