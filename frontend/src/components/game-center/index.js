@@ -8,3 +8,5 @@ export { default as TimelineSyncPanel } from './TimelineSyncPanel';
 export { default as MatchWorkflowHero } from './MatchWorkflowHero';
 export { default as WorkflowChecklist } from './WorkflowChecklist';
 export { default as WorkflowNextAction } from './WorkflowNextAction';
+export { default as RecommendationCard } from './RecommendationCard';
+export { default as SmartAssistantPanel } from './SmartAssistantPanel';
