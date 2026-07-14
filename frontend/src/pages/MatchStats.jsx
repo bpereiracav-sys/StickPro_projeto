@@ -15,6 +15,9 @@ import MatchPremiumHero from '../components/game-center/MatchPremiumHero';
 import MatchOverviewDashboard from '../components/game-center/MatchOverviewDashboard';
 import MatchTimeline from '../components/game-center/MatchTimeline';
 import TimelineSyncPanel from '../components/game-center/TimelineSyncPanel';
+import MatchWorkflowHero from '../components/game-center/MatchWorkflowHero';
+import WorkflowChecklist from '../components/game-center/WorkflowChecklist';
+import WorkflowNextAction from '../components/game-center/WorkflowNextAction';
 import {
   Dialog,
   DialogContent,
@@ -667,6 +670,22 @@ export default function MatchStats() {
         awayScore={awayScore}
       />
 
+      <MatchWorkflowHero
+        workflow={match.workflow}
+      />
+      
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <WorkflowChecklist
+            workflow={match.workflow}
+          />
+        </div>
+      
+        <WorkflowNextAction
+          workflow={match.workflow}
+        />
+      </div>      
+      
       <GameTabs
         match={match}
         canSeeStaffTabs={canManageEvents}
