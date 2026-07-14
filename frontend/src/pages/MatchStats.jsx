@@ -73,6 +73,7 @@ export default function MatchStats() {
   const [homeScore, setHomeScore] = useState('');
   const [awayScore, setAwayScore] = useState('');
   const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
+  const [activeMatchTab, setActiveMatchTab] = useState('summary');
 
   useEffect(() => {
     fetchData();
@@ -373,6 +374,7 @@ export default function MatchStats() {
     try {
       const response = await championshipsApi.regenerateTechnicalAssistant(matchId);
       setTechnicalAssistant(response.data);
+      await fetchData();
       toast.success('Assistente Técnico recalculado');
     } catch (error) {
       toast.error('Erro ao recalcular Assistente Técnico');
@@ -683,12 +685,16 @@ export default function MatchStats() {
       
         <WorkflowNextAction
           workflow={match.workflow}
+          onContinue={setActiveMatchTab}
         />
       </div>      
       
       <GameTabs
         match={match}
         canSeeStaffTabs={canManageEvents}
+        activeTab={activeMatchTab}
+        onTabChange={setActiveMatchTab}
+        workflow={match.workflow}
         summaryContent={renderSummaryContent()}
         lineupContent={
           <MatchLineup
@@ -864,5 +870,3 @@ function ImportStatsDialog({
     </Dialog>
   );
 }
-
-
