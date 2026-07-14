@@ -18,6 +18,7 @@ import TimelineSyncPanel from '../components/game-center/TimelineSyncPanel';
 import MatchWorkflowHero from '../components/game-center/MatchWorkflowHero';
 import WorkflowChecklist from '../components/game-center/WorkflowChecklist';
 import WorkflowNextAction from '../components/game-center/WorkflowNextAction';
+import SmartAssistantPanel from '../components/game-center/SmartAssistantPanel';
 import {
   Dialog,
   DialogContent,
@@ -689,6 +690,14 @@ export default function MatchStats() {
         />
       </div>      
       
+      <SmartAssistantPanel
+        match={match}
+        workflow={match.workflow}
+        existingStats={existingStats}
+        technicalAssistant={technicalAssistant}
+        onNavigate={setActiveMatchTab}
+      />
+
       <GameTabs
         match={match}
         canSeeStaffTabs={canManageEvents}
