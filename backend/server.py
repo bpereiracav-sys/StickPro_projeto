@@ -1083,9 +1083,10 @@ class ChampionshipMatch(BaseModel):
     penalty_points: int = 0
 
     official_match_url: Optional[str] = None
+    gamesheet_url: Optional[str] = None
 
     # Sprint 2.0C — origem, sincronização e validação
-    source: str = "manual"  # manual | apl | fpp
+    source: str = "manual"  # manual | apl | fpp | official
     source_url: Optional[str] = None
     external_match_id: Optional[str] = None
 
@@ -1094,7 +1095,12 @@ class ChampionshipMatch(BaseModel):
     verified_at: Optional[datetime] = None
 
     last_synced_at: Optional[datetime] = None
-    sync_status: str = "manual"  # manual | imported | synced | conflict
+    last_sync_error: Optional[str] = None
+
+    sync_status: str = "manual"
+    # manual | pending | syncing | synced | error
+    # podem continuar a existir valores antigos:
+    # imported | conflict
 
     created_at: datetime = Field(
         default_factory=lambda: datetime.now(timezone.utc)
@@ -6694,15 +6700,44 @@ async def create_championship_match(
         )
     )
 
+    official_url = (
+        data.official_match_url or ""
+    ).strip()
+    
+    match_source = infer_match_source(
+        official_url
+    )
+    
     match_dict.update({
-        "source": "manual",
-        "sync_status": "manual",
+        "official_match_url": (
+            official_url or None
+        ),
+    
+        # Compatibilidade com o importador atual.
+        "gamesheet_url": (
+            official_url or None
+        ),
+    
+        "source": match_source,
+    
+        "sync_status": (
+            "pending"
+            if official_url
+            else "manual"
+        ),
+    
+        "last_synced_at": None,
+        "last_sync_error": None,
+    
         "is_verified": False,
         "verified_by": None,
         "verified_at": None,
+    
         "external_match_id": None,
-        "source_url": None,
-        "last_synced_at": None,
+    
+        "source_url": (
+            official_url or None
+        ),
     })
 
     await db.championship_matches.insert_one(
@@ -7125,10 +7160,19 @@ async def update_match(
             official_url or None
         )
     
-        # Compatibilidade com o importador atual
-        # da ficha eletrónica.
+        # Compatibilidade com o importador atual.
         update_data["gamesheet_url"] = (
             official_url or None
+        )
+    
+        update_data["source_url"] = (
+            official_url or None
+        )
+    
+        update_data["source"] = (
+            infer_match_source(
+                official_url
+            )
         )
     
         update_data["sync_status"] = (
@@ -7136,6 +7180,12 @@ async def update_match(
             if official_url
             else "manual"
         )
+    
+        # Um novo URL reinicia o estado técnico.
+        update_data["last_sync_error"] = None
+    
+        if not official_url:
+            update_data["last_synced_at"] = None
     
     if "match_date" in update_data:
         update_data["match_date"] = (
@@ -8179,30 +8229,73 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
                 if ps['goals'] > 0 or ps['assists'] > 0 or ps['yellow_cards'] > 0 or ps['blue_cards'] > 0 or ps['red_cards'] > 0:
                     unmatched_players.append(f"#{ps['jersey_number']} {ps['name']}")
     
-    # Save raw gamesheet stats in match document for reference (even if no players matched)
-    if result_data.get('player_stats'):
+    # Save raw gamesheet stats in match document for reference
+    # (even if no players matched)
+    if result_data.get("player_stats"):
+        now_iso = datetime.now(
+            timezone.utc
+        ).isoformat()
+    
         await db.championship_matches.update_one(
             {"id": data.match_id},
-            {"$set": {
-                "gamesheet_player_stats": result_data['player_stats'],
-                "gamesheet_raw_data": {
-                    "home_score": result_data.get('home_score', 0),
-                    "away_score": result_data.get('away_score', 0),
-                    "venue": result_data.get('venue'),
-                    "referee": result_data.get('referee'),
-                    "total_players": len(result_data['player_stats']),
-                    "imported_at": datetime.now(timezone.utc).isoformat()
+            {
+                "$set": {
+                    "gamesheet_player_stats": (
+                        result_data["player_stats"]
+                    ),
+    
+                    "gamesheet_raw_data": {
+                        "home_score": result_data.get(
+                            "home_score",
+                            0
+                        ),
+                        "away_score": result_data.get(
+                            "away_score",
+                            0
+                        ),
+                        "venue": result_data.get(
+                            "venue"
+                        ),
+                        "referee": result_data.get(
+                            "referee"
+                        ),
+                        "total_players": len(
+                            result_data["player_stats"]
+                        ),
+                        "imported_at": now_iso,
+                    },
+    
+                    "official_match_url": data.url,
+                    "gamesheet_url": data.url,
+                    "source_url": data.url,
+    
+                    "source": infer_match_source(
+                        data.url
+                    ),
+    
+                    "sync_status": "synced",
+                    "last_synced_at": now_iso,
+                    "last_sync_error": None,
+    
+                    "is_verified": True,
+                    "verified_at": now_iso,
+                    "verified_by": current_user["id"],
                 }
-            }}
+            }
         )
     
     response = {
         "message": "Ficha de jogo importada com sucesso",
-        "result": f"{result_data.get('home_score', 0)} - {result_data.get('away_score', 0)}",
-        "players_found": len(result_data.get('player_stats', [])),
-        "stats_updated": stats_updated
+        "result": (
+            f"{result_data.get('home_score', 0)} - "
+            f"{result_data.get('away_score', 0)}"
+        ),
+        "players_found": len(
+            result_data.get("player_stats", [])
+        ),
+        "stats_updated": stats_updated,
     }
-    
+
     if unmatched_players:
         response["unmatched_players"] = unmatched_players
         response["message"] += f" ({len(unmatched_players)} jogadores com estatísticas não encontrados na equipa)"
