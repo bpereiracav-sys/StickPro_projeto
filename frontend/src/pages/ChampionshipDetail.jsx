@@ -392,7 +392,12 @@ export default function ChampionshipDetail() {
         'matchData =',
         matchData
       );
-  
+      
+      await championshipsApi.createMatch(
+        championshipId,
+        matchData
+      );
+      
       toast.success(
         t('championships.matchCreated')
       );
