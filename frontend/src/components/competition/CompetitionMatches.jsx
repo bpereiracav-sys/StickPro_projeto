@@ -437,17 +437,33 @@ export default function CompetitionMatches({
                                 {match.is_club_match !== false && (
                                   <Button
                                     variant="default"
-                                    size="sm"
-                                    className="h-8 gap-2 px-3 text-xs sm:text-sm"
-                                    asChild
-                                    data-testid={`match-center-${match.id}`}
+                                    size="icon"
+                                    onClick={() => {
+                                      // ação do Centro do Jogo
+                                    }}
+                                    title="Centro do Jogo"
                                   >
-                                    <Link
-                                      to={`/championships/${championshipId}/matches/${match.id}/stats`}
-                                    >
-                                      <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                      <span>Centro do Jogo</span>
-                                    </Link>
+                                    <LayoutGrid className="h-4 w-4" />
+                                  </Button>
+                                )}
+                                
+                                {canImportGamesheet && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    onClick={() =>
+                                      onImportGamesheet(match)
+                                    }
+                                    title={
+                                      match.gamesheet_url ||
+                                      match.official_match_url
+                                        ? 'Consultar ficha oficial'
+                                        : 'Adicionar ficha oficial'
+                                    }
+                                    data-testid={`import-gamesheet-${match.id}`}
+                                  >
+                                    <FileSpreadsheet className="h-4 w-4" />
                                   </Button>
                                 )}
                                 
