@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Archive,
   Calendar,
@@ -194,33 +194,6 @@ function ActionButton({
   );
 }
 
-function MatchCenterButton({
-  championshipId,
-  matchId,
-}) {
-  const label = 'Abrir Centro do Jogo';
-
-  return (
-    <Button
-      variant="default"
-      size="icon"
-      className="h-9 w-9 shrink-0 rounded-xl bg-primary text-primary-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary/40"
-      asChild
-      data-testid={`match-center-${matchId}`}
-      title={label}
-      aria-label={label}
-    >
-      <Link
-        to={`/championships/${championshipId}/matches/${matchId}/stats`}
-        aria-label={label}
-      >
-        <LayoutGrid className="h-4 w-4" />
-        <span className="sr-only">{label}</span>
-      </Link>
-    </Button>
-  );
-}
-
 export default function CompetitionMatches({
   championshipId,
   championship,
@@ -239,7 +212,8 @@ export default function CompetitionMatches({
   onImportGamesheet,
   onDeleteMatch,
 }) {
-
+  const navigate = useNavigate();
+  
   const getMatchSyncStatus = (match) => {
     if (match?.sync_status) {
       return match.sync_status;
@@ -460,17 +434,26 @@ export default function CompetitionMatches({
 
                                 {match.is_club_match !== false && (
                                   <Button
+                                    type="button"
                                     variant="default"
                                     size="icon"
-                                    onClick={() => {
-                                      // ação do Centro do Jogo
-                                    }}
-                                    title="Centro do Jogo"
+                                    className="h-9 w-9 shrink-0 rounded-xl bg-primary text-primary-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:ring-2 focus-visible:ring-primary/40"
+                                    onClick={() =>
+                                      navigate(
+                                        `/championships/${championshipId}/matches/${match.id}/stats`
+                                      )
+                                    }
+                                    data-testid={`match-center-${match.id}`}
+                                    title="Abrir Centro do Jogo"
+                                    aria-label="Abrir Centro do Jogo"
                                   >
                                     <LayoutGrid className="h-4 w-4" />
-                                  </Button>
-                                )}
                                 
+                                    <span className="sr-only">
+                                      Abrir Centro do Jogo
+                                    </span>
+                                  </Button>
+                                )}                                
                                 {canImportGamesheet && (
                                   <Button
                                     type="button"
