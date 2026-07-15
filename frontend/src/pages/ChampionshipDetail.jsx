@@ -367,9 +367,8 @@ export default function ChampionshipDetail() {
         match_date: new Date(
           matchForm.match_date
         ).toISOString(),
-        match_time: matchForm.match_time,
         location,
-        venue: matchForm.venue,
+        venue: matchForm.venue || null,
         is_club_match: isClubMatch,
         club_side: clubSide,
         home_team: homeTeam,
@@ -385,6 +384,10 @@ export default function ChampionshipDetail() {
           matchForm.matchday || 1
         ),
       };
+      
+      if (matchForm.match_time) {
+        matchData.match_time = matchForm.match_time;
+      }
   
       await championshipsApi.createMatch(
         championshipId,
@@ -412,48 +415,49 @@ export default function ChampionshipDetail() {
         matchday: 1,
       });
   
-      await fetchData();
-    } catch (error) {
-      console.error(
-        'Erro ao criar jogo:',
-        error?.response?.data || error
-      );
-    
-      const detail = error?.response?.data?.detail;
-    
-      let message = 'Erro ao adicionar jogo';
-    
-      if (typeof detail === 'string') {
-        message = detail;
-      } else if (Array.isArray(detail)) {
-        message = detail
-          .map((item) => {
-            const field = Array.isArray(item?.loc)
-              ? item.loc[item.loc.length - 1]
-              : null;
-    
-            const text =
-              item?.msg ||
-              item?.message ||
-              'Valor inválido';
-    
-            return field
-              ? `${field}: ${text}`
-              : text;
-          })
-          .join(' • ');
-      } else if (detail && typeof detail === 'object') {
-        message =
-          detail.message ||
-          detail.msg ||
-          'Os dados do jogo não são válidos';
-      }
-    
-      toast.error(message);
-    } finally {
-      setCreating(false);
-    }
-  };
+          await fetchData();
+        } catch (error) {
+          console.error(
+            'Erro completo ao criar jogo:',
+            error?.response?.data || error
+          );
+      
+          const detail = error?.response?.data?.detail;
+      
+          let message = 'Erro ao adicionar jogo';
+      
+          if (typeof detail === 'string') {
+            message = detail;
+          } else if (Array.isArray(detail)) {
+            message = detail
+              .map((item) => {
+                const location = Array.isArray(item?.loc)
+                  ? item.loc.join(' → ')
+                  : '';
+      
+                const errorMessage =
+                  typeof item?.msg === 'string'
+                    ? item.msg
+                    : 'Valor inválido';
+      
+                return location
+                  ? `${location}: ${errorMessage}`
+                  : errorMessage;
+              })
+              .join(' | ');
+          } else if (detail && typeof detail === 'object') {
+            message = String(
+              detail.message ||
+              detail.msg ||
+              'Os dados enviados não são válidos'
+            );
+          }
+      
+          toast.error(String(message));
+        } finally {
+          setCreating(false);
+        }
+      };
 
   const handleUpdateResult = async (e) => {
     e.preventDefault();
