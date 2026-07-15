@@ -293,6 +293,11 @@ export default function ChampionshipDetail() {
       matchForm.opponent_team || ''
     ).trim();
   
+    if (!matchForm.match_date) {
+      toast.error('Indique a data e a hora do jogo');
+      return;
+    }
+  
     if (!isClubMatch) {
       if (!externalHomeTeam || !externalAwayTeam) {
         toast.error(
@@ -302,8 +307,8 @@ export default function ChampionshipDetail() {
       }
   
       if (
-        externalHomeTeam.toLowerCase()
-        === externalAwayTeam.toLowerCase()
+        externalHomeTeam.toLowerCase() ===
+        externalAwayTeam.toLowerCase()
       ) {
         toast.error(
           t('championships.sameTeamError')
@@ -318,7 +323,7 @@ export default function ChampionshipDetail() {
       let clubSide = 'neutral';
       let homeTeam = '';
       let awayTeam = '';
-      let opponentTeam = null;
+      let opponentTeam = '';
       let location = matchForm.location;
   
       if (isClubMatch) {
@@ -328,9 +333,26 @@ export default function ChampionshipDetail() {
   
         opponentTeam = externalAwayTeam;
   
+        if (!clubTeamName) {
+          toast.error(
+            'Não foi possível identificar a equipa do clube'
+          );
+          return;
+        }
+  
         if (!opponentTeam) {
           toast.error(
             'Indique a equipa adversária'
+          );
+          return;
+        }
+  
+        if (
+          opponentTeam.toLowerCase() ===
+          clubTeamName.toLowerCase()
+        ) {
+          toast.error(
+            'A equipa adversária não pode ser igual à equipa do clube'
           );
           return;
         }
@@ -339,61 +361,76 @@ export default function ChampionshipDetail() {
           clubSide = 'away';
           homeTeam = opponentTeam;
           awayTeam = clubTeamName;
+          location = 'fora';
         } else if (
           matchForm.location === 'neutro'
         ) {
           clubSide = 'neutral';
           homeTeam = clubTeamName;
           awayTeam = opponentTeam;
+          location = 'neutro';
         } else {
           clubSide = 'home';
           homeTeam = clubTeamName;
           awayTeam = opponentTeam;
           location = 'casa';
         }
-        } else {
-          clubSide = 'neutral';
-          location = 'neutro';
-          homeTeam = externalHomeTeam;
-          awayTeam = externalAwayTeam;
-        
-          // Para jogos entre equipas externas,
-          // o backend exige opponent_team como string.
-          opponentTeam = externalAwayTeam;
-        }
+      } else {
+        clubSide = 'neutral';
+        location = 'neutro';
+        homeTeam = externalHomeTeam;
+        awayTeam = externalAwayTeam;
+  
+        // Compatibilidade com o modelo atual do backend.
+        opponentTeam = externalAwayTeam;
+      }
   
       const matchData = {
         championship_id: championshipId,
+  
         match_date: new Date(
           matchForm.match_date
         ).toISOString(),
+  
         location,
-        venue: matchForm.venue || null,
+        venue: (
+          matchForm.venue || ''
+        ).trim() || null,
+  
         is_club_match: isClubMatch,
         club_side: clubSide,
+  
         home_team: homeTeam,
         away_team: awayTeam,
         opponent_team: opponentTeam,
+  
+        official_match_url: (
+          matchForm.official_match_url || ''
+        ).trim() || null,
+  
         bonus_points: Number(
           matchForm.bonus_points || 0
         ),
+  
         penalty_points: Number(
           matchForm.penalty_points || 0
         ),
+  
         matchday: Number(
           matchForm.matchday || 1
         ),
       };
-      
+  
       if (matchForm.match_time) {
-        matchData.match_time = matchForm.match_time;
+        matchData.match_time =
+          matchForm.match_time;
       }
   
       await championshipsApi.createMatch(
         championshipId,
         matchData
       );
-      
+  
       toast.success(
         t('championships.matchCreated')
       );
@@ -403,61 +440,70 @@ export default function ChampionshipDetail() {
       setMatchForm({
         home_team_id: '',
         home_team: '',
+        away_team: '',
         opponent_team_id: '',
         opponent_team: '',
         match_date: '',
         match_time: '',
         location: 'casa',
         venue: '',
+        official_match_url: '',
         is_club_match: true,
+        club_side: 'home',
         bonus_points: 0,
         penalty_points: 0,
         matchday: 1,
       });
   
-          await fetchData();
-        } catch (error) {
-          console.error(
-            'Erro completo ao criar jogo:',
-            error?.response?.data || error
-          );
-      
-          const detail = error?.response?.data?.detail;
-      
-          let message = 'Erro ao adicionar jogo';
-      
-          if (typeof detail === 'string') {
-            message = detail;
-          } else if (Array.isArray(detail)) {
-            message = detail
-              .map((item) => {
-                const location = Array.isArray(item?.loc)
-                  ? item.loc.join(' → ')
-                  : '';
-      
-                const errorMessage =
-                  typeof item?.msg === 'string'
-                    ? item.msg
-                    : 'Valor inválido';
-      
-                return location
-                  ? `${location}: ${errorMessage}`
-                  : errorMessage;
-              })
-              .join(' | ');
-          } else if (detail && typeof detail === 'object') {
-            message = String(
-              detail.message ||
-              detail.msg ||
-              'Os dados enviados não são válidos'
-            );
-          }
-      
-          toast.error(String(message));
-        } finally {
-          setCreating(false);
-        }
-      };
+      await fetchData();
+    } catch (error) {
+      console.error(
+        'Erro completo ao criar jogo:',
+        error?.response?.data || error
+      );
+  
+      const detail =
+        error?.response?.data?.detail;
+  
+      let message =
+        'Erro ao adicionar jogo';
+  
+      if (typeof detail === 'string') {
+        message = detail;
+      } else if (Array.isArray(detail)) {
+        message = detail
+          .map((item) => {
+            const locationPath =
+              Array.isArray(item?.loc)
+                ? item.loc.join(' → ')
+                : '';
+  
+            const errorMessage =
+              typeof item?.msg === 'string'
+                ? item.msg
+                : 'Valor inválido';
+  
+            return locationPath
+              ? `${locationPath}: ${errorMessage}`
+              : errorMessage;
+          })
+          .join(' | ');
+      } else if (
+        detail &&
+        typeof detail === 'object'
+      ) {
+        message = String(
+          detail.message ||
+          detail.msg ||
+          'Os dados enviados não são válidos'
+        );
+      }
+  
+      toast.error(String(message));
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const handleUpdateResult = async (e) => {
     e.preventDefault();
@@ -1201,8 +1247,18 @@ export default function ChampionshipDetail() {
                 <div className="space-y-2">
                   <Label>Local</Label>
                   <Select
-                    value={matchForm.location}
-                    onValueChange={(v) => setMatchForm({ ...matchForm, location: v })}
+                    value={
+                      matchForm.is_club_match
+                        ? matchForm.location
+                        : 'neutro'
+                    }
+                    disabled={!matchForm.is_club_match}
+                    onValueChange={(value) =>
+                      setMatchForm((current) => ({
+                        ...current,
+                        location: value,
+                      }))
+                    }
                   >
                     <SelectTrigger data-testid="match-location-select">
                       <SelectValue />
@@ -1226,6 +1282,34 @@ export default function ChampionshipDetail() {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="create-official-match-url">
+                  Link da ficha eletrónica oficial
+                </Label>
+              
+                <Input
+                  id="create-official-match-url"
+                  type="url"
+                  placeholder="https://..."
+                  value={
+                    matchForm.official_match_url || ''
+                  }
+                  onChange={(event) =>
+                    setMatchForm((current) => ({
+                      ...current,
+                      official_match_url:
+                        event.target.value,
+                    }))
+                  }
+                  data-testid="match-official-url-input"
+                />
+              
+                <p className="text-xs leading-5 text-muted-foreground">
+                  Pode ser preenchido agora ou mais tarde.
+                  Será utilizado para importar o resultado oficial.
+                </p>
+              </div>
+              
               {/* Penalizações/Bonificações */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
@@ -1268,14 +1352,19 @@ export default function ChampionshipDetail() {
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">Resultado do Jogo</DialogTitle>
             <DialogDescription>
-              {selectedMatch && `${team?.name} vs ${selectedMatch.opponent_team}`}
+              {selectedMatch &&
+                `${selectedMatch.home_team || 'Casa'} vs ${
+                  selectedMatch.away_team || 'Visitante'
+                }`}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleUpdateResult}>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>{selectedMatch?.location === 'casa' ? team?.name : selectedMatch?.opponent_team}</Label>
+                  <Label>
+                    {selectedMatch?.home_team || 'Equipa da Casa'}
+                  </Label>
                   <Input
                     type="number"
                     min="0"
@@ -1285,7 +1374,9 @@ export default function ChampionshipDetail() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>{selectedMatch?.location === 'casa' ? selectedMatch?.opponent_team : team?.name}</Label>
+                  <Label>
+                    {selectedMatch?.away_team || 'Equipa Visitante'}
+                  </Label>
                   <Input
                     type="number"
                     min="0"
@@ -1333,23 +1424,40 @@ export default function ChampionshipDetail() {
       {/* Edit Match Dialog */}
       <Dialog
         open={editMatchDialogOpen}
-        onOpenChange={setEditMatchDialogOpen}
+        onOpenChange={(open) => {
+          setEditMatchDialogOpen(open);
+      
+          if (!open) {
+            setSelectedMatch(null);
+          }
+        }}
       >
-        <DialogContent className="bg-white">
+        <DialogContent className="max-h-[90vh] overflow-y-auto bg-white sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">
               Editar Jogo
             </DialogTitle>
       
             <DialogDescription>
-              Alterar detalhes do jogo
+              Atualizar equipas, data, recinto e ficha oficial
             </DialogDescription>
           </DialogHeader>
       
           <form onSubmit={handleUpdateMatch}>
-            <div className="space-y-4 py-4">
+            <div className="space-y-5 py-4">
               {selectedMatch?.is_club_match === false ? (
                 <div className="space-y-4">
+                  <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-3">
+                    <p className="text-sm font-medium text-cyan-900">
+                      Jogo entre equipas externas
+                    </p>
+      
+                    <p className="mt-1 text-xs leading-5 text-cyan-700">
+                      Pode corrigir a ordem Casa/Visitante sem associar
+                      nenhuma das equipas ao clube.
+                    </p>
+                  </div>
+      
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div className="space-y-2">
                       <Label htmlFor="edit-home-team">
@@ -1358,15 +1466,19 @@ export default function ChampionshipDetail() {
       
                       <Input
                         id="edit-home-team"
-                        value={matchForm.home_team || ''}
+                        value={
+                          matchForm.home_team || ''
+                        }
                         onChange={(event) =>
                           setMatchForm((current) => ({
                             ...current,
-                            home_team: event.target.value,
+                            home_team:
+                              event.target.value,
                           }))
                         }
                         placeholder="Equipa da casa"
                         required
+                        data-testid="edit-match-home-team-input"
                       />
                     </div>
       
@@ -1385,12 +1497,15 @@ export default function ChampionshipDetail() {
                         onChange={(event) =>
                           setMatchForm((current) => ({
                             ...current,
-                            away_team: event.target.value,
-                            opponent_team: event.target.value,
+                            away_team:
+                              event.target.value,
+                            opponent_team:
+                              event.target.value,
                           }))
                         }
                         placeholder="Equipa visitante"
                         required
+                        data-testid="edit-match-away-team-input"
                       />
                     </div>
                   </div>
@@ -1400,14 +1515,10 @@ export default function ChampionshipDetail() {
                     variant="outline"
                     className="w-full"
                     onClick={handleSwapExternalTeams}
+                    data-testid="swap-external-teams-btn"
                   >
                     ⇄ Trocar equipa da casa e visitante
                   </Button>
-      
-                  <p className="text-xs leading-5 text-muted-foreground">
-                    Esta alteração atualiza também o título do jogo
-                    no calendário.
-                  </p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -1417,11 +1528,14 @@ export default function ChampionshipDetail() {
       
                   <Input
                     id="edit-opponent-team"
-                    value={matchForm.opponent_team || ''}
+                    value={
+                      matchForm.opponent_team || ''
+                    }
                     onChange={(event) =>
                       setMatchForm((current) => ({
                         ...current,
-                        opponent_team: event.target.value,
+                        opponent_team:
+                          event.target.value,
                       }))
                     }
                     placeholder="Equipa adversária"
@@ -1432,15 +1546,21 @@ export default function ChampionshipDetail() {
               )}
       
               <div className="space-y-2">
-                <Label>Data e Hora</Label>
+                <Label htmlFor="edit-match-date">
+                  Data e Hora
+                </Label>
       
                 <Input
+                  id="edit-match-date"
                   type="datetime-local"
-                  value={matchForm.match_date}
+                  value={
+                    matchForm.match_date || ''
+                  }
                   onChange={(event) =>
                     setMatchForm((current) => ({
                       ...current,
-                      match_date: event.target.value,
+                      match_date:
+                        event.target.value,
                     }))
                   }
                   required
@@ -1448,44 +1568,71 @@ export default function ChampionshipDetail() {
                 />
               </div>
       
+              {selectedMatch?.is_club_match !== false && (
+                <div className="space-y-2">
+                  <Label>Local</Label>
+      
+                  <Select
+                    value={
+                      matchForm.location || 'casa'
+                    }
+                    onValueChange={(value) =>
+                      setMatchForm((current) => ({
+                        ...current,
+                        location: value,
+                        club_side:
+                          value === 'fora'
+                            ? 'away'
+                            : value === 'neutro'
+                              ? 'neutral'
+                              : 'home',
+                      }))
+                    }
+                  >
+                    <SelectTrigger data-testid="edit-match-location-select">
+                      <SelectValue />
+                    </SelectTrigger>
+      
+                    <SelectContent className="bg-white">
+                      <SelectItem value="casa">
+                        Casa
+                      </SelectItem>
+      
+                      <SelectItem value="fora">
+                        Fora
+                      </SelectItem>
+      
+                      <SelectItem value="neutro">
+                        Campo Neutro
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+      
+              {selectedMatch?.is_club_match === false && (
+                <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+                  <p className="text-sm text-slate-600">
+                    Este jogo permanece identificado como
+                    <strong className="ml-1 text-slate-900">
+                      campo neutro
+                    </strong>
+                    , por não envolver a equipa do clube.
+                  </p>
+                </div>
+              )}
+      
               <div className="space-y-2">
-                <Label>Local</Label>
-      
-                <Select
-                  value={matchForm.location}
-                  onValueChange={(value) =>
-                    setMatchForm((current) => ({
-                      ...current,
-                      location: value,
-                    }))
-                  }
-                >
-                  <SelectTrigger data-testid="edit-match-location-select">
-                    <SelectValue />
-                  </SelectTrigger>
-      
-                  <SelectContent className="bg-white">
-                    <SelectItem value="casa">
-                      Casa
-                    </SelectItem>
-      
-                    <SelectItem value="fora">
-                      Fora
-                    </SelectItem>
-      
-                    <SelectItem value="neutro">
-                      Campo Neutro
-                    </SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-      
-              <div className="space-y-2">
-                <Label>Pavilhão/Recinto (opcional)</Label>
+                <Label htmlFor="edit-match-venue">
+                  Pavilhão/Recinto
+                </Label>
       
                 <Input
-                  placeholder="Ex: Pavilhão Municipal"
-                  value={matchForm.venue || ''}
+                  id="edit-match-venue"
+                  placeholder="Ex.: Pavilhão Municipal"
+                  value={
+                    matchForm.venue || ''
+                  }
                   onChange={(event) =>
                     setMatchForm((current) => ({
                       ...current,
@@ -1504,20 +1651,101 @@ export default function ChampionshipDetail() {
                 <Input
                   id="edit-official-match-url"
                   type="url"
-                  value={matchForm.official_match_url || ''}
+                  value={
+                    matchForm.official_match_url || ''
+                  }
                   onChange={(event) =>
                     setMatchForm((current) => ({
                       ...current,
-                      official_match_url: event.target.value,
+                      official_match_url:
+                        event.target.value,
                     }))
                   }
                   placeholder="https://..."
+                  data-testid="edit-match-official-url-input"
                 />
       
                 <p className="text-xs leading-5 text-muted-foreground">
                   O link será utilizado para consultar e importar
                   o resultado oficial do jogo.
                 </p>
+              </div>
+      
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-matchday">
+                    Jornada
+                  </Label>
+      
+                  <Input
+                    id="edit-matchday"
+                    type="number"
+                    min="1"
+                    value={
+                      matchForm.matchday || 1
+                    }
+                    onChange={(event) =>
+                      setMatchForm((current) => ({
+                        ...current,
+                        matchday:
+                          parseInt(
+                            event.target.value,
+                            10
+                          ) || 1,
+                      }))
+                    }
+                  />
+                </div>
+      
+                <div className="space-y-2">
+                  <Label htmlFor="edit-bonus-points">
+                    Bonificação
+                  </Label>
+      
+                  <Input
+                    id="edit-bonus-points"
+                    type="number"
+                    min="0"
+                    value={
+                      matchForm.bonus_points || 0
+                    }
+                    onChange={(event) =>
+                      setMatchForm((current) => ({
+                        ...current,
+                        bonus_points:
+                          parseInt(
+                            event.target.value,
+                            10
+                          ) || 0,
+                      }))
+                    }
+                  />
+                </div>
+      
+                <div className="space-y-2">
+                  <Label htmlFor="edit-penalty-points">
+                    Penalização
+                  </Label>
+      
+                  <Input
+                    id="edit-penalty-points"
+                    type="number"
+                    min="0"
+                    value={
+                      matchForm.penalty_points || 0
+                    }
+                    onChange={(event) =>
+                      setMatchForm((current) => ({
+                        ...current,
+                        penalty_points:
+                          parseInt(
+                            event.target.value,
+                            10
+                          ) || 0,
+                      }))
+                    }
+                  />
+                </div>
               </div>
             </div>
       
@@ -1538,9 +1766,12 @@ export default function ChampionshipDetail() {
                 data-testid="submit-edit-match-btn"
               >
                 {creating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    A guardar
+                  </>
                 ) : (
-                  'Guardar'
+                  'Guardar alterações'
                 )}
               </Button>
             </DialogFooter>
