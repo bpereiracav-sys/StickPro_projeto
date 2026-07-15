@@ -24,6 +24,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent } from '../ui/card';
 import { formatDate, formatTime } from '../../lib/utils';
+import MatchSyncBadge from './MatchSyncBadge';
 
 function getLocationIcon(location) {
   if (location === 'casa') {
@@ -238,6 +239,24 @@ export default function CompetitionMatches({
   onImportGamesheet,
   onDeleteMatch,
 }) {
+
+  const getMatchSyncStatus = (match) => {
+    if (match?.sync_status) {
+      return match.sync_status;
+    }
+  
+    if (
+      match?.official_match_url ||
+      match?.gamesheet_url
+    ) {
+      return match?.is_verified
+        ? 'synced'
+        : 'pending';
+    }
+  
+    return 'manual';
+  };  
+  
   return (
     <TabsContent value="matches" className="space-y-5">
       {matches.length > 0 ? (
@@ -410,6 +429,11 @@ export default function CompetitionMatches({
                                   Por disputar
                                 </Badge>
                               )}
+                              <MatchSyncBadge
+                                status={getMatchSyncStatus(match)}
+                                source={match.source || 'manual'}
+                              />
+
                             </div>
 
                             {canEditGames && (
