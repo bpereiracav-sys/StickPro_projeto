@@ -435,23 +435,40 @@ export default function CompetitionMatches({
                                 )}
 
                                 {match.is_club_match !== false && (
-                                  <>
-                                    <MatchCenterButton
-                                      championshipId={championshipId}
-                                      matchId={match.id}
-                                    />
-
-                                    {canImportGamesheet && (
-                                      <ActionButton
-                                        label="Importar ficha oficial"
-                                        icon={FileSpreadsheet}
-                                        onClick={() =>
-                                          onImportGamesheet(match)
-                                        }
-                                        testId={`import-gamesheet-${match.id}`}
-                                      />
-                                    )}
-                                  </>
+                                  <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="h-8 gap-2 px-3 text-xs sm:text-sm"
+                                    asChild
+                                    data-testid={`match-center-${match.id}`}
+                                  >
+                                    <Link
+                                      to={`/championships/${championshipId}/matches/${match.id}/stats`}
+                                    >
+                                      <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                      <span>Centro do Jogo</span>
+                                    </Link>
+                                  </Button>
+                                )}
+                                
+                                {canImportGamesheet && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 px-2 sm:px-3"
+                                    onClick={() =>
+                                      onImportGamesheet(match)
+                                    }
+                                    data-testid={`import-gamesheet-${match.id}`}
+                                    title={
+                                      match.official_match_url ||
+                                      match.gamesheet_url
+                                        ? 'Consultar ou sincronizar ficha oficial'
+                                        : 'Adicionar ficha oficial'
+                                    }
+                                  >
+                                    <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                  </Button>
                                 )}
 
                                 <Button
