@@ -356,7 +356,10 @@ export default function ChampionshipDetail() {
         location = 'neutro';
         homeTeam = externalHomeTeam;
         awayTeam = externalAwayTeam;
-        opponentTeam = null;
+      
+        // Mantém uma string válida para compatibilidade
+        // com o modelo atual do backend.
+        opponentTeam = externalAwayTeam;
       }
   
       const matchData = {
@@ -383,16 +386,6 @@ export default function ChampionshipDetail() {
         ),
       };
   
-      console.log(
-        'championshipId =',
-        championshipId
-      );
-      
-      console.log(
-        'matchData =',
-        matchData
-      );
-      
       await championshipsApi.createMatch(
         championshipId,
         matchData
@@ -421,10 +414,41 @@ export default function ChampionshipDetail() {
   
       await fetchData();
     } catch (error) {
-      const message =
-        error?.response?.data?.detail
-        || 'Erro ao adicionar jogo';
-  
+      console.error(
+        'Erro ao criar jogo:',
+        error?.response?.data || error
+      );
+    
+      const detail = error?.response?.data?.detail;
+    
+      let message = 'Erro ao adicionar jogo';
+    
+      if (typeof detail === 'string') {
+        message = detail;
+      } else if (Array.isArray(detail)) {
+        message = detail
+          .map((item) => {
+            const field = Array.isArray(item?.loc)
+              ? item.loc[item.loc.length - 1]
+              : null;
+    
+            const text =
+              item?.msg ||
+              item?.message ||
+              'Valor inválido';
+    
+            return field
+              ? `${field}: ${text}`
+              : text;
+          })
+          .join(' • ');
+      } else if (detail && typeof detail === 'object') {
+        message =
+          detail.message ||
+          detail.msg ||
+          'Os dados do jogo não são válidos';
+      }
+    
       toast.error(message);
     } finally {
       setCreating(false);
