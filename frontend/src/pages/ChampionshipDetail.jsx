@@ -351,16 +351,16 @@ export default function ChampionshipDetail() {
           awayTeam = opponentTeam;
           location = 'casa';
         }
-      } else {
-        clubSide = 'neutral';
-        location = 'neutro';
-        homeTeam = externalHomeTeam;
-        awayTeam = externalAwayTeam;
-      
-        // Mantém uma string válida para compatibilidade
-        // com o modelo atual do backend.
-        opponentTeam = externalAwayTeam;
-      }
+        } else {
+          clubSide = 'neutral';
+          location = 'neutro';
+          homeTeam = externalHomeTeam;
+          awayTeam = externalAwayTeam;
+        
+          // Para jogos entre equipas externas,
+          // o backend exige opponent_team como string.
+          opponentTeam = externalAwayTeam;
+        }
   
       const matchData = {
         championship_id: championshipId,
