@@ -466,26 +466,6 @@ export default function CompetitionMatches({
                                     <FileSpreadsheet className="h-4 w-4" />
                                   </Button>
                                 )}
-                                
-                                {canImportGamesheet && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 px-2 sm:px-3"
-                                    onClick={() =>
-                                      onImportGamesheet(match)
-                                    }
-                                    data-testid={`import-gamesheet-${match.id}`}
-                                    title={
-                                      match.official_match_url ||
-                                      match.gamesheet_url
-                                        ? 'Consultar ou sincronizar ficha oficial'
-                                        : 'Adicionar ficha oficial'
-                                    }
-                                  >
-                                    <FileSpreadsheet className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                  </Button>
-                                )}
 
                                 <Button
                                   type="button"
