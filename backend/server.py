@@ -6633,7 +6633,11 @@ async def create_championship_match(
 
         club_side = "neutral"
         location = "neutro"
-        opponent_team = None
+        
+        # O modelo ChampionshipMatch exige opponent_team como string.
+        # Num jogo entre equipas externas, usa-se a equipa visitante
+        # como referência técnica.
+        opponent_team = away_team
 
     match = ChampionshipMatch(
         championship_id=championship_id,
