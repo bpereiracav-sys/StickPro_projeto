@@ -7053,12 +7053,34 @@ async def update_match(
     update_data = updates.model_dump(
         exclude_unset=True
     )
-
+    
+    if "official_match_url" in update_data:
+        official_url = (
+            update_data.get("official_match_url")
+            or ""
+        ).strip()
+    
+        update_data["official_match_url"] = (
+            official_url or None
+        )
+    
+        # Compatibilidade com o importador atual
+        # da ficha eletrónica.
+        update_data["gamesheet_url"] = (
+            official_url or None
+        )
+    
+        update_data["sync_status"] = (
+            "pending"
+            if official_url
+            else "manual"
+        )
+    
     if "match_date" in update_data:
         update_data["match_date"] = (
             update_data["match_date"].isoformat()
         )
-
+        
     # A localização determina o lado, salvo quando
     # club_side é enviado explicitamente.
     if (
@@ -7220,9 +7242,18 @@ async def update_match(
 
         update_data["home_team"] = home_team
         update_data["away_team"] = away_team
+        
+        # Compatibilidade com o modelo ChampionshipMatch,
+        # que exige opponent_team como string.
+        update_data["opponent_team"] = away_team
+        
+        # Mantém o objeto merged_match coerente durante
+        # o restante processamento desta função.
+        merged_match["opponent_team"] = away_team
+        
+        update_data["is_club_match"] = False
         update_data["club_side"] = "neutral"
         update_data["location"] = "neutro"
-        update_data["opponent_team"] = None
 
     now_iso = datetime.now(
         timezone.utc
