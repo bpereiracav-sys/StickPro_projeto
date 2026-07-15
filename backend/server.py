@@ -6961,7 +6961,36 @@ def normalize_team_name(value: Optional[str]) -> str:
         " ",
         (value or "").strip()
     ).casefold()
+    
+def infer_match_source(
+    official_url: Optional[str]
+) -> str:
+    """
+    Identifica a origem provável da ficha oficial.
 
+    Esta identificação não faz ainda qualquer pedido externo.
+    Apenas analisa o domínio do URL.
+    """
+    normalized_url = (
+        official_url or ""
+    ).strip().lower()
+
+    if not normalized_url:
+        return "manual"
+
+    if (
+        "fpp.pt" in normalized_url
+        or "hoqueipatins.pt" in normalized_url
+    ):
+        return "fpp"
+
+    if (
+        "aplisboa" in normalized_url
+        or "aplisboa.pt" in normalized_url
+    ):
+        return "apl"
+
+    return "official"
 
 async def get_championship_club_team_name(
     championship: dict
