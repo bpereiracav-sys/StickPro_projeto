@@ -6669,6 +6669,24 @@ async def create_championship_match(
     )
     match_dict["archived"] = False
 
+    official_url = (
+        data.official_match_url or ""
+    ).strip()
+    
+    match_dict["official_match_url"] = (
+        official_url or None
+    )
+    
+    match_dict["gamesheet_url"] = (
+        official_url or None
+    )
+    
+    match_dict["sync_status"] = (
+        "pending"
+        if official_url
+        else "manual"
+    )
+    
     match_dict.update(
         build_match_status_payload(
             "scheduled",
@@ -6916,6 +6934,20 @@ async def update_match_result(
         match_id=match_id,
         stage="finished",
         updated_by=current_user["id"],
+    )
+
+    updated_match = (
+        await db.championship_matches.find_one(
+            {"id": match_id},
+            {"_id": 0}
+        )
+    )
+    
+    await sync_calendar_event_from_match(
+        match_id,
+        championship=championship,
+        match_data=updated_match,
+        current_user_id=current_user["id"]
     )
     
     return {
