@@ -1,6 +1,7 @@
 import {
   Building2,
   CheckCircle2,
+  Clock3,
   ExternalLink,
   MapPin,
   ShieldCheck,
@@ -79,6 +80,61 @@ function getCompetition(item) {
   );
 }
 
+function formatLastSync(value) {
+  if (!value) return null;
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  const now = new Date();
+  const differenceMs =
+    now.getTime() - date.getTime();
+
+  const minutes = Math.max(
+    0,
+    Math.floor(
+      differenceMs / 60000
+    )
+  );
+
+  if (minutes < 1) {
+    return 'Sincronizado agora';
+  }
+
+  if (minutes < 60) {
+    return `Sincronizado há ${minutes} min`;
+  }
+
+  const hours = Math.floor(
+    minutes / 60
+  );
+
+  if (hours < 24) {
+    return `Sincronizado há ${hours} h`;
+  }
+
+  const days = Math.floor(
+    hours / 24
+  );
+
+  if (days === 1) {
+    return 'Sincronizado ontem';
+  }
+
+  return `Sincronizado há ${days} dias`;
+}
+
+{lastSyncLabel && (
+  <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+    <Clock3 className="h-3.5 w-3.5" />
+
+    <span>{lastSyncLabel}</span>
+  </div>
+)}
+
 export default function OfficialMatchInfo({
   match,
   compact = false,
@@ -91,6 +147,11 @@ export default function OfficialMatchInfo({
   const referee = getReferee(match);
   const competition = getCompetition(match);
 
+  const lastSyncLabel =
+  formatLastSync(
+    match?.last_synced_at
+  );
+  
   const isOfficial = Boolean(
     officialUrl ||
     match?.is_verified ||
