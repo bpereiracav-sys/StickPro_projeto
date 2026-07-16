@@ -8228,14 +8228,38 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
                 # Track unmatched players (with stats) for feedback
                 if ps['goals'] > 0 or ps['assists'] > 0 or ps['yellow_cards'] > 0 or ps['blue_cards'] > 0 or ps['red_cards'] > 0:
                     unmatched_players.append(f"#{ps['jersey_number']} {ps['name']}")
+
+    now_iso = datetime.now(
+        timezone.utc
+    ).isoformat()
+    
+    await db.championship_matches.update_one(
+        {"id": data.match_id},
+        {
+            "$set": {
+                "official_match_url": data.url,
+                "gamesheet_url": data.url,
+                "source_url": data.url,
+    
+                "source": infer_match_source(
+                    data.url
+                ),
+    
+                "sync_status": "synced",
+    
+                "last_synced_at": now_iso,
+                "last_sync_error": None,
+    
+                "is_verified": True,
+                "verified_at": now_iso,
+                "verified_by": current_user["id"],
+            }
+        }
+    )
     
     # Save raw gamesheet stats in match document for reference
     # (even if no players matched)
     if result_data.get("player_stats"):
-        now_iso = datetime.now(
-            timezone.utc
-        ).isoformat()
-    
         await db.championship_matches.update_one(
             {"id": data.match_id},
             {
@@ -8264,22 +8288,6 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
                         ),
                         "imported_at": now_iso,
                     },
-    
-                    "official_match_url": data.url,
-                    "gamesheet_url": data.url,
-                    "source_url": data.url,
-    
-                    "source": infer_match_source(
-                        data.url
-                    ),
-    
-                    "sync_status": "synced",
-                    "last_synced_at": now_iso,
-                    "last_sync_error": None,
-    
-                    "is_verified": True,
-                    "verified_at": now_iso,
-                    "verified_by": current_user["id"],
                 }
             }
         )
