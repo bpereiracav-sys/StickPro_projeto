@@ -213,6 +213,16 @@ export default function ChampionshipDetail() {
     fetchData();
   }, [championshipId]);
 
+  const [
+    conflictData,
+    setConflictData,
+  ] = useState(null);
+  
+  const [
+    applyingOfficialResult,
+    setApplyingOfficialResult,
+  ] = useState(false);
+  
   const fetchData = async () => {
     try {
       const [champRes, matchesRes, standingsRes] = await Promise.all([
@@ -801,11 +811,23 @@ export default function ChampionshipDetail() {
   
       if (!response.ok) {
         const detail = data?.detail;
-  
+      
+        if (
+          response.status === 409 &&
+          detail &&
+          typeof detail === 'object' &&
+          !Array.isArray(detail)
+        ) {
+          setConflictData(detail);
+
+          // Mantém o mesmo diálogo aberto.
+          return;
+        }
+      
         if (typeof detail === 'string') {
           throw new Error(detail);
         }
-  
+      
         if (Array.isArray(detail)) {
           const message = detail
             .map((item) =>
@@ -814,10 +836,17 @@ export default function ChampionshipDetail() {
                 : 'Valor inválido'
             )
             .join(' | ');
-  
+      
           throw new Error(message);
         }
-  
+      
+        if (detail && typeof detail === 'object') {
+          throw new Error(
+            detail.message ||
+            'Não foi possível sincronizar a ficha oficial'
+          );
+        }
+      
         throw new Error(
           'Não foi possível sincronizar a ficha oficial'
         );
@@ -850,6 +879,77 @@ export default function ChampionshipDetail() {
     }
   };
 
+  const handleApplyOfficialResult = async () => {
+
+      if (!selectedMatch) return;
+  
+      setApplyingOfficialResult(true);
+  
+      try {
+  
+          const response =
+              await fetch(
+                  `${API_URL}/api/championships/matches/import-gamesheet`,
+                  {
+                      method: "POST",
+  
+                      headers: {
+                          "Content-Type":
+                              "application/json",
+  
+                          Authorization:
+                              `Bearer ${token}`,
+                      },
+  
+                      body: JSON.stringify({
+  
+                          url: gamesheetUrl,
+  
+                          match_id:
+                              selectedMatch.id,
+  
+                          confirm_conflict: true,
+  
+                      }),
+                  }
+              );
+  
+          if (!response.ok) {
+  
+              const error =
+                  await response.json();
+  
+              throw new Error(
+                  error.detail ||
+                  "Erro"
+              );
+          }
+  
+          toast.success(
+              "Resultado oficial aplicado."
+          );
+  
+          setConflictData(null);
+          setImportDialogOpen(false);
+          setSelectedMatch(null);
+          setGamesheetUrl('');
+          
+          await fetchData();
+  
+      } catch (err) {
+  
+          toast.error(
+              err.message
+          );
+  
+      } finally {
+  
+          setApplyingOfficialResult(false);
+  
+      }
+  
+  };
+  
   const handleImportAplCalendar = async () => {
     if (!aplCalendarUrl) {
       toast.error('Insira o URL do calendário APL');
@@ -1834,107 +1934,259 @@ export default function ChampionshipDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Import Gamesheet Dialog */}
+      {/* Smart Gamesheet Dialog */}
       <Dialog
         open={importDialogOpen}
         onOpenChange={(open) => {
+          if (
+            importing ||
+            applyingOfficialResult
+          ) {
+            return;
+          }
+      
           setImportDialogOpen(open);
       
-          if (!open && !importing) {
+          if (!open) {
+            setConflictData(null);
             setSelectedMatch(null);
             setGamesheetUrl('');
           }
         }}
       >
-        <DialogContent className="bg-white sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto bg-white sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="font-heading text-xl tracking-tight">
-              Ficha eletrónica oficial
+              {conflictData
+                ? 'Alteração oficial detetada'
+                : 'Ficha eletrónica oficial'}
             </DialogTitle>
       
             <DialogDescription>
-              {selectedMatch
-                ? `${selectedMatch.home_team || 'Casa'} vs ${
-                    selectedMatch.away_team || 'Visitante'
-                  }`
-                : 'Adicionar ou atualizar a ficha oficial do jogo'}
+              {conflictData
+                ? 'O resultado oficial é diferente do resultado atualmente registado.'
+                : selectedMatch
+                  ? `${selectedMatch.home_team || 'Casa'} vs ${
+                      selectedMatch.away_team || 'Visitante'
+                    }`
+                  : 'Adicionar ou atualizar a ficha oficial do jogo'}
             </DialogDescription>
           </DialogHeader>
       
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="gamesheet-url">
-                Link da ficha oficial
-              </Label>
+          {!conflictData ? (
+            <>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="gamesheet-url">
+                    Link da ficha oficial
+                  </Label>
       
-              <Input
-                id="gamesheet-url"
-                type="url"
-                value={gamesheetUrl}
-                onChange={(event) =>
-                  setGamesheetUrl(event.target.value)
-                }
-                placeholder="https://..."
-                disabled={importing}
-                data-testid="gamesheet-url-input"
-              />
-            </div>
+                  <Input
+                    id="gamesheet-url"
+                    type="url"
+                    value={gamesheetUrl}
+                    onChange={(event) =>
+                      setGamesheetUrl(
+                        event.target.value
+                      )
+                    }
+                    placeholder="https://..."
+                    disabled={importing}
+                    data-testid="gamesheet-url-input"
+                  />
+                </div>
       
-            <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
-              <p className="text-sm font-medium text-cyan-900">
-                Sincronização inteligente
-              </p>
+                <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+                  <p className="text-sm font-medium text-cyan-900">
+                    Sincronização inteligente
+                  </p>
       
-              <p className="mt-1 text-xs leading-5 text-cyan-700">
-                O resultado, a origem oficial e as estatísticas
-                disponíveis serão atualizados sem eliminar os dados
-                já registados manualmente.
-              </p>
-            </div>
-          </div>
+                  <p className="mt-1 text-xs leading-5 text-cyan-700">
+                    Antes de alterar o resultado, a StickPro
+                    compara os dados atuais com a ficha oficial.
+                  </p>
+                </div>
+              </div>
       
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={importing}
-              onClick={() =>
-                setImportDialogOpen(false)
-              }
-            >
-              Cancelar
-            </Button>
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={importing}
+                  onClick={() =>
+                    setImportDialogOpen(false)
+                  }
+                >
+                  Cancelar
+                </Button>
       
-            <Button
-              type="button"
-              disabled={
-                importing ||
-                !gamesheetUrl.trim()
-              }
-              onClick={handleImportGamesheet}
-              data-testid="sync-gamesheet-btn"
-            >
-              {importing ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A sincronizar
-                </>
-              ) : selectedMatch?.sync_status === 'synced' ? (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Atualizar ficha
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Sincronizar ficha
-                </>
-              )}
-            </Button>
-          </DialogFooter>
+                <Button
+                  type="button"
+                  disabled={
+                    importing ||
+                    !gamesheetUrl.trim()
+                  }
+                  onClick={handleImportGamesheet}
+                  data-testid="sync-gamesheet-btn"
+                >
+                  {importing ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      A verificar
+                    </>
+                  ) : selectedMatch?.sync_status ===
+                    'synced' ? (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Atualizar ficha
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw className="mr-2 h-4 w-4" />
+                      Sincronizar ficha
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              <div className="space-y-5 py-4">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-semibold text-amber-900">
+                    Conflito de resultado
+                  </p>
+      
+                  <p className="mt-1 text-xs leading-5 text-amber-800">
+                    O resultado atual não será substituído
+                    sem a sua confirmação.
+                  </p>
+                </div>
+      
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                      Resultado atual
+                    </p>
+      
+                    <p className="mt-3 font-heading text-3xl font-bold text-slate-950">
+                      {conflictData.current?.result ||
+                        `${conflictData.current?.home_score ?? '—'} – ${
+                          conflictData.current?.away_score ?? '—'
+                        }`}
+                    </p>
+      
+                    <p className="mt-2 text-xs text-slate-500">
+                      Registado na StickPro
+                    </p>
+                  </div>
+      
+                  <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+                      Resultado oficial
+                    </p>
+      
+                    <p className="mt-3 font-heading text-3xl font-bold text-emerald-950">
+                      {conflictData.official?.result ||
+                        `${conflictData.official?.home_score ?? '—'} – ${
+                          conflictData.official?.away_score ?? '—'
+                        }`}
+                    </p>
+      
+                    <p className="mt-2 text-xs text-emerald-700">
+                      Fonte:{' '}
+                      {conflictData.source
+                        ? conflictData.source.toUpperCase()
+                        : 'OFICIAL'}
+                    </p>
+                  </div>
+                </div>
+      
+                {(conflictData.official?.venue ||
+                  conflictData.official?.referee) && (
+                  <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Dados da ficha oficial
+                    </p>
+      
+                    <div className="mt-3 space-y-2 text-sm text-slate-600">
+                      {conflictData.official?.venue && (
+                        <p>
+                          <span className="font-medium text-slate-900">
+                            Recinto:
+                          </span>{' '}
+                          {conflictData.official.venue}
+                        </p>
+                      )}
+      
+                      {conflictData.official?.referee && (
+                        <p>
+                          <span className="font-medium text-slate-900">
+                            Árbitro:
+                          </span>{' '}
+                          {conflictData.official.referee}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
+      
+                <p className="text-sm leading-6 text-muted-foreground">
+                  Pode manter o resultado atual ou substituí-lo
+                  pelo resultado oficial da ficha eletrónica.
+                </p>
+              </div>
+      
+              <DialogFooter className="gap-2 sm:gap-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={applyingOfficialResult}
+                  onClick={() =>
+                    setConflictData(null)
+                  }
+                >
+                  Rever link
+                </Button>
+      
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={applyingOfficialResult}
+                  onClick={() => {
+                    setConflictData(null);
+                    setImportDialogOpen(false);
+                    setSelectedMatch(null);
+                    setGamesheetUrl('');
+      
+                    toast.success(
+                      'Resultado atual mantido'
+                    );
+                  }}
+                >
+                  Manter resultado atual
+                </Button>
+      
+                <Button
+                  type="button"
+                  disabled={applyingOfficialResult}
+                  onClick={handleApplyOfficialResult}
+                >
+                  {applyingOfficialResult ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      A aplicar
+                    </>
+                  ) : (
+                    'Aplicar resultado oficial'
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
-
+      
       {/* Import Matches Dialog */}
       <Dialog open={matchImportDialogOpen} onOpenChange={setMatchImportDialogOpen}>
         <DialogContent className="bg-white max-w-lg">
