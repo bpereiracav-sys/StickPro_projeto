@@ -147,11 +147,10 @@ export default function OfficialMatchInfo({
   const referee = getReferee(match);
   const competition = getCompetition(match);
 
-  const lastSyncLabel =
-  formatLastSync(
+  const lastSyncLabel = formatLastSync(
     match?.last_synced_at
   );
-  
+
   const isOfficial = Boolean(
     officialUrl ||
     match?.is_verified ||
