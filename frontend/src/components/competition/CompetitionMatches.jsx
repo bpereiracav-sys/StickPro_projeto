@@ -11,6 +11,7 @@ import {
   MapPin,
   Plane,
   Plus,
+  RefreshCw,
   Target,
 } from 'lucide-react';
 import { TabsContent } from '../ui/tabs';
@@ -205,6 +206,7 @@ export default function CompetitionMatches({
   canEditGames,
   canEditResults,
   canImportGamesheet,
+  importingMatchId,
   deleting,
   onAddMatch,
   onEditMatch,
@@ -230,6 +232,31 @@ export default function CompetitionMatches({
   
     return 'manual';
   };  
+
+  const hasOfficialUrl = (match) =>
+    Boolean(
+      match?.official_match_url ||
+      match?.gamesheet_url ||
+      match?.source_url
+    );
+  
+  const getSmartImportLabel = (match) => {
+    if (importingMatchId === match.id) {
+      return 'A sincronizar';
+    }
+  
+    if (!hasOfficialUrl(match)) {
+      return 'Adicionar ficha';
+    }
+  
+    if (
+      getMatchSyncStatus(match) === 'synced'
+    ) {
+      return 'Atualizar ficha';
+    }
+  
+    return 'Sincronizar ficha';
+  };
   
   return (
     <TabsContent value="matches" className="space-y-5">
@@ -459,18 +486,24 @@ export default function CompetitionMatches({
                                     type="button"
                                     variant="outline"
                                     size="icon"
-                                    onClick={() =>
-                                      onImportGamesheet(match)
-                                    }
-                                    title={
-                                      match.gamesheet_url ||
-                                      match.official_match_url
-                                        ? 'Consultar ficha oficial'
-                                        : 'Adicionar ficha oficial'
-                                    }
+                                    className="h-9 w-9 shrink-0 rounded-xl"
+                                    disabled={importingMatchId === match.id}
+                                    onClick={() => onImportGamesheet(match)}
+                                    title={getSmartImportLabel(match)}
+                                    aria-label={getSmartImportLabel(match)}
                                     data-testid={`import-gamesheet-${match.id}`}
                                   >
-                                    <FileSpreadsheet className="h-4 w-4" />
+                                    {importingMatchId === match.id ? (
+                                      <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : getMatchSyncStatus(match) === "synced" ? (
+                                      <RefreshCw className="h-4 w-4" />
+                                    ) : (
+                                      <FileSpreadsheet className="h-4 w-4" />
+                                    )}
+                                
+                                    <span className="sr-only">
+                                      {getSmartImportLabel(match)}
+                                    </span>
                                   </Button>
                                 )}
 
