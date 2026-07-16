@@ -26,6 +26,7 @@ import { convocationsApi } from '../../services/api';
 
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
+import OfficialMatchInfo from '../competition/OfficialMatchInfo';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -926,13 +927,11 @@ export default function EventCard({
           </div>
         </div>
 
-        {isGame && event.opponent && (
-          <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-3 text-sm text-amber-800">
-            <div className="flex items-center gap-2 font-semibold">
-              <Swords className="h-4 w-4" />
-              {safeTranslate(t, 'calendar.opponent', 'Adversário')}: {event.opponent}
-            </div>
-          </div>
+        {isGame && (
+          <OfficialMatchInfo
+            match={event}
+            compact
+          />
         )}
 
         <div className={`rounded-3xl border p-4 ${operationalState.className}`}>
