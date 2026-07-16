@@ -8440,7 +8440,21 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
             "$set": gamesheet_update
         }
     )
+
+    # Recuperar o jogo já com o resultado oficial aplicado.
+    updated_match = await db.championship_matches.find_one(
+        {"id": data.match_id},
+        {"_id": 0}
+    )
     
+    if updated_match:
+        await sync_calendar_event_from_match(
+            data.match_id,
+            championship=championship,
+            match_data=updated_match,
+            current_user_id=current_user["id"]
+        )    
+        
     response = {
         "message": "Ficha de jogo importada com sucesso",
         "result": (
