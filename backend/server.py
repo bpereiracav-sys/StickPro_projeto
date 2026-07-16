@@ -6851,6 +6851,55 @@ async def sync_calendar_event_from_match(
         "away_score": match_data.get("away_score"),
         "is_completed": bool(match_data.get("is_completed")),
         "match_status": infer_match_status(match_data),
+        "home_score": match_data.get(
+        "home_score"
+            ),
+            "away_score": match_data.get(
+                "away_score"
+            ),
+            "is_completed": match_data.get(
+                "is_completed",
+                False
+            ),
+            "match_status": match_data.get(
+                "match_status"
+            ),
+            "official_match_url": (
+                match_data.get("official_match_url")
+            ),
+            "gamesheet_url": (
+                match_data.get("gamesheet_url")
+            ),
+            "source_url": match_data.get(
+                "source_url"
+            ),
+            "source": match_data.get(
+                "source",
+                "manual"
+            ),
+            "sync_status": match_data.get(
+                "sync_status",
+                "manual"
+            ),
+            "is_verified": match_data.get(
+                "is_verified",
+                False
+            ),
+            "last_synced_at": match_data.get(
+                "last_synced_at"
+            ),
+            "referee": (
+                match_data.get("referee")
+                or (
+                    match_data.get(
+                        "gamesheet_raw_data",
+                        {}
+                    ).get("referee")
+                )
+            ),
+            "gamesheet_raw_data": match_data.get(
+                "gamesheet_raw_data"
+            ),
     }
 
     event = await db.events.find_one(
