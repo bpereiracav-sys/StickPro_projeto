@@ -217,13 +217,35 @@ export default function CompetitionMatches({
   const navigate = useNavigate();
   
   const getMatchSyncStatus = (match) => {
-    if (match?.sync_status) {
-      return match.sync_status;
+    const status = match?.sync_status;
+  
+    if (status) {
+      if (status === 'conflict') {
+        return 'conflict';
+      }
+  
+      if (status === 'manual_override') {
+        return 'manual_override';
+      }
+  
+      if (status === 'imported') {
+        return 'imported';
+      }
+  
+      return status;
+    }
+  
+    if (
+      match?.conflict_data ||
+      match?.conflict_detected_at
+    ) {
+      return 'conflict';
     }
   
     if (
       match?.official_match_url ||
-      match?.gamesheet_url
+      match?.gamesheet_url ||
+      match?.source_url
     ) {
       return match?.is_verified
         ? 'synced'
@@ -231,7 +253,7 @@ export default function CompetitionMatches({
     }
   
     return 'manual';
-  };  
+  };
 
   const hasOfficialUrl = (match) =>
     Boolean(
@@ -433,6 +455,8 @@ export default function CompetitionMatches({
                               <MatchSyncBadge
                                 status={getMatchSyncStatus(match)}
                                 source={match.source || 'manual'}
+                                lastSyncedAt={match.last_synced_at}
+                                lastSyncError={match.last_sync_error}
                               />
 
                             </div>
