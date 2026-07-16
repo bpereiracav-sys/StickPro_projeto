@@ -6939,6 +6939,9 @@ async def update_match_result(
         "match_status_label": MATCH_STATUS_LABELS["finished"],
         "match_status_updated_at": now.isoformat(),
         "match_status_updated_by": current_user["id"],
+        "result_source": "manual",
+        "result_updated_at": now.isoformat(),
+        "result_updated_by": current_user["id"],
 
         # Um resultado manual fica validado pelo utilizador que o inseriu.
         "source": match.get("source") or "manual",
@@ -7887,6 +7890,7 @@ async def import_championship_matches(
 class GameSheetImport(BaseModel):
     url: str
     match_id: str
+    confirm_conflict: bool = False
 
 @api_router.post("/championships/matches/import-gamesheet")
 async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(get_current_user)):
@@ -8094,13 +8098,141 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
     match = await db.championship_matches.find_one({"id": data.match_id}, {"_id": 0})
     if not match:
         raise HTTPException(status_code=404, detail="Jogo não encontrado")
+
+    # Sprint 2.3C — deteção de conflito entre
+    # o resultado atual e o resultado oficial.
+    current_home_score = match.get(
+        "home_score"
+    )
+    
+    current_away_score = match.get(
+        "away_score"
+    )
+    
+    official_home_score = result_data.get(
+        "home_score"
+    )
+    
+    official_away_score = result_data.get(
+        "away_score"
+    )
+    
+    has_current_result = (
+        current_home_score is not None
+        and current_away_score is not None
+        and bool(match.get("is_completed"))
+    )
+    
+    has_official_result = (
+        official_home_score is not None
+        and official_away_score is not None
+    )
+    
+    result_conflict = (
+        has_current_result
+        and has_official_result
+        and (
+            int(current_home_score)
+            != int(official_home_score)
+            or int(current_away_score)
+            != int(official_away_score)
+        )
+    )
+    
+    if (
+        result_conflict
+        and not data.confirm_conflict
+    ):
+        conflict_payload = {
+            "type": "gamesheet_result_conflict",
+            "message": (
+                "O resultado oficial é diferente "
+                "do resultado atual"
+            ),
+            "match_id": data.match_id,
+            "source": infer_match_source(
+                data.url
+            ),
+            "url": data.url,
+            "current": {
+                "home_score": current_home_score,
+                "away_score": current_away_score,
+                "result": (
+                    f"{current_home_score} - "
+                    f"{current_away_score}"
+                ),
+                "result_source": (
+                    match.get("result_source")
+                    or "manual"
+                ),
+                "updated_at": match.get(
+                    "updated_at"
+                ),
+                "updated_by": match.get(
+                    "updated_by"
+                ),
+            },
+            "official": {
+                "home_score": official_home_score,
+                "away_score": official_away_score,
+                "result": (
+                    f"{official_home_score} - "
+                    f"{official_away_score}"
+                ),
+                "venue": result_data.get(
+                    "venue"
+                ),
+                "referee": result_data.get(
+                    "referee"
+                ),
+            },
+        }
+    
+        now_iso = datetime.now(
+            timezone.utc
+        ).isoformat()
+    
+        await db.championship_matches.update_one(
+            {"id": data.match_id},
+            {
+                "$set": {
+                    "sync_status": "conflict",
+                    "last_sync_error": (
+                        "Resultado oficial diferente "
+                        "do resultado atual"
+                    ),
+                    "conflict_detected_at": now_iso,
+                    "conflict_data": conflict_payload,
+                }
+            }
+        )
+    
+        raise HTTPException(
+            status_code=409,
+            detail=conflict_payload
+        )
     
     update_fields = {
-        "home_score": result_data.get('home_score', 0),
-        "away_score": result_data.get('away_score', 0),
+        "home_score": result_data.get(
+            "home_score",
+            0
+        ),
+        "away_score": result_data.get(
+            "away_score",
+            0
+        ),
         "is_completed": True,
+    
+        "result_source": "gamesheet",
+        "result_updated_at": datetime.now(
+            timezone.utc
+        ).isoformat(),
+        "result_updated_by": current_user["id"],
+    
         "gamesheet_url": data.url,
-        "gamesheet_imported_at": datetime.now(timezone.utc).isoformat()
+        "gamesheet_imported_at": datetime.now(
+            timezone.utc
+        ).isoformat(),
     }
     
     if result_data.get('venue'):
@@ -8249,6 +8381,9 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
     
                 "last_synced_at": now_iso,
                 "last_sync_error": None,
+
+                "conflict_detected_at": None,
+                "conflict_data": None,
     
                 "is_verified": True,
                 "verified_at": now_iso,
