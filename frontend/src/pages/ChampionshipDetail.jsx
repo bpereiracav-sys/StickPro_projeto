@@ -29,7 +29,7 @@ import {
 
 import { toast } from 'sonner';
 import { 
-  ArrowLeft, Trophy, Plus, Loader2, Calendar, MapPin,
+  ArrowLeft, Trophy, Plus, Loader2, RefreshCw, Calendar, MapPin,
   Edit, Check, Trash2, Users, Zap, FileSpreadsheet, Download, ExternalLink,
   BarChart3, Building, Upload, Palette
 } from 'lucide-react';
