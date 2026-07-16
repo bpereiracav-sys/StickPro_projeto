@@ -8257,40 +8257,54 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
         }
     )
     
-    # Save raw gamesheet stats in match document for reference
-    # (even if no players matched)
-    if result_data.get("player_stats"):
-        await db.championship_matches.update_one(
-            {"id": data.match_id},
-            {
-                "$set": {
-                    "gamesheet_player_stats": (
-                        result_data["player_stats"]
-                    ),
+    # Guardar sempre o snapshot da ficha oficial,
+    # mesmo quando não existem estatísticas de jogadores.
+    gamesheet_update = {
+        "gamesheet_raw_data": {
+            "home_score": result_data.get(
+                "home_score",
+                0
+            ),
+            "away_score": result_data.get(
+                "away_score",
+                0
+            ),
+            "result": (
+                f"{result_data.get('home_score', 0)}-"
+                f"{result_data.get('away_score', 0)}"
+            ),
+            "venue": result_data.get(
+                "venue"
+            ),
+            "referee": result_data.get(
+                "referee"
+            ),
+            "total_players": len(
+                result_data.get(
+                    "player_stats",
+                    []
+                )
+            ),
+            "source": infer_match_source(
+                data.url
+            ),
+            "imported_at": now_iso,
+        }
+    }
     
-                    "gamesheet_raw_data": {
-                        "home_score": result_data.get(
-                            "home_score",
-                            0
-                        ),
-                        "away_score": result_data.get(
-                            "away_score",
-                            0
-                        ),
-                        "venue": result_data.get(
-                            "venue"
-                        ),
-                        "referee": result_data.get(
-                            "referee"
-                        ),
-                        "total_players": len(
-                            result_data["player_stats"]
-                        ),
-                        "imported_at": now_iso,
-                    },
-                }
-            }
-        )
+    # Guardar estatísticas individuais apenas
+    # quando existem na ficha.
+    if result_data.get("player_stats"):
+        gamesheet_update[
+            "gamesheet_player_stats"
+        ] = result_data["player_stats"]
+    
+    await db.championship_matches.update_one(
+        {"id": data.match_id},
+        {
+            "$set": gamesheet_update
+        }
+    )
     
     response = {
         "message": "Ficha de jogo importada com sucesso",
