@@ -90,6 +90,7 @@ function formatLastSync(value) {
   }
 
   const now = new Date();
+
   const differenceMs =
     now.getTime() - date.getTime();
 
@@ -126,14 +127,6 @@ function formatLastSync(value) {
 
   return `Sincronizado há ${days} dias`;
 }
-
-{lastSyncLabel && (
-  <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
-    <Clock3 className="h-3.5 w-3.5" />
-
-    <span>{lastSyncLabel}</span>
-  </div>
-)}
 
 export default function OfficialMatchInfo({
   match,
@@ -212,6 +205,16 @@ export default function OfficialMatchInfo({
         </span>
       </div>
 
+      {lastSyncLabel && (
+        <div className="mt-3 flex items-center gap-2 text-xs text-slate-500">
+          <Clock3 className="h-3.5 w-3.5" />
+
+          <span>
+            {lastSyncLabel}
+          </span>
+        </div>
+      )}
+
       <div
         className={[
           'mt-4 grid gap-3',
@@ -277,4 +280,3 @@ export default function OfficialMatchInfo({
     </div>
   );
 }
-
