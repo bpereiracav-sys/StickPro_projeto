@@ -245,6 +245,24 @@ function getOperationalSummary(event, visibleAttendanceStatus, eventHasConvocati
     return safeTranslate(t, 'calendar.birthday', 'Aniversário');
   }
 
+  const score = getEventScore(event);
+  
+  if (
+    isGameEvent(event) &&
+    score &&
+    (
+      event?.is_completed ||
+      event?.match_status === 'finished'
+    )
+  ) {
+    return `${safeTranslate(
+      t,
+      'calendar.finalResult',
+      'Resultado final'
+    )}: ${score}`;
+  }
+
+  
   if (!eventHasConvocation) {
     return safeTranslate(
       t,
