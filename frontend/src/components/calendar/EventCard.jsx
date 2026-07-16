@@ -110,15 +110,25 @@ function getEventScore(event) {
     event?.home_score ??
     event?.result?.home_score ??
     event?.match_result?.home_score ??
+    event?.gamesheet_raw_data?.home_score ??
     null;
+
   const away =
     event?.away_score ??
     event?.result?.away_score ??
     event?.match_result?.away_score ??
+    event?.gamesheet_raw_data?.away_score ??
     null;
 
-  if (home === null || away === null) return null;
-  return `${home} - ${away}`;
+  if (home !== null && away !== null) {
+    return `${home} - ${away}`;
+  }
+
+  if (event?.gamesheet_raw_data?.result) {
+    return event.gamesheet_raw_data.result.replace("-", " - ");
+  }
+
+  return null;
 }
 
 function getInitialAttendanceStatus(event) {
