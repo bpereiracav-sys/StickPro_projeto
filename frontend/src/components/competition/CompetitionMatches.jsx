@@ -5,6 +5,7 @@ import {
   ClipboardCheck,
   Edit,
   FileSpreadsheet,
+  History,
   Home,
   LayoutGrid,
   Loader2,
@@ -213,6 +214,7 @@ export default function CompetitionMatches({
   onEditResult,
   onImportGamesheet,
   onDeleteMatch,
+  onViewAuditHistory,
 }) {
   const navigate = useNavigate();
   
@@ -531,6 +533,15 @@ export default function CompetitionMatches({
                                   </Button>
                                 )}
 
+                                <ActionButton
+                                  label="Ver histórico de sincronizações"
+                                  icon={History}
+                                  onClick={() =>
+                                    onViewAuditHistory?.(match)
+                                  }
+                                  testId={`audit-history-${match.id}`}
+                                />
+                                
                                 <Button
                                   type="button"
                                   variant="outline"
