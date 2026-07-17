@@ -42,6 +42,7 @@ import { CompetitionStandings } from '../components/competition/CompetitionStand
 import CompetitionStatistics from '../components/competition/CompetitionStatistics';
 import CompetitionImports from '../components/competition/CompetitionImports';
 import CompetitionSettings from '../components/competition/CompetitionSettings';
+import MatchAuditHistoryDialog from '../components/competition/MatchAuditHistoryDialog';
 
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -73,6 +74,10 @@ export default function ChampionshipDetail() {
   const [matchImportResults, setMatchImportResults] = useState(null);
   const [fixingHomeAway, setFixingHomeAway] = useState(false);
   const [importingMatchId, setImportingMatchId] = useState(null);
+  const [auditDialogOpen, setAuditDialogOpen] = useState(false);
+  const [auditLoading, setAuditLoading] = useState(false);
+  const [auditHistory, setAuditHistory] = useState([]);
+  const [auditMatch, setAuditMatch] = useState(null);
   
   // Competition Teams state
   const [competitionTeams, setCompetitionTeams] = useState([]);
@@ -254,6 +259,115 @@ export default function ChampionshipDetail() {
     }
   };
 
+  const normalizeAuditHistory = (data) => {
+    if (Array.isArray(data)) {
+      return data;
+    }
+  
+    if (Array.isArray(data?.items)) {
+      return data.items;
+    }
+  
+    if (Array.isArray(data?.history)) {
+      return data.history;
+    }
+  
+    if (Array.isArray(data?.audit_entries)) {
+      return data.audit_entries;
+    }
+  
+    if (Array.isArray(data?.entries)) {
+      return data.entries;
+    }
+  
+    return [];
+  };
+
+  const loadMatchAuditHistory = async (match) => {
+    if (!match?.id) {
+      return;
+    }
+  
+    setAuditLoading(true);
+  
+    try {
+      const response =
+        await championshipsApi.getMatchAuditHistory(
+          match.id
+        );
+  
+      const normalizedEntries =
+        normalizeAuditHistory(response.data);
+  
+      const sortedEntries =
+        [...normalizedEntries].sort((a, b) => {
+          const dateA = new Date(
+            a.created_at ||
+            a.timestamp ||
+            a.date ||
+            0
+          );
+  
+          const dateB = new Date(
+            b.created_at ||
+            b.timestamp ||
+            b.date ||
+            0
+          );
+  
+          return dateB - dateA;
+        });
+  
+      setAuditHistory(sortedEntries);
+  
+    } catch (error) {
+  
+      console.error(error);
+  
+      setAuditHistory([]);
+  
+      toast.error(
+        error?.response?.data?.detail ||
+        'Não foi possível carregar o histórico.'
+      );
+  
+    } finally {
+  
+      setAuditLoading(false);
+  
+    }
+  };
+
+  const handleViewAuditHistory = async (match) => {
+    setAuditMatch(match);
+    setAuditHistory([]);
+    setAuditDialogOpen(true);
+  
+    await loadMatchAuditHistory(match);
+  };
+      
+      setAuditHistory(sortedEntries);
+    } catch (error) {
+      console.error(
+        'Erro ao carregar histórico de sincronizações:',
+        error
+      );
+  
+      setAuditHistory([]);
+  
+      const detail =
+        error?.response?.data?.detail;
+  
+      toast.error(
+        typeof detail === 'string'
+          ? detail
+          : 'Não foi possível carregar o histórico de sincronizações.'
+      );
+    } finally {
+      setAuditLoading(false);
+    }
+  };  
+  
   const handleFixHomeAway = async () => {
     const confirmed = window.confirm(
       'Pretende corrigir automaticamente a identificação das equipas da casa e visitantes nos jogos já existentes desta competição?'
@@ -1221,6 +1335,7 @@ export default function ChampionshipDetail() {
           onEditResult={openResultDialog}
           onImportGamesheet={openImportDialog}
           onDeleteMatch={handleDeleteMatch}
+          onViewAuditHistory={handleViewAuditHistory}
         />
 
         <CompetitionTeams
@@ -2785,6 +2900,25 @@ export default function ChampionshipDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      <MatchAuditHistoryDialog
+        open={auditDialogOpen}
+        onOpenChange={(open) => {
+          setAuditDialogOpen(open);
+      
+          if (!open) {
+            setAuditMatch(null);
+            setAuditHistory([]);
+          }
+        }}
+        match={auditMatch}
+        entries={auditHistory}
+        loading={auditLoading}
+        onRefresh={() => {
+          if (auditMatch) {
+            loadMatchAuditHistory(auditMatch);
+          }
+        }}
+      />
     </div>
   );
 }
