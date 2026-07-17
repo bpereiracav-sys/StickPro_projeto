@@ -6788,6 +6788,57 @@ async def get_championship_matches(
 
     return matches
 
+async def create_match_audit_entry(
+    match_id: str,
+    *,
+    championship_id: str,
+    action: str,
+    source: str = "manual",
+    user_id: Optional[str] = None,
+    summary: Optional[str] = None,
+    previous_data: Optional[dict] = None,
+    new_data: Optional[dict] = None,
+    metadata: Optional[dict] = None,
+) -> dict:
+    """
+    Regista uma alteração relevante efetuada num jogo.
+
+    action:
+    - gamesheet_imported
+    - gamesheet_resynced
+    - result_manual_update
+    - conflict_detected
+    - conflict_kept_manual
+    - conflict_applied_official
+    - match_updated
+    """
+
+    now_iso = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    audit_entry = {
+        "id": str(uuid.uuid4()),
+        "match_id": match_id,
+        "championship_id": championship_id,
+        "action": action,
+        "source": source or "manual",
+        "summary": summary,
+        "previous_data": previous_data or {},
+        "new_data": new_data or {},
+        "metadata": metadata or {},
+        "created_at": now_iso,
+        "created_by": user_id,
+    }
+
+    await db.match_audit_history.insert_one(
+        audit_entry
+    )
+
+    audit_entry.pop("_id", None)
+
+    return audit_entry
+    
 async def sync_calendar_event_from_match(
     match_id: str,
     *,
@@ -6948,14 +6999,21 @@ async def sync_calendar_event_from_match(
 
     await db.events.insert_one(new_event)
 
-@api_router.put("/championships/matches/{match_id}/result")
+@api_router.put(
+    "/championships/matches/{match_id}/result"
+)
 async def update_match_result(
     match_id: str,
     result: MatchResultUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(
+        get_current_user
+    )
 ):
     match = await db.championship_matches.find_one(
-        {"id": match_id, "archived": {"$ne": True}},
+        {
+            "id": match_id,
+            "archived": {"$ne": True},
+        },
         {"_id": 0}
     )
 
@@ -6966,7 +7024,11 @@ async def update_match_result(
         )
 
     championship = await db.championships.find_one(
-        {"id": match["championship_id"]},
+        {
+            "id": match[
+                "championship_id"
+            ]
+        },
         {"_id": 0}
     )
 
@@ -6982,32 +7044,52 @@ async def update_match_result(
     ):
         raise HTTPException(
             status_code=403,
-            detail="Sem permissão para atualizar resultados desta competição"
+            detail=(
+                "Sem permissão para atualizar "
+                "resultados desta competição"
+            )
         )
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(
+        timezone.utc
+    )
 
     update_data = {
         "home_score": result.home_score,
         "away_score": result.away_score,
         "bonus_points": result.bonus_points,
         "penalty_points": result.penalty_points,
+
         "is_completed": True,
+
         "match_status": "finished",
-        "match_status_label": MATCH_STATUS_LABELS["finished"],
-        "match_status_updated_at": now.isoformat(),
-        "match_status_updated_by": current_user["id"],
+        "match_status_label": (
+            MATCH_STATUS_LABELS["finished"]
+        ),
+        "match_status_updated_at": (
+            now.isoformat()
+        ),
+        "match_status_updated_by": (
+            current_user["id"]
+        ),
+
         "result_source": "manual",
         "result_updated_at": now.isoformat(),
         "result_updated_by": current_user["id"],
 
-        # Um resultado manual fica validado pelo utilizador que o inseriu.
-        "source": match.get("source") or "manual",
+        # Um resultado manual fica validado
+        # pelo utilizador que o inseriu.
+        "source": (
+            match.get("source")
+            or "manual"
+        ),
         "sync_status": (
             match.get("sync_status")
-            if match.get("source") in ["apl", "fpp"]
+            if match.get("source")
+            in ["apl", "fpp"]
             else "manual"
         ),
+
         "is_verified": True,
         "verified_by": current_user["id"],
         "verified_at": now.isoformat(),
@@ -7018,12 +7100,75 @@ async def update_match_result(
 
     await db.championship_matches.update_one(
         {"id": match_id},
-        {"$set": update_data}
+        {
+            "$set": update_data
+        }
     )
 
-    updated_match = await db.championship_matches.find_one(
-        {"id": match_id},
-        {"_id": 0}
+    # Sprint 2.3D-C — histórico da
+    # alteração manual do resultado.
+    await create_match_audit_entry(
+        match_id,
+        championship_id=match[
+            "championship_id"
+        ],
+        action="result_manual_update",
+        source="manual",
+        user_id=current_user["id"],
+        summary=(
+            "Resultado alterado manualmente"
+        ),
+        previous_data={
+            "home_score": match.get(
+                "home_score"
+            ),
+            "away_score": match.get(
+                "away_score"
+            ),
+            "bonus_points": match.get(
+                "bonus_points",
+                0
+            ),
+            "penalty_points": match.get(
+                "penalty_points",
+                0
+            ),
+            "result_source": match.get(
+                "result_source"
+            ),
+            "sync_status": match.get(
+                "sync_status"
+            ),
+            "is_completed": match.get(
+                "is_completed",
+                False
+            ),
+        },
+        new_data={
+            "home_score": update_data.get(
+                "home_score"
+            ),
+            "away_score": update_data.get(
+                "away_score"
+            ),
+            "bonus_points": update_data.get(
+                "bonus_points",
+                0
+            ),
+            "penalty_points": update_data.get(
+                "penalty_points",
+                0
+            ),
+            "result_source": update_data.get(
+                "result_source"
+            ),
+            "sync_status": update_data.get(
+                "sync_status"
+            ),
+            "is_completed": update_data.get(
+                "is_completed"
+            ),
+        },
     )
 
     await update_match_workflow(
@@ -7038,17 +7183,20 @@ async def update_match_result(
             {"_id": 0}
         )
     )
-    
-    await sync_calendar_event_from_match(
-        match_id,
-        championship=championship,
-        match_data=updated_match,
-        current_user_id=current_user["id"]
-    )
-    
+
+    if updated_match:
+        await sync_calendar_event_from_match(
+            match_id,
+            championship=championship,
+            match_data=updated_match,
+            current_user_id=current_user[
+                "id"
+            ]
+        )
+
     return {
         "message": "Resultado atualizado",
-        "match": updated_match
+        "match": updated_match,
     }
 
 def normalize_team_name(value: Optional[str]) -> str:
@@ -7436,26 +7584,31 @@ async def update_match(
 
     await db.championship_matches.update_one(
         {"id": match_id},
-        {"$set": update_data}
+        {
+            "$set": update_data
+        }
     )
-
+    
     updated_match = (
         await db.championship_matches.find_one(
             {"id": match_id},
             {"_id": 0}
         )
     )
-
-    await sync_calendar_event_from_match(
-        match_id,
-        championship=championship,
-        match_data=updated_match,
-        current_user_id=current_user["id"]
-    )
-
+    
+    if updated_match:
+        await sync_calendar_event_from_match(
+            match_id,
+            championship=championship,
+            match_data=updated_match,
+            current_user_id=current_user["id"]
+        )
+    
     return {
-        "message": "Jogo e calendário atualizados",
-        "match": updated_match
+        "message": (
+            "Jogo e calendário atualizados"
+        ),
+        "match": updated_match,
     }
     
 @api_router.post("/championships/{championship_id}/matches/fix-home-away")
@@ -8264,7 +8417,48 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
                 }
             }
         )
-    
+        
+        # Sprint 2.3D-C — registar conflito no histórico.
+        await create_match_audit_entry(
+            data.match_id,
+            championship_id=match[
+                "championship_id"
+            ],
+            action="conflict_detected",
+            source=infer_match_source(
+                data.url
+            ),
+            user_id=current_user["id"],
+            summary=(
+                "Conflito entre o resultado atual "
+                "e a ficha oficial"
+            ),
+            previous_data={
+                "home_score": current_home_score,
+                "away_score": current_away_score,
+                "result_source": match.get(
+                    "result_source"
+                ),
+                "sync_status": match.get(
+                    "sync_status"
+                ),
+            },
+            new_data={
+                "home_score": official_home_score,
+                "away_score": official_away_score,
+                "venue": result_data.get(
+                    "venue"
+                ),
+                "referee": result_data.get(
+                    "referee"
+                ),
+            },
+            metadata={
+                "official_match_url": data.url,
+                "resolution": "pending",
+            },
+        )
+        
         raise HTTPException(
             status_code=409,
             detail=conflict_payload
@@ -8531,7 +8725,76 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
     
     return response
 
+@api_router.get(
+    "/championships/matches/"
+    "{match_id}/audit-history"
+)
+async def get_match_audit_history(
+    match_id: str,
+    current_user: dict = Depends(
+        get_current_user
+    )
+):
+    match = (
+        await db.championship_matches.find_one(
+            {
+                "id": match_id,
+                "archived": {"$ne": True},
+            },
+            {"_id": 0}
+        )
+    )
 
+    if not match:
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado"
+        )
+
+    championship = (
+        await db.championships.find_one(
+            {
+                "id": match[
+                    "championship_id"
+                ]
+            },
+            {"_id": 0}
+        )
+    )
+
+    if not championship:
+        raise HTTPException(
+            status_code=404,
+            detail="Competição não encontrada"
+        )
+
+    if not await can_access_competition(
+        current_user,
+        championship
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para consultar "
+                "o histórico deste jogo"
+            )
+        )
+
+    history = (
+        await db.match_audit_history.find(
+            {"match_id": match_id},
+            {"_id": 0}
+        )
+        .sort("created_at", -1)
+        .to_list(200)
+    )
+
+    return {
+        "match_id": match_id,
+        "total": len(history),
+        "history": history,
+    }
+    
 @api_router.get("/championships/matches/{match_id}/gamesheet-stats")
 async def get_match_gamesheet_stats(match_id: str, current_user: dict = Depends(get_current_user)):
     """Get the raw gamesheet stats for a match"""
