@@ -282,7 +282,7 @@ export default function ChampionshipDetail() {
   
     return [];
   };
-
+  
   const loadMatchAuditHistory = async (match) => {
     if (!match?.id) {
       return;
@@ -319,34 +319,6 @@ export default function ChampionshipDetail() {
         });
   
       setAuditHistory(sortedEntries);
-  
-    } catch (error) {
-  
-      console.error(error);
-  
-      setAuditHistory([]);
-  
-      toast.error(
-        error?.response?.data?.detail ||
-        'Não foi possível carregar o histórico.'
-      );
-  
-    } finally {
-  
-      setAuditLoading(false);
-  
-    }
-  };
-
-  const handleViewAuditHistory = async (match) => {
-    setAuditMatch(match);
-    setAuditHistory([]);
-    setAuditDialogOpen(true);
-  
-    await loadMatchAuditHistory(match);
-  };
-      
-      setAuditHistory(sortedEntries);
     } catch (error) {
       console.error(
         'Erro ao carregar histórico de sincronizações:',
@@ -366,6 +338,14 @@ export default function ChampionshipDetail() {
     } finally {
       setAuditLoading(false);
     }
+  };
+  
+  const handleViewAuditHistory = async (match) => {
+    setAuditMatch(match);
+    setAuditHistory([]);
+    setAuditDialogOpen(true);
+  
+    await loadMatchAuditHistory(match);
   };  
   
   const handleFixHomeAway = async () => {
