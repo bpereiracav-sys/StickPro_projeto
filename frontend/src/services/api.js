@@ -72,6 +72,10 @@ export const championshipsApi = {
   updateMatch: (matchId, data) => api.put(`/championships/matches/${matchId}`, data),
   updateMatchResult: (matchId, data) =>
     api.put(`/championships/matches/${matchId}/result`, data),
+  getMatchAuditHistory: (matchId) =>
+    api.get(
+      `/championships/matches/${matchId}/audit-history`
+    ),
   archiveMatch: (matchId) => api.put(`/championships/matches/${matchId}/archive`),
   deleteMatch: (matchId) => api.put(`/championships/matches/${matchId}/archive`),
   getStandings: (id) => api.get(`/championships/${id}/standings`),
@@ -175,20 +179,6 @@ export const championshipsApi = {
   publishTechnicalAssistant: (matchId) =>
     api.post(`/matches/${matchId}/technical-assistant/publish`),
 
-  deleteMatchTimelineEvent: (matchId, eventId) =>
-    api.delete(
-      `/championships/matches/${matchId}/timeline/${eventId}`
-    ),
-
-  getMatchTimelineSyncPreview: (matchId) =>
-    api.get(
-      `/championships/matches/${matchId}/timeline-sync-preview`
-    ),
-
-  applyMatchTimelineSync: (matchId) =>
-    api.post(
-      `/championships/matches/${matchId}/timeline-sync`
-    ),
 };
 
 
