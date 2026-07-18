@@ -19,6 +19,7 @@ import MatchWorkflowHero from '../components/game-center/MatchWorkflowHero';
 import WorkflowChecklist from '../components/game-center/WorkflowChecklist';
 import WorkflowNextAction from '../components/game-center/WorkflowNextAction';
 import SmartAssistantPanel from '../components/game-center/SmartAssistantPanel';
+import MatchAuditHistoryPanel from '../components/game-center/MatchAuditHistoryPanel';
 import {
   Dialog,
   DialogContent,
@@ -735,6 +736,11 @@ export default function MatchStats() {
         gamesheetContent={renderGamesheetContent()}
         statisticsContent={renderStatisticsContent()}
         assistantContent={renderAssistantContent()}
+        historyContent={
+          <MatchAuditHistoryPanel
+            matchId={match.id}
+          />
+        }
       />
 
       <ImportStatsDialog
