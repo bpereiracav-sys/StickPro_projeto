@@ -8731,59 +8731,52 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
 )
 async def get_match_audit_history(
     match_id: str,
-    current_user: dict = Depends(
-        get_current_user
-    )
+    current_user: dict = Depends(get_current_user)
 ):
-    match = (
-        await db.championship_matches.find_one(
-            {
-                "id": match_id,
-                "archived": {"$ne": True},
-            },
-            {"_id": 0}
-        )
+    checker = get_permission_checker(current_user)
+
+    match = await db.championship_matches.find_one(
+        {
+            "id": match_id,
+            "archived": {"$ne": True},
+        },
+        {"_id": 0},
     )
 
     if not match:
         raise HTTPException(
             status_code=404,
-            detail="Jogo não encontrado"
+            detail="Jogo não encontrado",
         )
 
-    championship = (
-        await db.championships.find_one(
-            {
-                "id": match[
-                    "championship_id"
-                ]
-            },
-            {"_id": 0}
-        )
+    championship = await db.championships.find_one(
+        {
+            "id": match["championship_id"]
+        },
+        {"_id": 0},
     )
 
     if not championship:
         raise HTTPException(
             status_code=404,
-            detail="Competição não encontrada"
+            detail="Competição não encontrada",
         )
 
-    if not await can_access_competition(
-        current_user,
-        championship
-    ):
+    team_id = (
+        match.get("team_id")
+        or championship.get("team_id")
+    )
+
+    if team_id and not checker.can_access_team(team_id):
         raise HTTPException(
             status_code=403,
-            detail=(
-                "Sem permissão para consultar "
-                "o histórico deste jogo"
-            )
+            detail="Sem permissão para consultar o histórico deste jogo",
         )
 
     history = (
         await db.match_audit_history.find(
             {"match_id": match_id},
-            {"_id": 0}
+            {"_id": 0},
         )
         .sort("created_at", -1)
         .to_list(200)
