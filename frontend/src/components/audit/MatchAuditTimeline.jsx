@@ -4,6 +4,7 @@ import {
   Clock3,
   FileCheck2,
   History,
+  Loader2,
   Pencil,
   RefreshCw,
   ShieldCheck,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 
 import { Badge } from '../ui/badge';
+import { Button } from '../ui/button';
 
 const ACTION_CONFIG = {
   conflict_detected: {
@@ -18,7 +20,8 @@ const ACTION_CONFIG = {
     description:
       'Foi encontrada uma diferença entre o resultado atual e a fonte oficial.',
     icon: AlertTriangle,
-    iconClassName: 'bg-amber-100 text-amber-700',
+    iconClassName:
+      'bg-amber-100 text-amber-700',
     badgeClassName:
       'border-amber-200 bg-amber-50 text-amber-700',
   },
@@ -28,7 +31,8 @@ const ACTION_CONFIG = {
     description:
       'O resultado do jogo foi atualizado manualmente.',
     icon: Pencil,
-    iconClassName: 'bg-blue-100 text-blue-700',
+    iconClassName:
+      'bg-blue-100 text-blue-700',
     badgeClassName:
       'border-blue-200 bg-blue-50 text-blue-700',
   },
@@ -38,7 +42,8 @@ const ACTION_CONFIG = {
     description:
       'O resultado da fonte oficial foi confirmado e aplicado.',
     icon: ShieldCheck,
-    iconClassName: 'bg-emerald-100 text-emerald-700',
+    iconClassName:
+      'bg-emerald-100 text-emerald-700',
     badgeClassName:
       'border-emerald-200 bg-emerald-50 text-emerald-700',
   },
@@ -48,7 +53,8 @@ const ACTION_CONFIG = {
     description:
       'O conflito entre os resultados foi resolvido.',
     icon: CheckCircle2,
-    iconClassName: 'bg-emerald-100 text-emerald-700',
+    iconClassName:
+      'bg-emerald-100 text-emerald-700',
     badgeClassName:
       'border-emerald-200 bg-emerald-50 text-emerald-700',
   },
@@ -58,7 +64,8 @@ const ACTION_CONFIG = {
     description:
       'A ficha eletrónica oficial foi importada.',
     icon: FileCheck2,
-    iconClassName: 'bg-cyan-100 text-cyan-700',
+    iconClassName:
+      'bg-cyan-100 text-cyan-700',
     badgeClassName:
       'border-cyan-200 bg-cyan-50 text-cyan-700',
   },
@@ -68,7 +75,8 @@ const ACTION_CONFIG = {
     description:
       'Os dados da ficha oficial foram sincronizados.',
     icon: FileCheck2,
-    iconClassName: 'bg-cyan-100 text-cyan-700',
+    iconClassName:
+      'bg-cyan-100 text-cyan-700',
     badgeClassName:
       'border-cyan-200 bg-cyan-50 text-cyan-700',
   },
@@ -78,7 +86,8 @@ const ACTION_CONFIG = {
     description:
       'Foram importados novos dados da fonte oficial.',
     icon: FileCheck2,
-    iconClassName: 'bg-cyan-100 text-cyan-700',
+    iconClassName:
+      'bg-cyan-100 text-cyan-700',
     badgeClassName:
       'border-cyan-200 bg-cyan-50 text-cyan-700',
   },
@@ -88,7 +97,8 @@ const ACTION_CONFIG = {
     description:
       'A ficha eletrónica oficial foi novamente atualizada.',
     icon: RefreshCw,
-    iconClassName: 'bg-violet-100 text-violet-700',
+    iconClassName:
+      'bg-violet-100 text-violet-700',
     badgeClassName:
       'border-violet-200 bg-violet-50 text-violet-700',
   },
@@ -98,7 +108,8 @@ const ACTION_CONFIG = {
     description:
       'Os dados sincronizados foram atualizados.',
     icon: RefreshCw,
-    iconClassName: 'bg-violet-100 text-violet-700',
+    iconClassName:
+      'bg-violet-100 text-violet-700',
     badgeClassName:
       'border-violet-200 bg-violet-50 text-violet-700',
   },
@@ -108,7 +119,8 @@ const ACTION_CONFIG = {
     description:
       'O resultado e as estatísticas foram atualizados a partir da timeline.',
     icon: RefreshCw,
-    iconClassName: 'bg-emerald-100 text-emerald-700',
+    iconClassName:
+      'bg-emerald-100 text-emerald-700',
     badgeClassName:
       'border-emerald-200 bg-emerald-50 text-emerald-700',
   },
@@ -139,7 +151,8 @@ export function getAuditConfig(entry) {
         entry?.details ||
         'Foi registada uma alteração nos dados do jogo.',
       icon: History,
-      iconClassName: 'bg-slate-100 text-slate-700',
+      iconClassName:
+        'bg-slate-100 text-slate-700',
       badgeClassName:
         'border-slate-200 bg-slate-50 text-slate-700',
     }
@@ -158,12 +171,18 @@ export function getAuditDate(entry) {
 
 export function normalizeAuditEntries(data) {
   if (Array.isArray(data)) return data;
-  if (Array.isArray(data?.items)) return data.items;
-  if (Array.isArray(data?.history)) return data.history;
+  if (Array.isArray(data?.items)) {
+    return data.items;
+  }
+  if (Array.isArray(data?.history)) {
+    return data.history;
+  }
   if (Array.isArray(data?.audit_entries)) {
     return data.audit_entries;
   }
-  if (Array.isArray(data?.entries)) return data.entries;
+  if (Array.isArray(data?.entries)) {
+    return data.entries;
+  }
 
   return [];
 }
@@ -177,16 +196,20 @@ function formatAuditDate(value) {
     return String(value);
   }
 
-  return new Intl.DateTimeFormat('pt-PT', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
+  return new Intl.DateTimeFormat(
+    'pt-PT',
+    {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }
+  ).format(date);
 }
 
 function getSourceLabel(source) {
   if (!source) return 'StickPro';
 
-  const normalized = String(source).toLowerCase();
+  const normalized =
+    String(source).toLowerCase();
 
   const labels = {
     manual: 'Manual',
@@ -195,15 +218,21 @@ function getSourceLabel(source) {
     system: 'Sistema',
     stickpro: 'StickPro',
     timeline: 'Timeline',
+    official: 'Oficial',
+    gamesheet: 'Ficha oficial',
   };
 
-  return labels[normalized] || String(source).toUpperCase();
+  return (
+    labels[normalized] ||
+    String(source).toUpperCase()
+  );
 }
 
 function getResolutionConfig(resolution) {
   if (!resolution) return null;
 
-  const normalized = String(resolution).toLowerCase();
+  const normalized =
+    String(resolution).toLowerCase();
 
   const resolutions = {
     pending: {
@@ -267,7 +296,10 @@ function getScore(data) {
     return data;
   }
 
-  if (data.result !== undefined && data.result !== null) {
+  if (
+    data.result !== undefined &&
+    data.result !== null
+  ) {
     return String(data.result);
   }
 
@@ -341,6 +373,7 @@ function getSource(entry) {
 function ScoreChange({
   previousScore,
   newScore,
+  isConflict = false,
 }) {
   if (!previousScore && !newScore) {
     return null;
@@ -350,7 +383,9 @@ function ScoreChange({
     <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
       <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          Anterior
+          {isConflict
+            ? 'Resultado atual'
+            : 'Anterior'}
         </p>
 
         <p className="mt-1 font-heading text-2xl font-bold text-slate-950">
@@ -364,7 +399,9 @@ function ScoreChange({
 
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
-          Novo
+          {isConflict
+            ? 'Resultado oficial'
+            : 'Novo'}
         </p>
 
         <p className="mt-1 font-heading text-2xl font-bold text-emerald-950">
@@ -379,17 +416,36 @@ function AuditEntry({
   entry,
   isLast,
   compact = false,
+  onResolveConflict,
+  resolvingConflictId,
 }) {
   const config = getAuditConfig(entry);
   const Icon = config.icon;
 
-  const previousScore = getPreviousScore(entry);
+  const action = getAuditAction(entry);
+
+  const previousScore =
+    getPreviousScore(entry);
+
   const newScore = getNewScore(entry);
 
-  const resolution = getResolutionConfig(
+  const resolutionValue =
     entry?.metadata?.resolution ||
-      entry?.resolution
-  );
+    entry?.resolution;
+
+  const resolution =
+    getResolutionConfig(resolutionValue);
+
+  const isPendingConflict =
+    action === 'conflict_detected' &&
+    (!resolutionValue ||
+      resolutionValue === 'pending');
+
+  const auditId =
+    entry?.id || entry?._id;
+
+  const isResolving =
+    resolvingConflictId === auditId;
 
   const officialUrl =
     entry?.metadata?.official_match_url ||
@@ -419,14 +475,17 @@ function AuditEntry({
       <div
         className={[
           'min-w-0 flex-1 pb-5',
-          compact ? 'sm:pb-5' : 'sm:pb-6',
+          compact
+            ? 'sm:pb-5'
+            : 'sm:pb-6',
         ].join(' ')}
       >
         <div className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-sm sm:p-5">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="min-w-0">
               <h3 className="font-heading text-base font-semibold text-slate-950">
-                {entry?.summary || config.label}
+                {entry?.summary ||
+                  config.label}
               </h3>
 
               {description && (
@@ -439,7 +498,9 @@ function AuditEntry({
             <div className="flex shrink-0 flex-wrap gap-2">
               <Badge
                 variant="outline"
-                className={config.badgeClassName}
+                className={
+                  config.badgeClassName
+                }
               >
                 {config.label}
               </Badge>
@@ -448,7 +509,9 @@ function AuditEntry({
                 variant="outline"
                 className="border-slate-200 bg-slate-50 text-slate-600"
               >
-                {getSourceLabel(getSource(entry))}
+                {getSourceLabel(
+                  getSource(entry)
+                )}
               </Badge>
             </div>
           </div>
@@ -456,6 +519,10 @@ function AuditEntry({
           <ScoreChange
             previousScore={previousScore}
             newScore={newScore}
+            isConflict={
+              action ===
+              'conflict_detected'
+            }
           />
 
           {resolution && (
@@ -469,11 +536,80 @@ function AuditEntry({
             </div>
           )}
 
+          {isPendingConflict &&
+            onResolveConflict &&
+            auditId && (
+              <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+
+                  <div>
+                    <p className="text-sm font-semibold text-amber-950">
+                      Decisão necessária
+                    </p>
+
+                    <p className="mt-1 text-sm leading-6 text-amber-800">
+                      Confirme qual dos
+                      resultados deverá
+                      prevalecer. A decisão
+                      ficará registada no
+                      histórico.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="min-h-11 rounded-xl border-blue-200 bg-white text-blue-800 hover:bg-blue-50"
+                    disabled={isResolving}
+                    onClick={() =>
+                      onResolveConflict(
+                        entry,
+                        'current'
+                      )
+                    }
+                  >
+                    {isResolving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle2 className="mr-2 h-4 w-4" />
+                    )}
+
+                    Manter resultado atual
+                  </Button>
+
+                  <Button
+                    type="button"
+                    className="min-h-11 rounded-xl"
+                    disabled={isResolving}
+                    onClick={() =>
+                      onResolveConflict(
+                        entry,
+                        'official'
+                      )
+                    }
+                  >
+                    {isResolving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <ShieldCheck className="mr-2 h-4 w-4" />
+                    )}
+
+                    Aplicar resultado oficial
+                  </Button>
+                </div>
+              </div>
+            )}
+
           <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-slate-500">
             <span className="inline-flex items-center gap-1.5">
               <Clock3 className="h-3.5 w-3.5" />
 
-              {formatAuditDate(getAuditDate(entry))}
+              {formatAuditDate(
+                getAuditDate(entry)
+              )}
             </span>
 
             <span className="inline-flex items-center gap-1.5">
@@ -493,9 +629,9 @@ function AuditEntry({
                 href={officialUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="mt-1 block break-all text-xs font-medium text-primary hover:underline"
+                className="mt-1 inline-flex break-all text-xs font-medium text-primary hover:underline"
               >
-                {officialUrl}
+                Abrir ficha oficial
               </a>
             </div>
           )}
@@ -510,6 +646,8 @@ export default function MatchAuditTimeline({
   compact = false,
   emptyTitle = 'Ainda não existem registos',
   emptyDescription = 'As importações oficiais, alterações manuais e conflitos deste jogo aparecerão aqui.',
+  onResolveConflict,
+  resolvingConflictId = null,
 }) {
   if (!entries.length) {
     return (
@@ -536,13 +674,23 @@ export default function MatchAuditTimeline({
           key={
             entry?.id ||
             entry?._id ||
-            `${getAuditAction(entry)}-${getAuditDate(
+            `${getAuditAction(
+              entry
+            )}-${getAuditDate(
               entry
             )}-${index}`
           }
           entry={entry}
           compact={compact}
-          isLast={index === entries.length - 1}
+          isLast={
+            index === entries.length - 1
+          }
+          onResolveConflict={
+            onResolveConflict
+          }
+          resolvingConflictId={
+            resolvingConflictId
+          }
         />
       ))}
     </div>
