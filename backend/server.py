@@ -1114,7 +1114,116 @@ class MatchResultUpdate(BaseModel):
 
 class MatchConflictResolutionRequest(BaseModel):
     decision: str
-    
+
+# ============================================================
+# Sprint 2.3E — Match Documents
+# ============================================================
+
+class MatchDocumentCreate(BaseModel):
+    """
+    Dados necessários para associar um ficheiro já armazenado
+    a um jogo.
+
+    match_id, championship_id, team_id e uploaded_by são
+    determinados pelo backend e não devem ser enviados
+    livremente pelo frontend.
+    """
+
+    model_config = ConfigDict(
+        extra="ignore"
+    )
+
+    title: str
+    description: Optional[str] = None
+
+    # gamesheet | convocation | game_plan | coach_report |
+    # delegate_report | medical | photo | video | other
+    category: str = "other"
+
+    # technical_staff | team | players | guardians | public
+    visibility: str = "technical_staff"
+
+    # Metadados devolvidos pelo StorageService
+    folder: str = "matches"
+    url: str
+    stored_filename: str
+    original_filename: str
+    mime_type: str
+    file_category: Optional[str] = None
+    file_size: int = 0
+
+
+class MatchDocumentUpdate(BaseModel):
+    """
+    Campos editáveis de um documento associado a um jogo.
+
+    O ficheiro físico e os respetivos dados de armazenamento
+    não são alterados por este modelo.
+    """
+
+    model_config = ConfigDict(
+        extra="ignore"
+    )
+
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    visibility: Optional[str] = None
+
+
+class MatchDocument(BaseModel):
+    """
+    Documento pertencente ao Dossiê Técnico Digital de um jogo.
+    """
+
+    model_config = ConfigDict(
+        extra="ignore"
+    )
+
+    id: str = Field(
+        default_factory=lambda: str(
+            uuid.uuid4()
+        )
+    )
+
+    match_id: str
+    championship_id: str
+    team_id: str
+    club_id: Optional[str] = None
+
+    title: str
+    description: Optional[str] = None
+
+    # gamesheet | convocation | game_plan | coach_report |
+    # delegate_report | medical | photo | video | other
+    category: str = "other"
+
+    # technical_staff | team | players | guardians | public
+    visibility: str = "technical_staff"
+
+    folder: str = "matches"
+    url: str
+    stored_filename: str
+    original_filename: str
+    mime_type: str
+    file_category: Optional[str] = None
+    file_size: int = 0
+
+    uploaded_by: str
+    uploaded_by_name: Optional[str] = None
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(
+            timezone.utc
+        )
+    )
+
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(
+            timezone.utc
+        )
+    )
+
 # Player Match Stats - comprehensive stats per match
 class PlayerMatchStatsCreate(BaseModel):
     match_id: str
