@@ -76,6 +76,19 @@ export const championshipsApi = {
     api.get(
       `/championships/matches/${matchId}/audit-history`
     ),
+  
+  resolveMatchAuditConflict: (
+    matchId,
+    auditId,
+    decision
+  ) =>
+    api.post(
+      `/championships/matches/${matchId}/audit-conflicts/${auditId}/resolve`,
+      {
+        decision,
+      }
+    ),
+  
   archiveMatch: (matchId) => api.put(`/championships/matches/${matchId}/archive`),
   deleteMatch: (matchId) => api.put(`/championships/matches/${matchId}/archive`),
   getStandings: (id) => api.get(`/championships/${id}/standings`),
