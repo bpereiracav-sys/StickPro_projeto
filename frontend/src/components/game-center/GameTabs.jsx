@@ -152,6 +152,7 @@ export default function GameTabs({
   gamesheetContent,
   statisticsContent,
   assistantContent,
+  historyContent,
 }) {
   const currentStage = workflow?.stage || 'draft';
 
