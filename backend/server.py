@@ -14638,7 +14638,6 @@ async def upload_storage_file(
         **result,
     }
 
-
 @api_router.delete(
     "/storage/{folder}/{stored_filename}"
 )
