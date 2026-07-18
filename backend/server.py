@@ -1112,6 +1112,9 @@ class MatchResultUpdate(BaseModel):
     bonus_points: int = 0
     penalty_points: int = 0
 
+class MatchConflictResolutionRequest(BaseModel):
+    decision: str
+    
 # Player Match Stats - comprehensive stats per match
 class PlayerMatchStatsCreate(BaseModel):
     match_id: str
@@ -8726,8 +8729,7 @@ async def import_gamesheet(data: GameSheetImport, current_user: dict = Depends(g
     return response
 
 @api_router.get(
-    "/championships/matches/"
-    "{match_id}/audit-history"
+    "/championships/matches/{match_id}/audit-history"
 )
 async def get_match_audit_history(
     match_id: str,
@@ -8787,7 +8789,465 @@ async def get_match_audit_history(
         "total": len(history),
         "history": history,
     }
-    
+
+@api_router.post(
+    "/championships/matches/{match_id}/audit-conflicts/{audit_id}/resolve"
+)
+async def resolve_match_audit_conflict(
+    match_id: str,
+    audit_id: str,
+    payload: MatchConflictResolutionRequest,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    decision = (
+        payload.decision or ""
+    ).strip().lower()
+
+    if decision not in [
+        "official",
+        "current",
+    ]:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "A decisão deve ser "
+                "'official' ou 'current'"
+            ),
+        )
+
+    match = (
+        await db.championship_matches.find_one(
+            {
+                "id": match_id,
+                "archived": {"$ne": True},
+            },
+            {"_id": 0},
+        )
+    )
+
+    if not match:
+        raise HTTPException(
+            status_code=404,
+            detail="Jogo não encontrado",
+        )
+
+    championship = (
+        await db.championships.find_one(
+            {
+                "id": match[
+                    "championship_id"
+                ]
+            },
+            {"_id": 0},
+        )
+    )
+
+    if not championship:
+        raise HTTPException(
+            status_code=404,
+            detail="Competição não encontrada",
+        )
+
+    if not await can_edit_competition_result(
+        current_user,
+        championship,
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para resolver "
+                "conflitos desta competição"
+            ),
+        )
+
+    conflict = (
+        await db.match_audit_history.find_one(
+            {
+                "id": audit_id,
+                "match_id": match_id,
+                "action": "conflict_detected",
+            },
+            {"_id": 0},
+        )
+    )
+
+    if not conflict:
+        raise HTTPException(
+            status_code=404,
+            detail="Conflito não encontrado",
+        )
+
+    resolution_status = (
+        conflict.get("metadata", {}).get(
+            "resolution"
+        )
+        or conflict.get("resolution")
+    )
+
+    if (
+        resolution_status
+        and resolution_status != "pending"
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Este conflito já foi resolvido"
+            ),
+        )
+
+    current_home_score = match.get(
+        "home_score"
+    )
+    current_away_score = match.get(
+        "away_score"
+    )
+
+    official_data = (
+        conflict.get("new_data")
+        or {}
+    )
+
+    official_home_score = official_data.get(
+        "home_score"
+    )
+    official_away_score = official_data.get(
+        "away_score"
+    )
+
+    if decision == "official":
+        if (
+            official_home_score is None
+            or official_away_score is None
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "O conflito não contém um "
+                    "resultado oficial válido"
+                ),
+            )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    now_iso = now.isoformat()
+
+    source = (
+        conflict.get("source")
+        or conflict.get(
+            "metadata",
+            {}
+        ).get("source")
+        or infer_match_source(
+            conflict.get(
+                "metadata",
+                {}
+            ).get(
+                "official_match_url"
+            )
+        )
+    )
+
+    official_match_url = (
+        conflict.get(
+            "metadata",
+            {}
+        ).get(
+            "official_match_url"
+        )
+    )
+
+    if decision == "official":
+        update_data = {
+            "home_score": (
+                official_home_score
+            ),
+            "away_score": (
+                official_away_score
+            ),
+            "is_completed": True,
+
+            "match_status": "finished",
+            "match_status_label": (
+                MATCH_STATUS_LABELS[
+                    "finished"
+                ]
+            ),
+            "match_status_updated_at": (
+                now_iso
+            ),
+            "match_status_updated_by": (
+                current_user["id"]
+            ),
+
+            "result_source": (
+                source
+                if source in [
+                    "apl",
+                    "fpp",
+                    "official",
+                ]
+                else "gamesheet"
+            ),
+            "result_updated_at": now_iso,
+            "result_updated_by": (
+                current_user["id"]
+            ),
+
+            "source": source,
+            "sync_status": "synced",
+
+            "is_verified": True,
+            "verified_by": (
+                current_user["id"]
+            ),
+            "verified_at": now_iso,
+
+            "updated_at": now_iso,
+            "updated_by": (
+                current_user["id"]
+            ),
+        }
+
+        if official_match_url:
+            update_data[
+                "official_match_url"
+            ] = official_match_url
+
+            update_data[
+                "gamesheet_url"
+            ] = official_match_url
+
+        if official_data.get("venue"):
+            update_data["venue"] = (
+                official_data["venue"]
+            )
+
+        if official_data.get("referee"):
+            update_data["referee"] = (
+                official_data["referee"]
+            )
+
+        await db.championship_matches.update_one(
+            {"id": match_id},
+            {
+                "$set": update_data
+            },
+        )
+
+        resolution = "official_applied"
+
+        resolution_summary = (
+            "Conflito resolvido: "
+            "resultado oficial aplicado"
+        )
+
+        resulting_home_score = (
+            official_home_score
+        )
+
+        resulting_away_score = (
+            official_away_score
+        )
+
+    else:
+        resolution = "manual_kept"
+
+        resolution_summary = (
+            "Conflito resolvido: "
+            "resultado atual mantido"
+        )
+
+        resulting_home_score = (
+            current_home_score
+        )
+
+        resulting_away_score = (
+            current_away_score
+        )
+
+        await db.championship_matches.update_one(
+            {"id": match_id},
+            {
+                "$set": {
+                    "is_verified": True,
+                    "verified_by": (
+                        current_user["id"]
+                    ),
+                    "verified_at": now_iso,
+                    "updated_at": now_iso,
+                    "updated_by": (
+                        current_user["id"]
+                    ),
+                }
+            },
+        )
+
+    conflict_update_result = (
+        await db.match_audit_history.update_one(
+            {
+                "id": audit_id,
+                "match_id": match_id,
+                "action": "conflict_detected",
+                "$and": [
+                    {
+                        "$or": [
+                            {
+                                "metadata.resolution": (
+                                    "pending"
+                                )
+                            },
+                            {
+                                "metadata.resolution": {
+                                    "$exists": False
+                                }
+                            },
+                        ]
+                    },
+                    {
+                        "$or": [
+                            {
+                                "resolution": (
+                                    "pending"
+                                )
+                            },
+                            {
+                                "resolution": {
+                                    "$exists": False
+                                }
+                            },
+                        ]
+                    },
+                ],
+            },
+            {
+                "$set": {
+                    "metadata.resolution": (
+                        resolution
+                    ),
+                    "metadata.resolved_at": (
+                        now_iso
+                    ),
+                    "metadata.resolved_by": (
+                        current_user["id"]
+                    ),
+                    "metadata.decision": (
+                        decision
+                    ),
+                    "resolution": resolution,
+                    "resolved_at": now_iso,
+                    "resolved_by": (
+                        current_user["id"]
+                    ),
+                    "updated_at": now_iso,
+                }
+            },
+        )
+    )
+    if (
+        conflict_update_result.modified_count
+        == 0
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "O conflito foi entretanto "
+                "resolvido por outro utilizador"
+            ),
+        )
+
+    await create_match_audit_entry(
+        match_id,
+        championship_id=match[
+            "championship_id"
+        ],
+        action="conflict_resolved",
+        source=source,
+        user_id=current_user["id"],
+        summary=resolution_summary,
+        previous_data={
+            "home_score": (
+                current_home_score
+            ),
+            "away_score": (
+                current_away_score
+            ),
+            "result_source": match.get(
+                "result_source"
+            ),
+            "sync_status": match.get(
+                "sync_status"
+            ),
+        },
+        new_data={
+            "home_score": (
+                resulting_home_score
+            ),
+            "away_score": (
+                resulting_away_score
+            ),
+            "result_source": (
+                source
+                if decision == "official"
+                else match.get(
+                    "result_source"
+                )
+            ),
+            "sync_status": (
+                "synced"
+                if decision == "official"
+                else match.get(
+                    "sync_status"
+                )
+            ),
+        },
+        metadata={
+            "resolution": resolution,
+            "decision": decision,
+            "conflict_audit_id": audit_id,
+            "official_match_url": (
+                official_match_url
+            ),
+        },
+    )
+
+    await update_match_workflow(
+        match_id=match_id,
+        stage="finished",
+        updated_by=current_user["id"],
+    )
+
+    updated_match = (
+        await db.championship_matches.find_one(
+            {"id": match_id},
+            {"_id": 0},
+        )
+    )
+
+    if updated_match:
+        await sync_calendar_event_from_match(
+            match_id,
+            championship=championship,
+            match_data=updated_match,
+            current_user_id=current_user[
+                "id"
+            ],
+        )
+
+    return {
+        "message": (
+            "Resultado oficial aplicado"
+            if decision == "official"
+            else "Resultado atual mantido"
+        ),
+        "decision": decision,
+        "resolution": resolution,
+        "match": updated_match,
+    }
+
 @api_router.get("/championships/matches/{match_id}/gamesheet-stats")
 async def get_match_gamesheet_stats(match_id: str, current_user: dict = Depends(get_current_user)):
     """Get the raw gamesheet stats for a match"""
