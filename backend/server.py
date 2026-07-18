@@ -13,6 +13,7 @@ import asyncio
 import resend
 import secrets
 import hashlib
+from services.storage_service import storage_service
 from pathlib import Path
 from pydantic import BaseModel, Field, EmailStr, ConfigDict, field_validator
 from typing import List, Optional, Literal, Dict, Any
@@ -14608,6 +14609,84 @@ async def delete_image(filename: str, current_user: dict = Depends(get_current_u
         return {"message": "Ficheiro eliminado"}
     raise HTTPException(status_code=404, detail="Ficheiro não encontrado")
 
+# ============================================================
+# Sprint 2.3E.0B — Unified Storage Endpoints
+# ============================================================
+
+@api_router.post("/storage/upload")
+async def upload_storage_file(
+    file: UploadFile = File(...),
+    folder: str = Form("other"),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Guarda um ficheiro através do serviço centralizado
+    de armazenamento da StickPro.
+
+    Pastas permitidas:
+    images, library, matches, evaluations, feedback,
+    clubs, users e other.
+    """
+
+    result = await storage_service.save_upload(
+        file=file,
+        folder=folder,
+    )
+
+    return {
+        "message": "Ficheiro carregado com sucesso",
+        **result,
+    }
+
+
+@api_router.delete(
+    "/storage/{folder}/{stored_filename}"
+)
+async def delete_storage_file(
+    folder: str,
+    stored_filename: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Elimina um ficheiro físico do armazenamento unificado.
+
+    Este endpoint destina-se principalmente à limpeza de uploads
+    que ainda não estejam associados a um registo funcional.
+
+    Quando um ficheiro já pertence a um documento, biblioteca,
+    avaliação ou outro módulo, deve ser eliminado através do
+    endpoint desse módulo.
+    """
+
+    role = current_user.get("role")
+
+    if role not in {
+        "admin",
+        "gestor_desportivo",
+        "coordenador",
+        "coordenador_tecnico",
+        "treinador",
+        "treinador_adjunto",
+        "delegado",
+    }:
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para eliminar ficheiros",
+        )
+
+    deleted = storage_service.delete_file(
+        folder=folder,
+        stored_filename=stored_filename,
+        ignore_missing=False,
+    )
+
+    return {
+        "message": "Ficheiro eliminado com sucesso",
+        "deleted": deleted,
+        "folder": folder,
+        "stored_filename": stored_filename,
+    }
+
 # =====================
 # Library Endpoints
 # =====================
@@ -17361,12 +17440,42 @@ async def startup_event():
 
 app.include_router(api_router)
 
-# Static files for payment proofs
+# ============================================================
+# Static Files — Legacy + Unified Storage
+# ============================================================
+
 BASE_DIR = Path(__file__).resolve().parent
 uploads_path = BASE_DIR / "uploads"
-uploads_path.mkdir(parents=True, exist_ok=True)
+
+uploads_path.mkdir(
+    parents=True,
+    exist_ok=True,
+)
+
 if uploads_path.exists():
-    app.mount("/uploads", StaticFiles(directory=str(uploads_path)), name="uploads")
+    # Rota antiga.
+    # Mantida para não quebrar comprovativos, imagens
+    # ou outros ficheiros já existentes.
+    app.mount(
+        "/uploads",
+        StaticFiles(
+            directory=str(uploads_path)
+        ),
+        name="uploads",
+    )
+
+    # Sprint 2.3E — armazenamento unificado.
+    # Serve também as subpastas:
+    # /api/uploads/matches/...
+    # /api/uploads/library/...
+    # /api/uploads/images/...
+    app.mount(
+        "/api/uploads",
+        StaticFiles(
+            directory=str(uploads_path)
+        ),
+        name="api-uploads",
+    )
 
 cors_origins = [
     origin.strip()
