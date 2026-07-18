@@ -340,6 +340,15 @@ export default function GameTabs({
           />
         </TabsContent>
       )}
+      
+      {canSeeStaffTabs && (
+        <TabsContent
+          value="history"
+          className="space-y-6"
+        >
+          {historyContent}
+        </TabsContent>
+      )}
     </Tabs>
   );
 }
