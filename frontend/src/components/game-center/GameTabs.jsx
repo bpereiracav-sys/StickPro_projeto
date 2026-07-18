@@ -3,6 +3,7 @@ import {
   BarChart3,
   ClipboardCheck,
   FileText,
+  History,
   LayoutDashboard,
   LockKeyhole,
   MessageSquareText,
@@ -105,6 +106,12 @@ const tabItems = [
     staffOnly: true,
     minimumStage: 'draft',
   },
+  {
+    value: 'history',
+    label: 'Histórico',
+    icon: History,
+    staffOnly: true,
+  },  
 ];
 
 const STAGE_LABELS = {
