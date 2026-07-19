@@ -199,6 +199,45 @@ async def can_view_competition(current_user: dict, championship: dict) -> bool:
 
     return user_has_team_access(current_user, championship.get("team_id"))
 
+# ============================================================
+# Match Documents Permissions
+# ============================================================
+
+async def can_manage_match_documents(
+    current_user: dict,
+    championship: dict,
+):
+    """
+    Determina se o utilizador pode criar, editar ou eliminar
+    documentos associados a um jogo.
+
+    Apenas membros da estrutura técnica podem gerir documentos.
+    """
+
+    # Primeiro tem de ter acesso à competição.
+    if not await can_view_competition(
+        current_user,
+        championship,
+    ):
+        return False
+
+    role = (
+        current_user.get("active_profile_role")
+        or current_user.get("role")
+        or ""
+    ).lower()
+
+    allowed_roles = {
+        "admin",
+        "gestor_desportivo",
+        "coordenador",
+        "coordenador_tecnico",
+        "treinador",
+        "treinador_adjunto",
+        "delegado",
+    }
+
+    return role in allowed_roles
 
 async def can_create_competition(current_user: dict, team_id: Optional[str]) -> bool:
     role = get_user_competition_role(current_user)
@@ -11778,13 +11817,13 @@ async def create_match_document(
     match = await get_match_or_404(match_id)
     championship = await get_championship_for_match_or_404(match)
 
-    if not await can_view_competition(
+    if not await can_manage_match_documents(
         current_user,
         championship,
     ):
         raise HTTPException(
             status_code=403,
-            detail="Sem permissão para adicionar documentos",
+            detail="Sem permissão para gerir documentos deste jogo",
         )
 
     upload = await storage_service.save_upload(
