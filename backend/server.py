@@ -11761,6 +11761,68 @@ async def get_match_document(
 
     return document
 
+@api_router.post("/championships/matches/{match_id}/documents")
+async def create_match_document(
+    match_id: str,
+    title: str = Form(...),
+    category: str = Form("other"),
+    visibility: str = Form("technical_staff"),
+    description: str = Form(""),
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Faz upload de um documento associado a um jogo.
+    """
+
+    match = await get_match_or_404(match_id)
+    championship = await get_championship_for_match_or_404(match)
+
+    if not await can_view_competition(
+        current_user,
+        championship,
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para adicionar documentos",
+        )
+
+    upload = await storage_service.save_upload(
+        file=file,
+        folder="matches",
+    )
+
+    now = datetime.now(timezone.utc)
+
+    document = MatchDocument(
+        id=str(uuid.uuid4()),
+        match_id=match_id,
+        championship_id=championship["id"],
+        team_id=match.get("team_id"),
+        club_id=championship.get("club_id"),
+        title=title,
+        description=description,
+        category=category,
+        visibility=visibility,
+        folder=upload["folder"],
+        url=upload["url"],
+        stored_filename=upload["stored_filename"],
+        original_filename=upload["original_filename"],
+        mime_type=upload["mime_type"],
+        file_category=upload["file_category"],
+        file_size=upload["file_size"],
+        uploaded_by=current_user["id"],
+        uploaded_by_name=current_user.get("name", ""),
+        created_at=now,
+        updated_at=now,
+    )
+
+    await db.match_documents.insert_one(
+        document.model_dump()
+    )
+
+    return document
+
 @api_router.get("/matches/{match_id}/technical-assistant")
 async def get_match_technical_assistant(
     match_id: str,
