@@ -11679,6 +11679,87 @@ async def get_single_championship_match(
 
     return match
 
+# ============================================================
+# Match Documents
+# ============================================================
+
+@api_router.get("/championships/matches/{match_id}/documents")
+async def get_match_documents(
+    match_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Lista todos os documentos associados a um jogo.
+    """
+
+    match = await get_match_or_404(match_id)
+    championship = await get_championship_for_match_or_404(match)
+
+    if not await can_view_competition(
+        current_user,
+        championship
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso aos documentos deste jogo"
+        )
+
+    documents = []
+
+    cursor = db.match_documents.find(
+        {
+            "match_id": match_id
+        }
+    ).sort(
+        "created_at",
+        -1
+    )
+
+    async for document in cursor:
+
+        document["_id"] = str(document["_id"])
+
+        documents.append(document)
+
+    return documents
+
+@api_router.get(
+    "/championships/matches/{match_id}/documents/{document_id}"
+)
+async def get_match_document(
+    match_id: str,
+    document_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+
+    match = await get_match_or_404(match_id)
+    championship = await get_championship_for_match_or_404(match)
+
+    if not await can_view_competition(
+        current_user,
+        championship
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso ao documento"
+        )
+
+    document = await db.match_documents.find_one(
+        {
+            "id": document_id,
+            "match_id": match_id,
+        }
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Documento não encontrado"
+        )
+
+    document["_id"] = str(document["_id"])
+
+    return document
 
 @api_router.get("/matches/{match_id}/technical-assistant")
 async def get_match_technical_assistant(
