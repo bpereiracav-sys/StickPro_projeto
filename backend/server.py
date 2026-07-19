@@ -11862,6 +11862,76 @@ async def create_match_document(
 
     return document
 
+@api_router.delete(
+    "/championships/matches/{match_id}/documents/{document_id}"
+)
+async def delete_match_document(
+    match_id: str,
+    document_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Elimina um documento associado a um jogo.
+
+    Remove o ficheiro do armazenamento e o respetivo
+    registo da coleção match_documents.
+    """
+
+    match = await get_match_or_404(match_id)
+    championship = await get_championship_for_match_or_404(match)
+
+    if not await can_manage_match_documents(
+        current_user,
+        championship,
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para eliminar documentos deste jogo",
+        )
+
+    document = await db.match_documents.find_one(
+        {
+            "id": document_id,
+            "match_id": match_id,
+        }
+    )
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Documento não encontrado",
+        )
+
+    try:
+        await storage_service.delete_file(
+            folder=document.get("folder", "matches"),
+            stored_filename=document.get("stored_filename", ""),
+        )
+    except Exception:
+        # O ficheiro físico pode já não existir, por exemplo,
+        # após um reinício ou novo deploy no Render.
+        # Mesmo assim, o registo inválido deve ser removido.
+        pass
+
+    delete_result = await db.match_documents.delete_one(
+        {
+            "id": document_id,
+            "match_id": match_id,
+        }
+    )
+
+    if delete_result.deleted_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Documento não encontrado",
+        )
+
+    return {
+        "success": True,
+        "message": "Documento eliminado com sucesso",
+        "document_id": document_id,
+    }
+
 @api_router.get("/matches/{match_id}/technical-assistant")
 async def get_match_technical_assistant(
     match_id: str,
