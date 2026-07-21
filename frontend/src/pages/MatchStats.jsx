@@ -20,6 +20,7 @@ import WorkflowChecklist from '../components/game-center/WorkflowChecklist';
 import WorkflowNextAction from '../components/game-center/WorkflowNextAction';
 import SmartAssistantPanel from '../components/game-center/SmartAssistantPanel';
 import MatchAuditHistoryPanel from '../components/game-center/MatchAuditHistoryPanel';
+import MatchDocuments from '../components/game-center/MatchDocuments';
 import {
   Dialog,
   DialogContent,
@@ -738,18 +739,10 @@ export default function MatchStats() {
         assistantContent={renderAssistantContent()}
 
         documentsContent={
-          <Card className="border-white/70 bg-white/90 shadow-lg">
-            <CardHeader>
-              <CardTitle>Documentos do Jogo</CardTitle>
-              <CardDescription>
-                Área documental em desenvolvimento.
-              </CardDescription>
-            </CardHeader>
-        
-            <CardContent>
-              O novo Centro Documental será integrado aqui.
-            </CardContent>
-          </Card>
+          <MatchDocuments
+            matchId={match.id}
+            canManage={canManageEvents}
+          />
         }
         
         historyContent={
