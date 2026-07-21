@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { usePermissions } from '../context/PermissionsContext';
+import {
+  evaluationsApi,
+  teamsApi,
+} from '../services/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -40,45 +44,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-const getApiBaseUrl = () => {
-  const raw = process.env.REACT_APP_BACKEND_URL || '';
-  if (!raw) return '/api';
-  if (raw.endsWith('/api')) return raw;
-  return `${raw.replace(/\/$/, '')}/api`;
-};
-
-const getAuthToken = () => {
-  const possibleKeys = ['token', 'access_token', 'authToken', 'stickpro_token', 'stickproToken'];
-
-  for (const key of possibleKeys) {
-    const value = localStorage.getItem(key);
-    if (value) return value.replace(/^"|"$/g, '');
-  }
-
-  return null;
-};
-
-const apiRequest = async (path, options = {}) => {
-  const token = getAuthToken();
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
-
-  if (!response.ok) {
-    throw new Error(data?.detail || data?.message || 'Erro na operação');
-  }
-
-  return data;
-};
 
 const PLAN_CATEGORIES = {
   training: {
@@ -185,10 +150,7 @@ export default function EvaluationPlans() {
   };
 
   const canManagePlans =
-    permissions?.isAdmin ||
-    permissions?.isStaff ||
-    permissions?.canManageTeam ||
-    permissions?.hasPermission?.('view_team_members');
+    permissions?.canCreateEvaluations === true;
 
   useEffect(() => {
     fetchData();
@@ -196,20 +158,54 @@ export default function EvaluationPlans() {
 
   const fetchData = async () => {
     setLoading(true);
-
+  
     try {
-      const [plansData, criteriaData, teamsData] = await Promise.all([
-        apiRequest('/evaluations/plans?include_inactive=true'),
-        apiRequest('/evaluations/criteria'),
-        apiRequest('/teams').catch(() => []),
-      ]);
-
-      setPlans(Array.isArray(plansData) ? plansData : []);
-      setCriteria(Array.isArray(criteriaData) ? criteriaData : []);
-      setTeams(Array.isArray(teamsData) ? teamsData : []);
+      const [plansResponse, criteriaResponse, teamsResponse] =
+        await Promise.all([
+          evaluationsApi.getPlans({
+            include_inactive: true,
+          }),
+          evaluationsApi.getCriteria(),
+          teamsApi.getAll().catch(() => ({
+            data: [],
+          })),
+        ]);
+  
+      const plansData = plansResponse?.data;
+      const criteriaData = criteriaResponse?.data;
+      const teamsData = teamsResponse?.data;
+  
+      setPlans(
+        Array.isArray(plansData)
+          ? plansData
+          : []
+      );
+  
+      setCriteria(
+        Array.isArray(criteriaData)
+          ? criteriaData
+          : []
+      );
+  
+      setTeams(
+        Array.isArray(teamsData)
+          ? teamsData
+          : []
+      );
     } catch (error) {
-      console.error('Error loading evaluation plans:', error);
-      toast.error(tr('evaluations.plansLoadError', 'Erro ao carregar planos de avaliação'));
+      console.error(
+        'Error loading evaluation plans:',
+        error
+      );
+  
+      toast.error(
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          tr(
+            'evaluations.plansLoadError',
+            'Erro ao carregar planos de avaliação'
+          )
+      );
     } finally {
       setLoading(false);
     }
@@ -288,10 +284,15 @@ export default function EvaluationPlans() {
 
   const handleSavePlan = async () => {
     if (!form.name.trim()) {
-      toast.error(tr('evaluations.planNameRequired', 'Indica o nome do plano'));
+      toast.error(
+        tr(
+          'evaluations.planNameRequired',
+          'Indica o nome do plano'
+        )
+      );
       return;
     }
-
+  
     if (form.criteria.length === 0) {
       toast.error(
         tr(
@@ -301,85 +302,149 @@ export default function EvaluationPlans() {
       );
       return;
     }
-
+  
     setSaving(true);
-
+  
     try {
       const payload = {
         name: form.name.trim(),
-        description: form.description?.trim() || null,
+        description:
+          form.description?.trim() || null,
         category: form.category,
-        team_id: form.team_id === 'global' ? null : form.team_id,
-        estimated_minutes: Number(form.estimated_minutes) || null,
+        team_id:
+          form.team_id === 'global'
+            ? null
+            : form.team_id,
+        estimated_minutes:
+          Number(form.estimated_minutes) || null,
         is_active: Boolean(form.is_active),
-        criteria: form.criteria.map((item, index) => ({
-          criterion_id: item.criterion_id,
-          weight: Number(item.weight) || 1,
-          required: item.required !== false,
-          order: index,
-        })),
+        criteria: form.criteria.map(
+          (item, index) => ({
+            criterion_id: item.criterion_id,
+            weight:
+              Number(item.weight) || 1,
+            required:
+              item.required !== false,
+            order: index,
+          })
+        ),
       };
-
+  
       if (editingPlan?.id) {
-        await apiRequest(`/evaluations/plans/${editingPlan.id}`, {
-          method: 'PUT',
-          body: JSON.stringify(payload),
-        });
-        toast.success(tr('evaluations.planUpdated', 'Plano atualizado'));
+        await evaluationsApi.updatePlan(
+          editingPlan.id,
+          payload
+        );
+  
+        toast.success(
+          tr(
+            'evaluations.planUpdated',
+            'Plano atualizado'
+          )
+        );
       } else {
-        await apiRequest('/evaluations/plans', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
-        toast.success(tr('evaluations.planCreated', 'Plano criado'));
+        await evaluationsApi.createPlan(payload);
+  
+        toast.success(
+          tr(
+            'evaluations.planCreated',
+            'Plano criado'
+          )
+        );
       }
-
+  
       setDialogOpen(false);
+      setEditingPlan(null);
+      setForm(EMPTY_FORM);
+  
       await fetchData();
     } catch (error) {
-      console.error('Error saving plan:', error);
-      toast.error(error.message || tr('common.error', 'Erro'));
+      console.error(
+        'Error saving evaluation plan:',
+        error
+      );
+  
+      toast.error(
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.message ||
+          tr('common.error', 'Erro')
+      );
     } finally {
       setSaving(false);
     }
   };
 
   const handleDuplicatePlan = async (plan) => {
-    if (!plan?.id) return;
-
+    if (!plan?.id) {
+      return;
+    }
+  
     try {
-      await apiRequest(`/evaluations/plans/${plan.id}/duplicate`, {
-        method: 'POST',
-      });
-      toast.success(tr('evaluations.planDuplicated', 'Plano duplicado'));
+      await evaluationsApi.duplicatePlan(plan.id);
+  
+      toast.success(
+        tr(
+          'evaluations.planDuplicated',
+          'Plano duplicado'
+        )
+      );
+  
       await fetchData();
     } catch (error) {
-      console.error('Error duplicating plan:', error);
-      toast.error(error.message || tr('common.error', 'Erro'));
+      console.error(
+        'Error duplicating evaluation plan:',
+        error
+      );
+  
+      toast.error(
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.message ||
+          tr('common.error', 'Erro')
+      );
     }
   };
 
   const handleArchivePlan = async (plan) => {
-    if (!plan?.id) return;
-
+    if (!plan?.id) {
+      return;
+    }
+  
     const confirmed = window.confirm(
       tr(
         'evaluations.archivePlanConfirm',
         'Arquivar este plano? Poderá continuar guardado no histórico.'
       )
     );
-
-    if (!confirmed) return;
-
+  
+    if (!confirmed) {
+      return;
+    }
+  
     try {
-      await apiRequest(`/evaluations/plans/${plan.id}`, {
-        method: 'DELETE',
-      });
-      toast.success(tr('evaluations.planArchived', 'Plano arquivado'));
+      await evaluationsApi.archivePlan(plan.id);
+  
+      toast.success(
+        tr(
+          'evaluations.planArchived',
+          'Plano arquivado'
+        )
+      );
+  
       await fetchData();
     } catch (error) {
-      console.error('Error archiving plan:', error);
-      toast.error(error.message || tr('common.error', 'Erro'));
+      console.error(
+        'Error archiving evaluation plan:',
+        error
+      );
+  
+      toast.error(
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.message ||
+          tr('common.error', 'Erro')
+      );
     }
   };
 
