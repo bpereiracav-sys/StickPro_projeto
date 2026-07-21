@@ -11082,6 +11082,1001 @@ async def update_match_workflow(
     )
 
     return workflow
+
+# ==================== SMART WORKFLOW INTELLIGENCE ====================
+
+SMART_WORKFLOW_WEIGHTS = {
+    "convocation": 10,
+    "lineup": 10,
+    "timeline": 15,
+    "result": 15,
+    "statistics": 15,
+    "gamesheet": 5,
+    "assistant": 10,
+    "evaluations": 10,
+    "documents": 5,
+    "closed": 5,
+}
+
+
+def parse_optional_workflow_datetime(
+    value: Any,
+) -> Optional[datetime]:
+    """
+    Converte valores datetime ou ISO string para datetime UTC.
+
+    É usado apenas para comparação de datas do Workflow Intelligence.
+    Valores inválidos devolvem None sem interromper o Match Center.
+    """
+
+    if isinstance(value, datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+
+        return value.astimezone(timezone.utc)
+
+    if isinstance(value, str) and value:
+        try:
+            parsed = datetime.fromisoformat(
+                value.replace("Z", "+00:00")
+            )
+
+            if parsed.tzinfo is None:
+                parsed = parsed.replace(
+                    tzinfo=timezone.utc
+                )
+
+            return parsed.astimezone(timezone.utc)
+
+        except (TypeError, ValueError):
+            return None
+
+    return None
+
+
+def build_smart_workflow_action(
+    *,
+    action_id: str,
+    title: str,
+    description: str,
+    destination: str,
+    priority: str = "medium",
+    action_type: str = "operational",
+) -> dict:
+    """
+    Cria uma recomendação normalizada para o Match Center.
+    """
+
+    return {
+        "id": action_id,
+        "type": action_type,
+        "title": title,
+        "description": description,
+        "destination": destination,
+        "priority": priority,
+    }
+
+
+async def build_match_workflow_intelligence(
+    match: dict,
+    championship: dict,
+    current_user: dict,
+) -> dict:
+    """
+    Analisa o estado real de um jogo e determina:
+
+    - etapas concluídas;
+    - sinais operacionais;
+    - percentagem real de conclusão;
+    - alertas;
+    - recomendações;
+    - próxima ação prioritária.
+
+    Esta função é deliberadamente read-only.
+    Não modifica o jogo nem qualquer coleção.
+    """
+
+    match_id = match.get("id")
+
+    if not match_id:
+        return {
+            "status": "unavailable",
+            "score": 0,
+            "primary_action": None,
+            "recommendations": [],
+            "checks": {},
+            "signals": {},
+            "warnings": [
+                "Não foi possível identificar o jogo."
+            ],
+            "generated_at": datetime.now(
+                timezone.utc
+            ).isoformat(),
+        }
+
+    event = await db.events.find_one(
+        {
+            "championship_match_id": match_id,
+        },
+        {
+            "_id": 0,
+        },
+    )
+
+    # Compatibilidade com jogos antigos cujo evento ainda não possui
+    # championship_match_id.
+    if not event:
+        event_query: Dict[str, Any] = {
+            "championship_id": match.get(
+                "championship_id"
+            ),
+            "team_id": match.get("team_id"),
+        }
+
+        opponent = match.get("opponent_team")
+
+        if opponent:
+            event_query["opponent"] = opponent
+
+        event = await db.events.find_one(
+            event_query,
+            {
+                "_id": 0,
+            },
+            sort=[
+                ("start_time", -1),
+            ],
+        )
+
+    event_id = event.get("id") if event else None
+
+    lineup_task = db.match_lineups.find_one(
+        {
+            "match_id": match_id,
+        },
+        {
+            "_id": 0,
+        },
+    )
+
+    timeline_task = db.match_timeline_events.find(
+        {
+            "match_id": match_id,
+        },
+        {
+            "_id": 0,
+            "id": 1,
+            "event_type": 1,
+            "created_at": 1,
+            "updated_at": 1,
+        },
+    ).to_list(1000)
+
+    statistics_task = db.player_match_stats.find(
+        {
+            "match_id": match_id,
+        },
+        {
+            "_id": 0,
+            "player_id": 1,
+            "timeline_synced": 1,
+            "updated_at": 1,
+            "created_at": 1,
+        },
+    ).to_list(500)
+
+    documents_task = db.match_documents.count_documents(
+        {
+            "match_id": match_id,
+        }
+    )
+
+    lineup, timeline_events, player_statistics, documents_count = (
+        await asyncio.gather(
+            lineup_task,
+            timeline_task,
+            statistics_task,
+            documents_task,
+        )
+    )
+
+    convocation = None
+    attendances = []
+    evaluations = []
+
+    if event_id:
+        convocation_task = db.convocations.find_one(
+            {
+                "event_id": event_id,
+            },
+            {
+                "_id": 0,
+            },
+            sort=[
+                ("created_at", -1),
+            ],
+        )
+
+        attendances_task = db.attendance.find(
+            {
+                "event_id": event_id,
+            },
+            {
+                "_id": 0,
+                "player_id": 1,
+                "status": 1,
+            },
+        ).to_list(500)
+
+        evaluations_task = db.player_evaluations.find(
+            {
+                "event_id": event_id,
+            },
+            {
+                "_id": 0,
+                "player_id": 1,
+                "created_at": 1,
+                "updated_at": 1,
+            },
+        ).to_list(500)
+
+        convocation, attendances, evaluations = (
+            await asyncio.gather(
+                convocation_task,
+                attendances_task,
+                evaluations_task,
+            )
+        )
+
+    starting_five = (
+        lineup.get("starting_five", [])
+        if lineup
+        else []
+    )
+
+    bench = (
+        lineup.get("bench", [])
+        if lineup
+        else []
+    )
+
+    lineup_player_ids = {
+        player_id
+        for player_id in (
+            list(starting_five)
+            + list(bench)
+        )
+        if player_id
+    }
+
+    goalkeeper_id = (
+        lineup.get("goalkeeper_starting_id")
+        if lineup
+        else None
+    )
+
+    lineup_exists = bool(lineup)
+
+    lineup_complete = bool(
+        lineup_exists
+        and len(starting_five) == 5
+        and goalkeeper_id
+    )
+
+    timeline_event_types = {
+        event_item.get("event_type")
+        for event_item in timeline_events
+        if event_item.get("event_type")
+    }
+
+    timeline_started = bool(
+        timeline_event_types.intersection({
+            "match_start",
+            "period_start",
+            "goal",
+            "own_goal",
+            "yellow_card",
+            "blue_card",
+            "red_card",
+            "substitution",
+            "timeout",
+            "penalty_scored",
+            "penalty_missed",
+            "direct_free_kick_scored",
+            "direct_free_kick_missed",
+            "save",
+            "halftime",
+            "period_end",
+            "match_end",
+        })
+    )
+
+    timeline_finished = (
+        "match_end" in timeline_event_types
+    )
+
+    timeline_updated_at = (
+        parse_optional_workflow_datetime(
+            match.get("timeline_updated_at")
+        )
+    )
+
+    timeline_synced_at = (
+        parse_optional_workflow_datetime(
+            match.get("timeline_synced_at")
+        )
+    )
+
+    timeline_sync_status = match.get(
+        "timeline_sync_status"
+    )
+
+    timeline_synced = bool(
+        timeline_events
+        and timeline_sync_status == "synced"
+        and timeline_synced_at
+        and (
+            not timeline_updated_at
+            or timeline_synced_at >= timeline_updated_at
+        )
+    )
+
+    result_complete = bool(
+        match.get("is_completed")
+        and match.get("home_score") is not None
+        and match.get("away_score") is not None
+    )
+
+    statistics_player_ids = {
+        row.get("player_id")
+        for row in player_statistics
+        if row.get("player_id")
+    }
+
+    statistics_exist = bool(
+        statistics_player_ids
+    )
+
+    if lineup_player_ids:
+        missing_statistics_player_ids = sorted(
+            lineup_player_ids
+            - statistics_player_ids
+        )
+    else:
+        missing_statistics_player_ids = []
+
+    statistics_complete = bool(
+        statistics_exist
+        and (
+            not lineup_player_ids
+            or not missing_statistics_player_ids
+        )
+    )
+
+    gamesheet_complete = bool(
+        match.get("gamesheet_url")
+        or match.get("gamesheet_imported_at")
+        or match.get("gamesheet_raw_data")
+        or match.get("gamesheet_player_stats")
+    )
+
+    assistant_generated = bool(
+        match.get("technical_assistant_regenerated_at")
+        or match.get("technical_assistant_published_at")
+        or match.get("technical_assistant_version")
+    )
+
+    assistant_validated = bool(
+        match.get("technical_assistant_validated")
+    )
+
+    assistant_published = bool(
+        match.get("technical_assistant_published")
+    )
+
+    convocation_status = (
+        convocation.get("status")
+        if convocation
+        else None
+    )
+
+    convocation_complete = bool(
+        convocation
+        and convocation_status in {
+            "published",
+            "closed",
+        }
+    )
+
+    attendance_total = len(attendances)
+
+    attendance_confirmed = len([
+        attendance
+        for attendance in attendances
+        if attendance.get("status") == "confirmado"
+    ])
+
+    attendance_pending = len([
+        attendance
+        for attendance in attendances
+        if attendance.get("status") == "pendente"
+    ])
+
+    evaluation_player_ids = {
+        evaluation.get("player_id")
+        for evaluation in evaluations
+        if evaluation.get("player_id")
+    }
+
+    if lineup_player_ids:
+        expected_evaluation_player_ids = (
+            lineup_player_ids
+        )
+    else:
+        expected_evaluation_player_ids = {
+            attendance.get("player_id")
+            for attendance in attendances
+            if (
+                attendance.get("player_id")
+                and attendance.get("status")
+                == "confirmado"
+            )
+        }
+
+    missing_evaluation_player_ids = sorted(
+        expected_evaluation_player_ids
+        - evaluation_player_ids
+    )
+
+    evaluations_complete = bool(
+        result_complete
+        and expected_evaluation_player_ids
+        and not missing_evaluation_player_ids
+    )
+
+    workflow_stage = (
+        match.get("workflow") or {}
+    ).get(
+        "stage",
+        "draft",
+    )
+
+    closed = workflow_stage == "closed"
+
+    checks = {
+        "convocation": {
+            "completed": convocation_complete,
+            "available": bool(event_id),
+            "required": True,
+            "label": "Convocatória",
+            "destination": "convocation",
+        },
+        "lineup": {
+            "completed": lineup_complete,
+            "available": True,
+            "required": True,
+            "label": "Line-up",
+            "destination": "lineup",
+        },
+        "timeline": {
+            "completed": (
+                timeline_finished
+                if result_complete
+                else timeline_started
+            ),
+            "available": True,
+            "required": True,
+            "label": "Timeline",
+            "destination": "live",
+        },
+        "result": {
+            "completed": result_complete,
+            "available": True,
+            "required": True,
+            "label": "Resultado",
+            "destination": "summary",
+        },
+        "statistics": {
+            "completed": statistics_complete,
+            "available": True,
+            "required": True,
+            "label": "Estatísticas",
+            "destination": "statistics",
+        },
+        "gamesheet": {
+            "completed": gamesheet_complete,
+            "available": True,
+            "required": False,
+            "label": "Boletim oficial",
+            "destination": "gamesheet",
+        },
+        "assistant": {
+            "completed": assistant_published,
+            "available": True,
+            "required": True,
+            "label": "Assistente Técnico",
+            "destination": "assistant",
+        },
+        "evaluations": {
+            "completed": evaluations_complete,
+            "available": True,
+            "required": True,
+            "label": "Avaliações",
+            "destination": "evaluation",
+        },
+        "documents": {
+            "completed": documents_count > 0,
+            "available": True,
+            "required": False,
+            "label": "Documentos",
+            "destination": "documents",
+        },
+        "closed": {
+            "completed": closed,
+            "available": True,
+            "required": True,
+            "label": "Encerramento",
+            "destination": "summary",
+        },
+    }
+
+    earned_score = 0
+    available_score = 0
+
+    for check_key, weight in (
+        SMART_WORKFLOW_WEIGHTS.items()
+    ):
+        check = checks.get(check_key)
+
+        if not check or not check.get(
+            "available",
+            True,
+        ):
+            continue
+
+        available_score += weight
+
+        if check.get("completed"):
+            earned_score += weight
+
+    score = (
+        round(
+            earned_score
+            / available_score
+            * 100
+        )
+        if available_score > 0
+        else 0
+    )
+
+    recommendations = []
+    warnings = []
+
+    if not event_id:
+        warnings.append(
+            "O jogo ainda não está corretamente ligado "
+            "ao evento do calendário."
+        )
+
+    if not convocation_complete:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="prepare-convocation",
+                title="Preparar convocatória",
+                description=(
+                    "Cria e publica a convocatória "
+                    "associada a este jogo."
+                ),
+                destination="convocation",
+                priority="high",
+            )
+        )
+
+    elif attendance_pending > 0:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="resolve-attendance",
+                title="Rever respostas pendentes",
+                description=(
+                    f"Existem {attendance_pending} "
+                    "atletas sem resposta à convocatória."
+                ),
+                destination="convocation",
+                priority="medium",
+            )
+        )
+
+    if not lineup_exists:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="create-lineup",
+                title="Definir o line-up",
+                description=(
+                    "Seleciona o cinco inicial, banco "
+                    "e responsabilidades do jogo."
+                ),
+                destination="lineup",
+                priority="high",
+            )
+        )
+
+    elif not lineup_complete:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="complete-lineup",
+                title="Completar o line-up",
+                description=(
+                    "O line-up existe, mas o cinco "
+                    "inicial ou o guarda-redes ainda "
+                    "não estão totalmente definidos."
+                ),
+                destination="lineup",
+                priority="high",
+            )
+        )
+
+    if workflow_stage == "live" and not timeline_started:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="start-timeline",
+                title="Iniciar a timeline",
+                description=(
+                    "O jogo está marcado como ao vivo, "
+                    "mas ainda não possui acontecimentos."
+                ),
+                destination="live",
+                priority="high",
+            )
+        )
+
+    if result_complete and not timeline_finished:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="finish-timeline",
+                title="Encerrar a timeline",
+                description=(
+                    "O resultado está terminado, mas "
+                    "a timeline não possui o final do jogo."
+                ),
+                destination="live",
+                priority="high",
+            )
+        )
+
+    if (
+        timeline_events
+        and result_complete
+        and not timeline_synced
+    ):
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="sync-timeline",
+                title="Sincronizar a timeline",
+                description=(
+                    "Existem acontecimentos posteriores "
+                    "à última sincronização do resultado "
+                    "e das estatísticas."
+                ),
+                destination="live",
+                priority="high",
+            )
+        )
+
+    if (
+        workflow_stage in {
+            "finished",
+            "stats",
+            "assistant",
+            "evaluation",
+            "feedback",
+            "closed",
+        }
+        and not result_complete
+    ):
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="complete-result",
+                title="Registar o resultado",
+                description=(
+                    "O jogo avançou no workflow, mas "
+                    "o resultado final está incompleto."
+                ),
+                destination="summary",
+                priority="high",
+            )
+        )
+
+    if result_complete and not statistics_exist:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="add-statistics",
+                title="Preencher as estatísticas",
+                description=(
+                    "O jogo terminou, mas ainda não "
+                    "existem estatísticas de atletas."
+                ),
+                destination="statistics",
+                priority="high",
+            )
+        )
+
+    elif missing_statistics_player_ids:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="complete-statistics",
+                title="Completar estatísticas",
+                description=(
+                    f"Faltam estatísticas para "
+                    f"{len(missing_statistics_player_ids)} "
+                    "atleta(s) do line-up."
+                ),
+                destination="statistics",
+                priority="medium",
+            )
+        )
+
+    if result_complete and not gamesheet_complete:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="import-gamesheet",
+                title="Importar o boletim oficial",
+                description=(
+                    "Associa a ficha oficial para "
+                    "validar o resultado e os dados."
+                ),
+                destination="gamesheet",
+                priority="medium",
+            )
+        )
+
+    if statistics_complete and not assistant_generated:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="generate-assistant",
+                title="Atualizar o Assistente Técnico",
+                description=(
+                    "As estatísticas estão disponíveis. "
+                    "Já podes gerar a análise técnica."
+                ),
+                destination="assistant",
+                priority="medium",
+            )
+        )
+
+    elif assistant_generated and not assistant_validated:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="validate-assistant",
+                title="Validar o Assistente Técnico",
+                description=(
+                    "A análise foi gerada, mas ainda "
+                    "não foi validada."
+                ),
+                destination="assistant",
+                priority="medium",
+            )
+        )
+
+    elif assistant_validated and not assistant_published:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="publish-assistant",
+                title="Publicar o Assistente Técnico",
+                description=(
+                    "A análise está validada e pronta "
+                    "para publicação."
+                ),
+                destination="assistant",
+                priority="medium",
+            )
+        )
+
+    if (
+        result_complete
+        and expected_evaluation_player_ids
+        and not evaluations_complete
+    ):
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="evaluate-players",
+                title="Avaliar os atletas",
+                description=(
+                    f"Faltam avaliações para "
+                    f"{len(missing_evaluation_player_ids)} "
+                    "atleta(s) que participaram no jogo."
+                ),
+                destination="evaluation",
+                priority="medium",
+                action_type="development",
+            )
+        )
+
+    if result_complete and documents_count == 0:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="add-documents",
+                title="Completar o dossiê do jogo",
+                description=(
+                    "Ainda não existem documentos "
+                    "associados a este jogo."
+                ),
+                destination="documents",
+                priority="low",
+                action_type="documentation",
+            )
+        )
+
+    required_checks = [
+        check
+        for check in checks.values()
+        if (
+            check.get("required")
+            and check.get("available", True)
+        )
+    ]
+
+    required_complete = bool(
+        required_checks
+        and all(
+            check.get("completed")
+            for check in required_checks
+        )
+    )
+
+    if required_complete and not closed:
+        recommendations.append(
+            build_smart_workflow_action(
+                action_id="close-match",
+                title="Encerrar o jogo",
+                description=(
+                    "As etapas obrigatórias estão "
+                    "concluídas. O jogo pode ser fechado."
+                ),
+                destination="summary",
+                priority="low",
+            )
+        )
+
+    priority_order = {
+        "high": 0,
+        "medium": 1,
+        "low": 2,
+    }
+
+    recommendations.sort(
+        key=lambda action: (
+            priority_order.get(
+                action.get("priority"),
+                9,
+            ),
+            action.get("title", ""),
+        )
+    )
+
+    primary_action = (
+        recommendations[0]
+        if recommendations
+        else None
+    )
+
+    if closed and not recommendations:
+        status = "completed"
+
+    elif any(
+        recommendation.get("priority") == "high"
+        for recommendation in recommendations
+    ):
+        status = "attention_required"
+
+    elif recommendations:
+        status = "in_progress"
+
+    else:
+        status = "ready_to_close"
+
+    signals = {
+        "match_status": infer_match_status(match),
+        "workflow_stage": workflow_stage,
+        "event_id": event_id,
+        "event_linked": bool(event_id),
+
+        "convocation_id": (
+            convocation.get("id")
+            if convocation
+            else None
+        ),
+        "convocation_status": convocation_status,
+
+        "attendance_total": attendance_total,
+        "attendance_confirmed": attendance_confirmed,
+        "attendance_pending": attendance_pending,
+
+        "lineup_exists": lineup_exists,
+        "lineup_status": (
+            lineup.get("status")
+            if lineup
+            else None
+        ),
+        "starting_five_count": len(
+            starting_five
+        ),
+        "bench_count": len(bench),
+
+        "timeline_events_count": len(
+            timeline_events
+        ),
+        "timeline_started": timeline_started,
+        "timeline_finished": timeline_finished,
+        "timeline_synced": timeline_synced,
+
+        "result_complete": result_complete,
+
+        "statistics_players_count": len(
+            statistics_player_ids
+        ),
+        "missing_statistics_count": len(
+            missing_statistics_player_ids
+        ),
+
+        "gamesheet_available": gamesheet_complete,
+
+        "assistant_generated": assistant_generated,
+        "assistant_validated": assistant_validated,
+        "assistant_published": assistant_published,
+
+        "expected_evaluations_count": len(
+            expected_evaluation_player_ids
+        ),
+        "evaluations_count": len(
+            evaluation_player_ids
+        ),
+        "missing_evaluations_count": len(
+            missing_evaluation_player_ids
+        ),
+
+        "documents_count": documents_count,
+
+        # O módulo atual training_feedback é exclusivo de treinos.
+        # O feedback específico de jogos será integrado no Sprint 2.6E.
+        "match_feedback_supported": False,
+    }
+
+    completed_checks = len([
+        check
+        for check in checks.values()
+        if check.get("completed")
+    ])
+
+    total_checks = len([
+        check
+        for check in checks.values()
+        if check.get("available", True)
+    ])
+
+    return {
+        "status": status,
+        "score": score,
+        "primary_action": primary_action,
+        "recommendations": recommendations,
+        "checks": checks,
+        "signals": signals,
+        "warnings": warnings,
+        "summary": {
+            "completed_checks": completed_checks,
+            "total_checks": total_checks,
+            "required_complete": required_complete,
+            "high_priority_count": len([
+                recommendation
+                for recommendation in recommendations
+                if recommendation.get("priority")
+                == "high"
+            ]),
+        },
+        "generated_at": datetime.now(
+            timezone.utc
+        ).isoformat(),
+        "read_only": True,
+    }
     
 # ==================== MATCH TIMELINE SYNC ====================
 
@@ -11708,13 +12703,31 @@ async def build_technical_assistant(match_id: str, current_user: dict) -> dict:
 @api_router.get("/championships/matches/{match_id}")
 async def get_single_championship_match(
     match_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
 ):
     match = await get_match_or_404(match_id)
-    championship = await get_championship_for_match_or_404(match)
+    championship = await get_championship_for_match_or_404(
+        match
+    )
 
-    if not await can_view_competition(current_user, championship):
-        raise HTTPException(status_code=403, detail="Sem acesso a este jogo")
+    if not await can_view_competition(
+        current_user,
+        championship,
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a este jogo",
+        )
+
+    smart_workflow = (
+        await build_match_workflow_intelligence(
+            match=match,
+            championship=championship,
+            current_user=current_user,
+        )
+    )
+
+    match["smart_workflow"] = smart_workflow
 
     return match
 
