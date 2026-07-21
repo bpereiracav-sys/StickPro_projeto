@@ -14,7 +14,14 @@ const ONBOARDING_REQUIRED_ROLES = new Set([
 ]);
 
 export function AppLayout({ children }) {
-  const { isAuthenticated, user } = useAuth();
+  const {
+    isAuthenticated,
+    user,
+    loading,
+    effectiveRole,
+    isSelfProfile,
+  } = useAuth();
+
   const { refreshTheme } = useTheme();
   const location = useLocation();
 
@@ -24,6 +31,27 @@ export function AppLayout({ children }) {
     }
   }, [isAuthenticated, refreshTheme]);
 
+  /*
+   * Evita que a aplicação apresente temporariamente páginas públicas
+   * enquanto a sessão e o perfil ativo ainda estão a ser restaurados.
+   */
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-white to-slate-100">
+        <div className="flex flex-col items-center gap-3 text-slate-500">
+          <Activity
+            className="h-8 w-8 animate-pulse text-primary"
+            strokeWidth={1.75}
+          />
+
+          <p className="text-sm font-medium">
+            A carregar a StickPro...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
@@ -32,11 +60,16 @@ export function AppLayout({ children }) {
     );
   }
 
-  const role = user?.role;
-
+  /*
+   * O onboarding pertence ao perfil próprio da conta.
+   *
+   * Uma conta administrativa que esteja a visualizar um atleta associado
+   * não deve ser redirecionada para o onboarding administrativo.
+   */
   const needsOnboarding =
-    role &&
-    ONBOARDING_REQUIRED_ROLES.has(role) &&
+    isSelfProfile &&
+    effectiveRole &&
+    ONBOARDING_REQUIRED_ROLES.has(effectiveRole) &&
     !user?.onboarding_completed_at &&
     location.pathname !== '/onboarding';
 
@@ -55,15 +88,6 @@ export function AppLayout({ children }) {
       <Sidebar />
 
       <main className="relative z-10 min-h-screen pb-20 lg:ml-64 lg:pb-0">
-        {/*
-          Área segura global:
-          - Mobile: 16 px entre TopNavBar e conteúdo
-          - Tablet: 20 px
-          - Desktop: 24 px
-
-          A TopNavBar é sticky, por isso o conteúdo inicia sempre
-          abaixo dela e nunca fica escondido.
-        */}
         <div className="mx-auto w-full max-w-7xl px-3 pb-3 pt-2 sm:px-5 sm:pb-5 sm:pt-3 lg:px-8 lg:pb-6 lg:pt-3">
           <div className="rounded-[1.5rem] border border-white/70 bg-white/78 p-2 shadow-sm shadow-slate-200/70 backdrop-blur-xl sm:p-3 lg:rounded-[2rem] lg:p-3">
             {children}
