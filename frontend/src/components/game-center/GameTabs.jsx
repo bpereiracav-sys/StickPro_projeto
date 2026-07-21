@@ -152,6 +152,7 @@ export default function GameTabs({
   gamesheetContent,
   statisticsContent,
   assistantContent,
+  documentsContent,
   historyContent,
 }) {
   const currentStage = workflow?.stage || 'draft';
@@ -229,25 +230,27 @@ export default function GameTabs({
         {summaryContent}
       </TabsContent>
 
-      {canSeeStaffTabs && (
-        <TabsContent
-          value="convocation"
-          className="space-y-6"
-        >
-          <MatchCenterPlaceholder
-            icon={Users}
-            title="Convocatória"
-            description="A gestão completa da convocatória será integrada nesta área sem retirar o utilizador do Centro do Jogo."
-            features={[
-              'Atletas convocados',
-              'Disponibilidade e confirmações',
-              'Ausências e respetivos motivos',
-              'Estado e fecho da convocatória',
-            ]}
-            nextSprint="Sprint 2.5B"
-          />
-        </TabsContent>
-      )}
+            {canSeeStaffTabs && (
+              <TabsContent
+                value="documents"
+                className="space-y-6"
+              >
+                {documentsContent || (
+                  <MatchCenterPlaceholder
+                    icon={FileText}
+                    title="Centro documental"
+                    description="A área documental deste jogo ainda não está disponível."
+                    features={[
+                      'Boletim oficial',
+                      'Relatórios técnicos',
+                      'Fotografias e vídeos',
+                      'Outros anexos',
+                    ]}
+                    nextSprint="Sprint 2.3F"
+                  />
+                )}
+              </TabsContent>
+            )}
 
       {canSeeStaffTabs && (
         <TabsContent value="lineup" className="space-y-6">
