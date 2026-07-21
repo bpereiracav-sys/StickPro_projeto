@@ -677,27 +677,31 @@ export default function MatchStats() {
 
       <MatchWorkflowHero
         workflow={match.workflow}
+        smartWorkflow={match.smart_workflow}
       />
       
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <WorkflowChecklist
             workflow={match.workflow}
+            smartWorkflow={match.smart_workflow}
           />
         </div>
       
         <WorkflowNextAction
           workflow={match.workflow}
+          smartWorkflow={match.smart_workflow}
           onContinue={setActiveMatchTab}
         />
       </div>      
       
       <SmartAssistantPanel
-        match={match}
-        workflow={match.workflow}
-        existingStats={existingStats}
-        technicalAssistant={technicalAssistant}
-        onNavigate={setActiveMatchTab}
+          match={match}
+          workflow={match.workflow}
+          smartWorkflow={match.smart_workflow}
+          existingStats={existingStats}
+          technicalAssistant={technicalAssistant}
+          onNavigate={setActiveMatchTab}
       />
 
       <GameTabs
