@@ -736,6 +736,22 @@ export default function MatchStats() {
         gamesheetContent={renderGamesheetContent()}
         statisticsContent={renderStatisticsContent()}
         assistantContent={renderAssistantContent()}
+
+        documentsContent={
+          <Card className="border-white/70 bg-white/90 shadow-lg">
+            <CardHeader>
+              <CardTitle>Documentos do Jogo</CardTitle>
+              <CardDescription>
+                Área documental em desenvolvimento.
+              </CardDescription>
+            </CardHeader>
+        
+            <CardContent>
+              O novo Centro Documental será integrado aqui.
+            </CardContent>
+          </Card>
+        }
+        
         historyContent={
           <MatchAuditHistoryPanel
             matchId={match.id}
