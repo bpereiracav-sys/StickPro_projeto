@@ -17,6 +17,18 @@ import {
   Library,
 } from 'lucide-react';
 
+/**
+ * RC1.1 — Navegação MultiPerfil
+ *
+ * Regras:
+ *
+ * 1. A navegação depende exclusivamente das permissões do perfil ativo.
+ * 2. Não se deve usar user.role para decidir menus.
+ * 3. Não existe um perfil funcional Pai/Mãe.
+ * 4. Um atleta associado recebe a mesma navegação de atleta.
+ * 5. O backend continua a ser a autoridade final de autorização.
+ */
+
 export const NAV_SECTIONS = [
   {
     id: 'home',
@@ -29,10 +41,11 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.home',
         fallbackLabel: 'Início',
         icon: Home,
-        visibleFor: ['all'],
+        publicForAuthenticated: true,
       },
     ],
   },
+
   {
     id: 'operations',
     titleKey: 'sidebar.operations',
@@ -44,7 +57,7 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.calendar',
         fallbackLabel: 'Calendário',
         icon: Calendar,
-        visibleFor: ['all'],
+        permission: 'view_team_events',
       },
       {
         id: 'messages',
@@ -52,15 +65,28 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.messages',
         fallbackLabel: 'Mensagens',
         icon: MessageSquare,
-        visibleFor: ['all'],
+        publicForAuthenticated: true,
         children: [
-          { id: 'conversations', path: '/messages', fallbackLabel: 'Conversas' },
-          { id: 'groups', path: '/messages/groups', fallbackLabel: 'Grupos' },
-          { id: 'attachments', path: '/messages/attachments', fallbackLabel: 'Anexos' },
+          {
+            id: 'conversations',
+            path: '/messages',
+            fallbackLabel: 'Conversas',
+          },
+          {
+            id: 'groups',
+            path: '/messages/groups',
+            fallbackLabel: 'Grupos',
+          },
+          {
+            id: 'attachments',
+            path: '/messages/attachments',
+            fallbackLabel: 'Anexos',
+          },
         ],
       },
     ],
   },
+
   {
     id: 'sports_development',
     titleKey: 'sidebar.sportsDevelopment',
@@ -80,7 +106,13 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.teams',
         fallbackLabel: 'Equipas',
         icon: Users,
-        permissionFlag: 'canManageTeam',
+
+        /**
+         * Todos os perfis desportivos podem consultar as equipas às quais
+         * têm acesso. A capacidade de editar continua dependente de
+         * canManageTeam dentro da página.
+         */
+        permission: 'view_team_members',
       },
       {
         id: 'competitions',
@@ -88,13 +120,34 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.championships',
         fallbackLabel: 'Competições',
         icon: Trophy,
-        visibleFor: ['all'],
+        permission: 'view_team_stats',
         children: [
-          { id: 'dashboard', path: '/championships', fallbackLabel: 'Dashboard' },
-          { id: 'games', path: '/championships/games', fallbackLabel: 'Jogos' },
-          { id: 'results', path: '/championships/results', fallbackLabel: 'Resultados' },
-          { id: 'standings', path: '/championships/standings', fallbackLabel: 'Classificações' },
-          { id: 'imports', path: '/championships/imports', fallbackLabel: 'Importações' },
+          {
+            id: 'dashboard',
+            path: '/championships',
+            fallbackLabel: 'Dashboard',
+          },
+          {
+            id: 'games',
+            path: '/championships/games',
+            fallbackLabel: 'Jogos',
+          },
+          {
+            id: 'results',
+            path: '/championships/results',
+            fallbackLabel: 'Resultados',
+          },
+          {
+            id: 'standings',
+            path: '/championships/standings',
+            fallbackLabel: 'Classificações',
+          },
+          {
+            id: 'imports',
+            path: '/championships/imports',
+            fallbackLabel: 'Importações',
+            permission: 'import_data',
+          },
         ],
       },
       {
@@ -103,7 +156,7 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.stats',
         fallbackLabel: 'Estatísticas',
         icon: BarChart3,
-        visibleFor: ['all'],
+        permission: 'view_team_stats',
       },
       {
         id: 'attendance',
@@ -116,24 +169,76 @@ export const NAV_SECTIONS = [
       {
         id: 'development_center',
         path: '/development-center',
-        legacyPaths: ['/evaluation-criteria', '/evaluation-plans', '/evaluations'],
+        legacyPaths: [
+          '/evaluation-criteria',
+          '/evaluation-plans',
+          '/evaluations',
+        ],
         labelKey: 'nav.developmentCenter',
         fallbackLabel: 'Centro Desenvolvimento',
         icon: Award,
-        visibleFor: ['admin', 'gestor_desportivo', 'treinador', 'treinador_adjunto', 'delegado', 'jogador', 'responsavel'],
+        permission: 'view_development_center',
         children: [
-          { id: 'dashboard', path: '/development-center', fallbackLabel: 'Dashboard' },
-          { id: 'criteria', path: '/evaluation-criteria', fallbackLabel: 'Critérios', icon: ClipboardList },
-          { id: 'plans', path: '/evaluation-plans', fallbackLabel: 'Planos', icon: FileText },
-          { id: 'evaluations', path: '/evaluations', fallbackLabel: 'Avaliações', icon: Award },
-          { id: 'new_evaluation', path: '/evaluations/new', fallbackLabel: 'Nova Avaliação', icon: ClipboardCheck },
-          { id: 'objectives', path: '/development-center/objectives', fallbackLabel: 'Objetivos', icon: Target, disabled: true },
-          { id: 'reports', path: '/development-center/reports', fallbackLabel: 'Relatórios', icon: FileText, disabled: true },
-          { id: 'technical_book', path: '/development-center/technical-book', fallbackLabel: 'Livro Técnico', icon: BookOpen, disabled: true },
+          {
+            id: 'dashboard',
+            path: '/development-center',
+            fallbackLabel: 'Dashboard',
+            permission: 'view_development_center',
+          },
+          {
+            id: 'criteria',
+            path: '/evaluation-criteria',
+            fallbackLabel: 'Critérios',
+            icon: ClipboardList,
+            permission: 'create_evaluations',
+          },
+          {
+            id: 'plans',
+            path: '/evaluation-plans',
+            fallbackLabel: 'Planos',
+            icon: FileText,
+            permission: 'create_evaluations',
+          },
+          {
+            id: 'evaluations',
+            path: '/evaluations',
+            fallbackLabel: 'Avaliações',
+            icon: Award,
+            permission: 'view_development_center',
+          },
+          {
+            id: 'new_evaluation',
+            path: '/evaluations/new',
+            fallbackLabel: 'Nova Avaliação',
+            icon: ClipboardCheck,
+            permission: 'create_evaluations',
+          },
+          {
+            id: 'objectives',
+            path: '/development-center/objectives',
+            fallbackLabel: 'Objetivos',
+            icon: Target,
+            disabled: true,
+          },
+          {
+            id: 'reports',
+            path: '/development-center/reports',
+            fallbackLabel: 'Relatórios',
+            icon: FileText,
+            disabled: true,
+          },
+          {
+            id: 'technical_book',
+            path: '/development-center/technical-book',
+            fallbackLabel: 'Livro Técnico',
+            icon: BookOpen,
+            disabled: true,
+          },
         ],
       },
     ],
   },
+
   {
     id: 'knowledge',
     titleKey: 'sidebar.knowledge',
@@ -145,10 +250,11 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.library',
         fallbackLabel: 'Biblioteca',
         icon: Library,
-        visibleFor: ['all'],
+        publicForAuthenticated: true,
       },
     ],
   },
+
   {
     id: 'administration',
     titleKey: 'sidebar.administration',
@@ -160,7 +266,7 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.payments',
         fallbackLabel: 'Pagamentos',
         icon: CreditCard,
-        visibleFor: ['admin', 'gestor_desportivo', 'jogador', 'responsavel'],
+        permission: 'view_payments',
       },
       {
         id: 'club',
@@ -168,7 +274,7 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.club',
         fallbackLabel: 'Clube',
         icon: Building2,
-        permissionFlag: 'isAdmin',
+        permission: 'view_club_settings',
       },
       {
         id: 'subscription',
@@ -176,7 +282,7 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.subscription',
         fallbackLabel: 'Subscrição',
         icon: CreditCard,
-        permissionFlag: 'isAdmin',
+        permission: 'manage_subscription',
       },
       {
         id: 'settings',
@@ -184,58 +290,160 @@ export const NAV_SECTIONS = [
         labelKey: 'nav.settings',
         fallbackLabel: 'Definições',
         icon: Settings,
-        visibleFor: ['all'],
+        publicForAuthenticated: true,
       },
     ],
   },
 ];
 
-export function canShowNavigationItem(item, user, permissions) {
-  if (!item) return false;
+/**
+ * Verifica uma flag booleana existente no PermissionsContext.
+ */
+function hasPermissionFlag(permissionFlag, permissions) {
+  if (!permissionFlag || !permissions) {
+    return false;
+  }
 
-  if (item.visible === false) return false;
+  return Boolean(permissions[permissionFlag]);
+}
 
-  if (item.visibleFor?.includes('all')) return true;
+/**
+ * Verifica uma permissão declarativa através de hasPermission().
+ */
+function hasNamedPermission(permission, permissions) {
+  if (
+    !permission ||
+    typeof permissions?.hasPermission !== 'function'
+  ) {
+    return false;
+  }
 
-  if (item.permissionFlag && permissions?.[item.permissionFlag]) {
+  return permissions.hasPermission(permission);
+}
+
+/**
+ * Determina a visibilidade de um item.
+ *
+ * O parâmetro user foi removido intencionalmente. A conta autenticada pode
+ * possuir vários perfis, mas apenas o perfil ativo deve controlar o menu.
+ */
+export function canShowNavigationItem(item, permissions) {
+  if (!item) {
+    return false;
+  }
+
+  if (item.visible === false) {
+    return false;
+  }
+
+  if (item.disabled === true) {
+    return false;
+  }
+
+  if (item.publicForAuthenticated === true) {
+    return true;
+  }
+
+  if (
+    item.permissionFlag &&
+    hasPermissionFlag(item.permissionFlag, permissions)
+  ) {
     return true;
   }
 
   if (
     item.permission &&
-    typeof permissions?.hasPermission === 'function' &&
-    permissions.hasPermission(item.permission)
+    hasNamedPermission(item.permission, permissions)
   ) {
-    return true;
-  }
-
-  const role = user?.role;
-
-  if (role && item.visibleFor?.includes(role)) {
     return true;
   }
 
   return false;
 }
 
-export function getVisibleNavigationSections(user, permissions) {
+/**
+ * Filtra também os filhos do menu.
+ *
+ * Atualmente a Sidebar apresenta apenas os itens principais, mas manter os
+ * filhos filtrados evita disponibilizar no futuro atalhos para operações sem
+ * autorização, como Importações ou Nova Avaliação.
+ */
+function filterNavigationChildren(children, permissions) {
+  if (!Array.isArray(children)) {
+    return children;
+  }
+
+  return children.filter((child) => {
+    if (child.disabled === true) {
+      return false;
+    }
+
+    /**
+     * Filhos sem regra explícita herdam a visibilidade do item principal.
+     */
+    if (
+      !child.permission &&
+      !child.permissionFlag &&
+      child.publicForAuthenticated !== false
+    ) {
+      return true;
+    }
+
+    return canShowNavigationItem(child, permissions);
+  });
+}
+
+/**
+ * Assinatura nova:
+ *
+ * getVisibleNavigationSections(permissions)
+ *
+ * Mantemos também compatibilidade temporária com a assinatura anterior:
+ *
+ * getVisibleNavigationSections(user, permissions)
+ *
+ * Isto permite atualizar a Sidebar sem provocar erros imediatos noutros
+ * componentes que possam importar a função.
+ */
+export function getVisibleNavigationSections(
+  permissionsOrLegacyUser,
+  legacyPermissions
+) {
+  const permissions =
+    legacyPermissions || permissionsOrLegacyUser;
+
   return NAV_SECTIONS
     .map((section) => ({
       ...section,
-      items: section.items.filter((item) =>
-        canShowNavigationItem(item, user, permissions)
-      ),
+      items: section.items
+        .filter((item) =>
+          canShowNavigationItem(item, permissions)
+        )
+        .map((item) => ({
+          ...item,
+          children: filterNavigationChildren(
+            item.children,
+            permissions
+          ),
+        })),
     }))
     .filter((section) => section.items.length > 0);
 }
 
 export function isNavigationItemActive(item, pathname) {
-  if (!item || !pathname) return false;
+  if (!item || !pathname) {
+    return false;
+  }
 
-  const paths = [item.path, ...(item.legacyPaths || [])].filter(Boolean);
+  const paths = [
+    item.path,
+    ...(item.legacyPaths || []),
+  ].filter(Boolean);
 
   return paths.some(
-    (path) => pathname === path || pathname.startsWith(`${path}/`)
+    (path) =>
+      pathname === path ||
+      pathname.startsWith(`${path}/`)
   );
 }
 
@@ -248,7 +456,7 @@ export const DASHBOARD_QUICK_ACTIONS = [
     descriptionKey: 'dashboard.quickActions.calendar',
     fallbackDescription: 'Ver treinos, jogos e eventos',
     icon: Calendar,
-    visibleFor: ['all'],
+    permission: 'view_team_events',
   },
   {
     id: 'messages',
@@ -258,7 +466,7 @@ export const DASHBOARD_QUICK_ACTIONS = [
     descriptionKey: 'dashboard.quickActions.messages',
     fallbackDescription: 'Comunicação da equipa',
     icon: MessageSquare,
-    visibleFor: ['all'],
+    publicForAuthenticated: true,
   },
   {
     id: 'development_center_staff',
@@ -268,7 +476,7 @@ export const DASHBOARD_QUICK_ACTIONS = [
     descriptionKey: 'dashboard.quickActions.developmentCenter',
     fallbackDescription: 'Avaliar e acompanhar atletas',
     icon: Award,
-    visibleFor: ['admin', 'gestor_desportivo', 'treinador', 'treinador_adjunto'],
+    permission: 'create_evaluations',
   },
   {
     id: 'my_development',
@@ -278,7 +486,8 @@ export const DASHBOARD_QUICK_ACTIONS = [
     descriptionKey: 'dashboard.quickActions.myDevelopment',
     fallbackDescription: 'Ver evolução, objetivos e feedback',
     icon: Award,
-    visibleFor: ['jogador', 'responsavel'],
+    permission: 'view_development_center',
+    playerOnly: true,
   },
   {
     id: 'new_evaluation',
@@ -288,7 +497,7 @@ export const DASHBOARD_QUICK_ACTIONS = [
     descriptionKey: 'dashboard.quickActions.newEvaluation',
     fallbackDescription: 'Avaliar atletas rapidamente',
     icon: ClipboardCheck,
-    visibleFor: ['admin', 'gestor_desportivo', 'treinador', 'treinador_adjunto'],
+    permission: 'create_evaluations',
   },
   {
     id: 'competitions',
@@ -298,7 +507,7 @@ export const DASHBOARD_QUICK_ACTIONS = [
     descriptionKey: 'dashboard.quickActions.competitions',
     fallbackDescription: 'Jogos, resultados e estatísticas',
     icon: Trophy,
-    visibleFor: ['all'],
+    permission: 'view_team_stats',
   },
   {
     id: 'attendance',
@@ -318,12 +527,45 @@ export const DASHBOARD_QUICK_ACTIONS = [
     descriptionKey: 'dashboard.quickActions.plans',
     fallbackDescription: 'Planos de avaliação',
     icon: FileText,
-    visibleFor: ['admin', 'gestor_desportivo', 'treinador', 'treinador_adjunto'],
+    permission: 'create_evaluations',
   },
 ];
 
-export function getVisibleDashboardQuickActions(user, permissions) {
+/**
+ * Evita mostrar simultaneamente:
+ *
+ * - "Centro Desenvolvimento" para staff;
+ * - "O Meu Desenvolvimento" para atleta.
+ */
+function canShowQuickAction(item, permissions) {
+  if (!canShowNavigationItem(item, permissions)) {
+    return false;
+  }
+
+  if (item.playerOnly === true) {
+    return Boolean(permissions?.isPlayer);
+  }
+
+  return true;
+}
+
+/**
+ * Assinatura nova:
+ *
+ * getVisibleDashboardQuickActions(permissions)
+ *
+ * Compatível temporariamente com:
+ *
+ * getVisibleDashboardQuickActions(user, permissions)
+ */
+export function getVisibleDashboardQuickActions(
+  permissionsOrLegacyUser,
+  legacyPermissions
+) {
+  const permissions =
+    legacyPermissions || permissionsOrLegacyUser;
+
   return DASHBOARD_QUICK_ACTIONS.filter((item) =>
-    canShowNavigationItem(item, user, permissions)
+    canShowQuickAction(item, permissions)
   );
 }
