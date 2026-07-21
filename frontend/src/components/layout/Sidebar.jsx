@@ -153,7 +153,7 @@ export function Sidebar() {
   const displayRole = viewingAs?.role || user?.role;
 
   const navSections = useMemo(() => {
-    return getVisibleNavigationSections(user, permissions).map((section) => ({
+    return getVisibleNavigationSections(permissions).map((section) => ({
       ...section,
       title: section.titleKey
         ? tr(section.titleKey, section.fallbackTitle)
