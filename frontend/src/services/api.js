@@ -192,6 +192,35 @@ export const championshipsApi = {
   publishTechnicalAssistant: (matchId) =>
     api.post(`/matches/${matchId}/technical-assistant/publish`),
 
+  // =====================================================
+  // Match Documents
+  // =====================================================
+
+  getMatchDocuments: (matchId) =>
+    api.get(
+      `/championships/matches/${matchId}/documents`
+    ),
+
+  getMatchDocument: (matchId, documentId) =>
+    api.get(
+      `/championships/matches/${matchId}/documents/${documentId}`
+    ),
+
+  uploadMatchDocument: (matchId, formData) =>
+    api.post(
+      `/championships/matches/${matchId}/documents`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    ),
+
+  deleteMatchDocument: (matchId, documentId) =>
+    api.delete(
+      `/championships/matches/${matchId}/documents/${documentId}`
+    ),  
 };
 
 
