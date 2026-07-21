@@ -444,6 +444,55 @@ export const membersApi = {
   },
 };
 
+// Evaluations / Development Center API
+export const evaluationsApi = {
+  // Evaluation criteria
+  getCriteria: (params) =>
+    api.get('/evaluations/criteria', { params }),
+
+  getCriterion: (criterionId) =>
+    api.get(`/evaluations/criteria/${criterionId}`),
+
+  createCriterion: (data) =>
+    api.post('/evaluations/criteria', data),
+
+  updateCriterion: (criterionId, data) =>
+    api.put(`/evaluations/criteria/${criterionId}`, data),
+
+  deleteCriterion: (criterionId) =>
+    api.delete(`/evaluations/criteria/${criterionId}`),
+
+  // Evaluation plans
+  getPlans: (params) =>
+    api.get('/evaluations/plans', { params }),
+
+  getPlan: (planId) =>
+    api.get(`/evaluations/plans/${planId}`),
+
+  createPlan: (data) =>
+    api.post('/evaluations/plans', data),
+
+  updatePlan: (planId, data) =>
+    api.put(`/evaluations/plans/${planId}`, data),
+
+  duplicatePlan: (planId) =>
+    api.post(`/evaluations/plans/${planId}/duplicate`),
+
+  archivePlan: (planId) =>
+    api.delete(`/evaluations/plans/${planId}`),
+
+  // Evaluation execution
+  getTeamPlayers: (teamId) =>
+    api.get(`/evaluations/teams/${teamId}/players`),
+
+  createFromPlan: (data) =>
+    api.post('/evaluations/from-plan', data),
+
+  // Evaluation history
+  getPlayerEvaluations: (playerId, params) =>
+    api.get(`/evaluations/player/${playerId}`, { params }),
+};
+
 // Dashboard API
 export const dashboardApi = {
   get: (activeProfile = null) =>
