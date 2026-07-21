@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { usePermissions } from '../context/PermissionsContext';
+import {
+  evaluationsApi,
+  eventsApi,
+  teamsApi,
+} from '../services/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
@@ -29,46 +34,6 @@ import {
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
-
-const getApiBaseUrl = () => {
-  const raw = process.env.REACT_APP_BACKEND_URL || '';
-  if (!raw) return '/api';
-  if (raw.endsWith('/api')) return raw;
-  return `${raw.replace(/\/$/, '')}/api`;
-};
-
-const getAuthToken = () => {
-  const possibleKeys = ['token', 'access_token', 'authToken', 'stickpro_token', 'stickproToken'];
-
-  for (const key of possibleKeys) {
-    const value = localStorage.getItem(key);
-    if (value) return value.replace(/^"|"$/g, '');
-  }
-
-  return null;
-};
-
-const apiRequest = async (path, options = {}) => {
-  const token = getAuthToken();
-
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-
-  const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
-
-  if (!response.ok) {
-    throw new Error(data?.detail || data?.message || 'Erro na operação');
-  }
-
-  return data;
-};
 
 const STEPS = [
   { key: 'plan', label: 'Plano' },
@@ -186,10 +151,7 @@ export default function EvaluationExecution() {
   };
 
   const canEvaluate =
-    permissions?.isAdmin ||
-    permissions?.isStaff ||
-    permissions?.canManageTeam ||
-    permissions?.hasPermission?.('view_team_members');
+    permissions?.canCreateEvaluations === true;
 
   useEffect(() => {
     fetchInitialData();
@@ -207,45 +169,105 @@ export default function EvaluationExecution() {
 
   const fetchInitialData = async () => {
     setLoading(true);
-
+  
     try {
-      const [plansData, teamsData] = await Promise.all([
-        apiRequest('/evaluations/plans'),
-        apiRequest('/teams').catch(() => []),
-      ]);
-
-      setPlans(Array.isArray(plansData) ? plansData : []);
-      setTeams(Array.isArray(teamsData) ? teamsData : []);
+      const [plansResponse, teamsResponse] =
+        await Promise.all([
+          evaluationsApi.getPlans(),
+          teamsApi.getAll().catch(() => ({
+            data: [],
+          })),
+        ]);
+  
+      const plansData = plansResponse?.data;
+      const teamsData = teamsResponse?.data;
+  
+      setPlans(
+        Array.isArray(plansData)
+          ? plansData
+          : []
+      );
+  
+      setTeams(
+        Array.isArray(teamsData)
+          ? teamsData
+          : []
+      );
     } catch (error) {
-      console.error('Error loading evaluation execution data:', error);
-      toast.error(tr('evaluations.executionLoadError', 'Erro ao carregar dados de avaliação'));
+      console.error(
+        'Error loading evaluation execution data:',
+        error
+      );
+  
+      toast.error(
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          tr(
+            'evaluations.executionLoadError',
+            'Erro ao carregar dados de avaliação'
+          )
+      );
     } finally {
       setLoading(false);
     }
   };
 
   const fetchPlayersAndEvents = async (teamId) => {
+    if (!teamId) {
+      setPlayers([]);
+      setEvents([]);
+      setSelectedPlayerIds([]);
+      return;
+    }
+  
     setLoadingPlayers(true);
-
+  
     try {
-      const [playersData, eventsData] = await Promise.all([
-        apiRequest(`/evaluations/teams/${teamId}/players`),
-        apiRequest(`/events?team_id=${teamId}`).catch(() => []),
-      ]);
-
-      setPlayers(Array.isArray(playersData) ? playersData : []);
-
-      const normalizedEvents = Array.isArray(eventsData)
-        ? eventsData
-        : Array.isArray(eventsData?.events)
-          ? eventsData.events
-          : [];
-
+      const [playersResponse, eventsResponse] =
+        await Promise.all([
+          evaluationsApi.getTeamPlayers(teamId),
+          eventsApi
+            .getAll({
+              team_id: teamId,
+            })
+            .catch(() => ({
+              data: [],
+            })),
+        ]);
+  
+      const playersData = playersResponse?.data;
+      const eventsData = eventsResponse?.data;
+  
+      setPlayers(
+        Array.isArray(playersData)
+          ? playersData
+          : []
+      );
+  
+      const normalizedEvents =
+        Array.isArray(eventsData)
+          ? eventsData
+          : Array.isArray(eventsData?.events)
+            ? eventsData.events
+            : [];
+  
       setEvents(normalizedEvents);
       setSelectedPlayerIds([]);
+      setSelectedEventId('none');
     } catch (error) {
-      console.error('Error loading team players/events:', error);
-      toast.error(tr('evaluations.playersLoadError', 'Erro ao carregar atletas da equipa'));
+      console.error(
+        'Error loading team players/events:',
+        error
+      );
+  
+      toast.error(
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          tr(
+            'evaluations.playersLoadError',
+            'Erro ao carregar atletas da equipa'
+          )
+      );
     } finally {
       setLoadingPlayers(false);
     }
@@ -508,37 +530,77 @@ export default function EvaluationExecution() {
     setSavingEvaluations(true);
 
     try {
-      const result = await apiRequest('/evaluations/from-plan', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const prepareSave = async () => {
+  if (!validateBeforeSave()) {
+    return;
+  }
 
-      const numericScores = Object.values(scores)
-        .filter((value) => value !== undefined && value !== null && value !== '')
-        .map(Number);
+  const payload = buildPayloadPreview();
 
-      setSaveResult({
-        ...result,
-        planName: selectedPlan?.name,
-        teamName: selectedTeam?.name,
-        eventName: selectedEvent?.title,
-        playersCount: selectedPlayers.length,
-        criteriaCount: planCriteria.length,
-        averageScore:
-          numericScores.length > 0
-            ? (numericScores.reduce((sum, value) => sum + value, 0) / numericScores.length).toFixed(1)
-            : null,
-      });
+  setSavingEvaluations(true);
 
-      setEvaluationStarted(false);
-      toast.success(tr('evaluations.savedSuccessfully', 'Avaliações guardadas com sucesso'));
-    } catch (error) {
-      console.error('Error saving evaluations:', error);
-      toast.error(error.message || tr('evaluations.saveError', 'Erro ao guardar avaliações'));
-    } finally {
-      setSavingEvaluations(false);
-    }
-  };
+  try {
+    const response =
+      await evaluationsApi.createFromPlan(
+        payload
+      );
+
+    const result = response?.data || {};
+
+    const numericScores = Object.values(scores)
+      .filter(
+        (value) =>
+          value !== undefined &&
+          value !== null &&
+          value !== ''
+      )
+      .map(Number);
+
+    setSaveResult({
+      ...result,
+      planName: selectedPlan?.name,
+      teamName: selectedTeam?.name,
+      eventName: selectedEvent?.title,
+      playersCount: selectedPlayers.length,
+      criteriaCount: planCriteria.length,
+      averageScore:
+        numericScores.length > 0
+          ? (
+              numericScores.reduce(
+                (sum, value) => sum + value,
+                0
+              ) / numericScores.length
+            ).toFixed(1)
+          : null,
+    });
+
+    setEvaluationStarted(false);
+
+    toast.success(
+      tr(
+        'evaluations.savedSuccessfully',
+        'Avaliações guardadas com sucesso'
+      )
+    );
+  } catch (error) {
+    console.error(
+      'Error saving evaluations:',
+      error
+    );
+
+    toast.error(
+      error.response?.data?.detail ||
+        error.response?.data?.message ||
+        error.message ||
+        tr(
+          'evaluations.saveError',
+          'Erro ao guardar avaliações'
+        )
+    );
+  } finally {
+    setSavingEvaluations(false);
+  }
+};
 
   const formatEventLabel = (event) => {
     if (!event) return '';
