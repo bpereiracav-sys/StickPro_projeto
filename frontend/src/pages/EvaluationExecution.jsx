@@ -524,84 +524,75 @@ export default function EvaluationExecution() {
   };
 
   const prepareSave = async () => {
-    if (!validateBeforeSave()) return;
-
+    if (!validateBeforeSave()) {
+      return;
+    }
+  
     const payload = buildPayloadPreview();
+  
     setSavingEvaluations(true);
-
+  
     try {
-      const prepareSave = async () => {
-  if (!validateBeforeSave()) {
-    return;
-  }
-
-  const payload = buildPayloadPreview();
-
-  setSavingEvaluations(true);
-
-  try {
-    const response =
-      await evaluationsApi.createFromPlan(
-        payload
-      );
-
-    const result = response?.data || {};
-
-    const numericScores = Object.values(scores)
-      .filter(
-        (value) =>
-          value !== undefined &&
-          value !== null &&
-          value !== ''
-      )
-      .map(Number);
-
-    setSaveResult({
-      ...result,
-      planName: selectedPlan?.name,
-      teamName: selectedTeam?.name,
-      eventName: selectedEvent?.title,
-      playersCount: selectedPlayers.length,
-      criteriaCount: planCriteria.length,
-      averageScore:
-        numericScores.length > 0
-          ? (
-              numericScores.reduce(
-                (sum, value) => sum + value,
-                0
-              ) / numericScores.length
-            ).toFixed(1)
-          : null,
-    });
-
-    setEvaluationStarted(false);
-
-    toast.success(
-      tr(
-        'evaluations.savedSuccessfully',
-        'Avaliações guardadas com sucesso'
-      )
-    );
-  } catch (error) {
-    console.error(
-      'Error saving evaluations:',
-      error
-    );
-
-    toast.error(
-      error.response?.data?.detail ||
-        error.response?.data?.message ||
-        error.message ||
-        tr(
-          'evaluations.saveError',
-          'Erro ao guardar avaliações'
+      const response =
+        await evaluationsApi.createFromPlan(payload);
+  
+      const result = response?.data || {};
+  
+      const numericScores = Object.values(scores)
+        .filter(
+          (value) =>
+            value !== undefined &&
+            value !== null &&
+            value !== ''
         )
-    );
-  } finally {
-    setSavingEvaluations(false);
-  }
-};
-
+        .map(Number);
+  
+      setSaveResult({
+        ...result,
+        planName: selectedPlan?.name,
+        teamName: selectedTeam?.name,
+        eventName: selectedEvent?.title,
+        playersCount: selectedPlayers.length,
+        criteriaCount: planCriteria.length,
+        averageScore:
+          numericScores.length > 0
+            ? (
+                numericScores.reduce(
+                  (sum, value) => sum + value,
+                  0
+                ) / numericScores.length
+              ).toFixed(1)
+            : null,
+      });
+  
+      setEvaluationStarted(false);
+  
+      toast.success(
+        tr(
+          'evaluations.savedSuccessfully',
+          'Avaliações guardadas com sucesso'
+        )
+      );
+    } catch (error) {
+      console.error(
+        'Error saving evaluations:',
+        error
+      );
+  
+      toast.error(
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.message ||
+          tr(
+            'evaluations.saveError',
+            'Erro ao guardar avaliações'
+          )
+      );
+    } finally {
+      setSavingEvaluations(false);
+    }
+  };
+  
   const formatEventLabel = (event) => {
     if (!event) return '';
 
