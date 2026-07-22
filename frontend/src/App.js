@@ -40,6 +40,7 @@ import Attendance from "./pages/Attendance";
 import EvaluationCriteria from "./pages/EvaluationCriteria";
 import EvaluationPlans from "./pages/EvaluationPlans";
 import EvaluationExecution from "./pages/EvaluationExecution";
+import DevelopmentCenter from "./pages/DevelopmentCenter";
 import ClubPage from "./pages/ClubPage";
 import ProfilePage from "./pages/ProfilePage";
 import MemberProfilePage from "./pages/MemberProfilePage";
@@ -386,6 +387,14 @@ function AppRoutes() {
           <ProtectedRoute>
             <Stats />
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/development-center"
+        element={
+          <PermissionRoute requiredPermission="view_development_center">
+            <DevelopmentCenter />
+          </PermissionRoute>
         }
       />
       <Route
