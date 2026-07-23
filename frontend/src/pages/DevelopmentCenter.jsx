@@ -84,6 +84,19 @@ const ACTIVE_MODULES = [
       'bg-emerald-600 text-white shadow-emerald-200',
     number: '03',
   },
+  {
+    id: 'history',
+    title: 'Histórico de Avaliações',
+    description:
+      'Consulte a evolução longitudinal dos atletas e compare avaliações ao longo da época.',
+    path: '/evaluations/history',
+    icon: TrendingUp,
+    actionLabel: 'Consultar histórico',
+    permission: 'create_evaluations',
+    accentClass:
+      'from-purple-500/15 via-purple-50/70 to-white border-purple-100',
+    iconClass: 'bg-purple-600 text-white shadow-purple-200',
+  },
 ];
 
 const WORKFLOW_STEPS = [
@@ -133,13 +146,6 @@ const WORKFLOW_STEPS = [
 ];
 
 const FUTURE_MODULES = [
-  {
-    id: 'history',
-    title: 'Histórico evolutivo',
-    description:
-      'Consulte a evolução longitudinal por atleta, equipa e domínio de desenvolvimento.',
-    icon: TrendingUp,
-  },
   {
     id: 'objectives',
     title: 'Objetivos individuais',
