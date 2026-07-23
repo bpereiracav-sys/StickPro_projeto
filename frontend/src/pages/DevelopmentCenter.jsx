@@ -86,7 +86,8 @@ const ACTIVE_MODULES = [
   },
   {
     id: 'history',
-    title: 'Histórico de Avaliações',
+    eyebrow: 'Acompanhamento',
+    title: 'Histórico de avaliações',
     description:
       'Consulte a evolução longitudinal dos atletas e compare avaliações ao longo da época.',
     path: '/evaluations/history',
@@ -94,8 +95,10 @@ const ACTIVE_MODULES = [
     actionLabel: 'Consultar histórico',
     permission: 'create_evaluations',
     accentClass:
-      'from-purple-500/15 via-purple-50/70 to-white border-purple-100',
-    iconClass: 'bg-purple-600 text-white shadow-purple-200',
+      'border-purple-100 from-purple-500/15 via-purple-50/80 to-white',
+    iconClass:
+      'bg-purple-600 text-white shadow-purple-200',
+    number: '04',
   },
 ];
 
@@ -140,8 +143,9 @@ const WORKFLOW_STEPS = [
     subtitle: 'Acompanhamento',
     description:
       'Interpretar resultados e acompanhar o progresso ao longo da época.',
+    path: '/evaluations/history',
     icon: TrendingUp,
-    future: true,
+    permission: 'create_evaluations',
   },
 ];
 
