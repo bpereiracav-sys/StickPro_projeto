@@ -415,7 +415,14 @@ export default function Dashboard() {
             : []),
         ]}
       />
-      <DashboardQuickActions actions={quickActions} />
+      <DashboardQuickActions
+        actions={quickActions}
+        title={tr('dashboard.quickActionsTitle', 'Ações rápidas')}
+        subtitle={tr(
+          'dashboard.quickActionsSubtitle',
+          'Aceda rapidamente às funcionalidades mais utilizadas.'
+        )}
+      />
 
       <DashboardTodayPanel
         nextEvent={nextEvent}
