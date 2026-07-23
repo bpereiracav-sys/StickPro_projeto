@@ -333,46 +333,59 @@ export default function EvaluationCriteria() {
   );
 
   const handleImportSystemCriteria = async (selectedCriteria) => {
-    const criteriaCodes = selectedCriteria
-      .map((criterion) => criterion.code)
-      .filter(Boolean);
-
-    if (criteriaCodes.length === 0) {
+    if (!Array.isArray(selectedCriteria) || selectedCriteria.length === 0) {
       toast.error(
-        tr('evaluations.selectCriteriaToImport', 'Seleciona pelo menos uma competência')
+        tr(
+          'evaluations.selectCriteriaToImport',
+          'Seleciona pelo menos uma competência'
+        )
       );
       return null;
     }
-
+  
     try {
-      const result = await apiRequest('/evaluations/criteria/import-system', {
-        method: 'POST',
-        body: JSON.stringify({ criteria_codes: criteriaCodes }),
-      });
-
+      const result = await apiRequest(
+        '/evaluations/criteria/import-system',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            criteria: selectedCriteria,
+          }),
+        }
+      );
+  
       const imported = Number(result?.imported || 0);
       const skipped = Number(result?.skipped || 0);
-
+  
       if (imported > 0 && skipped > 0) {
         toast.success(
           `${imported} competências importadas. ${skipped} já existiam na Biblioteca do Clube.`
         );
       } else if (imported > 0) {
-        toast.success(`${imported} competências importadas para a Biblioteca do Clube.`);
+        toast.success(
+          `${imported} competências importadas para a Biblioteca do Clube.`
+        );
       } else if (skipped > 0) {
-        toast.info('As competências selecionadas já existem na Biblioteca do Clube.');
+        toast.info(
+          'As competências selecionadas já existem na Biblioteca do Clube.'
+        );
       } else {
         toast.info('Não foram importadas novas competências.');
       }
-
+  
       await fetchData();
       return result;
     } catch (error) {
       console.error('Error importing StickPro criteria:', error);
+  
       toast.error(
         error.message ||
-          tr('evaluations.criteriaImportError', 'Erro ao importar competências')
+          tr(
+            'evaluations.criteriaImportError',
+            'Erro ao importar competências'
+          )
       );
+  
       throw error;
     }
   };
