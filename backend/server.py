@@ -16474,7 +16474,174 @@ async def get_evaluation_criteria(
     criteria = await db.evaluation_criteria.find(query, {"_id": 0}).sort("category", 1).sort("name", 1).to_list(500)
     return criteria
 
+@api_router.post("/evaluations/criteria/import-system")
+async def import_system_evaluation_criteria(
+    payload: Dict[str, Any],
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
 
+    if not checker.is_staff and not checker.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para importar critérios de avaliação"
+        )
+
+    club_id = current_user.get("club_id")
+
+    if not club_id:
+        raise HTTPException(
+            status_code=400,
+            detail="O utilizador não está associado a um clube"
+        )
+
+    source_criteria = payload.get("criteria", [])
+
+    if not isinstance(source_criteria, list) or len(source_criteria) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Seleciona pelo menos uma competência para importar"
+        )
+
+    # Limite de proteção contra pedidos excessivamente grandes.
+    if len(source_criteria) > 250:
+        raise HTTPException(
+            status_code=400,
+            detail="Não é possível importar mais de 250 competências de uma vez"
+        )
+
+    category_by_domain = {
+        "skating": "technical",
+        "individual_technique": "technical",
+        "perception": "tactical",
+        "decision": "tactical",
+        "collective_play": "tactical",
+        "behavior": "attitude",
+        "goalkeeper": "technical",
+    }
+
+    imported_criteria = []
+    skipped_criteria = []
+    received_codes = set()
+
+    now = datetime.now(timezone.utc).isoformat()
+
+    for source in source_criteria:
+        if not isinstance(source, dict):
+            continue
+
+        source_code = str(source.get("code") or "").strip()
+        name = str(
+            source.get("name")
+            or source.get("observableAction")
+            or ""
+        ).strip()
+
+        if not source_code or not name:
+            continue
+
+        # Evita códigos repetidos no próprio pedido.
+        if source_code in received_codes:
+            skipped_criteria.append({
+                "code": source_code,
+                "sourceCode": source_code,
+                "reason": "duplicate_request",
+            })
+            continue
+
+        received_codes.add(source_code)
+
+        existing = await db.evaluation_criteria.find_one(
+            {
+                "club_id": club_id,
+                "$or": [
+                    {"sourceCode": source_code},
+                    {"source_code": source_code},
+                ],
+            },
+            {"_id": 0}
+        )
+
+        if existing:
+            skipped_criteria.append({
+                "code": source_code,
+                "sourceCode": source_code,
+                "name": existing.get("name", name),
+                "reason": "already_imported",
+            })
+            continue
+
+        domain = source.get("domain")
+        domain_label = source.get("domainLabel")
+        subdomain = source.get("subdomain")
+        subdomain_label = source.get("subdomainLabel")
+
+        contexts = source.get("contexts", [])
+        if not isinstance(contexts, list):
+            contexts = []
+
+        player_type = source.get("playerType", "field_player")
+
+        default_weight = source.get(
+            "defaultWeight",
+            source.get("weight", 1)
+        )
+
+        try:
+            weight = float(default_weight or 1)
+        except (TypeError, ValueError):
+            weight = 1
+
+        criterion = {
+            "id": str(uuid.uuid4()),
+            "name": name,
+            "description": (
+                str(source.get("description")).strip()
+                if source.get("description")
+                else None
+            ),
+            "category": category_by_domain.get(domain, "other"),
+            "scale_min": 1,
+            "scale_max": 5,
+            "weight": weight,
+            "team_id": None,
+            "is_active": True,
+
+            # Origem do critério
+            "source": "stickpro_library",
+            "sourceCode": source_code,
+            "is_system": False,
+
+            # Estrutura oficial StickPro
+            "domain": domain,
+            "domainLabel": domain_label,
+            "subdomain": subdomain,
+            "subdomainLabel": subdomain_label,
+            "observableAction": (
+                source.get("observableAction")
+                or name
+            ),
+            "contexts": contexts,
+            "playerType": player_type,
+
+            # Auditoria e associação
+            "club_id": club_id,
+            "created_by": current_user["id"],
+            "created_at": now,
+            "updated_at": now,
+        }
+
+        await db.evaluation_criteria.insert_one(dict(criterion))
+
+        criterion.pop("_id", None)
+        imported_criteria.append(criterion)
+
+    return {
+        "imported": len(imported_criteria),
+        "skipped": len(skipped_criteria),
+        "importedCriteria": imported_criteria,
+        "skippedCriteria": skipped_criteria,
+    }
 @api_router.put("/evaluations/criteria/{criterion_id}")
 async def update_evaluation_criterion(
     criterion_id: str,
