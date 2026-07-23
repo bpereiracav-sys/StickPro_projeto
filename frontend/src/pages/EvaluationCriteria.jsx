@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { Button } from '../components/ui/button';
@@ -23,6 +24,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import {
+  ArrowLeft,
   Award,
   Brain,
   Dumbbell,
@@ -33,9 +35,10 @@ import {
   Sparkles,
   Target,
   Trash2,
-  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+import { StickProCriteriaLibrary } from '../components/development/StickProCriteriaLibrary';
 
 const getApiBaseUrl = () => {
   const raw = process.env.REACT_APP_BACKEND_URL || '';
@@ -175,6 +178,7 @@ function StickEvaluationIcon({ className = '' }) {
 export default function EvaluationCriteria() {
   const { t } = useLanguage();
   const permissions = usePermissions();
+  const navigate = useNavigate();
 
   const [criteria, setCriteria] = useState([]);
   const [teams, setTeams] = useState([]);
@@ -193,10 +197,8 @@ export default function EvaluationCriteria() {
   };
 
   const canManageCriteria =
-    permissions?.isAdmin ||
-    permissions?.isStaff ||
-    permissions?.canManageTeam ||
-    permissions?.hasPermission?.('view_team_members');
+    permissions?.canCreateEvaluations === true ||
+    permissions?.hasPermission?.('create_evaluations') === true;
 
   useEffect(() => {
     fetchData();
@@ -374,8 +376,22 @@ export default function EvaluationCriteria() {
   }
 
   return (
-    <div className="space-y-5 pb-20 pt-1 lg:-mt-12 lg:pb-0" data-testid="evaluation-criteria-page">
+    <div
+      className="space-y-5 pb-20 pt-1 lg:pb-0"
+      data-testid="evaluation-criteria-page"
+    >
       <section className="overflow-hidden rounded-[1.75rem] border border-cyan-100 bg-slate-950 p-5 text-white shadow-xl shadow-slate-200/70 sm:p-6">
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate('/development-center')}
+          className="mb-4 -ml-2 text-slate-300 hover:bg-white/10 hover:text-white"
+        >
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Centro de Desenvolvimento
+        </Button>
+
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <Badge className="mb-3 border border-white/15 bg-white/10 text-white">
@@ -388,10 +404,8 @@ export default function EvaluationCriteria() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-              {tr(
-                'evaluations.criteriaSubtitle',
-                'Define os critérios técnicos, táticos, físicos, psicológicos e de atitude que serão usados para acompanhar a evolução dos atletas.'
-              )}
+              Biblioteca oficial de competências e critérios personalizados
+              do clube, organizados para apoiar uma avaliação objetiva.
             </p>
           </div>
 
@@ -406,11 +420,13 @@ export default function EvaluationCriteria() {
         </div>
       </section>
 
+      <StickProCriteriaLibrary />
+
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card className="border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-slate-50">
           <CardContent className="p-4">
             <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
-              {tr('evaluations.activeCriteria', 'Critérios ativos')}
+              {tr('evaluations.activeCriteria', 'Critérios ativos do clube')}
             </p>
             <p className="mt-2 font-heading text-4xl text-slate-950">{activeCount}</p>
           </CardContent>
@@ -443,13 +459,10 @@ export default function EvaluationCriteria() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <StickEvaluationIcon className="h-6 w-6 text-cyan-600" />
-                {tr('evaluations.criteriaLibrary', 'Biblioteca de critérios')}
+                Critérios do clube
               </CardTitle>
               <CardDescription>
-                {tr(
-                  'evaluations.criteriaLibraryHelp',
-                  'Cria critérios globais para todo o clube ou critérios específicos por equipa.'
-                )}
+                Critérios personalizados, globais ou específicos por equipa.
               </CardDescription>
             </div>
 
@@ -500,13 +513,11 @@ export default function EvaluationCriteria() {
             <div className="flex min-h-[260px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
               <Award className="mb-3 h-12 w-12 text-slate-300" />
               <p className="font-heading text-xl text-slate-950">
-                {tr('evaluations.noCriteria', 'Ainda não existem critérios')}
+                Ainda não existem critérios personalizados
               </p>
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                {tr(
-                  'evaluations.noCriteriaHelp',
-                  'Começa por criar critérios simples. Mais tarde poderás agrupá-los em templates de avaliação.'
-                )}
+                Cria critérios próprios do clube. A importação direta da
+                Biblioteca StickPro será ativada no Sprint 2.1B.
               </p>
               <Button className="mt-5 rounded-full" onClick={openCreateDialog}>
                 <Plus className="mr-2 h-4 w-4" />
