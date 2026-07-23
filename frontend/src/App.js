@@ -51,6 +51,7 @@ import LibraryPage from "./pages/LibraryPage";
 import Payments from "./pages/Payments";
 import SubscriptionPage from "./pages/SubscriptionPage";
 import OnboardingPage from "./pages/OnboardingPage";
+import EvaluationHistory from './pages/EvaluationHistory';
 
 const ONBOARDING_ROLES = ["admin", "gestor_desportivo"];
 
@@ -426,6 +427,11 @@ function AppRoutes() {
             <EvaluationExecution />
           </PermissionRoute>
         }
+      />
+
+      <Route
+        path="/evaluations/history"
+        element={<EvaluationHistory />}
       />
 
       {/* Payments */}
