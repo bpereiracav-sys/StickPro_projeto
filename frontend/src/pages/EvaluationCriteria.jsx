@@ -322,6 +322,61 @@ export default function EvaluationCriteria() {
     }
   };
 
+
+  const importedSourceCodes = useMemo(
+    () =>
+      criteria
+        .filter((criterion) => criterion.source === 'stickpro_library')
+        .map((criterion) => criterion.sourceCode || criterion.source_code)
+        .filter(Boolean),
+    [criteria]
+  );
+
+  const handleImportSystemCriteria = async (selectedCriteria) => {
+    const criteriaCodes = selectedCriteria
+      .map((criterion) => criterion.code)
+      .filter(Boolean);
+
+    if (criteriaCodes.length === 0) {
+      toast.error(
+        tr('evaluations.selectCriteriaToImport', 'Seleciona pelo menos uma competência')
+      );
+      return null;
+    }
+
+    try {
+      const result = await apiRequest('/evaluations/criteria/import-system', {
+        method: 'POST',
+        body: JSON.stringify({ criteria_codes: criteriaCodes }),
+      });
+
+      const imported = Number(result?.imported || 0);
+      const skipped = Number(result?.skipped || 0);
+
+      if (imported > 0 && skipped > 0) {
+        toast.success(
+          `${imported} competências importadas. ${skipped} já existiam na Biblioteca do Clube.`
+        );
+      } else if (imported > 0) {
+        toast.success(`${imported} competências importadas para a Biblioteca do Clube.`);
+      } else if (skipped > 0) {
+        toast.info('As competências selecionadas já existem na Biblioteca do Clube.');
+      } else {
+        toast.info('Não foram importadas novas competências.');
+      }
+
+      await fetchData();
+      return result;
+    } catch (error) {
+      console.error('Error importing StickPro criteria:', error);
+      toast.error(
+        error.message ||
+          tr('evaluations.criteriaImportError', 'Erro ao importar competências')
+      );
+      throw error;
+    }
+  };
+
   const filteredCriteria = useMemo(() => {
     return criteria.filter((criterion) => {
       if (selectedCategoryFilter !== 'all' && criterion.category !== selectedCategoryFilter) {
@@ -420,7 +475,11 @@ export default function EvaluationCriteria() {
         </div>
       </section>
 
-      <StickProCriteriaLibrary />
+      <StickProCriteriaLibrary
+        canImport={canManageCriteria}
+        importedSourceCodes={importedSourceCodes}
+        onImport={handleImportSystemCriteria}
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Card className="border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-slate-50">
@@ -516,8 +575,8 @@ export default function EvaluationCriteria() {
                 Ainda não existem critérios personalizados
               </p>
               <p className="mt-2 max-w-md text-sm text-slate-500">
-                Cria critérios próprios do clube. A importação direta da
-                Biblioteca StickPro será ativada no Sprint 2.1B.
+                Cria critérios próprios do clube ou importa competências da
+                Biblioteca Oficial StickPro.
               </p>
               <Button className="mt-5 rounded-full" onClick={openCreateDialog}>
                 <Plus className="mr-2 h-4 w-4" />
@@ -564,6 +623,15 @@ export default function EvaluationCriteria() {
                                 {criterion.is_active === false && (
                                   <Badge variant="outline" className="border-slate-200 bg-slate-100 text-slate-500">
                                     {tr('common.archived', 'Arquivado')}
+                                  </Badge>
+                                )}
+
+                                {criterion.source === 'stickpro_library' && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-cyan-200 bg-cyan-50 text-cyan-700"
+                                  >
+                                    Biblioteca StickPro
                                   </Badge>
                                 )}
                               </div>
