@@ -100,6 +100,22 @@ const ACTIVE_MODULES = [
       'bg-purple-600 text-white shadow-purple-200',
     number: '04',
   },
+  {
+    id: 'objectives',
+    eyebrow: 'Desenvolvimento',
+    title: 'Objetivos individuais',
+    description:
+      'Defina metas por competência e acompanhe automaticamente o progresso de cada atleta.',
+    path: '/evaluations/objectives',
+    icon: Target,
+    actionLabel: 'Gerir objetivos',
+    permission: 'create_evaluations',
+    accentClass:
+      'border-amber-100 from-amber-500/15 via-amber-50/80 to-white',
+    iconClass:
+      'bg-amber-500 text-white shadow-amber-200',
+    number: '05',
+  },
 ];
 
 const WORKFLOW_STEPS = [
