@@ -192,36 +192,44 @@ export default function EvaluationCriteria() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
   const tr = (key, fallback) => {
-    const value = t(key);
-    return value && value !== key ? value : fallback;
-  };
+  const value = t(key);
+  return value && value !== key ? value : fallback;
+};
 
-  const canManageCriteria =
-    permissions?.canCreateEvaluations === true ||
-    permissions?.hasPermission?.('create_evaluations') === true;
+const canManageCriteria =
+  permissions?.isAdmin === true ||
+  permissions?.isStaff === true ||
+  permissions?.canManageTeam === true ||
+  permissions?.canCreateEvaluations === true ||
+  permissions?.hasPermission?.('create_evaluations') === true;
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+useEffect(() => {
+  fetchData();
+}, []);
 
-  const fetchData = async () => {
-    setLoading(true);
+const fetchData = async () => {
+  setLoading(true);
 
-    try {
-      const [criteriaData, teamsData] = await Promise.all([
-        apiRequest('/evaluations/criteria?include_inactive=true'),
-        apiRequest('/teams').catch(() => []),
-      ]);
+  try {
+    const [criteriaData, teamsData] = await Promise.all([
+      apiRequest('/evaluations/criteria?include_inactive=true'),
+      apiRequest('/teams').catch(() => []),
+    ]);
 
-      setCriteria(Array.isArray(criteriaData) ? criteriaData : []);
-      setTeams(Array.isArray(teamsData) ? teamsData : []);
-    } catch (error) {
-      console.error('Error loading evaluation criteria:', error);
-      toast.error(tr('evaluations.criteriaLoadError', 'Erro ao carregar critérios'));
-    } finally {
-      setLoading(false);
-    }
-  };
+    setCriteria(Array.isArray(criteriaData) ? criteriaData : []);
+    setTeams(Array.isArray(teamsData) ? teamsData : []);
+  } catch (error) {
+    console.error('Error loading evaluation criteria:', error);
+    toast.error(
+      tr(
+        'evaluations.criteriaLoadError',
+        'Erro ao carregar critérios'
+      )
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   const openCreateDialog = () => {
     setEditingCriterion(null);
