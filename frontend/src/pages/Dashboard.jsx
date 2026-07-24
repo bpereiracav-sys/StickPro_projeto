@@ -27,6 +27,7 @@ import TrainingFeedbackModal from '../components/dashboard/TrainingFeedbackModal
 import NextEventCard from '../components/dashboard/NextEventCard';
 import UpcomingEventsCard from '../components/dashboard/UpcomingEventsCard';
 import PendingActionsCard from '../components/dashboard/PendingActionsCard';
+import AthletePIDCard from '../components/dashboard/AthletePIDCard';
 import { usePermissions } from '../context/PermissionsContext';
 import DashboardQuickActions from '../components/dashboard/DashboardQuickActions';
 import DashboardTodayPanel from '../components/dashboard/DashboardTodayPanel';
@@ -213,6 +214,31 @@ export default function Dashboard() {
   }, [user, activeProfile]);
 
   const activeDashboardRole = navigationUser?.role || user?.role || 'jogador';
+
+  const isAthleteDashboard = [
+    'jogador',
+    'player',
+    'atleta',
+    'athlete',
+  ].includes(String(activeDashboardRole || '').toLowerCase());
+
+  const dashboardPlayerId =
+    activeProfile?.player_id ||
+    activeProfile?.athlete_id ||
+    activeProfile?.member_id ||
+    (
+      activeProfile?.type === 'associated'
+        ? activeProfile?.user_id
+        : null
+    ) ||
+    data?.player_id ||
+    data?.athlete_id ||
+    data?.member_id ||
+    (
+      isAthleteDashboard
+        ? activeProfile?.user_id || user?.id
+        : null
+    );
   
   const quickActions = useMemo(() => {
     return getVisibleDashboardQuickActions(navigationUser, permissions)
@@ -433,6 +459,12 @@ export default function Dashboard() {
         formatTime={formatTime}
         tr={tr}
       />      
+
+      <AthletePIDCard
+        playerId={dashboardPlayerId}
+        enabled={isAthleteDashboard}
+        tr={tr}
+      />
       
       <CommitmentCard commitment={commitment} t={t} tr={tr} />
 
