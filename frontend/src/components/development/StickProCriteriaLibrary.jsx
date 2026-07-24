@@ -65,7 +65,9 @@ function ContextBadges({ contexts }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {contexts.map((contextId) => {
-        const context = DEVELOPMENT_CONTEXTS.find((item) => item.id === contextId);
+        const context = DEVELOPMENT_CONTEXTS.find(
+          (item) => item.id === contextId
+        );
 
         return (
           <Badge
@@ -80,21 +82,31 @@ function ContextBadges({ contexts }) {
     </div>
   );
 }
-
-function SelectionCheckbox({ checked, indeterminate = false, onChange, label }) {
+function SelectionCheckbox({
+  checked,
+  indeterminate = false,
+  onChange,
+  label,
+  disabled = false,
+}) {
   return (
     <button
       type="button"
-      onClick={onChange}
+      onClick={disabled ? undefined : onChange}
+      disabled={disabled}
       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
-        checked || indeterminate
+        disabled
+          ? 'cursor-not-allowed border-emerald-200 bg-emerald-100 text-emerald-600'
+          : checked || indeterminate
           ? 'border-cyan-600 bg-cyan-600 text-white'
           : 'border-slate-300 bg-white text-transparent hover:border-cyan-500'
       }`}
       aria-label={label}
       aria-pressed={checked}
     >
-      {indeterminate ? (
+      {disabled ? (
+        <Check className="h-3.5 w-3.5" />
+      ) : indeterminate ? (
         <span className="h-0.5 w-2.5 rounded bg-white" />
       ) : (
         <Check className="h-3.5 w-3.5" />
@@ -123,6 +135,11 @@ export function StickProCriteriaLibrary({
   const [selectedCodes, setSelectedCodes] = useState(new Set());
   const [scaleDialogOpen, setScaleDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+
+  const importedCodesSet = useMemo(
+    () => new Set(importedSourceCodes || []),
+    [importedSourceCodes]
+  );
   
   const importedCodesSet = useMemo(
     () => new Set(importedSourceCodes || []),
@@ -208,6 +225,13 @@ export function StickProCriteriaLibrary({
     );
   }, [query, domainFilter, subdomainFilter, contextFilter, playerTypeFilter, groupedTree]);
 
+  const importedFilteredCount = filteredCriteria.filter((criterion) =>
+    importedCodesSet.has(criterion.code)
+  ).length;
+  
+  const availableFilteredCount =
+    filteredCriteria.length - importedFilteredCount;
+  
   const hasActiveFilters =
     query.trim() ||
     domainFilter !== ALL_VALUE ||
@@ -242,9 +266,19 @@ export function StickProCriteriaLibrary({
   };
 
   const toggleCriterion = (code) => {
+    if (importedCodesSet.has(code)) {
+      return;
+    }
+  
     setSelectedCodes((current) => {
       const next = new Set(current);
-      next.has(code) ? next.delete(code) : next.add(code);
+  
+      if (next.has(code)) {
+        next.delete(code);
+      } else {
+        next.add(code);
+      }
+  
       return next;
     });
   };
@@ -252,15 +286,20 @@ export function StickProCriteriaLibrary({
   const setCriteriaSelection = (criteria, shouldSelect) => {
     setSelectedCodes((current) => {
       const next = new Set(current);
-
+  
       criteria.forEach((criterion) => {
+        if (importedCodesSet.has(criterion.code)) {
+          next.delete(criterion.code);
+          return;
+        }
+  
         if (shouldSelect) {
           next.add(criterion.code);
         } else {
           next.delete(criterion.code);
         }
       });
-
+  
       return next;
     });
   };
@@ -484,9 +523,20 @@ const handleImportSelected = async () => {
               <p className="font-semibold text-slate-900">
                 {filteredCriteria.length} competências encontradas
               </p>
-              <p className="text-sm text-slate-500">
-                {selectedCodes.size} selecionadas nesta sessão
-              </p>
+            
+              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+                <span className="text-emerald-700">
+                  {importedFilteredCount} já adicionadas ao clube
+                </span>
+            
+                <span className="text-cyan-700">
+                  {availableFilteredCount} disponíveis
+                </span>
+            
+                <span className="text-slate-500">
+                  {selectedCodes.size} selecionadas nesta sessão
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -544,12 +594,21 @@ const handleImportSelected = async () => {
                 const domainCriteria = domain.subdomains.flatMap(
                   (subdomain) => subdomain.criteria
                 );
-                const selectedDomainCount = domainCriteria.filter((criterion) =>
-                  selectedCodes.has(criterion.code)
+                
+                const availableDomainCriteria = domainCriteria.filter(
+                  (criterion) => !importedCodesSet.has(criterion.code)
+                );
+                
+                const importedDomainCount =
+                  domainCriteria.length - availableDomainCriteria.length;
+                
+                const selectedDomainCount = availableDomainCriteria.filter(
+                  (criterion) => selectedCodes.has(criterion.code)
                 ).length;
+                
                 const domainSelected =
-                  domainCriteria.length > 0 &&
-                  selectedDomainCount === domainCriteria.length;
+                  availableDomainCriteria.length > 0 &&
+                  selectedDomainCount === availableDomainCriteria.length;
                 const domainIndeterminate =
                   selectedDomainCount > 0 && !domainSelected;
                 const domainExpanded = expandedDomains.has(domain.id);
@@ -562,6 +621,7 @@ const handleImportSelected = async () => {
                     <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 p-4">
                       <SelectionCheckbox
                         checked={domainSelected}
+                        disabled={alreadyImported}
                         indeterminate={domainIndeterminate}
                         onChange={() =>
                           setCriteriaSelection(domainCriteria, !domainSelected)
@@ -588,7 +648,7 @@ const handleImportSelected = async () => {
                         </Badge>
 
                         <span className="text-sm text-slate-500">
-                          {domainCriteria.length} ações
+                          {importedDomainCount}/{domainCriteria.length} adicionadas
                         </span>
                       </button>
                     </div>
@@ -598,12 +658,26 @@ const handleImportSelected = async () => {
                         {domain.subdomains.map((subdomain) => {
                           const key = makeGroupKey(domain.id, subdomain.id);
                           const subdomainExpanded = expandedSubdomains.has(key);
-                          const selectedSubdomainCount = subdomain.criteria.filter(
-                            (criterion) => selectedCodes.has(criterion.code)
-                          ).length;
+                          const availableSubdomainCriteria =
+                            subdomain.criteria.filter(
+                              (criterion) =>
+                                !importedCodesSet.has(criterion.code)
+                            );
+                          
+                          const importedSubdomainCount =
+                            subdomain.criteria.length -
+                            availableSubdomainCriteria.length;
+                          
+                          const selectedSubdomainCount =
+                            availableSubdomainCriteria.filter(
+                              (criterion) =>
+                                selectedCodes.has(criterion.code)
+                            ).length;
+                          
                           const subdomainSelected =
-                            subdomain.criteria.length > 0 &&
-                            selectedSubdomainCount === subdomain.criteria.length;
+                            availableSubdomainCriteria.length > 0 &&
+                            selectedSubdomainCount ===
+                              availableSubdomainCriteria.length;
                           const subdomainIndeterminate =
                             selectedSubdomainCount > 0 && !subdomainSelected;
 
@@ -616,6 +690,7 @@ const handleImportSelected = async () => {
                                 <SelectionCheckbox
                                   checked={subdomainSelected}
                                   indeterminate={subdomainIndeterminate}
+                                  disabled={availableDomainCriteria.length === 0}
                                   onChange={() =>
                                     setCriteriaSelection(
                                       subdomain.criteria,
@@ -643,7 +718,7 @@ const handleImportSelected = async () => {
                                   </span>
 
                                   <span className="text-xs text-slate-400">
-                                    {subdomain.criteria.length}
+                                    {importedSubdomainCount}/{subdomain.criteria.length}
                                   </span>
                                 </button>
                               </div>
@@ -651,13 +726,28 @@ const handleImportSelected = async () => {
                               {subdomainExpanded && (
                                 <div className="divide-y divide-slate-100 border-t border-slate-100 bg-slate-50/50">
                                   {subdomain.criteria.map((criterion) => {
-                                    const selected = selectedCodes.has(criterion.code);
+                                    const alreadyImported = importedCodesSet.has(
+                                      criterion.code
+                                    );
+                                  
+                                    const selected =
+                                      !alreadyImported &&
+                                      selectedCodes.has(criterion.code);
+                                  
+                                    return (
+                                      // conteúdo do critério
+                                    );
+                                  })}
 
                                     return (
                                       <div
                                         key={criterion.code}
                                         className={`flex gap-3 p-4 transition ${
-                                          selected ? 'bg-cyan-50/70' : 'hover:bg-white'
+                                          alreadyImported
+                                            ? 'bg-emerald-50/60 opacity-80'
+                                            : selected
+                                            ? 'bg-cyan-50/70'
+                                            : 'hover:bg-white'
                                         }`}
                                       >
                                         <div className="pt-0.5">
@@ -676,18 +766,27 @@ const handleImportSelected = async () => {
                                               <p className="font-medium text-slate-900">
                                                 {criterion.name}
                                               </p>
-
+                                          
                                               <p className="mt-1 text-sm leading-6 text-slate-500">
                                                 {criterion.description}
                                               </p>
                                             </div>
-
-                                            <Badge
-                                              variant="outline"
-                                              className="w-fit shrink-0 border-slate-200 bg-white text-[11px] text-slate-500"
-                                            >
-                                              {criterion.code}
-                                            </Badge>
+                                          
+                                            <div className="flex shrink-0 flex-wrap gap-2">
+                                              {alreadyImported && (
+                                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                                  <Check className="mr-1 h-3 w-3" />
+                                                  Já adicionada
+                                                </Badge>
+                                              )}
+                                          
+                                              <Badge
+                                                variant="outline"
+                                                className="border-slate-200 bg-white text-[11px] text-slate-500"
+                                              >
+                                                {criterion.code}
+                                              </Badge>
+                                            </div>
                                           </div>
 
                                           <div className="mt-3 flex flex-wrap items-center gap-2">
