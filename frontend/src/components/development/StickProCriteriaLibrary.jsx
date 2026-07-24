@@ -141,11 +141,6 @@ export function StickProCriteriaLibrary({
     [importedSourceCodes]
   );
   
-  const importedCodesSet = useMemo(
-    () => new Set(importedSourceCodes || []),
-    [importedSourceCodes]
-  );
-  
   const availableSubdomains = useMemo(() => {
     if (domainFilter === ALL_VALUE) {
       return DEVELOPMENT_SUBDOMAINS;
