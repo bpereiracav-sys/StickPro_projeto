@@ -566,9 +566,11 @@ export default function EvaluationHistory() {
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
+  const [teamEvaluationRecords, setTeamEvaluationRecords] = useState([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
   const [loadingEvaluations, setLoadingEvaluations] = useState(false);
+  const [loadingTeamComparison, setLoadingTeamComparison] = useState(false);
   const [selectedTeamId, setSelectedTeamId] = useState('');
   const [selectedPlayerId, setSelectedPlayerId] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(ALL_VALUE);
@@ -597,6 +599,7 @@ export default function EvaluationHistory() {
       setPlayers([]);
       setSelectedPlayerId('');
       setEvaluations([]);
+      setTeamEvaluationRecords([]);
       return;
     }
 
@@ -611,6 +614,15 @@ export default function EvaluationHistory() {
 
     fetchPlayerEvaluations(selectedPlayerId);
   }, [selectedPlayerId]);
+
+  useEffect(() => {
+    if (!selectedTeamId || players.length === 0) {
+      setTeamEvaluationRecords([]);
+      return;
+    }
+
+    fetchTeamComparison(players);
+  }, [selectedTeamId, players]);
 
   const fetchTeams = async () => {
     setLoadingTeams(true);
@@ -680,6 +692,34 @@ export default function EvaluationHistory() {
       setEvaluations([]);
     } finally {
       setLoadingEvaluations(false);
+    }
+  };
+
+  const fetchTeamComparison = async (teamPlayers) => {
+    setLoadingTeamComparison(true);
+
+    try {
+      const responses = await Promise.allSettled(
+        teamPlayers.map((player) =>
+          evaluationsApi.getPlayerEvaluations(player.id)
+        )
+      );
+
+      const records = responses.map((result, index) => ({
+        playerId: teamPlayers[index]?.id,
+        playerName: getPlayerName(teamPlayers[index]),
+        evaluations:
+          result.status === 'fulfilled'
+            ? normalizeCollection(result.value?.data)
+            : [],
+      }));
+
+      setTeamEvaluationRecords(records);
+    } catch (error) {
+      console.error('Error loading team comparison:', error);
+      setTeamEvaluationRecords([]);
+    } finally {
+      setLoadingTeamComparison(false);
     }
   };
 
@@ -846,6 +886,116 @@ export default function EvaluationHistory() {
     };
   }, [filteredEvaluations]);
 
+  const teamComparison = useMemo(() => {
+    const now = new Date();
+
+    const filterForBenchmark = (evaluation) => {
+      const evaluationDate = getEvaluationDate(evaluation);
+      const date = evaluationDate ? new Date(evaluationDate) : null;
+
+      if (dateFilter !== ALL_VALUE && date && !Number.isNaN(date.getTime())) {
+        const limit = new Date(now);
+        if (dateFilter === '30') limit.setDate(now.getDate() - 30);
+        if (dateFilter === '90') limit.setDate(now.getDate() - 90);
+        if (dateFilter === '365') limit.setFullYear(now.getFullYear() - 1);
+        if (date < limit) return false;
+      }
+
+      if (categoryFilter !== ALL_VALUE) {
+        const hasCategory =
+          evaluation?.category === categoryFilter ||
+          getCriteriaEntries(evaluation).some(
+            (criterion) => criterion.category === categoryFilter
+          );
+        if (!hasCategory) return false;
+      }
+
+      return true;
+    };
+
+    const teamEvaluations = teamEvaluationRecords.flatMap((record) =>
+      record.evaluations.filter(filterForBenchmark)
+    );
+
+    const teamEvaluationAverages = teamEvaluations
+      .map(getEvaluationAverage)
+      .filter((value) => value !== null && Number.isFinite(value));
+
+    const teamAverage =
+      teamEvaluationAverages.length > 0
+        ? teamEvaluationAverages.reduce((sum, value) => sum + value, 0) /
+          teamEvaluationAverages.length
+        : null;
+
+    const teamCriteriaMap = new Map();
+
+    teamEvaluations.forEach((evaluation) => {
+      getCriteriaEntries(evaluation).forEach((criterion) => {
+        if (!Number.isFinite(criterion.score)) return;
+        const key = criterion.id || criterion.name;
+        if (!teamCriteriaMap.has(key)) {
+          teamCriteriaMap.set(key, {
+            id: key,
+            name: criterion.name,
+            category: criterion.category || 'other',
+            scores: [],
+          });
+        }
+        teamCriteriaMap.get(key).scores.push(criterion.score);
+      });
+    });
+
+    const athleteCriteriaMap = new Map(
+      dashboard.criteria.map((criterion) => [criterion.id, criterion])
+    );
+
+    const criteriaComparison = Array.from(teamCriteriaMap.values())
+      .map((criterion) => {
+        const teamCriterionAverage =
+          criterion.scores.reduce((sum, value) => sum + value, 0) /
+          criterion.scores.length;
+        const athleteCriterion = athleteCriteriaMap.get(criterion.id);
+        const athleteAverage = athleteCriterion?.average ?? null;
+
+        return {
+          id: criterion.id,
+          name: criterion.name,
+          category: criterion.category,
+          athleteAverage,
+          teamAverage: teamCriterionAverage,
+          difference:
+            athleteAverage !== null
+              ? athleteAverage - teamCriterionAverage
+              : null,
+        };
+      })
+      .filter((item) => item.athleteAverage !== null)
+      .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference));
+
+    const evaluatedPlayers = teamEvaluationRecords.filter((record) =>
+      record.evaluations.some(filterForBenchmark)
+    ).length;
+
+    return {
+      teamAverage,
+      difference:
+        dashboard.overallAverage !== null && teamAverage !== null
+          ? dashboard.overallAverage - teamAverage
+          : null,
+      evaluationsCount: teamEvaluations.length,
+      evaluatedPlayers,
+      criteriaComparison,
+      aboveTeam: criteriaComparison.filter((item) => item.difference > 0.05),
+      belowTeam: criteriaComparison.filter((item) => item.difference < -0.05),
+    };
+  }, [
+    teamEvaluationRecords,
+    dashboard.criteria,
+    dashboard.overallAverage,
+    dateFilter,
+    categoryFilter,
+  ]);
+
   if (!canViewHistory) {
     return (
       <div className="space-y-4 pb-20 lg:pb-0">
@@ -897,7 +1047,7 @@ export default function EvaluationHistory() {
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
               {tr(
                 'evaluations.historySubtitle',
-                'Analise tendências, radar de competências, pontos fortes e prioridades de desenvolvimento ao longo da época.'
+                'Analise tendências, radar de competências e compare o desempenho do atleta com a média da equipa.'
               )}
             </p>
           </div>
@@ -1080,6 +1230,153 @@ export default function EvaluationHistory() {
               accent="amber"
             />
           </div>
+
+          <Card className="overflow-hidden border border-violet-100 bg-white shadow-xl shadow-slate-200/60">
+            <CardHeader className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-cyan-50">
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-violet-600" />
+                    {tr('evaluations.teamComparison', 'Comparação com a equipa')}
+                  </CardTitle>
+                  <CardDescription>
+                    {tr(
+                      'evaluations.teamComparisonHelp',
+                      'Compare o desempenho médio do atleta com os restantes dados disponíveis da equipa no mesmo período.'
+                    )}
+                  </CardDescription>
+                </div>
+
+                {loadingTeamComparison ? (
+                  <Badge variant="outline" className="w-fit rounded-full bg-white">
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                    {tr('common.loading', 'A carregar...')}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="w-fit rounded-full border-violet-200 bg-violet-50 text-violet-700">
+                    {teamComparison.evaluatedPlayers} {tr('evaluations.evaluatedPlayers', 'atletas com avaliações')}
+                  </Badge>
+                )}
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-5">
+              {loadingTeamComparison ? (
+                <div className="flex min-h-[180px] items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
+                </div>
+              ) : teamComparison.teamAverage === null ? (
+                <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                  <Users className="mx-auto mb-3 h-12 w-12 text-slate-300" />
+                  <p className="font-semibold text-slate-800">
+                    {tr('evaluations.noTeamComparisonData', 'Ainda não existem dados suficientes para comparar com a equipa')}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {tr('evaluations.noTeamComparisonDataHelp', 'Crie avaliações para vários atletas da mesma equipa para ativar esta análise.')}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-3xl border border-cyan-100 bg-cyan-50/70 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+                        {tr('evaluations.athleteAverage', 'Média do atleta')}
+                      </p>
+                      <p className="mt-2 font-heading text-4xl text-slate-950">
+                        {dashboard.overallAverage?.toFixed(1) || '-'}
+                      </p>
+                    </div>
+
+                    <div className="rounded-3xl border border-violet-100 bg-violet-50/70 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                        {tr('evaluations.teamAverage', 'Média da equipa')}
+                      </p>
+                      <p className="mt-2 font-heading text-4xl text-slate-950">
+                        {teamComparison.teamAverage.toFixed(1)}
+                      </p>
+                    </div>
+
+                    <div className={`rounded-3xl border p-4 ${
+                      teamComparison.difference >= 0
+                        ? 'border-emerald-100 bg-emerald-50/70'
+                        : 'border-amber-100 bg-amber-50/70'
+                    }`}>
+                      <p className={`text-xs font-bold uppercase tracking-wide ${
+                        teamComparison.difference >= 0
+                          ? 'text-emerald-700'
+                          : 'text-amber-700'
+                      }`}>
+                        {tr('evaluations.differenceToTeam', 'Diferença para a equipa')}
+                      </p>
+                      <p className={`mt-2 font-heading text-4xl ${
+                        teamComparison.difference >= 0
+                          ? 'text-emerald-700'
+                          : 'text-amber-700'
+                      }`}>
+                        {teamComparison.difference >= 0 ? '+' : ''}
+                        {teamComparison.difference.toFixed(1)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    {teamComparison.criteriaComparison.slice(0, 8).map((item) => {
+                      const category = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG.other;
+                      const athleteWidth = Math.max(0, Math.min(100, (item.athleteAverage / SCORE_MAX) * 100));
+                      const teamWidth = Math.max(0, Math.min(100, (item.teamAverage / SCORE_MAX) * 100));
+
+                      return (
+                        <div key={item.id} className="rounded-2xl border border-slate-200 p-4">
+                          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-slate-900">{item.name}</p>
+                              <Badge variant="outline" className={`mt-1 ${category.className}`}>
+                                {category.label}
+                              </Badge>
+                            </div>
+                            <Badge
+                              variant="outline"
+                              className={
+                                item.difference >= 0
+                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                  : 'border-amber-200 bg-amber-50 text-amber-700'
+                              }
+                            >
+                              {item.difference >= 0 ? '+' : ''}{item.difference.toFixed(1)}
+                            </Badge>
+                          </div>
+
+                          <div className="space-y-2">
+                            <div className="grid grid-cols-[92px_1fr_38px] items-center gap-3 text-sm">
+                              <span className="font-medium text-cyan-700">{tr('roles.player', 'Atleta')}</span>
+                              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                                <div className="h-full rounded-full bg-cyan-500" style={{ width: `${athleteWidth}%` }} />
+                              </div>
+                              <span className="text-right font-bold text-slate-800">{item.athleteAverage.toFixed(1)}</span>
+                            </div>
+                            <div className="grid grid-cols-[92px_1fr_38px] items-center gap-3 text-sm">
+                              <span className="font-medium text-violet-700">{tr('common.team', 'Equipa')}</span>
+                              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                                <div className="h-full rounded-full bg-violet-500" style={{ width: `${teamWidth}%` }} />
+                              </div>
+                              <span className="text-right font-bold text-slate-800">{item.teamAverage.toFixed(1)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <p className="text-xs leading-5 text-slate-500">
+                    {tr(
+                      'evaluations.teamBenchmarkNote',
+                      'A referência da equipa é calculada com as avaliações disponíveis para os atletas selecionados no mesmo período e categoria.'
+                    )}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
           <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
             <CardHeader>
