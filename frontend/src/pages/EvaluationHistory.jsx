@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { usePermissions } from '../context/PermissionsContext';
+import { evaluationsApi, teamsApi } from '../services/api';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import {
@@ -65,57 +66,6 @@ const CATEGORY_CONFIG = {
     label: 'Outro',
     className: 'border-slate-200 bg-slate-50 text-slate-700',
   },
-};
-
-const getApiBaseUrl = () => {
-  const raw = process.env.REACT_APP_BACKEND_URL || '';
-  if (!raw) return '/api';
-  if (raw.endsWith('/api')) return raw;
-  return `${raw.replace(/\/$/, '')}/api`;
-};
-
-const getAuthToken = () => {
-  const possibleKeys = [
-    'token',
-    'access_token',
-    'authToken',
-    'stickpro_token',
-    'stickproToken',
-  ];
-
-  for (const key of possibleKeys) {
-    const value = localStorage.getItem(key);
-    if (value) return value.replace(/^"|"$/g, '');
-  }
-
-  return null;
-};
-
-const apiRequest = async (path, options = {}) => {
-  const token = getAuthToken();
-  const response = await fetch(`${getApiBaseUrl()}${path}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-
-  const text = await response.text();
-  let data = null;
-
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = null;
-  }
-
-  if (!response.ok) {
-    throw new Error(data?.detail || data?.message || 'Erro na operação');
-  }
-
-  return data;
 };
 
 const normalizeCollection = (payload) => {
@@ -666,12 +616,15 @@ export default function EvaluationHistory() {
     setLoadingTeams(true);
 
     try {
-      const data = await apiRequest('/teams');
-      setTeams(normalizeCollection(data));
+      const response = await teamsApi.getAll();
+      setTeams(normalizeCollection(response?.data));
     } catch (error) {
       console.error('Error loading teams:', error);
       toast.error(
-        error.message || tr('evaluations.teamsLoadError', 'Erro ao carregar equipas')
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.message ||
+          tr('evaluations.teamsLoadError', 'Erro ao carregar equipas')
       );
     } finally {
       setLoadingTeams(false);
@@ -684,20 +637,15 @@ export default function EvaluationHistory() {
     setEvaluations([]);
 
     try {
-      const data = await apiRequest(
-        `/members?team_id=${encodeURIComponent(teamId)}&role=player`
-      );
-
-      const members = normalizeCollection(data).filter((member) => {
-        const role = String(member?.role || member?.user_role || '').toLowerCase();
-        return !role || role === 'player' || role === 'athlete';
-      });
-
-      setPlayers(members);
+      const response = await evaluationsApi.getTeamPlayers(teamId);
+      setPlayers(normalizeCollection(response?.data));
     } catch (error) {
       console.error('Error loading players:', error);
       toast.error(
-        error.message || tr('evaluations.playersLoadError', 'Erro ao carregar atletas')
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.message ||
+          tr('evaluations.playersLoadError', 'Erro ao carregar atletas')
       );
       setPlayers([]);
     } finally {
@@ -709,11 +657,9 @@ export default function EvaluationHistory() {
     setLoadingEvaluations(true);
 
     try {
-      const data = await apiRequest(
-        `/evaluations/player/${encodeURIComponent(playerId)}`
-      );
+      const response = await evaluationsApi.getPlayerEvaluations(playerId);
 
-      const list = normalizeCollection(data).sort((a, b) => {
+      const list = normalizeCollection(response?.data).sort((a, b) => {
         const aDate = new Date(getEvaluationDate(a) || 0).getTime();
         const bDate = new Date(getEvaluationDate(b) || 0).getTime();
         return bDate - aDate;
@@ -723,7 +669,9 @@ export default function EvaluationHistory() {
     } catch (error) {
       console.error('Error loading player evaluations:', error);
       toast.error(
-        error.message ||
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.message ||
           tr(
             'evaluations.historyLoadError',
             'Erro ao carregar o histórico de avaliações'
