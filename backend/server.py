@@ -16489,10 +16489,35 @@ async def import_system_evaluation_criteria(
 
     club_id = current_user.get("club_id")
 
+    # Administradores podem estar associados ao clube através de admin_ids,
+    # mesmo quando o utilizador não possui club_id diretamente.
+    if not club_id and checker.is_admin:
+        club = await db.clubs.find_one(
+            {"admin_ids": current_user["id"]},
+            {"_id": 0, "id": 1}
+        )
+    
+        if club:
+            club_id = club.get("id")
+    
+    # Elementos da equipa técnica podem obter o clube através
+    # de uma das equipas às quais têm acesso.
+    if not club_id and checker.is_staff:
+        accessible_team_ids = list(checker.team_ids or [])
+    
+        if accessible_team_ids:
+            team = await db.teams.find_one(
+                {"id": {"$in": accessible_team_ids}},
+                {"_id": 0, "club_id": 1}
+            )
+    
+            if team:
+                club_id = team.get("club_id")
+    
     if not club_id:
         raise HTTPException(
             status_code=400,
-            detail="O utilizador não está associado a um clube"
+            detail="Não foi possível determinar o clube associado ao utilizador"
         )
 
     source_criteria = payload.get("criteria", [])
