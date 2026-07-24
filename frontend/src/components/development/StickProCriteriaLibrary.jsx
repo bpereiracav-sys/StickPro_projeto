@@ -285,7 +285,6 @@ export function StickProCriteriaLibrary({
 
 const handleImportSelected = async () => {
   if (
-    !canImport ||
     importing ||
     selectedCodes.size === 0 ||
     typeof onImport !== 'function'
@@ -309,6 +308,8 @@ const handleImportSelected = async () => {
   try {
     await onImport(selectedCriteria);
     setSelectedCodes(new Set());
+  } catch (error) {
+    console.error('Error importing selected criteria:', error);
   } finally {
     setImporting(false);
   }
@@ -502,13 +503,27 @@ const handleImportSelected = async () => {
 
               <Button
                 type="button"
-                className="rounded-full"
-                disabled
-                title="A integração com a biblioteca do clube será ativada no Sprint 2.1B."
+                className="rounded-full bg-cyan-600 text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300"
+                disabled={
+                  importing ||
+                  selectedCodes.size === 0 ||
+                  typeof onImport !== 'function'
+                }
+                onClick={handleImportSelected}
               >
-                <ArrowDownToLine className="mr-2 h-4 w-4" />
-                Adicionar ao clube
-                {selectedCodes.size > 0 ? ` (${selectedCodes.size})` : ''}
+                {importing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <ArrowDownToLine className="mr-2 h-4 w-4" />
+                )}
+              
+                {importing
+                  ? 'A adicionar...'
+                  : `Adicionar ao clube${
+                      selectedCodes.size > 0
+                        ? ` (${selectedCodes.size})`
+                        : ''
+                    }`}
               </Button>
             </div>
           </div>
