@@ -12,6 +12,7 @@ import {
   Sparkles,
   UserRound,
   X,
+  Loader2,
 } from 'lucide-react';
 
 import { Badge } from '../ui/badge';
@@ -102,7 +103,11 @@ function SelectionCheckbox({ checked, indeterminate = false, onChange, label }) 
   );
 }
 
-export function StickProCriteriaLibrary() {
+export function StickProCriteriaLibrary({
+  canImport = false,
+  importedSourceCodes = [],
+  onImport,
+}) {
   const stats = useMemo(() => getDevelopmentCatalogStats(), []);
 
   const [query, setQuery] = useState('');
@@ -117,7 +122,13 @@ export function StickProCriteriaLibrary() {
   const [expandedSubdomains, setExpandedSubdomains] = useState(new Set());
   const [selectedCodes, setSelectedCodes] = useState(new Set());
   const [scaleDialogOpen, setScaleDialogOpen] = useState(false);
-
+  const [importing, setImporting] = useState(false);
+  
+  const importedCodesSet = useMemo(
+    () => new Set(importedSourceCodes || []),
+    [importedSourceCodes]
+  );
+  
   const availableSubdomains = useMemo(() => {
     if (domainFilter === ALL_VALUE) {
       return DEVELOPMENT_SUBDOMAINS;
@@ -268,9 +279,40 @@ export function StickProCriteriaLibrary() {
   };
 
   const collapseAll = () => {
-    setExpandedDomains(new Set());
-    setExpandedSubdomains(new Set());
-  };
+  setExpandedDomains(new Set());
+  setExpandedSubdomains(new Set());
+};
+
+const handleImportSelected = async () => {
+  if (
+    !canImport ||
+    importing ||
+    selectedCodes.size === 0 ||
+    typeof onImport !== 'function'
+  ) {
+    return;
+  }
+
+  const selectedCriteria = DEVELOPMENT_CRITERIA_CATALOG.filter(
+    (criterion) =>
+      selectedCodes.has(criterion.code) &&
+      !importedCodesSet.has(criterion.code)
+  );
+
+  if (selectedCriteria.length === 0) {
+    setSelectedCodes(new Set());
+    return;
+  }
+
+  setImporting(true);
+
+  try {
+    await onImport(selectedCriteria);
+    setSelectedCodes(new Set());
+  } finally {
+    setImporting(false);
+  }
+};
 
   return (
     <>
