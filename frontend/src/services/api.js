@@ -491,6 +491,24 @@ export const evaluationsApi = {
   // Evaluation history
   getPlayerEvaluations: (playerId, params) =>
     api.get(`/evaluations/player/${playerId}`, { params }),
+
+  // Individual development objectives
+  getPlayerObjectives: (playerId) =>
+    api.get(`/evaluations/objectives/player/${playerId}`),
+
+  createObjective: (data) =>
+    api.post('/evaluations/objectives', data),
+
+  updateObjective: (objectiveId, data) =>
+    api.put(`/evaluations/objectives/${objectiveId}`, data),
+
+  deleteObjective: (objectiveId) =>
+    api.delete(`/evaluations/objectives/${objectiveId}`),
+
+Confirma que o método anterior termina com vírgula:
+
+  getPlayerEvaluations: (playerId, params) =>
+    api.get(`/evaluations/player/${playerId}`, { params }),
 };
 
 // Dashboard API
