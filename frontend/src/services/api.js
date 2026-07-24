@@ -504,11 +504,6 @@ export const evaluationsApi = {
 
   deleteObjective: (objectiveId) =>
     api.delete(`/evaluations/objectives/${objectiveId}`),
-
-Confirma que o método anterior termina com vírgula:
-
-  getPlayerEvaluations: (playerId, params) =>
-    api.get(`/evaluations/player/${playerId}`, { params }),
 };
 
 // Dashboard API
