@@ -616,10 +616,13 @@ const handleImportSelected = async () => {
                     <div className="flex items-center gap-3 border-b border-slate-100 bg-slate-50/80 p-4">
                       <SelectionCheckbox
                         checked={domainSelected}
-                        disabled={alreadyImported}
                         indeterminate={domainIndeterminate}
+                        disabled={availableDomainCriteria.length === 0}
                         onChange={() =>
-                          setCriteriaSelection(domainCriteria, !domainSelected)
+                          setCriteriaSelection(
+                            availableDomainCriteria,
+                            !domainSelected
+                          )
                         }
                         label={`Selecionar domínio ${domain.label}`}
                       />
@@ -685,10 +688,10 @@ const handleImportSelected = async () => {
                                 <SelectionCheckbox
                                   checked={subdomainSelected}
                                   indeterminate={subdomainIndeterminate}
-                                  disabled={availableDomainCriteria.length === 0}
+                                  disabled={availableSubdomainCriteria.length === 0}
                                   onChange={() =>
                                     setCriteriaSelection(
-                                      subdomain.criteria,
+                                      availableSubdomainCriteria,
                                       !subdomainSelected
                                     )
                                   }
@@ -730,7 +733,84 @@ const handleImportSelected = async () => {
                                       selectedCodes.has(criterion.code);
                                   
                                     return (
-                                      // conteúdo do critério
+                                      <div
+                                        key={criterion.code}
+                                        className={`flex gap-3 p-4 transition ${
+                                          alreadyImported
+                                            ? 'bg-emerald-50/60 opacity-80'
+                                            : selected
+                                            ? 'bg-cyan-50/70'
+                                            : 'hover:bg-white'
+                                        }`}
+                                      >
+                                        <div className="pt-0.5">
+                                          <SelectionCheckbox
+                                            checked={alreadyImported || selected}
+                                            disabled={alreadyImported}
+                                            onChange={() =>
+                                              toggleCriterion(criterion.code)
+                                            }
+                                            label={
+                                              alreadyImported
+                                                ? `${criterion.name} já adicionada`
+                                                : `Selecionar ${criterion.name}`
+                                            }
+                                          />
+                                        </div>
+                                  
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                            <div>
+                                              <p className="font-medium text-slate-900">
+                                                {criterion.name}
+                                              </p>
+                                  
+                                              <p className="mt-1 text-sm leading-6 text-slate-500">
+                                                {criterion.description}
+                                              </p>
+                                            </div>
+                                  
+                                            <div className="flex shrink-0 flex-wrap gap-2">
+                                              {alreadyImported && (
+                                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                                                  <Check className="mr-1 h-3 w-3" />
+                                                  Já adicionada
+                                                </Badge>
+                                              )}
+                                  
+                                              <Badge
+                                                variant="outline"
+                                                className="border-slate-200 bg-white text-[11px] text-slate-500"
+                                              >
+                                                {criterion.code}
+                                              </Badge>
+                                            </div>
+                                          </div>
+                                  
+                                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                                            {criterion.playerType === 'goalkeeper' ? (
+                                              <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">
+                                                <Shield className="mr-1 h-3 w-3" />
+                                                Guarda-redes
+                                              </Badge>
+                                            ) : criterion.playerType === 'all' ? (
+                                              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
+                                                <UserRound className="mr-1 h-3 w-3" />
+                                                Todos
+                                              </Badge>
+                                            ) : (
+                                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
+                                                <UserRound className="mr-1 h-3 w-3" />
+                                                Jogador de campo
+                                              </Badge>
+                                            )}
+                                  
+                                            <ContextBadges
+                                              contexts={criterion.contexts || []}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
                                     );
                                   })}
 
