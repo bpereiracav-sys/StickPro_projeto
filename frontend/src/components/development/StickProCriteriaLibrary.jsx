@@ -19,6 +19,7 @@ import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
 import { Input } from '../ui/input';
+import { Progress } from '../ui/progress';
 import {
   Select,
   SelectContent,
@@ -135,6 +136,7 @@ export function StickProCriteriaLibrary({
   const [selectedCodes, setSelectedCodes] = useState(new Set());
   const [scaleDialogOpen, setScaleDialogOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [showOnlyAvailable, setShowOnlyAvailable] = useState(false);
 
   const importedCodesSet = useMemo(
     () => new Set(importedSourceCodes || []),
@@ -160,7 +162,7 @@ export function StickProCriteriaLibrary({
     }
   }, [availableSubdomains, subdomainFilter]);
 
-  const filteredCriteria = useMemo(
+  const searchResults = useMemo(
     () =>
       searchDevelopmentCriteria({
         query,
@@ -170,6 +172,16 @@ export function StickProCriteriaLibrary({
         playerType: playerTypeFilter,
       }),
     [query, domainFilter, subdomainFilter, contextFilter, playerTypeFilter]
+  );
+
+  const filteredCriteria = useMemo(
+    () =>
+      showOnlyAvailable
+        ? searchResults.filter(
+            (criterion) => !importedCodesSet.has(criterion.code)
+          )
+        : searchResults,
+    [searchResults, showOnlyAvailable, importedCodesSet]
   );
 
   const groupedTree = useMemo(() => {
@@ -220,6 +232,26 @@ export function StickProCriteriaLibrary({
     );
   }, [query, domainFilter, subdomainFilter, contextFilter, playerTypeFilter, groupedTree]);
 
+  const totalCatalogCriteria = DEVELOPMENT_CRITERIA_CATALOG.length;
+
+  const totalImportedCount = DEVELOPMENT_CRITERIA_CATALOG.filter(
+    (criterion) => importedCodesSet.has(criterion.code)
+  ).length;
+
+  const totalAvailableCount = totalCatalogCriteria - totalImportedCount;
+
+  const overallProgress =
+    totalCatalogCriteria === 0
+      ? 0
+      : Math.round((totalImportedCount / totalCatalogCriteria) * 100);
+
+  const overallProgressClass =
+    overallProgress > 80
+      ? '[&>div]:bg-emerald-500'
+      : overallProgress > 50
+      ? '[&>div]:bg-amber-500'
+      : '[&>div]:bg-rose-500';
+
   const importedFilteredCount = filteredCriteria.filter((criterion) =>
     importedCodesSet.has(criterion.code)
   ).length;
@@ -232,7 +264,8 @@ export function StickProCriteriaLibrary({
     domainFilter !== ALL_VALUE ||
     subdomainFilter !== ALL_VALUE ||
     contextFilter !== ALL_VALUE ||
-    playerTypeFilter !== ALL_VALUE;
+    playerTypeFilter !== ALL_VALUE ||
+    showOnlyAvailable;
 
   const resetFilters = () => {
     setQuery('');
@@ -240,6 +273,7 @@ export function StickProCriteriaLibrary({
     setSubdomainFilter(ALL_VALUE);
     setContextFilter(ALL_VALUE);
     setPlayerTypeFilter(ALL_VALUE);
+    setShowOnlyAvailable(false);
   };
 
   const toggleDomain = (domainId) => {
@@ -261,7 +295,7 @@ export function StickProCriteriaLibrary({
   };
 
   const toggleCriterion = (code) => {
-    if (importedCodesSet.has(code)) {
+    if (!canImport || importedCodesSet.has(code)) {
       return;
     }
   
@@ -279,6 +313,10 @@ export function StickProCriteriaLibrary({
   };
 
   const setCriteriaSelection = (criteria, shouldSelect) => {
+    if (!canImport) {
+      return;
+    }
+
     setSelectedCodes((current) => {
       const next = new Set(current);
   
@@ -313,41 +351,42 @@ export function StickProCriteriaLibrary({
   };
 
   const collapseAll = () => {
-  setExpandedDomains(new Set());
-  setExpandedSubdomains(new Set());
-};
+    setExpandedDomains(new Set());
+    setExpandedSubdomains(new Set());
+  };
 
-const handleImportSelected = async () => {
-  if (
-    importing ||
-    selectedCodes.size === 0 ||
-    typeof onImport !== 'function'
-  ) {
-    return;
-  }
+  const handleImportSelected = async () => {
+    if (
+      importing ||
+      !canImport ||
+      selectedCodes.size === 0 ||
+      typeof onImport !== 'function'
+    ) {
+      return;
+    }
 
-  const selectedCriteria = DEVELOPMENT_CRITERIA_CATALOG.filter(
-    (criterion) =>
-      selectedCodes.has(criterion.code) &&
-      !importedCodesSet.has(criterion.code)
-  );
+    const selectedCriteria = DEVELOPMENT_CRITERIA_CATALOG.filter(
+      (criterion) =>
+        selectedCodes.has(criterion.code) &&
+        !importedCodesSet.has(criterion.code)
+    );
 
-  if (selectedCriteria.length === 0) {
-    setSelectedCodes(new Set());
-    return;
-  }
+    if (selectedCriteria.length === 0) {
+      setSelectedCodes(new Set());
+      return;
+    }
 
-  setImporting(true);
+    setImporting(true);
 
-  try {
-    await onImport(selectedCriteria);
-    setSelectedCodes(new Set());
-  } catch (error) {
-    console.error('Error importing selected criteria:', error);
-  } finally {
-    setImporting(false);
-  }
-};
+    try {
+      await onImport(selectedCriteria);
+      setSelectedCodes(new Set());
+    } catch (error) {
+      console.error('Error importing selected criteria:', error);
+    } finally {
+      setImporting(false);
+    }
+  };
 
   return (
     <>
@@ -386,6 +425,49 @@ const handleImportSelected = async () => {
               <CircleHelp className="mr-2 h-4 w-4" />
               Consultar escala 1–5
             </Button>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-sm font-semibold text-slate-950">
+                  Implementação da biblioteca no clube
+                </p>
+                <p className="mt-1 text-sm text-slate-500">
+                  {totalImportedCount} de {totalCatalogCriteria} competências adicionadas
+                </p>
+              </div>
+
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-bold text-slate-950">
+                  {overallProgress}%
+                </span>
+                <span className="text-sm text-slate-500">
+                  implementada
+                </span>
+              </div>
+            </div>
+
+            <Progress
+              value={overallProgress}
+              className={`mt-4 h-3 bg-slate-200 ${overallProgressClass}`}
+            />
+
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-sm">
+              <span className="font-medium text-emerald-700">
+                {totalImportedCount} adicionadas
+              </span>
+              <span className="font-medium text-cyan-700">
+                {totalAvailableCount} disponíveis
+              </span>
+
+              {totalAvailableCount === 0 && (
+                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
+                  <Check className="mr-1 h-3 w-3" />
+                  Biblioteca completa
+                </Badge>
+              )}
+            </div>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-3">
@@ -495,6 +577,24 @@ const handleImportSelected = async () => {
               </Select>
 
               <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  variant={showOnlyAvailable ? 'default' : 'outline'}
+                  className={
+                    showOnlyAvailable
+                      ? 'rounded-full bg-cyan-600 text-white hover:bg-cyan-700'
+                      : 'rounded-full'
+                  }
+                  onClick={() =>
+                    setShowOnlyAvailable((current) => !current)
+                  }
+                >
+                  {showOnlyAvailable && (
+                    <Check className="mr-2 h-4 w-4" />
+                  )}
+                  Apenas disponíveis
+                </Button>
+
                 <Button type="button" variant="outline" className="rounded-full" onClick={expandAll}>
                   Expandir tudo
                 </Button>
@@ -551,7 +651,9 @@ const handleImportSelected = async () => {
                 className="rounded-full bg-cyan-600 text-white hover:bg-cyan-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                 disabled={
                   importing ||
+                  !canImport ||
                   selectedCodes.size === 0 ||
+                  availableFilteredCount === 0 ||
                   typeof onImport !== 'function'
                 }
                 onClick={handleImportSelected}
@@ -564,6 +666,8 @@ const handleImportSelected = async () => {
               
                 {importing
                   ? 'A adicionar...'
+                  : availableFilteredCount === 0
+                  ? 'Todas as competências já pertencem ao clube'
                   : `Adicionar ao clube${
                       selectedCodes.size > 0
                         ? ` (${selectedCodes.size})`
@@ -589,18 +693,34 @@ const handleImportSelected = async () => {
                 const domainCriteria = domain.subdomains.flatMap(
                   (subdomain) => subdomain.criteria
                 );
-                
+
+                const fullDomainCriteria = DEVELOPMENT_CRITERIA_CATALOG.filter(
+                  (criterion) => criterion.domain === domain.id
+                );
+
+                const importedDomainCount = fullDomainCriteria.filter(
+                  (criterion) => importedCodesSet.has(criterion.code)
+                ).length;
+
+                const domainProgress =
+                  fullDomainCriteria.length === 0
+                    ? 0
+                    : Math.round(
+                        (importedDomainCount / fullDomainCriteria.length) * 100
+                      );
+
+                const domainComplete =
+                  fullDomainCriteria.length > 0 &&
+                  importedDomainCount === fullDomainCriteria.length;
+
                 const availableDomainCriteria = domainCriteria.filter(
                   (criterion) => !importedCodesSet.has(criterion.code)
                 );
-                
-                const importedDomainCount =
-                  domainCriteria.length - availableDomainCriteria.length;
-                
+
                 const selectedDomainCount = availableDomainCriteria.filter(
                   (criterion) => selectedCodes.has(criterion.code)
                 ).length;
-                
+
                 const domainSelected =
                   availableDomainCriteria.length > 0 &&
                   selectedDomainCount === availableDomainCriteria.length;
@@ -617,7 +737,7 @@ const handleImportSelected = async () => {
                       <SelectionCheckbox
                         checked={domainSelected}
                         indeterminate={domainIndeterminate}
-                        disabled={availableDomainCriteria.length === 0}
+                        disabled={!canImport || availableDomainCriteria.length === 0}
                         onChange={() =>
                           setCriteriaSelection(
                             availableDomainCriteria,
@@ -645,9 +765,27 @@ const handleImportSelected = async () => {
                           {domain.label}
                         </Badge>
 
-                        <span className="text-sm text-slate-500">
-                          {importedDomainCount}/{domainCriteria.length} adicionadas
-                        </span>
+                        <div className="ml-auto flex min-w-[150px] flex-col gap-1">
+                          <div className="flex items-center justify-end gap-2 text-xs">
+                            {domainComplete ? (
+                              <span className="font-semibold text-emerald-700">
+                                ✓ Domínio completo
+                              </span>
+                            ) : (
+                              <span className="text-slate-500">
+                                {importedDomainCount}/{fullDomainCriteria.length} adicionadas
+                              </span>
+                            )}
+                            <span className="font-semibold text-slate-700">
+                              {domainProgress}%
+                            </span>
+                          </div>
+
+                          <Progress
+                            value={domainProgress}
+                            className="h-1.5 bg-slate-200 [&>div]:bg-emerald-500"
+                          />
+                        </div>
                       </button>
                     </div>
 
@@ -656,22 +794,45 @@ const handleImportSelected = async () => {
                         {domain.subdomains.map((subdomain) => {
                           const key = makeGroupKey(domain.id, subdomain.id);
                           const subdomainExpanded = expandedSubdomains.has(key);
+                          const fullSubdomainCriteria =
+                            DEVELOPMENT_CRITERIA_CATALOG.filter(
+                              (criterion) =>
+                                criterion.domain === domain.id &&
+                                criterion.subdomain === subdomain.id
+                            );
+
+                          const importedSubdomainCount =
+                            fullSubdomainCriteria.filter(
+                              (criterion) =>
+                                importedCodesSet.has(criterion.code)
+                            ).length;
+
+                          const subdomainProgress =
+                            fullSubdomainCriteria.length === 0
+                              ? 0
+                              : Math.round(
+                                  (importedSubdomainCount /
+                                    fullSubdomainCriteria.length) *
+                                    100
+                                );
+
+                          const subdomainComplete =
+                            fullSubdomainCriteria.length > 0 &&
+                            importedSubdomainCount ===
+                              fullSubdomainCriteria.length;
+
                           const availableSubdomainCriteria =
                             subdomain.criteria.filter(
                               (criterion) =>
                                 !importedCodesSet.has(criterion.code)
                             );
-                          
-                          const importedSubdomainCount =
-                            subdomain.criteria.length -
-                            availableSubdomainCriteria.length;
-                          
+
                           const selectedSubdomainCount =
                             availableSubdomainCriteria.filter(
                               (criterion) =>
                                 selectedCodes.has(criterion.code)
                             ).length;
-                          
+
                           const subdomainSelected =
                             availableSubdomainCriteria.length > 0 &&
                             selectedSubdomainCount ===
@@ -688,7 +849,7 @@ const handleImportSelected = async () => {
                                 <SelectionCheckbox
                                   checked={subdomainSelected}
                                   indeterminate={subdomainIndeterminate}
-                                  disabled={availableSubdomainCriteria.length === 0}
+                                  disabled={!canImport || availableSubdomainCriteria.length === 0}
                                   onChange={() =>
                                     setCriteriaSelection(
                                       availableSubdomainCriteria,
@@ -715,9 +876,27 @@ const handleImportSelected = async () => {
                                     {subdomain.label}
                                   </span>
 
-                                  <span className="text-xs text-slate-400">
-                                    {importedSubdomainCount}/{subdomain.criteria.length}
-                                  </span>
+                                  <div className="ml-auto flex min-w-[135px] flex-col gap-1">
+                                    <div className="flex items-center justify-end gap-2 text-xs">
+                                      {subdomainComplete ? (
+                                        <span className="font-semibold text-emerald-700">
+                                          ✓ Completo
+                                        </span>
+                                      ) : (
+                                        <span className="text-slate-400">
+                                          {importedSubdomainCount}/{fullSubdomainCriteria.length}
+                                        </span>
+                                      )}
+                                      <span className="font-semibold text-slate-600">
+                                        {subdomainProgress}%
+                                      </span>
+                                    </div>
+
+                                    <Progress
+                                      value={subdomainProgress}
+                                      className="h-1 bg-slate-200 [&>div]:bg-emerald-500"
+                                    />
+                                  </div>
                                 </button>
                               </div>
 
@@ -746,7 +925,7 @@ const handleImportSelected = async () => {
                                         <div className="pt-0.5">
                                           <SelectionCheckbox
                                             checked={alreadyImported || selected}
-                                            disabled={alreadyImported}
+                                            disabled={!canImport || alreadyImported}
                                             onChange={() =>
                                               toggleCriterion(criterion.code)
                                             }
@@ -771,10 +950,14 @@ const handleImportSelected = async () => {
                                             </div>
                                   
                                             <div className="flex shrink-0 flex-wrap gap-2">
-                                              {alreadyImported && (
+                                              {alreadyImported ? (
                                                 <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
                                                   <Check className="mr-1 h-3 w-3" />
                                                   Já adicionada
+                                                </Badge>
+                                              ) : (
+                                                <Badge className="bg-cyan-100 text-cyan-700 hover:bg-cyan-100">
+                                                  Disponível
                                                 </Badge>
                                               )}
                                   
@@ -814,80 +997,6 @@ const handleImportSelected = async () => {
                                     );
                                   })}
 
-                                    return (
-                                      <div
-                                        key={criterion.code}
-                                        className={`flex gap-3 p-4 transition ${
-                                          alreadyImported
-                                            ? 'bg-emerald-50/60 opacity-80'
-                                            : selected
-                                            ? 'bg-cyan-50/70'
-                                            : 'hover:bg-white'
-                                        }`}
-                                      >
-                                        <div className="pt-0.5">
-                                          <SelectionCheckbox
-                                            checked={selected}
-                                            onChange={() =>
-                                              toggleCriterion(criterion.code)
-                                            }
-                                            label={`Selecionar ${criterion.name}`}
-                                          />
-                                        </div>
-
-                                        <div className="min-w-0 flex-1">
-                                          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                                            <div>
-                                              <p className="font-medium text-slate-900">
-                                                {criterion.name}
-                                              </p>
-                                          
-                                              <p className="mt-1 text-sm leading-6 text-slate-500">
-                                                {criterion.description}
-                                              </p>
-                                            </div>
-                                          
-                                            <div className="flex shrink-0 flex-wrap gap-2">
-                                              {alreadyImported && (
-                                                <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100">
-                                                  <Check className="mr-1 h-3 w-3" />
-                                                  Já adicionada
-                                                </Badge>
-                                              )}
-                                          
-                                              <Badge
-                                                variant="outline"
-                                                className="border-slate-200 bg-white text-[11px] text-slate-500"
-                                              >
-                                                {criterion.code}
-                                              </Badge>
-                                            </div>
-                                          </div>
-
-                                          <div className="mt-3 flex flex-wrap items-center gap-2">
-                                            {criterion.playerType === 'goalkeeper' ? (
-                                              <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-100">
-                                                <Shield className="mr-1 h-3 w-3" />
-                                                Guarda-redes
-                                              </Badge>
-                                            ) : criterion.playerType === 'all' ? (
-                                              <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-100">
-                                                <UserRound className="mr-1 h-3 w-3" />
-                                                Todos
-                                              </Badge>
-                                            ) : (
-                                              <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">
-                                                <UserRound className="mr-1 h-3 w-3" />
-                                                Jogador de campo
-                                              </Badge>
-                                            )}
-
-                                            <ContextBadges contexts={criterion.contexts} />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    );
-                                  })}
                                 </div>
                               )}
                             </div>
