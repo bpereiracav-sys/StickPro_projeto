@@ -109,6 +109,117 @@ const EMPTY_FORM = {
   is_active: true,
 };
 
+const EMPTY_INTELLIGENT_CONFIG = {
+  mode: 'intelligent',
+  age_group: 'sub15',
+  player_type: 'field',
+  season_moment: 'initial',
+  objective: 'initial',
+};
+
+const AGE_GROUPS = [
+  { value: 'initiation', label: 'Iniciação' },
+  { value: 'benjamins', label: 'Benjamins' },
+  { value: 'school', label: 'Escolares' },
+  { value: 'sub13', label: 'Sub-13' },
+  { value: 'sub15', label: 'Sub-15' },
+  { value: 'sub17', label: 'Sub-17' },
+  { value: 'sub19', label: 'Sub-19' },
+  { value: 'senior', label: 'Seniores' },
+];
+
+const PLAYER_TYPES = [
+  { value: 'all', label: 'Todos os atletas' },
+  { value: 'field', label: 'Jogadores de campo' },
+  { value: 'goalkeeper', label: 'Guarda-redes' },
+];
+
+const SEASON_MOMENTS = [
+  { value: 'preseason', label: 'Pré-época' },
+  { value: 'initial', label: 'Início da época' },
+  { value: 'intermediate', label: 'Avaliação intermédia' },
+  { value: 'final', label: 'Final da época' },
+  { value: 'extraordinary', label: 'Extraordinária' },
+];
+
+const EVALUATION_OBJECTIVES = [
+  { value: 'initial', label: 'Avaliação inicial' },
+  { value: 'diagnostic', label: 'Avaliação diagnóstica' },
+  { value: 'intermediate', label: 'Avaliação intermédia' },
+  { value: 'final', label: 'Avaliação final' },
+  { value: 'technical', label: 'Desenvolvimento técnico' },
+  { value: 'tactical', label: 'Desenvolvimento tático' },
+  { value: 'individual', label: 'Desenvolvimento individual' },
+  { value: 'goalkeeper', label: 'Avaliação de guarda-redes' },
+];
+
+const OBJECTIVE_CATEGORY_PRIORITY = {
+  initial: ['technical', 'tactical', 'physical', 'psychological', 'attitude'],
+  diagnostic: ['technical', 'tactical', 'physical', 'psychological', 'attitude'],
+  intermediate: ['technical', 'tactical', 'attitude', 'psychological', 'physical'],
+  final: ['technical', 'tactical', 'attitude', 'psychological', 'physical'],
+  technical: ['technical'],
+  tactical: ['tactical'],
+  individual: ['technical', 'tactical', 'psychological', 'attitude'],
+  goalkeeper: ['technical', 'tactical', 'psychological', 'attitude'],
+};
+
+function normalizeText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function getCriterionPlayerType(criterion) {
+  const explicit =
+    criterion.player_type ||
+    criterion.playerType ||
+    criterion.position ||
+    criterion.athlete_type;
+
+  if (explicit) return normalizeText(explicit);
+
+  const searchable = normalizeText(
+    [
+      criterion.name,
+      criterion.description,
+      criterion.domain,
+      criterion.domain_label,
+      criterion.subdomain,
+      criterion.subdomain_label,
+      criterion.source_code,
+    ].join(' ')
+  );
+
+  return searchable.includes('guarda-redes') ||
+    searchable.includes('guarda redes') ||
+    searchable.includes('goalkeeper')
+    ? 'goalkeeper'
+    : 'field';
+}
+
+function criterionMatchesPlayerType(criterion, playerType) {
+  if (playerType === 'all') return true;
+
+  const criterionType = getCriterionPlayerType(criterion);
+
+  if (playerType === 'goalkeeper') {
+    return criterionType === 'goalkeeper' || criterionType === 'all';
+  }
+
+  return criterionType !== 'goalkeeper';
+}
+
+function getSuggestedLimit(ageGroup, objective) {
+  if (objective === 'technical' || objective === 'tactical') return 16;
+  if (ageGroup === 'initiation' || ageGroup === 'benjamins') return 12;
+  if (ageGroup === 'school' || ageGroup === 'sub13') return 16;
+  if (ageGroup === 'sub15') return 20;
+  if (ageGroup === 'sub17' || ageGroup === 'sub19') return 24;
+  return 26;
+}
+
 function DevelopmentIcon({ className = '' }) {
   return (
     <svg
@@ -141,6 +252,9 @@ export default function EvaluationPlans() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPlan, setEditingPlan] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [intelligentConfig, setIntelligentConfig] = useState(
+    EMPTY_INTELLIGENT_CONFIG
+  );
   const [teamFilter, setTeamFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
@@ -223,11 +337,13 @@ export default function EvaluationPlans() {
   const openCreateDialog = () => {
     setEditingPlan(null);
     setForm(EMPTY_FORM);
+    setIntelligentConfig(EMPTY_INTELLIGENT_CONFIG);
     setDialogOpen(true);
   };
 
   const openEditDialog = (plan) => {
     setEditingPlan(plan);
+    setIntelligentConfig((current) => ({ ...current, mode: 'manual' }));
     setForm({
       name: plan.name || '',
       description: plan.description || '',
@@ -280,6 +396,107 @@ export default function EvaluationPlans() {
           : item
       ),
     }));
+  };
+
+  const updateIntelligentConfig = (field, value) => {
+    setIntelligentConfig((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  };
+
+  const generateSuggestedCriteria = () => {
+    if (criteria.length === 0) {
+      toast.error(
+        tr(
+          'evaluations.createCriteriaFirst',
+          'Cria primeiro critérios de avaliação para poderes construir planos.'
+        )
+      );
+      return;
+    }
+
+    const priorityCategories =
+      OBJECTIVE_CATEGORY_PRIORITY[intelligentConfig.objective] ||
+      OBJECTIVE_CATEGORY_PRIORITY.initial;
+
+    const matchingPlayerCriteria = criteria.filter((criterion) =>
+      criterionMatchesPlayerType(criterion, intelligentConfig.player_type)
+    );
+
+    const rankedCriteria = [...matchingPlayerCriteria].sort((a, b) => {
+      const aCategory = a.category || 'other';
+      const bCategory = b.category || 'other';
+      const aPriority = priorityCategories.indexOf(aCategory);
+      const bPriority = priorityCategories.indexOf(bCategory);
+      const normalizedA = aPriority === -1 ? 99 : aPriority;
+      const normalizedB = bPriority === -1 ? 99 : bPriority;
+
+      if (normalizedA !== normalizedB) {
+        return normalizedA - normalizedB;
+      }
+
+      return String(a.name || '').localeCompare(String(b.name || ''), 'pt');
+    });
+
+    const prioritized = rankedCriteria.filter((criterion) =>
+      priorityCategories.includes(criterion.category || 'other')
+    );
+
+    const source = prioritized.length > 0 ? prioritized : rankedCriteria;
+    const limit = getSuggestedLimit(
+      intelligentConfig.age_group,
+      intelligentConfig.objective
+    );
+    const suggested = source.slice(0, limit);
+
+    if (suggested.length === 0) {
+      toast.error(
+        tr(
+          'evaluations.noSuggestedCriteria',
+          'Não foram encontrados critérios compatíveis com esta configuração.'
+        )
+      );
+      return;
+    }
+
+    const objectiveLabel =
+      EVALUATION_OBJECTIVES.find(
+        (item) => item.value === intelligentConfig.objective
+      )?.label || 'Avaliação';
+    const ageGroupLabel =
+      AGE_GROUPS.find(
+        (item) => item.value === intelligentConfig.age_group
+      )?.label || '';
+
+    setForm((current) => ({
+      ...current,
+      name: current.name.trim()
+        ? current.name
+        : `${objectiveLabel} — ${ageGroupLabel}`,
+      category:
+        intelligentConfig.objective === 'technical'
+          ? 'technical'
+          : intelligentConfig.objective === 'tactical'
+          ? 'tactical'
+          : intelligentConfig.player_type === 'goalkeeper' ||
+            intelligentConfig.objective === 'goalkeeper'
+          ? 'goalkeeper'
+          : current.category,
+      estimated_minutes: Math.max(5, Math.ceil(suggested.length * 0.5)),
+      criteria: suggested.map((criterion, index) => ({
+        criterion_id: criterion.id,
+        weight: priorityCategories.includes(criterion.category || 'other')
+          ? 1.5
+          : 1,
+        required: true,
+        order: index,
+      })),
+    }));
+
+    toast.success(
+      `${suggested.length} critérios sugeridos. Revê a seleção antes de guardar.`
+    );
   };
 
   const handleSavePlan = async () => {
@@ -778,6 +995,190 @@ export default function EvaluationPlans() {
               )}
             </DialogDescription>
           </DialogHeader>
+
+          {!editingPlan && (
+            <div className="rounded-3xl border border-cyan-100 bg-gradient-to-br from-cyan-50/80 via-white to-blue-50/60 p-4 sm:p-5">
+              <div className="flex flex-col gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-cyan-600" />
+                    <p className="font-heading text-lg font-semibold text-slate-950">
+                      Assistente StickPro
+                    </p>
+                  </div>
+                  <p className="mt-1 text-sm text-slate-500">
+                    Escolhe como pretendes construir este plano de avaliação.
+                  </p>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    type="button"
+                    onClick={() => updateIntelligentConfig('mode', 'intelligent')}
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      intelligentConfig.mode === 'intelligent'
+                        ? 'border-cyan-400 bg-white ring-2 ring-cyan-100'
+                        : 'border-slate-200 bg-white/70 hover:border-cyan-200'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan-100 text-cyan-700">
+                        <Sparkles className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-950">
+                          Plano inteligente
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          O StickPro sugere uma seleção inicial de critérios com base no contexto.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => updateIntelligentConfig('mode', 'manual')}
+                    className={`rounded-2xl border p-4 text-left transition ${
+                      intelligentConfig.mode === 'manual'
+                        ? 'border-slate-500 bg-white ring-2 ring-slate-100'
+                        : 'border-slate-200 bg-white/70 hover:border-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+                        <ClipboardCheck className="h-5 w-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-950">
+                          Plano manual
+                        </p>
+                        <p className="mt-1 text-xs leading-5 text-slate-500">
+                          Mantém o processo atual e seleciona todos os critérios manualmente.
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </div>
+
+                {intelligentConfig.mode === 'intelligent' && (
+                  <div className="rounded-2xl border border-cyan-100 bg-white p-4">
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                      <div className="grid gap-2">
+                        <Label>Escalão</Label>
+                        <Select
+                          value={intelligentConfig.age_group}
+                          onValueChange={(value) =>
+                            updateIntelligentConfig('age_group', value)
+                          }
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-white">
+                            {AGE_GROUPS.map((item) => (
+                              <SelectItem key={item.value} value={item.value}>
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label>Equipa</Label>
+                        <Select
+                          value={form.team_id}
+                          onValueChange={(value) =>
+                            setForm((current) => ({ ...current, team_id: value }))
+                          }
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-white">
+                            <SelectItem value="global">Global</SelectItem>
+                            {teams.map((team) => (
+                              <SelectItem key={team.id} value={team.id}>
+                                {team.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label>Posição</Label>
+                        <Select
+                          value={intelligentConfig.player_type}
+                          onValueChange={(value) =>
+                            updateIntelligentConfig('player_type', value)
+                          }
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-white">
+                            {PLAYER_TYPES.map((item) => (
+                              <SelectItem key={item.value} value={item.value}>
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label>Momento</Label>
+                        <Select
+                          value={intelligentConfig.season_moment}
+                          onValueChange={(value) =>
+                            updateIntelligentConfig('season_moment', value)
+                          }
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-white">
+                            {SEASON_MOMENTS.map((item) => (
+                              <SelectItem key={item.value} value={item.value}>
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="grid gap-2">
+                        <Label>Objetivo</Label>
+                        <Select
+                          value={intelligentConfig.objective}
+                          onValueChange={(value) =>
+                            updateIntelligentConfig('objective', value)
+                          }
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent className="bg-white">
+                            {EVALUATION_OBJECTIVES.map((item) => (
+                              <SelectItem key={item.value} value={item.value}>
+                                {item.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <p className="text-xs leading-5 text-slate-500">
+                        A sugestão é um ponto de partida. Podes acrescentar, remover e alterar pesos antes de guardar.
+                      </p>
+                      <Button
+                        type="button"
+                        className="shrink-0 rounded-full bg-cyan-600 text-white hover:bg-cyan-700"
+                        onClick={generateSuggestedCriteria}
+                      >
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Gerar plano
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid gap-4 py-2">
             <div className="grid gap-2">
