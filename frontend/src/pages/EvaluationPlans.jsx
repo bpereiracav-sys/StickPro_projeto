@@ -44,6 +44,15 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  DEVELOPMENT_AGE_GROUPS,
+  DEVELOPMENT_EVALUATION_OBJECTIVES,
+  DEVELOPMENT_PLAN_TEMPLATES,
+  DEVELOPMENT_PLAYER_TYPES,
+  DEVELOPMENT_SEASON_MOMENTS,
+  applyDevelopmentPlanTemplate,
+  buildIntelligentEvaluationPlan,
+} from '../data/developmentPlanTemplates';
 
 const PLAN_CATEGORIES = {
   training: {
@@ -111,114 +120,12 @@ const EMPTY_FORM = {
 
 const EMPTY_INTELLIGENT_CONFIG = {
   mode: 'intelligent',
+  template_id: 'initial_field',
   age_group: 'sub15',
   player_type: 'field',
   season_moment: 'initial',
   objective: 'initial',
 };
-
-const AGE_GROUPS = [
-  { value: 'initiation', label: 'Iniciação' },
-  { value: 'benjamins', label: 'Benjamins' },
-  { value: 'school', label: 'Escolares' },
-  { value: 'sub13', label: 'Sub-13' },
-  { value: 'sub15', label: 'Sub-15' },
-  { value: 'sub17', label: 'Sub-17' },
-  { value: 'sub19', label: 'Sub-19' },
-  { value: 'senior', label: 'Seniores' },
-];
-
-const PLAYER_TYPES = [
-  { value: 'all', label: 'Todos os atletas' },
-  { value: 'field', label: 'Jogadores de campo' },
-  { value: 'goalkeeper', label: 'Guarda-redes' },
-];
-
-const SEASON_MOMENTS = [
-  { value: 'preseason', label: 'Pré-época' },
-  { value: 'initial', label: 'Início da época' },
-  { value: 'intermediate', label: 'Avaliação intermédia' },
-  { value: 'final', label: 'Final da época' },
-  { value: 'extraordinary', label: 'Extraordinária' },
-];
-
-const EVALUATION_OBJECTIVES = [
-  { value: 'initial', label: 'Avaliação inicial' },
-  { value: 'diagnostic', label: 'Avaliação diagnóstica' },
-  { value: 'intermediate', label: 'Avaliação intermédia' },
-  { value: 'final', label: 'Avaliação final' },
-  { value: 'technical', label: 'Desenvolvimento técnico' },
-  { value: 'tactical', label: 'Desenvolvimento tático' },
-  { value: 'individual', label: 'Desenvolvimento individual' },
-  { value: 'goalkeeper', label: 'Avaliação de guarda-redes' },
-];
-
-const OBJECTIVE_CATEGORY_PRIORITY = {
-  initial: ['technical', 'tactical', 'physical', 'psychological', 'attitude'],
-  diagnostic: ['technical', 'tactical', 'physical', 'psychological', 'attitude'],
-  intermediate: ['technical', 'tactical', 'attitude', 'psychological', 'physical'],
-  final: ['technical', 'tactical', 'attitude', 'psychological', 'physical'],
-  technical: ['technical'],
-  tactical: ['tactical'],
-  individual: ['technical', 'tactical', 'psychological', 'attitude'],
-  goalkeeper: ['technical', 'tactical', 'psychological', 'attitude'],
-};
-
-function normalizeText(value) {
-  return String(value || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase();
-}
-
-function getCriterionPlayerType(criterion) {
-  const explicit =
-    criterion.player_type ||
-    criterion.playerType ||
-    criterion.position ||
-    criterion.athlete_type;
-
-  if (explicit) return normalizeText(explicit);
-
-  const searchable = normalizeText(
-    [
-      criterion.name,
-      criterion.description,
-      criterion.domain,
-      criterion.domain_label,
-      criterion.subdomain,
-      criterion.subdomain_label,
-      criterion.source_code,
-    ].join(' ')
-  );
-
-  return searchable.includes('guarda-redes') ||
-    searchable.includes('guarda redes') ||
-    searchable.includes('goalkeeper')
-    ? 'goalkeeper'
-    : 'field';
-}
-
-function criterionMatchesPlayerType(criterion, playerType) {
-  if (playerType === 'all') return true;
-
-  const criterionType = getCriterionPlayerType(criterion);
-
-  if (playerType === 'goalkeeper') {
-    return criterionType === 'goalkeeper' || criterionType === 'all';
-  }
-
-  return criterionType !== 'goalkeeper';
-}
-
-function getSuggestedLimit(ageGroup, objective) {
-  if (objective === 'technical' || objective === 'tactical') return 16;
-  if (ageGroup === 'initiation' || ageGroup === 'benjamins') return 12;
-  if (ageGroup === 'school' || ageGroup === 'sub13') return 16;
-  if (ageGroup === 'sub15') return 20;
-  if (ageGroup === 'sub17' || ageGroup === 'sub19') return 24;
-  return 26;
-}
 
 function DevelopmentIcon({ className = '' }) {
   return (
@@ -405,6 +312,12 @@ export default function EvaluationPlans() {
     }));
   };
 
+  const handleTemplateChange = (templateId) => {
+    setIntelligentConfig((current) =>
+      applyDevelopmentPlanTemplate(current, templateId)
+    );
+  };
+
   const generateSuggestedCriteria = () => {
     if (criteria.length === 0) {
       toast.error(
@@ -416,41 +329,12 @@ export default function EvaluationPlans() {
       return;
     }
 
-    const priorityCategories =
-      OBJECTIVE_CATEGORY_PRIORITY[intelligentConfig.objective] ||
-      OBJECTIVE_CATEGORY_PRIORITY.initial;
-
-    const matchingPlayerCriteria = criteria.filter((criterion) =>
-      criterionMatchesPlayerType(criterion, intelligentConfig.player_type)
+    const suggestion = buildIntelligentEvaluationPlan(
+      criteria,
+      intelligentConfig
     );
 
-    const rankedCriteria = [...matchingPlayerCriteria].sort((a, b) => {
-      const aCategory = a.category || 'other';
-      const bCategory = b.category || 'other';
-      const aPriority = priorityCategories.indexOf(aCategory);
-      const bPriority = priorityCategories.indexOf(bCategory);
-      const normalizedA = aPriority === -1 ? 99 : aPriority;
-      const normalizedB = bPriority === -1 ? 99 : bPriority;
-
-      if (normalizedA !== normalizedB) {
-        return normalizedA - normalizedB;
-      }
-
-      return String(a.name || '').localeCompare(String(b.name || ''), 'pt');
-    });
-
-    const prioritized = rankedCriteria.filter((criterion) =>
-      priorityCategories.includes(criterion.category || 'other')
-    );
-
-    const source = prioritized.length > 0 ? prioritized : rankedCriteria;
-    const limit = getSuggestedLimit(
-      intelligentConfig.age_group,
-      intelligentConfig.objective
-    );
-    const suggested = source.slice(0, limit);
-
-    if (suggested.length === 0) {
+    if (suggestion.criteria.length === 0) {
       toast.error(
         tr(
           'evaluations.noSuggestedCriteria',
@@ -460,42 +344,19 @@ export default function EvaluationPlans() {
       return;
     }
 
-    const objectiveLabel =
-      EVALUATION_OBJECTIVES.find(
-        (item) => item.value === intelligentConfig.objective
-      )?.label || 'Avaliação';
-    const ageGroupLabel =
-      AGE_GROUPS.find(
-        (item) => item.value === intelligentConfig.age_group
-      )?.label || '';
-
     setForm((current) => ({
       ...current,
-      name: current.name.trim()
-        ? current.name
-        : `${objectiveLabel} — ${ageGroupLabel}`,
-      category:
-        intelligentConfig.objective === 'technical'
-          ? 'technical'
-          : intelligentConfig.objective === 'tactical'
-          ? 'tactical'
-          : intelligentConfig.player_type === 'goalkeeper' ||
-            intelligentConfig.objective === 'goalkeeper'
-          ? 'goalkeeper'
-          : current.category,
-      estimated_minutes: Math.max(5, Math.ceil(suggested.length * 0.5)),
-      criteria: suggested.map((criterion, index) => ({
-        criterion_id: criterion.id,
-        weight: priorityCategories.includes(criterion.category || 'other')
-          ? 1.5
-          : 1,
-        required: true,
-        order: index,
-      })),
+      name: current.name.trim() ? current.name : suggestion.name,
+      description: current.description.trim()
+        ? current.description
+        : suggestion.description,
+      category: suggestion.category,
+      estimated_minutes: suggestion.estimated_minutes,
+      criteria: suggestion.criteria,
     }));
 
     toast.success(
-      `${suggested.length} critérios sugeridos. Revê a seleção antes de guardar.`
+      `${suggestion.criteria.length} critérios sugeridos. Revê a seleção antes de guardar.`
     );
   };
 
@@ -1063,18 +924,44 @@ export default function EvaluationPlans() {
 
                 {intelligentConfig.mode === 'intelligent' && (
                   <div className="rounded-2xl border border-cyan-100 bg-white p-4">
+                    <div className="mb-4 grid gap-2">
+                      <Label>Modelo StickPro</Label>
+                      <Select
+                        value={intelligentConfig.template_id}
+                        onValueChange={handleTemplateChange}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecionar modelo" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white">
+                          {DEVELOPMENT_PLAN_TEMPLATES.map((template) => (
+                            <SelectItem key={template.id} value={template.id}>
+                              {template.label}
+                            </SelectItem>
+                          ))}
+                          <SelectItem value="custom">Configuração personalizada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs leading-5 text-slate-500">
+                        {DEVELOPMENT_PLAN_TEMPLATES.find(
+                          (template) => template.id === intelligentConfig.template_id
+                        )?.description ||
+                          'Ajusta livremente o escalão, posição, momento e objetivo.'}
+                      </p>
+                    </div>
+
                     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
                       <div className="grid gap-2">
                         <Label>Escalão</Label>
                         <Select
                           value={intelligentConfig.age_group}
                           onValueChange={(value) =>
-                            updateIntelligentConfig('age_group', value)
+                            setIntelligentConfig((current) => ({ ...current, age_group: value, template_id: 'custom' }))
                           }
                         >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-white">
-                            {AGE_GROUPS.map((item) => (
+                            {DEVELOPMENT_AGE_GROUPS.map((item) => (
                               <SelectItem key={item.value} value={item.value}>
                                 {item.label}
                               </SelectItem>
@@ -1108,12 +995,12 @@ export default function EvaluationPlans() {
                         <Select
                           value={intelligentConfig.player_type}
                           onValueChange={(value) =>
-                            updateIntelligentConfig('player_type', value)
+                            setIntelligentConfig((current) => ({ ...current, player_type: value, template_id: 'custom' }))
                           }
                         >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-white">
-                            {PLAYER_TYPES.map((item) => (
+                            {DEVELOPMENT_PLAYER_TYPES.map((item) => (
                               <SelectItem key={item.value} value={item.value}>
                                 {item.label}
                               </SelectItem>
@@ -1127,12 +1014,12 @@ export default function EvaluationPlans() {
                         <Select
                           value={intelligentConfig.season_moment}
                           onValueChange={(value) =>
-                            updateIntelligentConfig('season_moment', value)
+                            setIntelligentConfig((current) => ({ ...current, season_moment: value, template_id: 'custom' }))
                           }
                         >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-white">
-                            {SEASON_MOMENTS.map((item) => (
+                            {DEVELOPMENT_SEASON_MOMENTS.map((item) => (
                               <SelectItem key={item.value} value={item.value}>
                                 {item.label}
                               </SelectItem>
@@ -1146,12 +1033,12 @@ export default function EvaluationPlans() {
                         <Select
                           value={intelligentConfig.objective}
                           onValueChange={(value) =>
-                            updateIntelligentConfig('objective', value)
+                            setIntelligentConfig((current) => ({ ...current, objective: value, template_id: 'custom' }))
                           }
                         >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-white">
-                            {EVALUATION_OBJECTIVES.map((item) => (
+                            {DEVELOPMENT_EVALUATION_OBJECTIVES.map((item) => (
                               <SelectItem key={item.value} value={item.value}>
                                 {item.label}
                               </SelectItem>
