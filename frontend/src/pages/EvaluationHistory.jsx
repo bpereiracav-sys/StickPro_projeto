@@ -1376,7 +1376,9 @@ export default function EvaluationHistory() {
                 <div className="flex min-h-[180px] items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-violet-600" />
                 </div>
-              ) : teamComparison.teamAverage === null ? (
+              ) :
+                teamComparison.teamAverage === null ||
+                dashboard.overallAverage === null ? (
                 <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
                   <Users className="mx-auto mb-3 h-12 w-12 text-slate-300" />
                   <p className="font-semibold text-slate-800">
@@ -1407,25 +1409,48 @@ export default function EvaluationHistory() {
                       </p>
                     </div>
 
-                    <div className={`rounded-3xl border p-4 ${
-                      teamComparison.difference >= 0
-                        ? 'border-emerald-100 bg-emerald-50/70'
-                        : 'border-amber-100 bg-amber-50/70'
-                    }`}>
-                      <p className={`text-xs font-bold uppercase tracking-wide ${
-                        teamComparison.difference >= 0
-                          ? 'text-emerald-700'
-                          : 'text-amber-700'
-                      }`}>
-                        {tr('evaluations.differenceToTeam', 'Diferença para a equipa')}
+                    <div
+                      className={`rounded-3xl border p-4 ${
+                        teamComparison.difference === null ||
+                        teamComparison.difference === undefined
+                          ? 'border-slate-200 bg-slate-50/70'
+                          : teamComparison.difference >= 0
+                            ? 'border-emerald-100 bg-emerald-50/70'
+                            : 'border-amber-100 bg-amber-50/70'
+                      }`}
+                    >
+                      <p
+                        className={`text-xs font-bold uppercase tracking-wide ${
+                          teamComparison.difference === null ||
+                          teamComparison.difference === undefined
+                            ? 'text-slate-600'
+                            : teamComparison.difference >= 0
+                              ? 'text-emerald-700'
+                              : 'text-amber-700'
+                        }`}
+                      >
+                        {tr(
+                          'evaluations.differenceToTeam',
+                          'Diferença para a equipa'
+                        )}
                       </p>
-                      <p className={`mt-2 font-heading text-4xl ${
-                        teamComparison.difference >= 0
-                          ? 'text-emerald-700'
-                          : 'text-amber-700'
-                      }`}>
-                        {teamComparison.difference >= 0 ? '+' : ''}
-                        {teamComparison.difference.toFixed(1)}
+                    
+                      <p
+                        className={`mt-2 font-heading text-4xl ${
+                          teamComparison.difference === null ||
+                          teamComparison.difference === undefined
+                            ? 'text-slate-500'
+                            : teamComparison.difference >= 0
+                              ? 'text-emerald-700'
+                              : 'text-amber-700'
+                        }`}
+                      >
+                        {teamComparison.difference === null ||
+                        teamComparison.difference === undefined
+                          ? '—'
+                          : `${teamComparison.difference >= 0 ? '+' : ''}${teamComparison.difference.toFixed(
+                              1
+                            )}`}
                       </p>
                     </div>
                   </div>
@@ -1448,12 +1473,20 @@ export default function EvaluationHistory() {
                             <Badge
                               variant="outline"
                               className={
-                                item.difference >= 0
-                                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                  : 'border-amber-200 bg-amber-50 text-amber-700'
+                                item.difference === null ||
+                                item.difference === undefined
+                                  ? 'border-slate-200 bg-slate-50 text-slate-600'
+                                  : item.difference >= 0
+                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                    : 'border-amber-200 bg-amber-50 text-amber-700'
                               }
                             >
-                              {item.difference >= 0 ? '+' : ''}{item.difference.toFixed(1)}
+                              {item.difference === null ||
+                              item.difference === undefined
+                                ? '—'
+                                : `${item.difference >= 0 ? '+' : ''}${item.difference.toFixed(
+                                    1
+                                  )}`}
                             </Badge>
                           </div>
 
