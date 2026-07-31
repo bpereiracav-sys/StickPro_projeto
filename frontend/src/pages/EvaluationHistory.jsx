@@ -1,5 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import {
+  Link,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { evaluationsApi, teamsApi } from '../services/api';
@@ -673,6 +677,7 @@ export default function EvaluationHistory() {
   const { t } = useLanguage();
   const permissions = usePermissions();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -693,17 +698,53 @@ export default function EvaluationHistory() {
     return value && value !== key ? value : fallback;
   };
 
+  const effectivePlayerId =
+    permissions?.effectivePlayerId ||
+    permissions?.linkedPlayerId ||
+    null;
+  
+  const isAthleteMode = Boolean(
+    effectivePlayerId &&
+      (
+        permissions?.isPlayer === true ||
+        permissions?.isViewingAsAssociated === true
+      )
+  );
+  
+  const canManageHistory = Boolean(
+    permissions?.isAdmin === true ||
+    permissions?.isStaff === true ||
+    permissions?.canManageTeam === true ||
+    permissions?.canCreateEvaluations === true ||
+    permissions?.hasPermission?.('view_team_members') === true ||
+    permissions?.hasPermission?.('create_evaluations') === true
+  );
+  
   const canViewHistory =
-    permissions?.isAdmin ||
-    permissions?.isStaff ||
-    permissions?.canManageTeam ||
-    permissions?.canCreateEvaluations ||
-    permissions?.hasPermission?.('view_team_members') ||
-    permissions?.hasPermission?.('create_evaluations');
+    canManageHistory || isAthleteMode;
 
   useEffect(() => {
+    if (!isAthleteMode || !effectivePlayerId) {
+      return;
+    }
+  
+    setSelectedPlayerId(effectivePlayerId);
+    setSelectedTeamId('');
+    setPlayers([]);
+  }, [
+    isAthleteMode,
+    effectivePlayerId,
+  ]);
+
+  
+  useEffect(() => {
+    if (isAthleteMode) {
+      setLoadingTeams(false);
+      return;
+    }
+  
     fetchTeams();
-  }, []);
+  }, [isAthleteMode]);
 
   useEffect(() => {
     if (!selectedTeamId) {
@@ -722,8 +763,8 @@ export default function EvaluationHistory() {
       setEvaluations([]);
       return;
     }
-
-    fetchPlayerEvaluations(selectedPlayerId);
+  
+    fetchEvaluations(selectedPlayerId);
   }, [selectedPlayerId]);
 
   useEffect(() => {
@@ -839,10 +880,29 @@ export default function EvaluationHistory() {
     [teams, selectedTeamId]
   );
 
-  const selectedPlayer = useMemo(
-    () => players.find((player) => player.id === selectedPlayerId),
-    [players, selectedPlayerId]
-  );
+  const athleteProfile =
+    permissions?.activeProfile ||
+    permissions?.viewingAs ||
+    null;
+  
+  const selectedPlayer =
+    isAthleteMode
+      ? {
+          id: effectivePlayerId,
+          name:
+            athleteProfile?.name ||
+            athleteProfile?.display_name ||
+            athleteProfile?.full_name ||
+            'Atleta',
+          team_ids:
+            athleteProfile?.team_ids ||
+            [],
+        }
+      : players.find(
+          (player) =>
+            String(player.id) ===
+            String(selectedPlayerId)
+        );
 
   const categories = useMemo(() => {
     const values = new Set();
@@ -1175,6 +1235,7 @@ export default function EvaluationHistory() {
         </div>
       </section>
 
+      {!isAthleteMode && (
       <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -1239,6 +1300,7 @@ export default function EvaluationHistory() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {!selectedPlayerId ? (
         <Card className="border border-dashed border-slate-200 bg-slate-50">
@@ -1342,6 +1404,7 @@ export default function EvaluationHistory() {
             />
           </div>
 
+          {canManageHistory && (
           <Card className="overflow-hidden border border-violet-100 bg-white shadow-xl shadow-slate-200/60">
             <CardHeader className="border-b border-violet-100 bg-gradient-to-r from-violet-50 via-white to-cyan-50">
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -1521,6 +1584,7 @@ export default function EvaluationHistory() {
               )}
             </CardContent>
           </Card>
+        )}
 
           <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
             <CardHeader>
