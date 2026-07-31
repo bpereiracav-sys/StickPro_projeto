@@ -16396,21 +16396,118 @@ def is_development_circle_viewer(current_user: dict, player_id: str) -> bool:
     return player_id in linked_player_ids
 
 
-def build_public_player_evaluation_view(evaluation: dict) -> dict:
+async def build_public_player_evaluation_view(
+    evaluation: dict
+) -> dict:
+    """
+    Constrói a versão da avaliação visível pelo atleta e pelas
+    contas associadas.
+
+    Inclui resultados e critérios necessários para consultar
+    a evolução, mas remove comentários internos e informação
+    de auditoria reservada à equipa técnica.
+    """
+    raw_scores = evaluation.get("scores") or []
+
+    criterion_ids = [
+        item.get("criterion_id")
+        for item in raw_scores
+        if isinstance(item, dict) and item.get("criterion_id")
+    ]
+
+    criteria_map: Dict[str, dict] = {}
+
+    if criterion_ids:
+        criteria = await db.evaluation_criteria.find(
+            {
+                "id": {
+                    "$in": list(set(criterion_ids))
+                }
+            },
+            {
+                "_id": 0,
+                "id": 1,
+                "name": 1,
+                "description": 1,
+                "category": 1,
+                "scale_min": 1,
+                "scale_max": 1,
+                "domain": 1,
+                "domainLabel": 1,
+                "domain_label": 1,
+                "subdomain": 1,
+                "subdomainLabel": 1,
+                "subdomain_label": 1,
+                "observableAction": 1,
+            },
+        ).to_list(500)
+
+        criteria_map = {
+            criterion["id"]: criterion
+            for criterion in criteria
+        }
+
+    public_scores = []
+
+    for item in raw_scores:
+        if not isinstance(item, dict):
+            continue
+
+        criterion_id = item.get("criterion_id")
+        criterion = criteria_map.get(criterion_id)
+
+        public_score = {
+            "criterion_id": criterion_id,
+            "score": item.get("score"),
+        }
+
+        if criterion:
+            public_score["criterion"] = criterion
+            public_score["criterion_name"] = criterion.get("name")
+            public_score["category"] = criterion.get("category")
+            public_score["domain"] = criterion.get("domain")
+            public_score["domainLabel"] = (
+                criterion.get("domainLabel")
+                or criterion.get("domain_label")
+            )
+            public_score["subdomain"] = criterion.get("subdomain")
+            public_score["subdomainLabel"] = (
+                criterion.get("subdomainLabel")
+                or criterion.get("subdomain_label")
+            )
+            public_score["scale_min"] = criterion.get("scale_min", 1)
+            public_score["scale_max"] = criterion.get("scale_max", 5)
+
+        # Não copiar comentários técnicos privados existentes
+        # dentro dos elementos de scores.
+        public_scores.append(public_score)
+
     return {
         "id": evaluation.get("id"),
         "player_id": evaluation.get("player_id"),
         "team_id": evaluation.get("team_id"),
         "event_id": evaluation.get("event_id"),
+        "plan_id": evaluation.get("plan_id"),
         "period_label": evaluation.get("period_label"),
+        "visibility": evaluation.get("visibility"),
+
         "created_at": evaluation.get("created_at"),
         "updated_at": evaluation.get("updated_at"),
+
         "shared": True,
         "view_type": "development",
+
+        "overall_score": evaluation.get("overall_score"),
+        "scores": public_scores,
+
         "public_summary": evaluation.get("public_summary"),
         "strengths": evaluation.get("strengths") or [],
-        "improvement_goals": evaluation.get("improvement_goals") or [],
-        "motivational_message": evaluation.get("motivational_message"),
+        "improvement_goals": (
+            evaluation.get("improvement_goals") or []
+        ),
+        "motivational_message": (
+            evaluation.get("motivational_message")
+        ),
     }
 
 
@@ -16835,7 +16932,10 @@ async def get_player_evaluations(
             evaluation
         ):
             if is_development_circle_viewer(current_user, player_id):
-                visible.append(build_public_player_evaluation_view(evaluation))
+                public_evaluation = await build_public_player_evaluation_view(
+                    evaluation
+                )
+                visible.append(public_evaluation)
             else:
                 visible.append(evaluation)
 
@@ -18193,8 +18293,13 @@ async def get_player_evaluation(
     ):
         raise HTTPException(status_code=403, detail="Sem permissão para ver esta avaliação")
 
-    if is_development_circle_viewer(current_user, evaluation.get("player_id")):
-        return build_public_player_evaluation_view(evaluation)
+    if is_development_circle_viewer(
+        current_user,
+        evaluation.get("player_id")
+    ):
+        return await build_public_player_evaluation_view(
+            evaluation
+        )
 
     criterion_ids = [
         item.get("criterion_id")
