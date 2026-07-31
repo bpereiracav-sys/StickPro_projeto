@@ -53,6 +53,7 @@ import SubscriptionPage from "./pages/SubscriptionPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import EvaluationHistory from './pages/EvaluationHistory';
 import PlayerObjectives from './pages/PlayerObjectives';
+import EvaluationDetail from './pages/EvaluationDetail';
 
 const ONBOARDING_ROLES = ["admin", "gestor_desportivo"];
 
@@ -435,6 +436,15 @@ function AppRoutes() {
         element={<EvaluationHistory />}
       />
 
+      <Route
+        path="/evaluations/:evaluationId"
+        element={
+          <ProtectedRoute>
+            <EvaluationDetail />
+          </ProtectedRoute>
+        }
+      />
+          
       <Route
         path="/evaluations/objectives"
         element={<PlayerObjectives />}
