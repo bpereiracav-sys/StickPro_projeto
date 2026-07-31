@@ -17156,7 +17156,772 @@ async def archive_evaluation_plan(plan_id: str, current_user: dict = Depends(get
 
     return {"message": "Plano arquivado"}
 
+# ==================== PLAYER DEVELOPMENT OBJECTIVES — Sprint C3.4E ====================
 
+OBJECTIVE_STATUSES = {
+    "active",
+    "paused",
+    "completed",
+    "cancelled",
+}
+
+
+def clean_objective_document(document: Optional[dict]) -> Optional[dict]:
+    """
+    Remove campos internos do MongoDB antes de devolver o documento.
+    """
+    if not document:
+        return document
+
+    document.pop("_id", None)
+    return document
+
+
+def get_linked_player_ids(current_user: dict) -> set:
+    """
+    Reúne todas as estruturas antigas e atuais usadas pelo StickPro
+    para associar atletas a uma conta.
+    """
+    linked_ids = set()
+
+    linked_player_id = current_user.get("linked_player_id")
+    if linked_player_id:
+        linked_ids.add(str(linked_player_id))
+
+    for field_name in [
+        "linked_player_ids",
+        "associated_player_ids",
+        "associated_accounts",
+    ]:
+        values = current_user.get(field_name) or []
+
+        if isinstance(values, str):
+            linked_ids.add(values)
+            continue
+
+        if isinstance(values, list):
+            for value in values:
+                if value:
+                    linked_ids.add(str(value))
+
+    return linked_ids
+
+
+async def get_objective_player_and_check_access(
+    player_id: str,
+    current_user: dict,
+) -> dict:
+    """
+    Confirma que o atleta existe e que o utilizador pode consultar
+    o respetivo Plano Individual de Desenvolvimento.
+
+    Podem consultar:
+    - administrador;
+    - equipa técnica com acesso a uma equipa do atleta;
+    - o próprio atleta;
+    - conta associada ao atleta.
+    """
+    player = await db.users.find_one(
+        {"id": player_id},
+        {
+            "_id": 0,
+            "hashed_password": 0,
+            "password": 0,
+            "reset_token": 0,
+            "reset_token_expires": 0,
+            "password_reset_token_hash": 0,
+        },
+    )
+
+    if not player:
+        raise HTTPException(
+            status_code=404,
+            detail="Atleta não encontrado",
+        )
+
+    if player.get("role") not in [
+        "jogador",
+        "atleta",
+        "player",
+    ]:
+        raise HTTPException(
+            status_code=400,
+            detail="O Plano Individual só pode ser associado a atletas",
+        )
+
+    checker = get_permission_checker(current_user)
+    player_team_ids = player.get("team_ids") or []
+
+    if checker.is_admin:
+        return player
+
+    if checker.is_staff:
+        has_team_access = any(
+            checker.can_access_team(team_id)
+            for team_id in player_team_ids
+        )
+
+        if has_team_access:
+            return player
+
+    if str(current_user.get("id")) == str(player_id):
+        return player
+
+    linked_player_ids = get_linked_player_ids(current_user)
+
+    if str(player_id) in linked_player_ids:
+        return player
+
+    raise HTTPException(
+        status_code=403,
+        detail="Sem acesso aos objetivos deste atleta",
+    )
+
+
+def validate_objective_payload(
+    payload: dict,
+    partial: bool = False,
+) -> dict:
+    """
+    Valida e normaliza os dados recebidos pelo frontend.
+    """
+    allowed_fields = {
+        "player_id",
+        "team_id",
+        "criterion_id",
+        "title",
+        "description",
+        "target_value",
+        "baseline_value",
+        "target_date",
+        "status",
+    }
+
+    data = {
+        key: value
+        for key, value in (payload or {}).items()
+        if key in allowed_fields
+    }
+
+    if not partial:
+        required_fields = [
+            "player_id",
+            "team_id",
+            "criterion_id",
+            "title",
+            "target_value",
+        ]
+
+        missing_fields = [
+            field
+            for field in required_fields
+            if data.get(field) in (None, "")
+        ]
+
+        if missing_fields:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Campos obrigatórios em falta: "
+                    + ", ".join(missing_fields)
+                ),
+            )
+
+    if "status" in data:
+        status = data.get("status") or "active"
+
+        if status not in OBJECTIVE_STATUSES:
+            raise HTTPException(
+                status_code=400,
+                detail="Estado do objetivo inválido",
+            )
+
+        data["status"] = status
+
+    for numeric_field in [
+        "target_value",
+        "baseline_value",
+    ]:
+        if (
+            numeric_field in data
+            and data[numeric_field] is not None
+        ):
+            try:
+                data[numeric_field] = float(
+                    data[numeric_field]
+                )
+            except (TypeError, ValueError):
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        f"Valor inválido no campo "
+                        f"{numeric_field}"
+                    ),
+                )
+
+    if (
+        "title" in data
+        and data["title"] is not None
+    ):
+        data["title"] = str(
+            data["title"]
+        ).strip()
+
+        if not data["title"]:
+            raise HTTPException(
+                status_code=400,
+                detail="O título é obrigatório",
+            )
+
+    if (
+        "description" in data
+        and data["description"] is not None
+    ):
+        data["description"] = (
+            str(data["description"]).strip()
+            or None
+        )
+
+    if (
+        "target_date" in data
+        and data["target_date"] == ""
+    ):
+        data["target_date"] = None
+
+    return data
+
+
+async def get_objective_criterion_or_404(
+    criterion_id: str,
+) -> dict:
+    """
+    Obtém o critério associado ao objetivo.
+    """
+    criterion = await db.evaluation_criteria.find_one(
+        {
+            "id": criterion_id,
+            "is_active": {"$ne": False},
+        },
+        {"_id": 0},
+    )
+
+    if not criterion:
+        raise HTTPException(
+            status_code=404,
+            detail="Critério de avaliação não encontrado",
+        )
+
+    return criterion
+
+
+def validate_objective_target(
+    target_value: float,
+    criterion: dict,
+) -> None:
+    """
+    Confirma que a meta está dentro da escala do critério.
+    """
+    scale_min = float(
+        criterion.get("scale_min", 1)
+    )
+
+    scale_max = float(
+        criterion.get("scale_max", 5)
+    )
+
+    if (
+        float(target_value) < scale_min
+        or float(target_value) > scale_max
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"A meta deve estar entre "
+                f"{scale_min:g} e {scale_max:g}"
+            ),
+        )
+
+
+@api_router.get(
+    "/evaluations/objectives/player/{player_id}"
+)
+async def get_player_objectives(
+    player_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Devolve os objetivos do atleta.
+
+    O atleta e as contas associadas podem consultar.
+    A equipa técnica consulta atletas das suas equipas.
+    """
+    await get_objective_player_and_check_access(
+        player_id,
+        current_user,
+    )
+
+    objectives = await db.evaluation_objectives.find(
+        {"player_id": player_id},
+        {"_id": 0},
+    ).sort(
+        "created_at",
+        -1,
+    ).to_list(500)
+
+    criterion_ids = list({
+        objective.get("criterion_id")
+        for objective in objectives
+        if objective.get("criterion_id")
+    })
+
+    criteria = []
+
+    if criterion_ids:
+        criteria = await db.evaluation_criteria.find(
+            {
+                "id": {
+                    "$in": criterion_ids,
+                }
+            },
+            {
+                "_id": 0,
+                "id": 1,
+                "name": 1,
+                "description": 1,
+                "category": 1,
+                "scale_min": 1,
+                "scale_max": 1,
+                "domain": 1,
+                "domainLabel": 1,
+                "domain_label": 1,
+                "subdomain": 1,
+                "subdomainLabel": 1,
+                "subdomain_label": 1,
+            },
+        ).to_list(500)
+
+    criteria_map = {
+        criterion["id"]: criterion
+        for criterion in criteria
+    }
+
+    for objective in objectives:
+        criterion = criteria_map.get(
+            objective.get("criterion_id")
+        )
+
+        if criterion:
+            objective["criterion"] = criterion
+            objective["criterion_name"] = (
+                criterion.get("name")
+            )
+            objective["criterion_category"] = (
+                criterion.get("category")
+            )
+            objective["scale_min"] = (
+                criterion.get("scale_min", 1)
+            )
+            objective["scale_max"] = (
+                criterion.get("scale_max", 5)
+            )
+
+    return objectives
+
+
+@api_router.post(
+    "/evaluations/objectives"
+)
+async def create_player_objective(
+    payload: Dict[str, Any],
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Cria um objetivo individual para um atleta.
+    Apenas a equipa técnica ou administração pode criar.
+    """
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_admin and not checker.is_staff:
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para criar objetivos",
+        )
+
+    data = validate_objective_payload(payload)
+
+    player = await get_objective_player_and_check_access(
+        data["player_id"],
+        current_user,
+    )
+
+    player_team_ids = player.get("team_ids") or []
+
+    if data["team_id"] not in player_team_ids:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O atleta não pertence à equipa selecionada"
+            ),
+        )
+
+    if (
+        not checker.is_admin
+        and not checker.can_access_team(
+            data["team_id"]
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a esta equipa",
+        )
+
+    criterion = (
+        await get_objective_criterion_or_404(
+            data["criterion_id"]
+        )
+    )
+
+    validate_objective_target(
+        data["target_value"],
+        criterion,
+    )
+
+    criterion_team_id = criterion.get("team_id")
+
+    if (
+        criterion_team_id
+        and criterion_team_id != data["team_id"]
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O critério não pertence à equipa selecionada"
+            ),
+        )
+
+    duplicate = await db.evaluation_objectives.find_one(
+        {
+            "player_id": data["player_id"],
+            "criterion_id": data["criterion_id"],
+            "status": {
+                "$in": [
+                    "active",
+                    "paused",
+                ]
+            },
+        },
+        {"_id": 0, "id": 1},
+    )
+
+    if duplicate:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Já existe um objetivo ativo "
+                "para este critério"
+            ),
+        )
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    objective = {
+        "id": str(uuid.uuid4()),
+        **data,
+        "status": data.get(
+            "status",
+            "active",
+        ),
+        "created_by": current_user.get("id"),
+        "updated_by": current_user.get("id"),
+        "created_at": now,
+        "updated_at": now,
+        "completed_at": (
+            now
+            if data.get("status") == "completed"
+            else None
+        ),
+    }
+
+    await db.evaluation_objectives.insert_one(
+        dict(objective)
+    )
+
+    objective.pop("_id", None)
+
+    objective["criterion"] = {
+        key: criterion.get(key)
+        for key in [
+            "id",
+            "name",
+            "description",
+            "category",
+            "scale_min",
+            "scale_max",
+            "domain",
+            "domainLabel",
+            "domain_label",
+            "subdomain",
+            "subdomainLabel",
+            "subdomain_label",
+        ]
+        if key in criterion
+    }
+
+    objective["criterion_name"] = criterion.get(
+        "name"
+    )
+
+    objective["scale_min"] = criterion.get(
+        "scale_min",
+        1,
+    )
+
+    objective["scale_max"] = criterion.get(
+        "scale_max",
+        5,
+    )
+
+    return objective
+
+
+@api_router.put(
+    "/evaluations/objectives/{objective_id}"
+)
+async def update_player_objective(
+    objective_id: str,
+    payload: Dict[str, Any],
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Atualiza um objetivo individual.
+    O atleta apenas consulta; não pode editar.
+    """
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_admin and not checker.is_staff:
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para editar objetivos",
+        )
+
+    objective = await db.evaluation_objectives.find_one(
+        {"id": objective_id},
+        {"_id": 0},
+    )
+
+    if not objective:
+        raise HTTPException(
+            status_code=404,
+            detail="Objetivo não encontrado",
+        )
+
+    await get_objective_player_and_check_access(
+        objective["player_id"],
+        current_user,
+    )
+
+    objective_team_id = objective.get("team_id")
+
+    if (
+        not checker.is_admin
+        and not checker.can_access_team(
+            objective_team_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a esta equipa",
+        )
+
+    data = validate_objective_payload(
+        payload,
+        partial=True,
+    )
+
+    # Estes campos não podem ser transferidos
+    # para outro atleta ou equipa numa edição.
+    data.pop("player_id", None)
+    data.pop("team_id", None)
+
+    criterion_id = data.get(
+        "criterion_id",
+        objective.get("criterion_id"),
+    )
+
+    target_value = data.get(
+        "target_value",
+        objective.get("target_value"),
+    )
+
+    if criterion_id:
+        criterion = (
+            await get_objective_criterion_or_404(
+                criterion_id
+            )
+        )
+
+        criterion_team_id = criterion.get("team_id")
+
+        if (
+            criterion_team_id
+            and criterion_team_id != objective_team_id
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "O critério não pertence "
+                    "à equipa do objetivo"
+                ),
+            )
+
+        if target_value is not None:
+            validate_objective_target(
+                target_value,
+                criterion,
+            )
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    new_status = data.get("status")
+
+    if (
+        new_status == "completed"
+        and objective.get("status") != "completed"
+    ):
+        data["completed_at"] = now
+
+    elif (
+        new_status
+        and new_status != "completed"
+    ):
+        data["completed_at"] = None
+
+    data["updated_at"] = now
+    data["updated_by"] = current_user.get("id")
+
+    await db.evaluation_objectives.update_one(
+        {"id": objective_id},
+        {"$set": data},
+    )
+
+    updated = await db.evaluation_objectives.find_one(
+        {"id": objective_id},
+        {"_id": 0},
+    )
+
+    if not updated:
+        raise HTTPException(
+            status_code=404,
+            detail="Objetivo não encontrado",
+        )
+
+    updated_criterion_id = updated.get(
+        "criterion_id"
+    )
+
+    if updated_criterion_id:
+        criterion = await db.evaluation_criteria.find_one(
+            {"id": updated_criterion_id},
+            {
+                "_id": 0,
+                "id": 1,
+                "name": 1,
+                "description": 1,
+                "category": 1,
+                "scale_min": 1,
+                "scale_max": 1,
+                "domain": 1,
+                "domainLabel": 1,
+                "domain_label": 1,
+                "subdomain": 1,
+                "subdomainLabel": 1,
+                "subdomain_label": 1,
+            },
+        )
+
+        if criterion:
+            updated["criterion"] = criterion
+            updated["criterion_name"] = criterion.get(
+                "name"
+            )
+            updated["scale_min"] = criterion.get(
+                "scale_min",
+                1,
+            )
+            updated["scale_max"] = criterion.get(
+                "scale_max",
+                5,
+            )
+
+    return updated
+
+
+@api_router.delete(
+    "/evaluations/objectives/{objective_id}"
+)
+async def delete_player_objective(
+    objective_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    """
+    Elimina definitivamente um objetivo.
+    Apenas administração ou equipa técnica autorizada.
+    """
+    checker = get_permission_checker(current_user)
+
+    if not checker.is_admin and not checker.is_staff:
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para eliminar objetivos",
+        )
+
+    objective = await db.evaluation_objectives.find_one(
+        {"id": objective_id},
+        {"_id": 0},
+    )
+
+    if not objective:
+        raise HTTPException(
+            status_code=404,
+            detail="Objetivo não encontrado",
+        )
+
+    await get_objective_player_and_check_access(
+        objective["player_id"],
+        current_user,
+    )
+
+    objective_team_id = objective.get("team_id")
+
+    if (
+        not checker.is_admin
+        and not checker.can_access_team(
+            objective_team_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a esta equipa",
+        )
+
+    result = await db.evaluation_objectives.delete_one(
+        {"id": objective_id}
+    )
+
+    if result.deleted_count != 1:
+        raise HTTPException(
+            status_code=500,
+            detail="Não foi possível eliminar o objetivo",
+        )
+
+    return {
+        "message": "Objetivo eliminado",
+        "deleted_id": objective_id,
+    }
 
 
 # ==================== EVALUATION EXECUTION ROUTES — Sprint 4.2.4.1 ====================
