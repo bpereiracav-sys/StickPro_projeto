@@ -131,14 +131,22 @@ const getEvaluationPlanName = (evaluation) =>
 
 const getEvaluationAverage = (evaluation) => {
   const directValue =
+    evaluation?.overall_score ??
     evaluation?.average_score ??
     evaluation?.average ??
     evaluation?.score ??
     evaluation?.total_score;
 
-  if (directValue !== undefined && directValue !== null && directValue !== '') {
+  if (
+    directValue !== undefined &&
+    directValue !== null &&
+    directValue !== ''
+  ) {
     const number = Number(directValue);
-    return Number.isFinite(number) ? number : null;
+
+    if (Number.isFinite(number)) {
+      return number;
+    }
   }
 
   const scores =
@@ -149,53 +157,156 @@ const getEvaluationAverage = (evaluation) => {
 
   const values = Array.isArray(scores)
     ? scores
-        .map((item) => Number(item?.score ?? item?.value))
+        .map((item) =>
+          Number(
+            item?.score ??
+              item?.value
+          )
+        )
         .filter(Number.isFinite)
-    : Object.values(scores)
-        .map((item) => Number(item?.score ?? item?.value ?? item))
+    : Object.values(scores || {})
+        .map((item) =>
+          Number(
+            item?.score ??
+              item?.value ??
+              item
+          )
+        )
         .filter(Number.isFinite);
 
-  if (values.length === 0) return null;
-  return values.reduce((sum, value) => sum + value, 0) / values.length;
+  if (values.length === 0) {
+    return null;
+  }
+
+  return (
+    values.reduce(
+      (sum, value) => sum + value,
+      0
+    ) / values.length
+  );
 };
 
 const getCriteriaEntries = (evaluation) => {
   const raw =
-    evaluation?.criteria_scores ||
     evaluation?.scores ||
+    evaluation?.criteria_scores ||
     evaluation?.results ||
     evaluation?.criteria ||
     [];
 
   if (Array.isArray(raw)) {
-    return raw.map((item, index) => ({
-      id:
-        item?.criterion_id ||
-        item?.id ||
-        item?.code ||
-        `${evaluation?.id || 'evaluation'}-${index}`,
-      name:
-        item?.criterion_name ||
-        item?.name ||
-        item?.criterion?.name ||
-        `Critério ${index + 1}`,
-      category:
-        item?.category ||
-        item?.criterion?.category ||
-        evaluation?.category ||
-        'other',
-      score: Number(item?.score ?? item?.value),
-    }));
+    return raw
+      .map((item, index) => {
+        const criterion =
+          item?.criterion || {};
+
+        const score = Number(
+          item?.score ??
+            item?.value
+        );
+
+        return {
+          id:
+            item?.criterion_id ||
+            item?.id ||
+            item?.code ||
+            `${evaluation?.id || 'evaluation'}-${index}`,
+
+          name:
+            item?.criterion_name ||
+            item?.name ||
+            criterion?.name ||
+            criterion?.observableAction ||
+            `Critério ${index + 1}`,
+
+          category:
+            item?.category ||
+            criterion?.category ||
+            evaluation?.category ||
+            'other',
+
+          domain:
+            item?.domain ||
+            criterion?.domain ||
+            null,
+
+          domainLabel:
+            item?.domainLabel ||
+            item?.domain_label ||
+            criterion?.domainLabel ||
+            criterion?.domain_label ||
+            null,
+
+          subdomain:
+            item?.subdomain ||
+            criterion?.subdomain ||
+            null,
+
+          subdomainLabel:
+            item?.subdomainLabel ||
+            item?.subdomain_label ||
+            criterion?.subdomainLabel ||
+            criterion?.subdomain_label ||
+            null,
+
+          score,
+        };
+      })
+      .filter((item) =>
+        Number.isFinite(item.score)
+      );
   }
 
-  return Object.entries(raw || {}).map(([key, value]) => ({
-    id: key,
-    name: value?.name || key,
-    category: value?.category || evaluation?.category || 'other',
-    score: Number(value?.score ?? value?.value ?? value),
-  }));
-};
+  return Object.entries(raw || {})
+    .map(([key, value]) => ({
+      id: key,
 
+      name:
+        value?.criterion_name ||
+        value?.name ||
+        value?.criterion?.name ||
+        key,
+
+      category:
+        value?.category ||
+        value?.criterion?.category ||
+        evaluation?.category ||
+        'other',
+
+      domain:
+        value?.domain ||
+        value?.criterion?.domain ||
+        null,
+
+      domainLabel:
+        value?.domainLabel ||
+        value?.domain_label ||
+        value?.criterion?.domainLabel ||
+        value?.criterion?.domain_label ||
+        null,
+
+      subdomain:
+        value?.subdomain ||
+        value?.criterion?.subdomain ||
+        null,
+
+      subdomainLabel:
+        value?.subdomainLabel ||
+        value?.subdomain_label ||
+        value?.criterion?.subdomainLabel ||
+        value?.criterion?.subdomain_label ||
+        null,
+
+      score: Number(
+        value?.score ??
+          value?.value ??
+          value
+      ),
+    }))
+    .filter((item) =>
+      Number.isFinite(item.score)
+    );
+};
 function MetricCard({ label, value, helper, icon: Icon, accent = 'cyan' }) {
   const styles = {
     cyan: 'border-cyan-100 from-white via-cyan-50/70 to-slate-50 text-cyan-700',
