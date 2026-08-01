@@ -376,6 +376,41 @@ function TrendIndicator({ value }) {
   );
 }
 
+
+function CriterionTrendBadge({ difference }) {
+  if (difference === null || difference === undefined) {
+    return (
+      <Badge variant="outline" className="border-slate-200 bg-slate-50 text-slate-500">
+        Sem comparação
+      </Badge>
+    );
+  }
+
+  if (difference > 0.05) {
+    return (
+      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+        <TrendingUp className="mr-1 h-3.5 w-3.5" />
+        +{difference.toFixed(1)} · Em evolução
+      </Badge>
+    );
+  }
+
+  if (difference < -0.05) {
+    return (
+      <Badge variant="outline" className="border-red-200 bg-red-50 text-red-700">
+        <TrendingDown className="mr-1 h-3.5 w-3.5" />
+        {difference.toFixed(1)} · Atenção
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+      0.0 · Estável
+    </Badge>
+  );
+}
+
 function EvolutionLineChart({ points }) {
   if (points.length < 2) {
     return (
@@ -1080,6 +1115,75 @@ export default function EvaluationHistory() {
       return true;
     });
   }, [evaluations, categoryFilter, dateFilter, query]);
+
+
+  const criterionEvolution = useMemo(() => {
+    const historyByCriterion = new Map();
+
+    const chronological = [...filteredEvaluations].sort((a, b) => {
+      const aDate = new Date(getEvaluationDate(a) || 0).getTime();
+      const bDate = new Date(getEvaluationDate(b) || 0).getTime();
+      return aDate - bDate;
+    });
+
+    chronological.forEach((evaluation) => {
+      const evaluationDate = getEvaluationDate(evaluation);
+
+      getCriteriaEntries(evaluation).forEach((criterion) => {
+        if (!Number.isFinite(criterion.score)) return;
+
+        const key = criterion.id || criterion.name;
+
+        if (!historyByCriterion.has(key)) {
+          historyByCriterion.set(key, {
+            id: key,
+            name: criterion.name,
+            category: criterion.category || 'other',
+            domainLabel: criterion.domainLabel || null,
+            subdomainLabel: criterion.subdomainLabel || null,
+            entries: [],
+          });
+        }
+
+        historyByCriterion.get(key).entries.push({
+          score: criterion.score,
+          date: evaluationDate,
+          evaluationId: evaluation?.id || null,
+        });
+      });
+    });
+
+    return Array.from(historyByCriterion.values())
+      .map((criterion) => {
+        const latest =
+          criterion.entries.length > 0
+            ? criterion.entries[criterion.entries.length - 1]
+            : null;
+
+        const previous =
+          criterion.entries.length > 1
+            ? criterion.entries[criterion.entries.length - 2]
+            : null;
+
+        return {
+          ...criterion,
+          latest,
+          previous,
+          difference:
+            latest && previous
+              ? latest.score - previous.score
+              : null,
+        };
+      })
+      .filter((criterion) => criterion.latest)
+      .sort((a, b) => {
+        const aDate = new Date(a.latest?.date || 0).getTime();
+        const bDate = new Date(b.latest?.date || 0).getTime();
+
+        if (aDate !== bDate) return bDate - aDate;
+        return a.name.localeCompare(b.name, 'pt-PT');
+      });
+  }, [filteredEvaluations]);
 
   const dashboard = useMemo(() => {
     const chronological = [...filteredEvaluations].sort((a, b) => {
@@ -1847,51 +1951,112 @@ export default function EvaluationHistory() {
                   Evolução por critério
                 </CardTitle>
                 <CardDescription>
-                  Média acumulada dos critérios avaliados no período selecionado.
+                  Compara a nota mais recente de cada critério com a avaliação anterior em que esse mesmo critério foi avaliado.
                 </CardDescription>
               </CardHeader>
 
               <CardContent>
-                {dashboard.criteria.length === 0 ? (
+                {criterionEvolution.length === 0 ? (
                   <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
                     <BarChart3 className="mx-auto mb-3 h-12 w-12 text-slate-300" />
                     <p className="font-semibold text-slate-800">Sem dados</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {dashboard.criteria.slice(0, 10).map((criterion) => {
-                      const width = Math.max(
+                    {criterionEvolution.slice(0, 12).map((criterion) => {
+                      const latestWidth = Math.max(
                         0,
-                        Math.min(100, (criterion.average / SCORE_MAX) * 100)
+                        Math.min(100, (criterion.latest.score / SCORE_MAX) * 100)
                       );
+
+                      const previousWidth = criterion.previous
+                        ? Math.max(
+                            0,
+                            Math.min(100, (criterion.previous.score / SCORE_MAX) * 100)
+                          )
+                        : 0;
+
                       const category =
                         CATEGORY_CONFIG[criterion.category] || CATEGORY_CONFIG.other;
 
                       return (
-                        <div key={criterion.id}>
-                          <div className="mb-2 flex items-center justify-between gap-3">
+                        <div
+                          key={criterion.id}
+                          className="rounded-2xl border border-slate-200 bg-white p-4"
+                        >
+                          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <p className="truncate font-medium text-slate-900">
+                              <p className="font-medium text-slate-900">
                                 {criterion.name}
                               </p>
-                              <Badge
-                                variant="outline"
-                                className={`mt-1 ${category.className}`}
-                              >
-                                {category.label}
-                              </Badge>
+
+                              <div className="mt-2 flex flex-wrap gap-2">
+                                <Badge
+                                  variant="outline"
+                                  className={category.className}
+                                >
+                                  {category.label}
+                                </Badge>
+
+                                {criterion.subdomainLabel && (
+                                  <Badge variant="outline" className="border-slate-200 bg-white text-slate-600">
+                                    {criterion.subdomainLabel}
+                                  </Badge>
+                                )}
+                              </div>
                             </div>
 
-                            <p className="font-heading text-xl text-slate-950">
-                              {criterion.average.toFixed(1)}
-                            </p>
+                            <CriterionTrendBadge difference={criterion.difference} />
                           </div>
 
-                          <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                            <div
-                              className="h-full rounded-full bg-cyan-500 transition-all"
-                              style={{ width: `${width}%` }}
-                            />
+                          <div className="space-y-3">
+                            <div className="grid grid-cols-[108px_1fr_42px] items-center gap-3 text-sm">
+                              <span className="font-medium text-cyan-700">
+                                {tr('evaluations.latestEvaluation', 'Última')}
+                              </span>
+
+                              <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                  className="h-full rounded-full bg-cyan-500 transition-all"
+                                  style={{ width: `${latestWidth}%` }}
+                                />
+                              </div>
+
+                              <span className="text-right font-bold text-slate-900">
+                                {criterion.latest.score.toFixed(1)}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-[108px_1fr_42px] items-center gap-3 text-sm">
+                              <span className="font-medium text-violet-700">
+                                {tr('evaluations.previousEvaluation', 'Anterior')}
+                              </span>
+
+                              <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                  className="h-full rounded-full bg-violet-500 transition-all"
+                                  style={{ width: `${previousWidth}%` }}
+                                />
+                              </div>
+
+                              <span className="text-right font-bold text-slate-900">
+                                {criterion.previous
+                                  ? criterion.previous.score.toFixed(1)
+                                  : '—'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                            <span>
+                              {formatDate(criterion.latest.date)}
+                            </span>
+
+                            {criterion.previous && (
+                              <span>
+                                Comparação com {formatDate(criterion.previous.date)}
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
