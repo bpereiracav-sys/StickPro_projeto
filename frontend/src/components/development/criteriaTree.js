@@ -998,6 +998,490 @@ export const normalizeDevelopmentEvaluation = ({
     .filter(Boolean);
 
 /**
+ * ============================================================
+ * Sprint C3.4H.3
+ * ------------------------------------------------------------
+ * Índice de metadados dos critérios
+ *
+ * Permite reutilizar os nomes e a hierarquia das avaliações
+ * principais quando as avaliações de comparação contêm apenas
+ * criterion_id, id ou code.
+ * ============================================================
+ */
+
+/**
+ * Devolve todas as chaves possíveis para identificar um critério.
+ */
+export const getDevelopmentCriterionLookupKeys = (
+  entry = {}
+) => {
+  const identifiers =
+    getCriterionIdentifiers(entry);
+
+  const keys = new Set();
+
+  const addKey = (prefix, value) => {
+    const normalizedValue =
+      normalizeDevelopmentIdentifier(value);
+
+    if (!normalizedValue) {
+      return;
+    }
+
+    keys.add(
+      `${prefix}:${normalizedValue}`
+    );
+  };
+
+  addKey(
+    'id',
+    identifiers.id
+  );
+
+  addKey(
+    'code',
+    normalizeCriterionCode(
+      identifiers.code
+    )
+  );
+
+  addKey(
+    'name',
+    normalizeDevelopmentSearchText(
+      identifiers.name
+    )
+  );
+
+  addKey(
+    'source',
+    entry?.source_code ||
+      entry?.sourceCode
+  );
+
+  addKey(
+    'criterion',
+    entry?.criterion_id ||
+      entry?.criterionId
+  );
+
+  return Array.from(keys);
+};
+
+/**
+ * Cria um objeto de metadados reutilizável.
+ */
+export const createDevelopmentCriterionMetadata = (
+  normalizedEntry = {}
+) => ({
+  id:
+    normalizedEntry?.id ||
+    null,
+
+  criterion_id:
+    normalizedEntry?.id ||
+    null,
+
+  criterionId:
+    normalizedEntry?.id ||
+    null,
+
+  code:
+    normalizedEntry?.code ||
+    null,
+
+  criterion_code:
+    normalizedEntry?.code ||
+    null,
+
+  criterionCode:
+    normalizedEntry?.code ||
+    null,
+
+  source_code:
+    normalizedEntry?.code ||
+    null,
+
+  sourceCode:
+    normalizedEntry?.code ||
+    null,
+
+  name:
+    normalizedEntry?.name ||
+    null,
+
+  criterion_name:
+    normalizedEntry?.name ||
+    null,
+
+  criterionName:
+    normalizedEntry?.name ||
+    null,
+
+  observableAction:
+    normalizedEntry?.observableAction ||
+    normalizedEntry?.name ||
+    null,
+
+  description:
+    normalizedEntry?.description ||
+    '',
+
+  domain:
+    normalizedEntry?.domain ||
+    UNKNOWN_DOMAIN_ID,
+
+  domainLabel:
+    normalizedEntry?.domainLabel ||
+    'Outros critérios',
+
+  domain_label:
+    normalizedEntry?.domainLabel ||
+    'Outros critérios',
+
+  subdomain:
+    normalizedEntry?.subdomain ||
+    UNKNOWN_SUBDOMAIN_ID,
+
+  subdomainLabel:
+    normalizedEntry?.subdomainLabel ||
+    'Outros critérios',
+
+  subdomain_label:
+    normalizedEntry?.subdomainLabel ||
+    'Outros critérios',
+
+  competency:
+    normalizedEntry?.competency ||
+    null,
+
+  competencyLabel:
+    normalizedEntry?.competencyLabel ||
+    null,
+
+  competency_label:
+    normalizedEntry?.competencyLabel ||
+    null,
+
+  playerType:
+    normalizedEntry?.playerType ||
+    'all',
+
+  player_type:
+    normalizedEntry?.playerType ||
+    'all',
+});
+
+/**
+ * Constrói um índice a partir das avaliações principais.
+ *
+ * Exemplo:
+ *
+ * criterion_id: abc123
+ *      ↓
+ * {
+ *   name: "Conduz a bola com a direita",
+ *   domain: "technical",
+ *   subdomain: "ball-control"
+ * }
+ */
+export const buildDevelopmentCriterionMetadataIndex = (
+  evaluations = []
+) => {
+  const index =
+    new Map();
+
+  const safeEvaluations =
+    Array.isArray(evaluations)
+      ? evaluations
+      : [];
+
+  safeEvaluations.forEach(
+    (evaluation, evaluationIndex) => {
+      const rawEntries =
+        getDevelopmentEvaluationScores(
+          evaluation
+        );
+
+      rawEntries.forEach((rawEntry) => {
+        const normalizedEntry =
+          normalizeDevelopmentCriterionEntry({
+            entry: rawEntry,
+            evaluation,
+            evaluationIndex,
+            comparison: false,
+          });
+
+        if (!normalizedEntry) {
+          return;
+        }
+
+        const metadata =
+          createDevelopmentCriterionMetadata(
+            normalizedEntry
+          );
+
+        const keys = new Set([
+          ...getDevelopmentCriterionLookupKeys(
+            rawEntry
+          ),
+
+          ...getDevelopmentCriterionLookupKeys(
+            metadata
+          ),
+        ]);
+
+        keys.forEach((key) => {
+          if (!key) {
+            return;
+          }
+
+          const existing =
+            index.get(key);
+
+          /*
+           * Preferir sempre metadados que tenham:
+           * - nome oficial;
+           * - código oficial;
+           * - domínio reconhecido.
+           */
+          const existingQuality =
+            (
+              existing?.criterion_name
+                ? 2
+                : 0
+            ) +
+            (
+              existing?.criterion_code
+                ? 2
+                : 0
+            ) +
+            (
+              existing?.domain &&
+              existing.domain !==
+                UNKNOWN_DOMAIN_ID
+                ? 1
+                : 0
+            );
+
+          const newQuality =
+            (
+              metadata?.criterion_name
+                ? 2
+                : 0
+            ) +
+            (
+              metadata?.criterion_code
+                ? 2
+                : 0
+            ) +
+            (
+              metadata?.domain &&
+              metadata.domain !==
+                UNKNOWN_DOMAIN_ID
+                ? 1
+                : 0
+            );
+
+          if (
+            !existing ||
+            newQuality >
+              existingQuality
+          ) {
+            index.set(
+              key,
+              metadata
+            );
+          }
+        });
+      });
+    }
+  );
+
+  return index;
+};
+
+/**
+ * Procura metadados conhecidos para um critério.
+ */
+export const findDevelopmentCriterionMetadata = (
+  entry = {},
+  metadataIndex = new Map()
+) => {
+  if (
+    !(metadataIndex instanceof Map) ||
+    metadataIndex.size === 0
+  ) {
+    return null;
+  }
+
+  const keys =
+    getDevelopmentCriterionLookupKeys(
+      entry
+    );
+
+  for (const key of keys) {
+    const metadata =
+      metadataIndex.get(key);
+
+    if (metadata) {
+      return metadata;
+    }
+  }
+
+  return null;
+};
+
+/**
+ * Enriquece um score de comparação com os metadados conhecidos.
+ *
+ * Os valores originais do score têm prioridade apenas para:
+ * - score;
+ * - weight;
+ * - comentários;
+ * - campos específicos da avaliação.
+ *
+ * Os nomes e a hierarquia conhecidos completam os campos em falta.
+ */
+export const enrichDevelopmentComparisonEntry = (
+  entry = {},
+  metadataIndex = new Map()
+) => {
+  const metadata =
+    findDevelopmentCriterionMetadata(
+      entry,
+      metadataIndex
+    );
+
+  if (!metadata) {
+    return entry;
+  }
+
+  const nestedCriterion =
+    entry?.criterion &&
+    typeof entry.criterion === 'object'
+      ? entry.criterion
+      : {};
+
+  return {
+    ...metadata,
+    ...entry,
+
+    criterion_id:
+      entry?.criterion_id ||
+      entry?.criterionId ||
+      entry?.id ||
+      metadata?.criterion_id ||
+      metadata?.id ||
+      null,
+
+    criterion_code:
+      entry?.criterion_code ||
+      entry?.criterionCode ||
+      entry?.code ||
+      entry?.source_code ||
+      entry?.sourceCode ||
+      metadata?.criterion_code ||
+      metadata?.code ||
+      null,
+
+    criterion_name:
+      entry?.criterion_name ||
+      entry?.criterionName ||
+      entry?.name ||
+      nestedCriterion?.name ||
+      metadata?.criterion_name ||
+      metadata?.name ||
+      null,
+
+    domain:
+      entry?.domain ||
+      nestedCriterion?.domain ||
+      metadata?.domain ||
+      UNKNOWN_DOMAIN_ID,
+
+    domainLabel:
+      entry?.domainLabel ||
+      entry?.domain_label ||
+      nestedCriterion?.domainLabel ||
+      nestedCriterion?.domain_label ||
+      metadata?.domainLabel ||
+      metadata?.domain_label ||
+      'Outros critérios',
+
+    subdomain:
+      entry?.subdomain ||
+      nestedCriterion?.subdomain ||
+      metadata?.subdomain ||
+      UNKNOWN_SUBDOMAIN_ID,
+
+    subdomainLabel:
+      entry?.subdomainLabel ||
+      entry?.subdomain_label ||
+      nestedCriterion?.subdomainLabel ||
+      nestedCriterion?.subdomain_label ||
+      metadata?.subdomainLabel ||
+      metadata?.subdomain_label ||
+      'Outros critérios',
+
+    criterion: {
+      ...metadata,
+      ...nestedCriterion,
+
+      id:
+        nestedCriterion?.id ||
+        entry?.criterion_id ||
+        entry?.criterionId ||
+        metadata?.id ||
+        null,
+
+      code:
+        nestedCriterion?.code ||
+        entry?.criterion_code ||
+        entry?.criterionCode ||
+        entry?.code ||
+        metadata?.code ||
+        null,
+
+      name:
+        nestedCriterion?.name ||
+        entry?.criterion_name ||
+        entry?.criterionName ||
+        entry?.name ||
+        metadata?.name ||
+        null,
+    },
+  };
+};
+
+/**
+ * Normaliza uma avaliação de comparação utilizando o índice
+ * criado a partir das avaliações principais.
+ */
+export const normalizeDevelopmentComparisonEvaluation = ({
+  evaluation = {},
+  evaluationIndex = null,
+  metadataIndex = new Map(),
+} = {}) =>
+  getDevelopmentEvaluationScores(
+    evaluation
+  )
+    .map((entry) =>
+      enrichDevelopmentComparisonEntry(
+        entry,
+        metadataIndex
+      )
+    )
+    .map((entry) =>
+      normalizeDevelopmentCriterionEntry({
+        entry,
+        evaluation,
+        evaluationIndex,
+        comparison: true,
+      })
+    )
+    .filter(Boolean);
+
+/**
  * Cria um mapa de domínios vazio.
  *
  * Quando includeEmptyDomains é false, os domínios serão criados
@@ -1363,8 +1847,23 @@ export const buildDevelopmentCriteriaTree = ({
       includeEmptyDomains,
     });
 
+  /*
+   * Primeiro construímos um índice com os critérios
+   * das avaliações principais do atleta.
+   */
+  const metadataIndex =
+    buildDevelopmentCriterionMetadataIndex(
+      primaryEvaluations
+    );
+
+  /*
+   * Avaliações principais.
+   */
   primaryEvaluations.forEach(
-    (evaluation, evaluationIndex) => {
+    (
+      evaluation,
+      evaluationIndex
+    ) => {
       const entries =
         normalizeDevelopmentEvaluation({
           evaluation,
@@ -1387,6 +1886,48 @@ export const buildDevelopmentCriteriaTree = ({
       });
     }
   );
+
+  /*
+   * Avaliações de comparação.
+   *
+   * Antes da normalização, cada score é enriquecido com os
+   * nomes, domínios e subdomínios encontrados nas avaliações
+   * principais.
+   */
+  secondaryEvaluations.forEach(
+    (
+      evaluation,
+      evaluationIndex
+    ) => {
+      const entries =
+        normalizeDevelopmentComparisonEvaluation({
+          evaluation,
+          evaluationIndex,
+          metadataIndex,
+        });
+
+      entries.forEach((entry) => {
+        if (
+          !includeUnresolvedCriteria &&
+          !entry.isOfficial
+        ) {
+          return;
+        }
+
+        addDevelopmentEntryToTree(
+          domainMap,
+          entry
+        );
+      });
+    }
+  );
+
+  return sortDevelopmentCriteriaTree(
+    Array.from(
+      domainMap.values()
+    )
+  );
+};
 
   secondaryEvaluations.forEach(
     (evaluation, evaluationIndex) => {
@@ -3083,6 +3624,13 @@ const developmentCriteriaTree = {
   resolveDevelopmentCriterion,
   normalizeDevelopmentEvaluation,
   normalizeDevelopmentCriterionEntry,
+  
+  getDevelopmentCriterionLookupKeys,
+  createDevelopmentCriterionMetadata,
+  buildDevelopmentCriterionMetadataIndex,
+  findDevelopmentCriterionMetadata,
+  enrichDevelopmentComparisonEntry,
+  normalizeDevelopmentComparisonEvaluation,
 
   buildDevelopmentCriteriaTree,
   calculateDevelopmentTreeMetrics,
