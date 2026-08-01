@@ -13,8 +13,6 @@ import {
 import { Badge } from '../ui/badge';
 import { Card } from '../ui/card';
 
-import DevelopmentComparisonTree from
-'../components/development/DevelopmentComparisonTree';
 
 const SCORE_MAX = 5;
 
