@@ -1787,6 +1787,41 @@ export const DEVELOPMENT_SUBDOMAINS = [
 ];
 
 /**
+ * ==========================================================
+ * Índices rápidos da Biblioteca StickPro
+ * ==========================================================
+ */
+
+/**
+ * code -> criterion
+ */
+export const DEVELOPMENT_CRITERIA_BY_CODE =
+  DEVELOPMENT_CRITERIA_CATALOG.reduce((acc, criterion) => {
+    acc[criterion.code] = criterion;
+    return acc;
+  }, {});
+
+/**
+ * id -> domain
+ */
+export const DEVELOPMENT_DOMAIN_BY_ID =
+  DEVELOPMENT_DOMAINS.reduce((acc, domain) => {
+    acc[domain.id] = domain;
+    return acc;
+  }, {});
+
+/**
+ * id -> subdomain
+ */
+export const DEVELOPMENT_SUBDOMAIN_BY_ID =
+  DEVELOPMENT_SUBDOMAINS.reduce((acc, subdomain) => {
+    acc[subdomain.id] = subdomain;
+    return acc;
+  }, {});
+
+
+
+/**
  * Normaliza texto para pesquisas independentes de maiúsculas,
  * minúsculas e acentuação.
  */
@@ -1990,7 +2025,7 @@ export const getDevelopmentDomainLabel = (domainId) =>
 /**
  * Devolve a designação de um subdomínio.
  */
-eexport const getDevelopmentSubdomainLabel = (subdomainId) =>
+export const getDevelopmentSubdomainLabel = (subdomainId) =>
   DEVELOPMENT_SUBDOMAIN_BY_ID[subdomainId]?.label || subdomainId;
 
 /**
@@ -2032,38 +2067,5 @@ export const validateDevelopmentCatalog = (
     ...stats,
   };
 };
-
-/**
- * ==========================================================
- * Índices rápidos da Biblioteca StickPro
- * ==========================================================
- */
-
-/**
- * code -> criterion
- */
-export const DEVELOPMENT_CRITERIA_BY_CODE =
-  DEVELOPMENT_CRITERIA_CATALOG.reduce((acc, criterion) => {
-    acc[criterion.code] = criterion;
-    return acc;
-  }, {});
-
-/**
- * id -> domain
- */
-export const DEVELOPMENT_DOMAIN_BY_ID =
-  DEVELOPMENT_DOMAINS.reduce((acc, domain) => {
-    acc[domain.id] = domain;
-    return acc;
-  }, {});
-
-/**
- * id -> subdomain
- */
-export const DEVELOPMENT_SUBDOMAIN_BY_ID =
-  DEVELOPMENT_SUBDOMAINS.reduce((acc, subdomain) => {
-    acc[subdomain.id] = subdomain;
-    return acc;
-  }, {});
 
 export default DEVELOPMENT_CRITERIA_CATALOG;
