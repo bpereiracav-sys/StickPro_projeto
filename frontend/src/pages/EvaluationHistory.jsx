@@ -45,6 +45,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import DevelopmentComparisonTree from
+'../components/development/DevelopmentComparisonTree';
+
 const ALL_VALUE = 'all';
 const SCORE_MAX = 5;
 
