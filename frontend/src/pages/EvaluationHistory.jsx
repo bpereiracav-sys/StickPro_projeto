@@ -937,26 +937,66 @@ export default function EvaluationHistory() {
             String(selectedPlayerId)
         );
 
-  const athleteTeamNames = isAthleteMode
-    ? [
-        ...new Set(
-          [
-            ...(Array.isArray(athleteProfile?.teams)
-              ? athleteProfile.teams
-              : []),
-            ...(Array.isArray(athleteProfile?.team_names)
-              ? athleteProfile.team_names.map((name) => ({ name }))
-              : []),
-          ]
-            .map((team) =>
-              typeof team === 'string'
-                ? team
-                : team?.name
-            )
-            .filter(Boolean)
-        ),
-      ]
-    : [];
+  const athleteTeamNames = useMemo(() => {
+    if (!isAthleteMode) {
+      return [];
+    }
+  
+    const teamNames = [
+      ...(Array.isArray(athleteProfile?.teams)
+        ? athleteProfile.teams
+        : []),
+      ...(Array.isArray(athleteProfile?.team_names)
+        ? athleteProfile.team_names
+        : []),
+    ]
+      .map((team) =>
+        typeof team === 'string'
+          ? team
+          : team?.name ||
+            team?.display_name ||
+            null
+      )
+      .map((name) =>
+        typeof name === 'string'
+          ? name.trim()
+          : null
+      )
+      .filter(Boolean);
+  
+    /*
+     * Preferir a designação mais específica.
+     * Exemplo:
+     * "Escolares" é removido quando também existe "Escolares A".
+     */
+    return [
+      ...new Set(
+        teamNames.filter((name, index, names) => {
+          const normalizedName =
+            name.toLocaleLowerCase('pt-PT');
+  
+          return !names.some((otherName, otherIndex) => {
+            if (index === otherIndex) {
+              return false;
+            }
+  
+            const normalizedOther =
+              otherName.toLocaleLowerCase('pt-PT');
+  
+            return (
+              normalizedOther !== normalizedName &&
+              normalizedOther.startsWith(
+                `${normalizedName} `
+              )
+            );
+          });
+        })
+      ),
+    ];
+  }, [
+    isAthleteMode,
+    athleteProfile,
+  ]);
   
   const categories = useMemo(() => {
     const values = new Set();
