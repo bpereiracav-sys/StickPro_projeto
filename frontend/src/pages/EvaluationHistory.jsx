@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { evaluationsApi, teamsApi } from '../services/api';
 import {
   buildPlayerTeamDevelopmentTree,
-} from '../utils/development/criteriaTree';
+} from '../components/development/criteriaTree';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import {
