@@ -5,6 +5,7 @@ import {
   ChevronsUp,
   ChevronDown,
   ChevronRight,
+  CircleDot,
   FolderTree,
   Layers,
   Target,
@@ -185,21 +186,86 @@ function formatDifference(value) {
   )}`;
 }
 
-function DifferenceBadge({ difference }) {
+function getComparisonStatus(difference) {
   if (
     difference === null ||
     difference === undefined ||
     !Number.isFinite(Number(difference))
   ) {
-    return (
-      <Badge
-        variant="outline"
-        className="border-slate-200 bg-slate-50 text-slate-500"
-      >
-        Sem comparação
-      </Badge>
-    );
+    return {
+      label: 'Sem referência',
+      className:
+        'border-slate-200 bg-slate-50 text-slate-600',
+      icon: CircleDot,
+    };
   }
+
+  const numericDifference =
+    Number(difference);
+
+  if (
+    numericDifference >
+    DIFFERENCE_TOLERANCE
+  ) {
+    return {
+      label: 'Acima da equipa',
+      className:
+        'border-emerald-200 bg-emerald-50 text-emerald-700',
+      icon: TrendingUp,
+    };
+  }
+
+  if (
+    numericDifference <
+    -DIFFERENCE_TOLERANCE
+  ) {
+    return {
+      label: 'Prioritário',
+      className:
+        'border-amber-200 bg-amber-50 text-amber-700',
+      icon: TrendingDown,
+    };
+  }
+
+  return {
+    label: 'Equilibrado',
+    className:
+      'border-slate-200 bg-white text-slate-600',
+    icon: CircleDot,
+  };
+}
+
+ffunction DifferenceBadge({
+  difference,
+  showLabel = false,
+}) {
+  const status =
+    getComparisonStatus(
+      difference
+    );
+
+  const Icon =
+    status.icon;
+
+  return (
+    <Badge
+      variant="outline"
+      className={
+        status.className
+      }
+    >
+      <Icon className="mr-1 h-3.5 w-3.5" />
+
+      {showLabel
+        ? `${status.label} · `
+        : ''}
+
+      {formatDifference(
+        difference
+      )}
+    </Badge>
+  );
+}
 
   const numericDifference =
     Number(difference);
@@ -451,6 +517,14 @@ function SubdomainAccordion({
   const contentId =
     `subdomain-content-${domainId}-${subdomainId}`;
 
+  const status =
+    getComparisonStatus(
+      metrics.difference
+    );
+  
+  const StatusIcon =
+    status.icon;
+  
   return (
     <Card className="overflow-hidden border border-slate-200 shadow-sm">
       <button
@@ -470,17 +544,28 @@ function SubdomainAccordion({
           <Layers className="h-4 w-4 shrink-0 text-cyan-600" />
 
           <div className="min-w-0">
-            <p className="truncate font-semibold text-slate-900">
-              {subdomain?.label ||
-                'Subdomínio'}
-            </p>
-
-            <p className="text-xs text-slate-500">
-              {criteria.length}{' '}
-              {criteria.length === 1
-                ? 'critério'
-                : 'critérios'}
-            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate font-semibold text-slate-900">
+                {subdomain?.label ||
+                  'Subdomínio'}
+              </p>
+          
+              <Badge
+                variant="outline"
+                className="border-slate-200 bg-slate-50 text-slate-600"
+              >
+                {criteria.length}{' '}
+                {criteria.length === 1
+                  ? 'critério'
+                  : 'critérios'}
+              </Badge>
+            </div>
+          
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+              <StatusIcon className="h-3.5 w-3.5" />
+          
+              {status.label}
+            </div>
           </div>
         </div>
 
@@ -667,7 +752,7 @@ function DomainAccordion({
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={contentId}
-        className="flex w-full flex-col gap-4 bg-gradient-to-r from-slate-50 via-white to-cyan-50 px-5 py-5 text-left transition-colors hover:from-slate-100 hover:to-cyan-100 sm:px-6 lg:flex-row lg:items-center lg:justify-between"
+        className="flex w-full flex-col gap-4 bg-gradient-to-r from-white via-white to-cyan-50/50 px-5 py-5 text-left transition-colors hover:to-cyan-50 sm:px-6 lg:flex-row lg:items-center lg:justify-between"
       >
         <div className="flex min-w-0 items-center gap-4">
           {open ? (
