@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   Link,
   useNavigate,
-  useSearchParams,
 } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { usePermissions } from '../context/PermissionsContext';
@@ -716,14 +715,16 @@ export default function EvaluationHistory() {
       )
   );
   
-  const canManageHistory = Boolean(
-    permissions?.isAdmin === true ||
-    permissions?.isStaff === true ||
-    permissions?.canManageTeam === true ||
-    permissions?.canCreateEvaluations === true ||
-    permissions?.hasPermission?.('view_team_members') === true ||
-    permissions?.hasPermission?.('create_evaluations') === true
-  );
+  const canManageHistory =
+    !isAthleteMode &&
+    Boolean(
+      permissions?.isAdmin === true ||
+        permissions?.isStaff === true ||
+        permissions?.canManageTeam === true ||
+        permissions?.canCreateEvaluations === true ||
+        permissions?.hasPermission?.('view_team_members') === true ||
+        permissions?.hasPermission?.('create_evaluations') === true
+    );
   
   const canViewHistory =
     canManageHistory || isAthleteMode;
@@ -732,51 +733,71 @@ export default function EvaluationHistory() {
     if (!isAthleteMode || !effectivePlayerId) {
       return;
     }
-  
-    setSelectedPlayerId(effectivePlayerId);
+
+    setSelectedPlayerId(String(effectivePlayerId));
     setSelectedTeamId('');
     setPlayers([]);
+    setTeamEvaluationRecords([]);
+    setLoadingTeamComparison(false);
   }, [
     isAthleteMode,
     effectivePlayerId,
   ]);
 
-  
   useEffect(() => {
     if (isAthleteMode) {
       setLoadingTeams(false);
       return;
     }
-  
+
     fetchTeams();
   }, [isAthleteMode]);
+
+  useEffect(() => {
+    if (isAthleteMode) {
+      return;
+    }
+
+    if (!selectedTeamId) {
+      setPlayers([]);
+      setSelectedPlayerId('');
+      setEvaluations([]);
+      setTeamEvaluationRecords([]);
+      setLoadingTeamComparison(false);
+      return;
+    }
+
+    fetchPlayers(selectedTeamId);
+  }, [
+    selectedTeamId,
+    isAthleteMode,
+  ]);
 
   useEffect(() => {
     if (!selectedPlayerId) {
       setEvaluations([]);
       return;
     }
-  
+
     fetchPlayerEvaluations(selectedPlayerId);
   }, [selectedPlayerId]);
 
   useEffect(() => {
-    if (isAthleteMode) {
-      return;
-    }
-  
-    if (!selectedTeamId) {
-      setPlayers([]);
-      setSelectedPlayerId('');
-      setEvaluations([]);
+    if (
+      isAthleteMode ||
+      !selectedTeamId ||
+      players.length === 0
+    ) {
       setTeamEvaluationRecords([]);
+      setLoadingTeamComparison(false);
       return;
     }
-  
-    fetchPlayers(selectedTeamId);
+
+    fetchTeamComparison(players);
   }, [
-    selectedTeamId,
     isAthleteMode,
+    selectedTeamId,
+    players,
   ]);
 
   const fetchTeams = async () => {
@@ -801,7 +822,10 @@ export default function EvaluationHistory() {
   const fetchPlayers = async (teamId) => {
     setLoadingPlayers(true);
     setSelectedPlayerId('');
+    setPlayers([]);
     setEvaluations([]);
+    setTeamEvaluationRecords([]);
+    setLoadingTeamComparison(false);
 
     try {
       const response = await evaluationsApi.getTeamPlayers(teamId);
@@ -879,7 +903,12 @@ export default function EvaluationHistory() {
   };
 
   const selectedTeam = useMemo(
-    () => teams.find((team) => team.id === selectedTeamId),
+    () =>
+      teams.find(
+        (team) =>
+          String(team.id) ===
+          String(selectedTeamId)
+      ),
     [teams, selectedTeamId]
   );
 
@@ -1109,7 +1138,13 @@ export default function EvaluationHistory() {
       return true;
     };
 
-    const teamEvaluations = teamEvaluationRecords.flatMap((record) =>
+    const benchmarkRecords = teamEvaluationRecords.filter(
+      (record) =>
+        String(record.playerId) !==
+        String(selectedPlayerId)
+    );
+
+    const teamEvaluations = benchmarkRecords.flatMap((record) =>
       record.evaluations.filter(filterForBenchmark)
     );
 
@@ -1168,7 +1203,7 @@ export default function EvaluationHistory() {
       .filter((item) => item.athleteAverage !== null)
       .sort((a, b) => Math.abs(b.difference) - Math.abs(a.difference));
 
-    const evaluatedPlayers = teamEvaluationRecords.filter((record) =>
+    const evaluatedPlayers = benchmarkRecords.filter((record) =>
       record.evaluations.some(filterForBenchmark)
     ).length;
 
@@ -1190,6 +1225,7 @@ export default function EvaluationHistory() {
     dashboard.overallAverage,
     dateFilter,
     categoryFilter,
+    selectedPlayerId,
   ]);
 
   if (!canViewHistory) {
