@@ -2063,7 +2063,9 @@ const selectedPlayer =
                   <DevelopmentComparisonTree
                     domains={developmentDomains}
                   />
-                  {tr(
+                  
+                  <p className="text-xs leading-5 text-slate-500">
+                    {tr(
                       'evaluations.teamBenchmarkNote',
                       'A referência da equipa é calculada com as avaliações disponíveis para os atletas selecionados no mesmo período e categoria.'
                     )}
