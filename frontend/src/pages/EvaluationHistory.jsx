@@ -913,22 +913,47 @@ export default function EvaluationHistory() {
   );
 
   const athleteProfile =
+    viewingAs?.profile ||
+    viewingAs?.player ||
+    viewingAs?.user ||
     viewingAs ||
+    activeProfile?.profile ||
+    activeProfile?.player ||
+    activeProfile?.user ||
     activeProfile ||
     user ||
     null;
+  
+  const athleteDisplayName =
+    athleteProfile?.name ||
+    athleteProfile?.full_name ||
+    athleteProfile?.display_name ||
+    athleteProfile?.player_name ||
+    athleteProfile?.athlete_name ||
+    viewingAs?.name ||
+    viewingAs?.full_name ||
+    viewingAs?.display_name ||
+    viewingAs?.player_name ||
+    activeProfile?.name ||
+    activeProfile?.full_name ||
+    activeProfile?.display_name ||
+    activeProfile?.player_name ||
+    user?.name ||
+    user?.full_name ||
+    user?.display_name ||
+    'Atleta';
   
   const selectedPlayer =
     isAthleteMode
       ? {
           id: effectivePlayerId,
-          name:
-            athleteProfile?.name ||
-            athleteProfile?.display_name ||
-            athleteProfile?.full_name ||
-            'Atleta',
+          name: athleteDisplayName,
+          full_name: athleteDisplayName,
+          display_name: athleteDisplayName,
           team_ids:
             athleteProfile?.team_ids ||
+            viewingAs?.team_ids ||
+            activeProfile?.team_ids ||
             [],
         }
       : players.find(
