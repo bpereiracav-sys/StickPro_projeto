@@ -1678,6 +1678,15 @@ const selectedPlayer =
     selectedPlayerId,
   ]);
 
+  const effectiveTeamDifference =
+    developmentMetrics?.difference !== null &&
+    developmentMetrics?.difference !== undefined
+      ? Number(developmentMetrics.difference)
+      : teamComparison?.difference !== null &&
+          teamComparison?.difference !== undefined
+        ? Number(teamComparison.difference)
+        : null;
+  
   if (!canViewHistory) {
     return (
       <div className="space-y-4 pb-20 lg:pb-0">
