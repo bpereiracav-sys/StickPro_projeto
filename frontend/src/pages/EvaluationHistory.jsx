@@ -7,6 +7,9 @@ import { useLanguage } from '../context/LanguageContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { useAuth } from '../context/AuthContext';
 import { evaluationsApi, teamsApi } from '../services/api';
+import {
+  buildPlayerTeamDevelopmentTree,
+} from '../utils/development/criteriaTree';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import {
@@ -687,7 +690,11 @@ function InsightList({ title, description, items, tone }) {
                 <div className="min-w-0">
                   <p className="truncate font-medium text-slate-900">{item.name}</p>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    {CATEGORY_CONFIG[item.category]?.label || item.category || 'Outro'}
+                    {item.domainLabel ||
+                      item.subdomainLabel ||
+                      CATEGORY_CONFIG[item.category]?.label ||
+                      item.category ||
+                      'Outro'}
                   </p>
                 </div>
                 <span
@@ -697,7 +704,11 @@ function InsightList({ title, description, items, tone }) {
                       : 'font-heading text-xl text-amber-700'
                   }
                 >
-                  {item.average.toFixed(1)}
+                  {Number(
+                    item?.metrics?.average ??
+                    item?.average ??
+                    0
+                  ).toFixed(1)}
                 </span>
               </div>
             ))}
@@ -1246,7 +1257,131 @@ const selectedPlayer =
     });
   }, [evaluations, categoryFilter, dateFilter, query]);
 
+  const filteredTeamEvaluations = useMemo(() => {
+    const now = new Date();
+  
+    const matchesCurrentFilters = (evaluation) => {
+      const evaluationDate = getEvaluationDate(evaluation);
+      const date = evaluationDate
+        ? new Date(evaluationDate)
+        : null;
+  
+      if (
+        dateFilter !== ALL_VALUE &&
+        date &&
+        !Number.isNaN(date.getTime())
+      ) {
+        const limit = new Date(now);
+  
+        if (dateFilter === '30') {
+          limit.setDate(now.getDate() - 30);
+        }
+  
+        if (dateFilter === '90') {
+          limit.setDate(now.getDate() - 90);
+        }
+  
+        if (dateFilter === '365') {
+          limit.setFullYear(now.getFullYear() - 1);
+        }
+  
+        if (date < limit) {
+          return false;
+        }
+      }
+  
+      if (categoryFilter !== ALL_VALUE) {
+        const matchesEvaluationCategory =
+          evaluation?.category === categoryFilter;
+  
+        const matchesCriterionCategory =
+          getCriteriaEntries(evaluation).some(
+            (criterion) =>
+              criterion.category === categoryFilter
+          );
+  
+        if (
+          !matchesEvaluationCategory &&
+          !matchesCriterionCategory
+        ) {
+          return false;
+        }
+      }
+  
+      return true;
+    };
+  
+    return teamEvaluationRecords
+      .filter((record) => {
+        const recordPlayerId =
+          record?.playerId ||
+          record?.player_id ||
+          record?.athleteId ||
+          record?.athlete_id ||
+          null;
+  
+        return (
+          !selectedPlayerId ||
+          String(recordPlayerId) !==
+            String(selectedPlayerId)
+        );
+      })
+      .flatMap((record) =>
+        (
+          Array.isArray(record?.evaluations)
+            ? record.evaluations
+            : []
+        ).filter(matchesCurrentFilters)
+      );
+  }, [
+    teamEvaluationRecords,
+    selectedPlayerId,
+    categoryFilter,
+    dateFilter,
+  ]);
 
+  const developmentEngine = useMemo(
+    () =>
+      buildPlayerTeamDevelopmentTree({
+        playerEvaluations:
+          filteredEvaluations,
+  
+        teamEvaluations:
+          isAthleteMode
+            ? []
+            : filteredTeamEvaluations,
+  
+        includeEmptyDomains: false,
+        includeUnresolvedCriteria: true,
+      }),
+    [
+      filteredEvaluations,
+      filteredTeamEvaluations,
+      isAthleteMode,
+    ]
+  );
+
+  const developmentDomains =
+    developmentEngine?.domains || [];
+  
+  const developmentMetrics =
+    developmentEngine?.metrics || {};
+  
+  const developmentRadar =
+    developmentEngine?.radar || [];
+  
+  const developmentStrengths =
+    developmentEngine?.strengths || [];
+  
+  const developmentPriorities =
+    developmentEngine?.priorities || [];
+  
+  const developmentLatestComparison =
+    developmentEngine?.latestComparison || [];
+  
+  const developmentTeamComparison =
+    developmentEngine?.teamComparison || [];
+  
   const criterionEvolution = useMemo(() => {
     const historyByCriterion = new Map();
 
@@ -2053,7 +2188,13 @@ const selectedPlayer =
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <RadarChart data={dashboard.categoryAverages} />
+                <RadarChart
+                  data={
+                    engineRadarData.length >= 3
+                      ? engineRadarData
+                      : dashboard.categoryAverages
+                  }
+                />
               </CardContent>
             </Card>
           </div>
@@ -2062,13 +2203,21 @@ const selectedPlayer =
             <InsightList
               title="Pontos fortes"
               description="Critérios com melhor desempenho médio no período selecionado."
-              items={dashboard.strongest}
+              items={
+                developmentStrengths.length > 0
+                  ? developmentStrengths.slice(0, 3)
+                  : dashboard.strongest
+              }
               tone="positive"
             />
             <InsightList
               title="Prioridades de melhoria"
               description="Critérios com menor resultado médio e maior potencial de desenvolvimento."
-              items={dashboard.priorities}
+              items={
+                developmentPriorities.length > 0
+                  ? developmentPriorities.slice(0, 3)
+                  : dashboard.priorities
+              }
               tone="priority"
             />
           </div>
@@ -2109,6 +2258,24 @@ const selectedPlayer =
                       const category =
                         CATEGORY_CONFIG[criterion.category] || CATEGORY_CONFIG.other;
 
+                      const engineRadarData = developmentRadar.map(
+                        (item) => ({
+                          key: item.id,
+                          label:
+                            item.domainLabel ||
+                            item.subject ||
+                            item.id,
+                      
+                          value:
+                            Number(item.value) || 0,
+                      
+                          comparison:
+                            item.comparison !== undefined
+                              ? Number(item.comparison) || 0
+                              : undefined,
+                        })
+                      );
+                    
                       return (
                         <div
                           key={criterion.id}
