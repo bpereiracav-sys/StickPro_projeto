@@ -2060,84 +2060,10 @@ const selectedPlayer =
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    {(
-                      developmentTeamComparison.length > 0
-                        ? developmentTeamComparison
-                        : teamComparison.criteriaComparison
-                    )
-                      .slice(0, 8)
-                      .map((item) => {
-                      const category =
-                        CATEGORY_CONFIG[item.category] ||
-                        CATEGORY_CONFIG.other;
-                      
-                      const criterionGroupLabel =
-                        item.subdomainLabel ||
-                        item.domainLabel ||
-                        category.label;
-                      const athleteWidth = Math.max(0, Math.min(100, (item.athleteAverage / SCORE_MAX) * 100));
-                      const teamWidth = Math.max(0, Math.min(100, (item.teamAverage / SCORE_MAX) * 100));
-
-                      return (
-                        <div key={item.id} className="rounded-2xl border border-slate-200 p-4">
-                          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
-                            <div>
-                              <p className="font-semibold text-slate-900">{item.name}</p>
-                              <Badge
-                                variant="outline"
-                                className={`mt-1 ${
-                                  item.domainLabel || item.subdomainLabel
-                                    ? 'border-cyan-200 bg-cyan-50 text-cyan-700'
-                                    : category.className
-                                }`}
-                              >
-                                {criterionGroupLabel}
-                              </Badge>
-                            </div>
-                            <Badge
-                              variant="outline"
-                              className={
-                                item.difference === null ||
-                                item.difference === undefined
-                                  ? 'border-slate-200 bg-slate-50 text-slate-600'
-                                  : item.difference >= 0
-                                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                                    : 'border-amber-200 bg-amber-50 text-amber-700'
-                              }
-                            >
-                              {item.difference === null ||
-                              item.difference === undefined
-                                ? '—'
-                                : `${item.difference >= 0 ? '+' : ''}${item.difference.toFixed(
-                                    1
-                                  )}`}
-                            </Badge>
-                          </div>
-
-                          <div className="space-y-2">
-                            <div className="grid grid-cols-[92px_1fr_38px] items-center gap-3 text-sm">
-                              <span className="font-medium text-cyan-700">{tr('roles.player', 'Atleta')}</span>
-                              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                                <div className="h-full rounded-full bg-cyan-500" style={{ width: `${athleteWidth}%` }} />
-                              </div>
-                              <span className="text-right font-bold text-slate-800">{item.athleteAverage.toFixed(1)}</span>
-                            </div>
-                            <div className="grid grid-cols-[92px_1fr_38px] items-center gap-3 text-sm">
-                              <span className="font-medium text-violet-700">{tr('common.team', 'Equipa')}</span>
-                              <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                                <div className="h-full rounded-full bg-violet-500" style={{ width: `${teamWidth}%` }} />
-                              </div>
-                              <span className="text-right font-bold text-slate-800">{item.teamAverage.toFixed(1)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  <p className="text-xs leading-5 text-slate-500">
-                    {tr(
+                  <DevelopmentComparisonTree
+                    domains={developmentDomains}
+                  />
+                  {tr(
                       'evaluations.teamBenchmarkNote',
                       'A referência da equipa é calculada com as avaliações disponíveis para os atletas selecionados no mesmo período e categoria.'
                     )}
