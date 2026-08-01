@@ -433,7 +433,11 @@ function AppRoutes() {
 
       <Route
         path="/evaluations/history"
-        element={<EvaluationHistory />}
+        element={
+          <ProtectedRoute>
+            <EvaluationHistory />
+          </ProtectedRoute>
+        }
       />
 
       <Route
@@ -447,7 +451,11 @@ function AppRoutes() {
           
       <Route
         path="/evaluations/objectives"
-        element={<PlayerObjectives />}
+        element={
+          <ProtectedRoute>
+            <PlayerObjectives />
+          </ProtectedRoute>
+        }
       />
           
       {/* Payments */}
