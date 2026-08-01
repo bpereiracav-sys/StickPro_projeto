@@ -1022,7 +1022,65 @@ const athleteProfile =
   activeProfile ||
   null;
 
+const evaluatedPlayerData = useMemo(() => {
+  if (!isAthleteMode || evaluations.length === 0) {
+    return null;
+  }
+
+  for (const evaluation of evaluations) {
+    const candidate =
+      evaluation?.player ||
+      evaluation?.athlete ||
+      evaluation?.player_profile ||
+      evaluation?.athlete_profile ||
+      null;
+
+    const candidateName =
+      evaluation?.player_name ||
+      evaluation?.athlete_name ||
+      evaluation?.player_full_name ||
+      evaluation?.athlete_full_name ||
+      candidate?.player_name ||
+      candidate?.athlete_name ||
+      candidate?.display_name ||
+      candidate?.full_name ||
+      candidate?.name ||
+      null;
+
+    if (candidateName) {
+      return {
+        id:
+          evaluation?.player_id ||
+          evaluation?.athlete_id ||
+          candidate?.id ||
+          effectivePlayerId,
+
+        name: candidateName,
+
+        team_ids:
+          evaluation?.team_ids ||
+          candidate?.team_ids ||
+          [],
+      };
+    }
+  }
+
+  return null;
+}, [
+  isAthleteMode,
+  evaluations,
+  effectivePlayerId,
+]);
+
 const athleteDisplayName =
+  evaluatedPlayerData?.name ||
+  matchedAthleteProfile?.player_name ||
+  matchedAthleteProfile?.athlete_name ||
+  matchedAthleteProfile?.display_name ||
+  matchedAthleteProfile?.full_name ||
+  matchedAthleteProfile?.name ||
+  matchedAthleteProfile?.player?.name ||
+  matchedAthleteProfile?.player?.full_name ||
   athleteProfile?.player_name ||
   athleteProfile?.athlete_name ||
   athleteProfile?.display_name ||
@@ -1037,19 +1095,31 @@ const athleteDisplayName =
   viewingAs?.display_name ||
   viewingAs?.full_name ||
   viewingAs?.name ||
+  activeProfile?.player_name ||
+  activeProfile?.athlete_name ||
+  activeProfile?.display_name ||
+  activeProfile?.full_name ||
+  activeProfile?.name ||
   'Atleta';
 
 const selectedPlayer =
   isAthleteMode
     ? {
-        id: effectivePlayerId,
+        id:
+          evaluatedPlayerData?.id ||
+          effectivePlayerId,
+
         name: athleteDisplayName,
         full_name: athleteDisplayName,
         display_name: athleteDisplayName,
+
         team_ids:
+          evaluatedPlayerData?.team_ids ||
+          matchedAthleteProfile?.team_ids ||
           athleteProfile?.team_ids ||
           athleteProfile?.player?.team_ids ||
           viewingAs?.team_ids ||
+          activeProfile?.team_ids ||
           [],
       }
     : players.find(
@@ -1057,7 +1127,6 @@ const selectedPlayer =
           String(player.id) ===
           String(selectedPlayerId)
       );
-
   const athleteTeamNames = useMemo(() => {
     if (!isAthleteMode) {
       return [];
