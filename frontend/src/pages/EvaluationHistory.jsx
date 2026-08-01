@@ -1983,7 +1983,10 @@ const selectedPlayer =
                         {tr('evaluations.athleteAverage', 'Média do atleta')}
                       </p>
                       <p className="mt-2 font-heading text-4xl text-slate-950">
-                        {dashboard.overallAverage?.toFixed(1) || '-'}
+                        {developmentMetrics.average !== null &&
+                        developmentMetrics.average !== undefined
+                          ? Number(developmentMetrics.average).toFixed(1)
+                          : dashboard.overallAverage?.toFixed(1) || '-'}
                       </p>
                     </div>
 
@@ -1992,26 +1995,29 @@ const selectedPlayer =
                         {tr('evaluations.teamAverage', 'Média da equipa')}
                       </p>
                       <p className="mt-2 font-heading text-4xl text-slate-950">
-                        {teamComparison.teamAverage.toFixed(1)}
+                        {developmentMetrics.comparisonAverage !== null &&
+                        developmentMetrics.comparisonAverage !== undefined
+                          ? Number(developmentMetrics.comparisonAverage).toFixed(1)
+                          : teamComparison.teamAverage.toFixed(1)}
                       </p>
                     </div>
 
                     <div
                       className={`rounded-3xl border p-4 ${
-                        teamComparison.difference === null ||
-                        teamComparison.difference === undefined
+                        effectiveTeamDifference === null ||
+                        effectiveTeamDifference === undefined
                           ? 'border-slate-200 bg-slate-50/70'
-                          : teamComparison.difference >= 0
+                          : effectiveTeamDifference >= 0
                             ? 'border-emerald-100 bg-emerald-50/70'
                             : 'border-amber-100 bg-amber-50/70'
                       }`}
                     >
                       <p
                         className={`text-xs font-bold uppercase tracking-wide ${
-                          teamComparison.difference === null ||
-                          teamComparison.difference === undefined
+                          effectiveTeamDifference === null ||
+                          effectiveTeamDifference === undefined
                             ? 'text-slate-600'
-                            : teamComparison.difference >= 0
+                            : effectiveTeamDifference >= 0
                               ? 'text-emerald-700'
                               : 'text-amber-700'
                         }`}
@@ -2024,18 +2030,18 @@ const selectedPlayer =
                     
                       <p
                         className={`mt-2 font-heading text-4xl ${
-                          teamComparison.difference === null ||
-                          teamComparison.difference === undefined
+                          effectiveTeamDifference === null ||
+                          effectiveTeamDifference === undefined
                             ? 'text-slate-500'
-                            : teamComparison.difference >= 0
+                            : effectiveTeamDifference >= 0
                               ? 'text-emerald-700'
                               : 'text-amber-700'
                         }`}
                       >
-                        {teamComparison.difference === null ||
-                        teamComparison.difference === undefined
+                        {effectiveTeamDifference === null ||
+                        effectiveTeamDifference === undefined
                           ? '—'
-                          : `${teamComparison.difference >= 0 ? '+' : ''}${teamComparison.difference.toFixed(
+                          : `${effectiveTeamDifference >= 0 ? '+' : ''}${effectiveTeamDifference.toFixed(
                               1
                             )}`}
                       </p>
@@ -2043,8 +2049,21 @@ const selectedPlayer =
                   </div>
 
                   <div className="space-y-4">
-                    {teamComparison.criteriaComparison.slice(0, 8).map((item) => {
-                      const category = CATEGORY_CONFIG[item.category] || CATEGORY_CONFIG.other;
+                    {(
+                      developmentTeamComparison.length > 0
+                        ? developmentTeamComparison
+                        : teamComparison.criteriaComparison
+                    )
+                      .slice(0, 8)
+                      .map((item) => {
+                      const category =
+                        CATEGORY_CONFIG[item.category] ||
+                        CATEGORY_CONFIG.other;
+                      
+                      const criterionGroupLabel =
+                        item.subdomainLabel ||
+                        item.domainLabel ||
+                        category.label;
                       const athleteWidth = Math.max(0, Math.min(100, (item.athleteAverage / SCORE_MAX) * 100));
                       const teamWidth = Math.max(0, Math.min(100, (item.teamAverage / SCORE_MAX) * 100));
 
@@ -2053,8 +2072,15 @@ const selectedPlayer =
                           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                             <div>
                               <p className="font-semibold text-slate-900">{item.name}</p>
-                              <Badge variant="outline" className={`mt-1 ${category.className}`}>
-                                {category.label}
+                              <Badge
+                                variant="outline"
+                                className={`mt-1 ${
+                                  item.domainLabel || item.subdomainLabel
+                                    ? 'border-cyan-200 bg-cyan-50 text-cyan-700'
+                                    : category.className
+                                }`}
+                              >
+                                {criterionGroupLabel}
                               </Badge>
                             </div>
                             <Badge
