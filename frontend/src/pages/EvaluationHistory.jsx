@@ -6,6 +6,7 @@ import {
 } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { usePermissions } from '../context/PermissionsContext';
+import { useAuth } from '../context/AuthContext';
 import { evaluationsApi, teamsApi } from '../services/api';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
@@ -676,8 +677,12 @@ function InsightList({ title, description, items, tone }) {
 export default function EvaluationHistory() {
   const { t } = useLanguage();
   const permissions = usePermissions();
+  const {
+    user,
+    activeProfile,
+    viewingAs,
+  } = useAuth();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
 
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -747,6 +752,19 @@ export default function EvaluationHistory() {
   }, [isAthleteMode]);
 
   useEffect(() => {
+    if (!selectedPlayerId) {
+      setEvaluations([]);
+      return;
+    }
+  
+    fetchPlayerEvaluations(selectedPlayerId);
+  }, [selectedPlayerId]);
+
+  useEffect(() => {
+    if (isAthleteMode) {
+      return;
+    }
+  
     if (!selectedTeamId) {
       setPlayers([]);
       setSelectedPlayerId('');
@@ -754,27 +772,12 @@ export default function EvaluationHistory() {
       setTeamEvaluationRecords([]);
       return;
     }
-
-    fetchPlayers(selectedTeamId);
-  }, [selectedTeamId]);
-
-  useEffect(() => {
-    if (!selectedPlayerId) {
-      setEvaluations([]);
-      return;
-    }
   
-    fetchEvaluations(selectedPlayerId);
-  }, [selectedPlayerId]);
-
-  useEffect(() => {
-    if (!selectedTeamId || players.length === 0) {
-      setTeamEvaluationRecords([]);
-      return;
-    }
-
-    fetchTeamComparison(players);
-  }, [selectedTeamId, players]);
+    fetchPlayers(selectedTeamId);
+  }, [
+    selectedTeamId,
+    isAthleteMode,
+  ]);
 
   const fetchTeams = async () => {
     setLoadingTeams(true);
@@ -881,8 +884,9 @@ export default function EvaluationHistory() {
   );
 
   const athleteProfile =
-    permissions?.activeProfile ||
-    permissions?.viewingAs ||
+    viewingAs ||
+    activeProfile ||
+    user ||
     null;
   
   const selectedPlayer =
@@ -904,6 +908,27 @@ export default function EvaluationHistory() {
             String(selectedPlayerId)
         );
 
+  const athleteTeamNames = isAthleteMode
+    ? [
+        ...new Set(
+          [
+            ...(Array.isArray(athleteProfile?.teams)
+              ? athleteProfile.teams
+              : []),
+            ...(Array.isArray(athleteProfile?.team_names)
+              ? athleteProfile.team_names.map((name) => ({ name }))
+              : []),
+          ]
+            .map((team) =>
+              typeof team === 'string'
+                ? team
+                : team?.name
+            )
+            .filter(Boolean)
+        ),
+      ]
+    : [];
+  
   const categories = useMemo(() => {
     const values = new Set();
 
@@ -1216,22 +1241,33 @@ export default function EvaluationHistory() {
             </h1>
 
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-300 sm:text-base">
-              {tr(
-                'evaluations.historySubtitle',
-                'Analise tendências, radar de competências e compare o desempenho do atleta com a média da equipa.'
-              )}
+              {isAthleteMode
+                ? tr(
+                    'evaluations.athleteHistorySubtitle',
+                    'Consulta a tua evolução, radar de competências, pontos fortes e prioridades de desenvolvimento.'
+                  )
+                : tr(
+                    'evaluations.historySubtitle',
+                    'Analise tendências, radar de competências e compare o desempenho do atleta com a média da equipa.'
+                  )}
             </p>
           </div>
 
-          <Button
-            asChild
-            className="h-11 rounded-full bg-cyan-500 px-5 text-white hover:bg-cyan-600"
-          >
-            <Link to="/evaluations/new">
-              <ClipboardCheck className="mr-2 h-4 w-4" />
-              {tr('evaluations.newEvaluation', 'Nova avaliação')}
-            </Link>
-          </Button>
+          {canManageHistory && (
+            <Button
+              asChild
+              className="h-11 rounded-full bg-cyan-500 px-5 text-white hover:bg-cyan-600"
+            >
+              <Link to="/evaluations/new">
+                <ClipboardCheck className="mr-2 h-4 w-4" />
+          
+                {tr(
+                  'evaluations.newEvaluation',
+                  'Nova avaliação'
+                )}
+              </Link>
+            </Button>
+          )}
         </div>
       </section>
 
@@ -1335,7 +1371,9 @@ export default function EvaluationHistory() {
 
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wide text-cyan-100">
-                      {selectedTeam?.name || tr('common.team', 'Equipa')}
+                      {selectedTeam?.name ||
+                        athleteTeamNames.join(', ') ||
+                        tr('common.team', 'Equipa')}
                     </p>
                     <h2 className="font-heading text-2xl sm:text-3xl">
                       {getPlayerName(selectedPlayer)}
