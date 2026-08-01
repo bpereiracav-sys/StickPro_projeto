@@ -715,6 +715,7 @@ export default function EvaluationHistory() {
     user,
     activeProfile,
     viewingAs,
+    availableProfiles,
   } = useAuth();
   const navigate = useNavigate();
 
@@ -947,55 +948,115 @@ export default function EvaluationHistory() {
     [teams, selectedTeamId]
   );
 
-  const athleteProfile =
-    viewingAs?.profile ||
-    viewingAs?.player ||
-    viewingAs?.user ||
-    viewingAs ||
-    activeProfile?.profile ||
-    activeProfile?.player ||
-    activeProfile?.user ||
-    activeProfile ||
-    user ||
-    null;
-  
-  const athleteDisplayName =
-    athleteProfile?.name ||
-    athleteProfile?.full_name ||
-    athleteProfile?.display_name ||
-    athleteProfile?.player_name ||
-    athleteProfile?.athlete_name ||
-    viewingAs?.name ||
-    viewingAs?.full_name ||
-    viewingAs?.display_name ||
-    viewingAs?.player_name ||
-    activeProfile?.name ||
-    activeProfile?.full_name ||
-    activeProfile?.display_name ||
-    activeProfile?.player_name ||
-    user?.name ||
-    user?.full_name ||
-    user?.display_name ||
-    'Atleta';
-  
-  const selectedPlayer =
-    isAthleteMode
-      ? {
-          id: effectivePlayerId,
-          name: athleteDisplayName,
-          full_name: athleteDisplayName,
-          display_name: athleteDisplayName,
-          team_ids:
-            athleteProfile?.team_ids ||
-            viewingAs?.team_ids ||
-            activeProfile?.team_ids ||
-            [],
-        }
-      : players.find(
-          (player) =>
-            String(player.id) ===
-            String(selectedPlayerId)
-        );
+  const flattenedAvailableProfiles = useMemo(() => {
+  if (Array.isArray(availableProfiles)) {
+    return availableProfiles;
+  }
+
+  if (
+    availableProfiles &&
+    typeof availableProfiles === 'object'
+  ) {
+    return [
+      ...(Array.isArray(availableProfiles.self)
+        ? availableProfiles.self
+        : []),
+
+      ...(Array.isArray(availableProfiles.associated)
+        ? availableProfiles.associated
+        : []),
+
+      ...(Array.isArray(availableProfiles.profiles)
+        ? availableProfiles.profiles
+        : []),
+    ];
+  }
+
+  return [];
+}, [availableProfiles]);
+
+const matchedAthleteProfile = useMemo(() => {
+  if (!effectivePlayerId) {
+    return null;
+  }
+
+  return (
+    flattenedAvailableProfiles.find((profile) => {
+      const candidateIds = [
+        profile?.id,
+        profile?.player_id,
+        profile?.playerId,
+        profile?.profile_id,
+        profile?.profileId,
+        profile?.athlete_id,
+        profile?.athleteId,
+        profile?.player?.id,
+        profile?.profile?.id,
+      ]
+        .filter(
+          (value) =>
+            value !== undefined &&
+            value !== null
+        )
+        .map(String);
+
+      return candidateIds.includes(
+        String(effectivePlayerId)
+      );
+    }) || null
+  );
+}, [
+  flattenedAvailableProfiles,
+  effectivePlayerId,
+]);
+
+const athleteProfile =
+  matchedAthleteProfile ||
+  viewingAs?.profile ||
+  viewingAs?.player ||
+  viewingAs?.athlete ||
+  viewingAs ||
+  activeProfile?.profile ||
+  activeProfile?.player ||
+  activeProfile?.athlete ||
+  activeProfile ||
+  null;
+
+const athleteDisplayName =
+  athleteProfile?.player_name ||
+  athleteProfile?.athlete_name ||
+  athleteProfile?.display_name ||
+  athleteProfile?.full_name ||
+  athleteProfile?.name ||
+  athleteProfile?.player?.name ||
+  athleteProfile?.player?.full_name ||
+  athleteProfile?.profile?.name ||
+  athleteProfile?.profile?.full_name ||
+  viewingAs?.player_name ||
+  viewingAs?.athlete_name ||
+  viewingAs?.display_name ||
+  viewingAs?.full_name ||
+  viewingAs?.name ||
+  'Atleta';
+
+const selectedPlayer =
+  isAthleteMode
+    ? {
+        id: effectivePlayerId,
+        name: athleteDisplayName,
+        full_name: athleteDisplayName,
+        display_name: athleteDisplayName,
+        team_ids:
+          athleteProfile?.team_ids ||
+          athleteProfile?.player?.team_ids ||
+          viewingAs?.team_ids ||
+          [],
+      }
+    : players.find(
+        (player) =>
+          String(player.id) ===
+          String(selectedPlayerId)
+      );
 
   const athleteTeamNames = useMemo(() => {
     if (!isAthleteMode) {
