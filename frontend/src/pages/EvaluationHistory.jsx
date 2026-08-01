@@ -1381,6 +1381,22 @@ const selectedPlayer =
   
   const developmentTeamComparison =
     developmentEngine?.teamComparison || [];
+
+  const engineRadarData = developmentRadar.map((item) => ({
+    key: item.id,
+    label:
+      item.domainLabel ||
+      item.subject ||
+      item.id,
+  
+    value:
+      Number(item.value) || 0,
+  
+    comparison:
+      item.comparison !== undefined
+        ? Number(item.comparison) || 0
+        : undefined,
+  }));
   
   const criterionEvolution = useMemo(() => {
     const historyByCriterion = new Map();
@@ -2257,24 +2273,6 @@ const selectedPlayer =
 
                       const category =
                         CATEGORY_CONFIG[criterion.category] || CATEGORY_CONFIG.other;
-
-                      const engineRadarData = developmentRadar.map(
-                        (item) => ({
-                          key: item.id,
-                          label:
-                            item.domainLabel ||
-                            item.subject ||
-                            item.id,
-                      
-                          value:
-                            Number(item.value) || 0,
-                      
-                          comparison:
-                            item.comparison !== undefined
-                              ? Number(item.comparison) || 0
-                              : undefined,
-                        })
-                      );
                     
                       return (
                         <div
