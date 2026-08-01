@@ -1929,38 +1929,7 @@ export const buildDevelopmentCriteriaTree = ({
   );
 };
 
-  secondaryEvaluations.forEach(
-    (evaluation, evaluationIndex) => {
-      const entries =
-        normalizeDevelopmentEvaluation({
-          evaluation,
-          evaluationIndex,
-          comparison: true,
-        });
-
-      entries.forEach((entry) => {
-        if (
-          !includeUnresolvedCriteria &&
-          !entry.isOfficial
-        ) {
-          return;
-        }
-
-        addDevelopmentEntryToTree(
-          domainMap,
-          entry
-        );
-      });
-    }
-  );
-
-  return sortDevelopmentCriteriaTree(
-    Array.from(
-      domainMap.values()
-    )
-  );
-};
-/**
+  /**
  * ============================================================
  * Sprint C3.4H.2.2 — Bloco C
  * ------------------------------------------------------------
