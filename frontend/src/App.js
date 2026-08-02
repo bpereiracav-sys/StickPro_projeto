@@ -53,6 +53,7 @@ import SubscriptionPage from "./pages/SubscriptionPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import EvaluationHistory from './pages/EvaluationHistory';
 import PlayerObjectives from './pages/PlayerObjectives';
+import DevelopmentPID from './pages/DevelopmentPID';
 import EvaluationDetail from './pages/EvaluationDetail';
 
 const ONBOARDING_ROLES = ["admin", "gestor_desportivo"];
@@ -457,7 +458,12 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-          
+
+      <Route
+        path="/evaluations/pid"
+        element={<DevelopmentPID />}
+      />
+
       {/* Payments */}
       <Route
         path="/payments"
