@@ -17615,6 +17615,70 @@ async def get_objective_player_and_check_access(
         detail="Sem acesso aos objetivos deste atleta",
     )
 
+# ============================================================
+# PID ↔ Development Objectives
+# Sprint C3.5A.3
+# ============================================================
+
+async def ensure_objective_pid(
+    *,
+    player: dict,
+    team_id: Optional[str],
+    current_user: dict,
+) -> dict:
+    """
+    Obtém ou cria o PID ativo do atleta e devolve o documento.
+
+    A associação é feita pelo backend para impedir que o frontend
+    associe um objetivo a um PID pertencente a outro atleta.
+    """
+
+    season = current_season()
+
+    return await create_default_pid(
+        player_id=player["id"],
+        season=season,
+        created_by=current_user["id"],
+        team_id=team_id,
+        club_id=player.get("club_id"),
+    )
+
+
+async def attach_legacy_objectives_to_pid(
+    *,
+    player: dict,
+    pid: dict,
+) -> None:
+    """
+    Associa automaticamente ao PID ativo os objetivos antigos
+    do atleta que ainda não possuem pid_id.
+
+    É seguro executar várias vezes porque apenas atualiza
+    documentos sem associação.
+    """
+
+    await db.evaluation_objectives.update_many(
+        {
+            "player_id": player["id"],
+            "$or": [
+                {"pid_id": {"$exists": False}},
+                {"pid_id": None},
+                {"pid_id": ""},
+            ],
+        },
+        {
+            "$set": {
+                "pid_id": pid["id"],
+                "pid_version": pid.get(
+                    "current_version",
+                    1,
+                ),
+                "updated_at": datetime.now(
+                    timezone.utc
+                ).isoformat(),
+            }
+        },
+    )
 
 def validate_objective_payload(
     payload: dict,
@@ -17788,19 +17852,45 @@ async def get_player_objectives(
     current_user: dict = Depends(get_current_user),
 ):
     """
-    Devolve os objetivos do atleta.
-
-    O atleta e as contas associadas podem consultar.
-    A equipa técnica consulta atletas das suas equipas.
+    Devolve os objetivos pertencentes ao PID ativo do atleta.
+    Objetivos antigos são associados automaticamente.
     """
-    await get_objective_player_and_check_access(
+
+    player = await get_objective_player_and_check_access(
         player_id,
         current_user,
     )
 
+    player_team_ids = (
+        player.get("team_ids")
+        or []
+    )
+
+    objective_team_id = (
+        player_team_ids[0]
+        if player_team_ids
+        else None
+    )
+
+    pid = await ensure_objective_pid(
+        player=player,
+        team_id=objective_team_id,
+        current_user=current_user,
+    )
+
+    await attach_legacy_objectives_to_pid(
+        player=player,
+        pid=pid,
+    )
+
     objectives = await db.evaluation_objectives.find(
-        {"player_id": player_id},
-        {"_id": 0},
+        {
+            "player_id": player_id,
+            "pid_id": pid["id"],
+        },
+        {
+            "_id": 0,
+        },
     ).sort(
         "created_at",
         -1,
@@ -17892,6 +17982,12 @@ async def create_player_objective(
         current_user,
     )
 
+    pid = await ensure_objective_pid(
+        player=player,
+        team_id=data["team_id"],
+        current_user=current_user,
+    )    
+    
     player_team_ids = player.get("team_ids") or []
 
     if data["team_id"] not in player_team_ids:
@@ -17937,19 +18033,32 @@ async def create_player_objective(
             ),
         )
 
-    duplicate = await db.evaluation_objectives.find_one(
-        {
-            "player_id": data["player_id"],
-            "criterion_id": data["criterion_id"],
-            "status": {
-                "$in": [
-                    "active",
-                    "paused",
-                ]
+        duplicate = await db.evaluation_objectives.find_one(
+            {
+                "player_id": data["player_id"],
+                "pid_id": pid["id"],
+                "criterion_id": data["criterion_id"],
+                "status": {
+                    "$in": [
+                        "active",
+                        "paused",
+                    ]
+                },
             },
-        },
-        {"_id": 0, "id": 1},
-    )
+            {
+                "_id": 0,
+                "id": 1,
+            },
+        )
+    
+        if duplicate:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Já existe um objetivo ativo "
+                    "para este critério"
+                ),
+            )
 
     if duplicate:
         raise HTTPException(
@@ -17967,9 +18076,18 @@ async def create_player_objective(
     objective = {
         "id": str(uuid.uuid4()),
         **data,
+    
+        # Associação formal ao Plano Individual de Desenvolvimento.
+        "pid_id": pid["id"],
+        "pid_version": pid.get(
+            "current_version",
+            1,
+        ),
+    
         "status": data.get(
             "status",
             "active",
+        ),
         ),
         "created_by": current_user.get("id"),
         "updated_by": current_user.get("id"),
