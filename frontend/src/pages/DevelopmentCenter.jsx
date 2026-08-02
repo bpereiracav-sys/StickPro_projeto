@@ -83,14 +83,14 @@ const MANAGEMENT_MODULES = [
     tone: 'bg-violet-50 text-violet-700',
   },
   {
-    id: 'objectives',
+    id: 'pid',
     eyebrow: 'Plano individual',
-    title: 'Objetivos individuais',
+    title: 'Plano Individual de Desenvolvimento',
     description:
-      'Defina metas por competência e acompanhe o progresso de cada atleta.',
-    path: '/evaluations/objectives',
+      'Centralize objetivos, prioridades, avaliações, evolução e revisões do atleta num único plano.',
+    path: '/evaluations/pid',
     icon: Target,
-    action: 'Gerir objetivos',
+    action: 'Abrir PID',
     tone: 'bg-amber-50 text-amber-700',
   },
 ];
@@ -692,7 +692,7 @@ export default function DevelopmentCenter() {
                       : 'Sem prioridades calculadas'
                   }
                   tone="bg-amber-50 text-amber-700"
-                  onOpen={() => navigate('/evaluations/objectives')}
+                  onOpen={() => navigate('/evaluations/pid')}
                 />
 
                 <AccessCard
@@ -767,7 +767,7 @@ export default function DevelopmentCenter() {
                         type="button"
                         variant="outline"
                         className="mt-4 rounded-full"
-                        onClick={() => navigate('/evaluations/objectives')}
+                        onClick={() => navigate('/evaluations/pid')}
                       >
                         Ver objetivos
                         <ArrowRight className="ml-2 h-4 w-4" />
