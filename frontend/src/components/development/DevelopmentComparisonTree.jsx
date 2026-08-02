@@ -384,6 +384,375 @@ function HeatSummary({
   );
 }
 
+
+function getObservationTimestamp(observation = {}) {
+  const directTimestamp = Number(observation?.timestamp);
+
+  if (Number.isFinite(directTimestamp) && directTimestamp > 0) {
+    return directTimestamp;
+  }
+
+  const rawDate =
+    observation?.date ||
+    observation?.evaluationDate ||
+    observation?.created_at ||
+    observation?.createdAt ||
+    null;
+
+  if (!rawDate) {
+    return 0;
+  }
+
+  const parsed = new Date(rawDate).getTime();
+
+  return Number.isFinite(parsed)
+    ? parsed
+    : 0;
+}
+
+function buildObservationTrend(observations = [], limit = 8) {
+  const groups = new Map();
+
+  (Array.isArray(observations) ? observations : []).forEach(
+    (observation, index) => {
+      const score = Number(observation?.score);
+
+      if (!Number.isFinite(score)) {
+        return;
+      }
+
+      const timestamp =
+        getObservationTimestamp(observation);
+
+      const identity =
+        observation?.evaluationId ||
+        observation?.evaluation_id ||
+        (timestamp > 0
+          ? `timestamp-${timestamp}`
+          : `observation-${index}`);
+
+      if (!groups.has(identity)) {
+        groups.set(identity, {
+          timestamp,
+          date: observation?.date || null,
+          values: [],
+        });
+      }
+
+      groups.get(identity).values.push(score);
+    }
+  );
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      timestamp: group.timestamp,
+      date: group.date,
+      value:
+        group.values.reduce(
+          (sum, value) => sum + value,
+          0
+        ) / group.values.length,
+    }))
+    .sort((first, second) => {
+      if (first.timestamp !== second.timestamp) {
+        return first.timestamp - second.timestamp;
+      }
+
+      return 0;
+    })
+    .slice(-limit);
+}
+
+function buildCriteriaTrend(criteria = [], limit = 8) {
+  const observations =
+    (Array.isArray(criteria) ? criteria : [])
+      .flatMap((criterion) =>
+        Array.isArray(criterion?.scores)
+          ? criterion.scores
+          : []
+      );
+
+  const groups = new Map();
+
+  observations.forEach((observation, index) => {
+    const score = Number(observation?.score);
+
+    if (!Number.isFinite(score)) {
+      return;
+    }
+
+    const timestamp =
+      getObservationTimestamp(observation);
+
+    const identity =
+      observation?.evaluationId ||
+      observation?.evaluation_id ||
+      (timestamp > 0
+        ? `timestamp-${timestamp}`
+        : `observation-${index}`);
+
+    if (!groups.has(identity)) {
+      groups.set(identity, {
+        timestamp,
+        date: observation?.date || null,
+        values: [],
+      });
+    }
+
+    groups.get(identity).values.push(score);
+  });
+
+  return Array.from(groups.values())
+    .map((group) => ({
+      timestamp: group.timestamp,
+      date: group.date,
+      value:
+        group.values.reduce(
+          (sum, value) => sum + value,
+          0
+        ) / group.values.length,
+    }))
+    .sort((first, second) => {
+      if (first.timestamp !== second.timestamp) {
+        return first.timestamp - second.timestamp;
+      }
+
+      return 0;
+    })
+    .slice(-limit);
+}
+
+function getTrendDelta(points = []) {
+  if (!Array.isArray(points) || points.length < 2) {
+    return null;
+  }
+
+  const first = Number(points[0]?.value);
+  const latest = Number(
+    points[points.length - 1]?.value
+  );
+
+  if (
+    !Number.isFinite(first) ||
+    !Number.isFinite(latest)
+  ) {
+    return null;
+  }
+
+  return latest - first;
+}
+
+function getTrendStatus(delta) {
+  if (
+    delta === null ||
+    delta === undefined ||
+    !Number.isFinite(Number(delta))
+  ) {
+    return {
+      label: 'Sem tendência',
+      className:
+        'border-slate-200 bg-slate-50 text-slate-500',
+      stroke: 'rgb(148 163 184)',
+      fill: 'rgb(241 245 249)',
+      icon: CircleDot,
+    };
+  }
+
+  const value = Number(delta);
+
+  if (value > DIFFERENCE_TOLERANCE) {
+    return {
+      label: 'Em evolução',
+      className:
+        'border-emerald-200 bg-emerald-50 text-emerald-700',
+      stroke: 'rgb(16 185 129)',
+      fill: 'rgb(209 250 229)',
+      icon: TrendingUp,
+    };
+  }
+
+  if (value < -DIFFERENCE_TOLERANCE) {
+    return {
+      label: 'Em regressão',
+      className:
+        'border-red-200 bg-red-50 text-red-700',
+      stroke: 'rgb(239 68 68)',
+      fill: 'rgb(254 226 226)',
+      icon: TrendingDown,
+    };
+  }
+
+  return {
+    label: 'Estável',
+    className:
+      'border-amber-200 bg-amber-50 text-amber-700',
+    stroke: 'rgb(245 158 11)',
+    fill: 'rgb(254 243 199)',
+    icon: CircleDot,
+  };
+}
+
+function TrendBadge({ points = [], compact = false }) {
+  const delta = getTrendDelta(points);
+  const status = getTrendStatus(delta);
+  const Icon = status.icon;
+
+  if (points.length < 2) {
+    return (
+      <Badge
+        variant="outline"
+        className="border-slate-200 bg-slate-50 text-slate-500"
+      >
+        <CircleDot className="mr-1 h-3.5 w-3.5" />
+        Sem histórico
+      </Badge>
+    );
+  }
+
+  return (
+    <Badge
+      variant="outline"
+      className={status.className}
+    >
+      <Icon className="mr-1 h-3.5 w-3.5" />
+
+      {!compact && `${status.label} · `}
+
+      {formatDifference(delta)}
+    </Badge>
+  );
+}
+
+function Sparkline({
+  points = [],
+  width = 116,
+  height = 36,
+  label = 'Evolução recente',
+}) {
+  const safePoints =
+    (Array.isArray(points) ? points : [])
+      .map((point) => ({
+        ...point,
+        value: Number(point?.value),
+      }))
+      .filter((point) =>
+        Number.isFinite(point.value)
+      );
+
+  if (safePoints.length < 2) {
+    return (
+      <div
+        className="flex h-9 min-w-[116px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white/70 px-3 text-[11px] text-slate-400"
+        title="São necessárias pelo menos duas avaliações."
+      >
+        Sem histórico
+      </div>
+    );
+  }
+
+  const padding = 4;
+  const drawableWidth =
+    width - padding * 2;
+  const drawableHeight =
+    height - padding * 2;
+
+  const xFor = (index) =>
+    padding +
+    (index /
+      Math.max(
+        safePoints.length - 1,
+        1
+      )) *
+      drawableWidth;
+
+  const yFor = (value) =>
+    padding +
+    drawableHeight -
+    (Math.max(
+      0,
+      Math.min(SCORE_MAX, value)
+    ) /
+      SCORE_MAX) *
+      drawableHeight;
+
+  const linePoints =
+    safePoints
+      .map(
+        (point, index) =>
+          `${xFor(index)},${yFor(point.value)}`
+      )
+      .join(' ');
+
+  const areaPoints = [
+    `${xFor(0)},${height - padding}`,
+    linePoints,
+    `${xFor(
+      safePoints.length - 1
+    )},${height - padding}`,
+  ].join(' ');
+
+  const status =
+    getTrendStatus(
+      getTrendDelta(safePoints)
+    );
+
+  const firstValue =
+    safePoints[0]?.value;
+
+  const latestValue =
+    safePoints[
+      safePoints.length - 1
+    ]?.value;
+
+  const title = `${label}: ${formatScore(
+    firstValue
+  )} → ${formatScore(latestValue)} (${
+    safePoints.length
+  } avaliações)`;
+
+  return (
+    <svg
+      viewBox={`0 0 ${width} ${height}`}
+      className="h-9 w-[116px] shrink-0 overflow-visible"
+      role="img"
+      aria-label={title}
+    >
+      <title>{title}</title>
+
+      <polygon
+        points={areaPoints}
+        fill={status.fill}
+        opacity="0.8"
+      />
+
+      <polyline
+        points={linePoints}
+        fill="none"
+        stroke={status.stroke}
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {safePoints.map((point, index) => (
+        <circle
+          key={`${point.timestamp || point.date || index}-${index}`}
+          cx={xFor(index)}
+          cy={yFor(point.value)}
+          r={
+            index === safePoints.length - 1
+              ? 3
+              : 1.8
+          }
+          fill="white"
+          stroke={status.stroke}
+          strokeWidth="1.8"
+        />
+      ))}
+    </svg>
+  );
+}
+
 function CriterionRow({ criterion }) {
   const metrics =
     criterion?.metrics || {};
@@ -406,6 +775,11 @@ function CriterionRow({ criterion }) {
 
   const heat =
     getHeatStatus(difference);
+
+  const trendPoints =
+    buildObservationTrend(
+      criterion?.scores
+    );
 
   return (
     <div
@@ -447,10 +821,25 @@ function CriterionRow({ criterion }) {
           </div>
         </div>
 
-        <DifferenceBadge
-          difference={difference}
-          showLabel
-        />
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Sparkline
+            points={trendPoints}
+            label={`Evolução de ${
+              criterion?.name ||
+              criterion?.observableAction ||
+              'critério'
+            }`}
+          />
+
+          <TrendBadge
+            points={trendPoints}
+          />
+
+          <DifferenceBadge
+            difference={difference}
+            showLabel
+          />
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -585,6 +974,11 @@ function SubdomainAccordion({
   const HeatIcon =
     heat.icon;
 
+  const trendPoints =
+    buildCriteriaTrend(
+      criteria
+    );
+
   return (
     <Card
       className={`overflow-hidden border shadow-sm ${heat.border} ${heat.side}`}
@@ -632,6 +1026,19 @@ function SubdomainAccordion({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pl-7 sm:justify-end sm:pl-0">
+          <Sparkline
+            points={trendPoints}
+            label={`Evolução de ${
+              subdomain?.label ||
+              'subdomínio'
+            }`}
+          />
+
+          <TrendBadge
+            points={trendPoints}
+            compact
+          />
+
           <AverageBadge
             label="Atleta"
             value={
@@ -807,6 +1214,11 @@ function DomainAccordion({
   const HeatIcon =
     heat.icon;
 
+  const trendPoints =
+    buildCriteriaTrend(
+      criteria
+    );
+
   return (
     <Card
       className={`overflow-hidden border shadow-md ${heat.border} ${heat.side}`}
@@ -870,6 +1282,19 @@ function DomainAccordion({
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pl-9 lg:justify-end lg:pl-0">
+          <Sparkline
+            points={trendPoints}
+            label={`Evolução de ${
+              domain?.label ||
+              'domínio'
+            }`}
+          />
+
+          <TrendBadge
+            points={trendPoints}
+            compact
+          />
+
           <AverageBadge
             label="Atleta"
             value={
@@ -1177,11 +1602,11 @@ function DevelopmentComparisonTree({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="font-semibold text-slate-800">
-              Heat Map de desenvolvimento
+              Heat Map e evolução temporal
             </p>
 
             <p className="text-xs leading-5 text-slate-500">
-              As cores permitem identificar rapidamente áreas fortes, equilibradas e prioritárias.
+              As cores identificam prioridades e as sparklines mostram a evolução nas avaliações mais recentes.
             </p>
           </div>
 
@@ -1280,3 +1705,4 @@ function DevelopmentComparisonTree({
 }
 
 export default DevelopmentComparisonTree;
+
