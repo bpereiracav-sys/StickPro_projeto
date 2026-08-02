@@ -235,7 +235,7 @@ function getComparisonStatus(difference) {
   };
 }
 
-ffunction DifferenceBadge({
+function DifferenceBadge({
   difference,
   showLabel = false,
 }) {
@@ -266,27 +266,6 @@ ffunction DifferenceBadge({
     </Badge>
   );
 }
-
-  const numericDifference =
-    Number(difference);
-
-  if (
-    numericDifference >
-    DIFFERENCE_TOLERANCE
-  ) {
-    return (
-      <Badge
-        variant="outline"
-        className="border-emerald-200 bg-emerald-50 text-emerald-700"
-      >
-        <TrendingUp className="mr-1 h-3.5 w-3.5" />
-
-        {formatDifference(
-          numericDifference
-        )}
-      </Badge>
-    );
-  }
 
   if (
     numericDifference <
