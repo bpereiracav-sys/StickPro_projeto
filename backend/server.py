@@ -1652,6 +1652,62 @@ class EvaluationPlanUpdate(BaseModel):
     estimated_minutes: Optional[int] = None
     is_active: Optional[bool] = None
 
+# ============================================================
+# Individual Development Plan (PID)
+# Sprint C3.5A.1
+# ============================================================
+
+PIDStatus = Literal[
+    "draft",
+    "active",
+    "review",
+    "completed",
+    "archived",
+]
+
+
+class DevelopmentPID(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+
+    player_id: str
+
+    team_id: Optional[str] = None
+
+    club_id: Optional[str] = None
+
+    season: str
+
+    title: str = "Plano Individual de Desenvolvimento"
+
+    status: PIDStatus = "active"
+
+    current_version: int = 1
+
+    start_date: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    end_date: Optional[datetime] = None
+
+    created_by: str
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc)
+    )
+
+    last_review: Optional[datetime] = None
+
+    next_review: Optional[datetime] = None
+
+    notes: Optional[str] = None
+
+    archived: bool = False
 
 # Evaluation Execution Models — Sprint 4.2.4.1
 class EvaluationFromPlanScore(BaseModel):
@@ -2178,6 +2234,19 @@ class ActivateAccountRequest(BaseModel):
     token: str
     password: str
 
+def current_season():
+    """
+    Época atual.
+
+    Futuramente poderá ser substituída
+    pela época ativa do clube.
+    """
+
+    year = datetime.now(
+        timezone.utc
+    ).year
+
+    return f"{year}/{year + 1}"
 
 @api_router.post("/auth/activate")
 async def activate_account(data: ActivateAccountRequest):
@@ -2581,6 +2650,65 @@ async def register(user_data: UserCreate):
         },
         "available_profiles": profiles
     }
+
+# ============================================================
+# Development PID Helpers
+# Sprint C3.5A.1
+# ============================================================
+
+async def get_active_pid(
+    player_id: str,
+    season: str,
+):
+    """
+    Obtém o PID ativo do atleta para uma época.
+    """
+
+    return await db.evaluation_pids.find_one(
+        {
+            "player_id": player_id,
+            "season": season,
+            "status": "active",
+            "archived": False,
+        }
+    )
+
+
+async def create_default_pid(
+    *,
+    player_id: str,
+    season: str,
+    created_by: str,
+    team_id: Optional[str] = None,
+    club_id: Optional[str] = None,
+):
+    """
+    Garante que existe um PID ativo.
+    """
+
+    pid = await get_active_pid(
+        player_id,
+        season,
+    )
+
+    if pid:
+        return pid
+
+    new_pid = DevelopmentPID(
+        player_id=player_id,
+        season=season,
+        created_by=created_by,
+        team_id=team_id,
+        club_id=club_id,
+    )
+
+    document = new_pid.model_dump()
+
+    await db.evaluation_pids.insert_one(
+        document
+    )
+
+    return document
 
 @api_router.get("/family-invitations/{token}")
 async def get_family_invitation(token: str):
@@ -16941,6 +17069,116 @@ async def get_player_evaluations(
 
     return visible
 
+@api_router.get("/evaluations/pids/player/{player_id}")
+async def get_player_pid(
+    player_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    checker = get_permission_checker(current_user)
+
+    if (
+        not checker.is_admin
+        and not checker.can_access_player(player_id)
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso ao atleta",
+        )
+
+    season = current_season()
+
+    pid = await create_default_pid(
+        player_id=player_id,
+        season=season,
+        created_by=current_user["id"],
+    )
+
+    pid.pop("_id", None)
+
+    return pid
+
+@api_router.get("/evaluations/pids/{pid_id}")
+async def get_pid(
+    pid_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    pid = await db.evaluation_pids.find_one(
+        {
+            "id": pid_id,
+            "archived": False,
+        }
+    )
+
+    if not pid:
+        raise HTTPException(
+            status_code=404,
+            detail="PID não encontrado",
+        )
+
+    pid.pop("_id", None)
+
+    return pid
+
+@api_router.put("/evaluations/pids/{pid_id}")
+async def update_pid(
+    pid_id: str,
+    updates: dict,
+    current_user: dict = Depends(get_current_user),
+):
+    updates["updated_at"] = datetime.now(
+        timezone.utc
+    )
+
+    result = await db.evaluation_pids.update_one(
+        {
+            "id": pid_id,
+        },
+        {
+            "$set": updates,
+        },
+    )
+
+    if result.modified_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="PID não encontrado",
+        )
+
+    pid = await db.evaluation_pids.find_one(
+        {
+            "id": pid_id,
+        },
+        {
+            "_id": 0,
+        },
+    )
+
+    return pid
+
+@api_router.patch("/evaluations/pids/{pid_id}/archive")
+async def archive_pid(
+    pid_id: str,
+    current_user: dict = Depends(get_current_user),
+):
+    await db.evaluation_pids.update_one(
+        {
+            "id": pid_id,
+        },
+        {
+            "$set": {
+                "archived": True,
+                "status": "archived",
+                "updated_at": datetime.now(
+                    timezone.utc
+                ),
+            }
+        },
+    )
+
+    return {
+        "success": True,
+    }
+
 @api_router.put("/evaluations/{evaluation_id}")
 async def update_player_evaluation(
     evaluation_id: str,
@@ -18173,14 +18411,41 @@ async def create_bulk_evaluations_from_plan(
     now_iso = datetime.now(timezone.utc).isoformat()
 
     for item in payload.evaluations:
-        score_dicts = normalize_plan_scores_for_player(item.scores, plan, criteria_map)
-        overall_score = calculate_evaluation_overall_score(score_dicts, criteria_map)
-
+        score_dicts = normalize_plan_scores_for_player(
+            item.scores,
+            plan,
+            criteria_map
+        )
+    
+        overall_score = calculate_evaluation_overall_score(
+            score_dicts,
+            criteria_map
+        )
+    
+        # ============================================================
+        # PID Integration
+        # Sprint C3.5A.1
+        # ============================================================
+    
+        season = current_season()
+    
+        pid = await create_default_pid(
+            player_id=item.player_id,
+            season=season,
+            created_by=current_user["id"],
+            team_id=payload.team_id,
+            # club_id ficará para mais tarde
+        )
+    
         share_with_development_circle = bool(
-        item.share_with_player or
-        item.share_with_guardian or
-        payload.visibility in ["player", "guardian", "all"]
-    )
+            item.share_with_player or
+            item.share_with_guardian or
+            payload.visibility in ["player", "guardian", "all"]
+        )
+    
+        evaluation = PlayerEvaluation(
+            ...
+        )
     
         evaluation = PlayerEvaluation(
             player_id=item.player_id,
@@ -19750,6 +20015,36 @@ async def ensure_performance_indexes():
         await db.users.create_index([("linked_player_ids", 1)])
 
         await db.messages.create_index([("team_id", 1), ("created_at", -1)])
+
+        # ============================================================
+        # Evaluation PID
+        # ============================================================
+        
+        await db.evaluation_pids.create_index(
+            [("id", 1)],
+            unique=True,
+        )
+        
+        await db.evaluation_pids.create_index(
+            [("player_id", 1)]
+        )
+        
+        await db.evaluation_pids.create_index(
+            [("season", 1)]
+        )
+        
+        await db.evaluation_pids.create_index(
+            [("status", 1)]
+        )
+        
+        await db.evaluation_pids.create_index(
+            [
+                ("player_id", 1),
+                ("season", 1),
+                ("status", 1),
+            ]
+        )
+        
         logger.info("Performance indexes ensured")
     except Exception as e:
         logger.error(f"Failed to ensure performance indexes: {e}")
