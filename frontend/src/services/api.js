@@ -507,6 +507,23 @@ export const evaluationsApi = {
 
   deleteObjective: (objectiveId) =>
     api.delete(`/evaluations/objectives/${objectiveId}`),
+
+  // =====================================================
+  // Individual Development Plan — PID
+  // Sprint C3.5A.1
+  // =====================================================
+
+  getPlayerPID: (playerId) =>
+    api.get(`/evaluations/pids/player/${playerId}`),
+
+  getPID: (pidId) =>
+    api.get(`/evaluations/pids/${pidId}`),
+
+  updatePID: (pidId, data) =>
+    api.put(`/evaluations/pids/${pidId}`, data),
+
+  archivePID: (pidId) =>
+    api.patch(`/evaluations/pids/${pidId}/archive`),
 };
 
 // Dashboard API
