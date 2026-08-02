@@ -5,12 +5,14 @@ import {
   ChevronsUp,
   ChevronDown,
   ChevronRight,
+  CalendarDays,
   CircleDot,
   FolderTree,
   Layers,
   Target,
   TrendingDown,
   TrendingUp,
+  X,
 } from 'lucide-react';
 
 import { Badge } from '../ui/badge';
@@ -623,11 +625,408 @@ function TrendBadge({ points = [], compact = false }) {
   );
 }
 
+
+function formatTrendDate(value) {
+  if (!value) {
+    return 'Sem data';
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Sem data';
+  }
+
+  return date.toLocaleDateString('pt-PT', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+function LargeTrendChart({
+  points = [],
+  title = 'Evolução temporal',
+}) {
+  const safePoints =
+    (Array.isArray(points) ? points : [])
+      .map((point) => ({
+        ...point,
+        value: Number(point?.value),
+      }))
+      .filter((point) =>
+        Number.isFinite(point.value)
+      );
+
+  if (safePoints.length < 2) {
+    return (
+      <div className="flex min-h-[240px] flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+        <CircleDot className="mb-3 h-10 w-10 text-slate-300" />
+        <p className="font-semibold text-slate-700">
+          Histórico insuficiente
+        </p>
+        <p className="mt-1 text-sm text-slate-500">
+          São necessárias pelo menos duas avaliações para apresentar a tendência.
+        </p>
+      </div>
+    );
+  }
+
+  const width = 760;
+  const height = 300;
+  const padding = {
+    top: 28,
+    right: 28,
+    bottom: 58,
+    left: 44,
+  };
+
+  const innerWidth =
+    width - padding.left - padding.right;
+
+  const innerHeight =
+    height - padding.top - padding.bottom;
+
+  const xFor = (index) =>
+    padding.left +
+    (index /
+      Math.max(
+        safePoints.length - 1,
+        1
+      )) *
+      innerWidth;
+
+  const yFor = (value) =>
+    padding.top +
+    innerHeight -
+    (Math.max(
+      0,
+      Math.min(SCORE_MAX, value)
+    ) /
+      SCORE_MAX) *
+      innerHeight;
+
+  const linePoints =
+    safePoints
+      .map(
+        (point, index) =>
+          `${xFor(index)},${yFor(point.value)}`
+      )
+      .join(' ');
+
+  const areaPoints = [
+    `${xFor(0)},${padding.top + innerHeight}`,
+    linePoints,
+    `${xFor(
+      safePoints.length - 1
+    )},${padding.top + innerHeight}`,
+  ].join(' ');
+
+  const status =
+    getTrendStatus(
+      getTrendDelta(safePoints)
+    );
+
+  return (
+    <div className="overflow-x-auto">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="min-w-[660px] w-full"
+        role="img"
+        aria-label={title}
+      >
+        <title>{title}</title>
+
+        {[1, 2, 3, 4, 5].map((tick) => (
+          <g key={tick}>
+            <line
+              x1={padding.left}
+              x2={width - padding.right}
+              y1={yFor(tick)}
+              y2={yFor(tick)}
+              stroke="rgb(226 232 240)"
+              strokeDasharray="4 5"
+            />
+
+            <text
+              x={padding.left - 12}
+              y={yFor(tick) + 4}
+              textAnchor="end"
+              fontSize="12"
+              fill="rgb(100 116 139)"
+            >
+              {tick}
+            </text>
+          </g>
+        ))}
+
+        <polygon
+          points={areaPoints}
+          fill={status.fill}
+          opacity="0.9"
+        />
+
+        <polyline
+          points={linePoints}
+          fill="none"
+          stroke={status.stroke}
+          strokeWidth="4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {safePoints.map((point, index) => (
+          <g
+            key={`${point.timestamp || point.date || index}-${index}`}
+          >
+            <circle
+              cx={xFor(index)}
+              cy={yFor(point.value)}
+              r="5"
+              fill="white"
+              stroke={status.stroke}
+              strokeWidth="3"
+            />
+
+            <text
+              x={xFor(index)}
+              y={yFor(point.value) - 14}
+              textAnchor="middle"
+              fontSize="12"
+              fontWeight="700"
+              fill="rgb(15 23 42)"
+            >
+              {formatScore(point.value)}
+            </text>
+
+            <text
+              x={xFor(index)}
+              y={height - 22}
+              textAnchor="middle"
+              fontSize="11"
+              fill="rgb(100 116 139)"
+            >
+              {point?.date
+                ? formatTrendDate(point.date).replace(
+                    ` ${new Date(point.date).getFullYear()}`,
+                    ''
+                  )
+                : `#${index + 1}`}
+            </text>
+          </g>
+        ))}
+      </svg>
+    </div>
+  );
+}
+
+function TemporalDrilldownModal({
+  detail,
+  onClose,
+}) {
+  if (!detail) {
+    return null;
+  }
+
+  const points =
+    Array.isArray(detail.points)
+      ? detail.points
+      : [];
+
+  const delta =
+    getTrendDelta(points);
+
+  const trendStatus =
+    getTrendStatus(delta);
+
+  const TrendIcon =
+    trendStatus.icon;
+
+  const latestPoint =
+    points.length > 0
+      ? points[points.length - 1]
+      : null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-slate-950/55 p-0 backdrop-blur-sm sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="temporal-drilldown-title"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
+      <div className="max-h-[92vh] w-full overflow-y-auto rounded-t-[2rem] border border-slate-200 bg-white shadow-2xl sm:max-w-4xl sm:rounded-[2rem]">
+        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-5 py-5 backdrop-blur sm:px-7">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <Badge
+                variant="outline"
+                className="mb-2 border-cyan-200 bg-cyan-50 text-cyan-700"
+              >
+                <CalendarDays className="mr-1 h-3.5 w-3.5" />
+                {detail.levelLabel || 'Evolução temporal'}
+              </Badge>
+
+              <h2
+                id="temporal-drilldown-title"
+                className="font-heading text-2xl text-slate-950 sm:text-3xl"
+              >
+                {detail.title}
+              </h2>
+
+              <p className="mt-1 text-sm text-slate-500">
+                Evolução nas avaliações disponíveis, organizada cronologicamente.
+              </p>
+            </div>
+
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0 rounded-full"
+              onClick={onClose}
+              aria-label="Fechar"
+            >
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="space-y-6 p-5 sm:p-7">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+                Valor atual
+              </p>
+              <p className="mt-2 font-heading text-3xl text-slate-950">
+                {formatScore(
+                  latestPoint?.value ??
+                  detail.athleteAverage
+                )}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-violet-100 bg-violet-50/70 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-violet-700">
+                Média da equipa
+              </p>
+              <p className="mt-2 font-heading text-3xl text-slate-950">
+                {formatScore(
+                  detail.teamAverage
+                )}
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-600">
+                Avaliações
+              </p>
+              <p className="mt-2 font-heading text-3xl text-slate-950">
+                {points.length}
+              </p>
+            </div>
+
+            <div className={`rounded-2xl border p-4 ${trendStatus.className}`}>
+              <p className="text-xs font-bold uppercase tracking-wide">
+                Tendência
+              </p>
+
+              <div className="mt-2 flex items-center gap-2">
+                <TrendIcon className="h-5 w-5" />
+                <p className="font-heading text-2xl">
+                  {formatDifference(delta)}
+                </p>
+              </div>
+
+              <p className="mt-1 text-xs">
+                {trendStatus.label}
+              </p>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white p-4 sm:p-6">
+            <LargeTrendChart
+              points={points}
+              title={`Evolução temporal de ${detail.title}`}
+            />
+          </div>
+
+          <div className="rounded-3xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-200 px-5 py-4">
+              <h3 className="font-semibold text-slate-900">
+                Histórico de avaliações
+              </h3>
+              <p className="mt-1 text-xs text-slate-500">
+                Valores usados para construir a tendência.
+              </p>
+            </div>
+
+            {points.length === 0 ? (
+              <div className="p-8 text-center text-sm text-slate-500">
+                Não existem observações disponíveis.
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {[...points]
+                  .reverse()
+                  .map((point, index) => (
+                    <div
+                      key={`${point.timestamp || point.date || index}-${index}`}
+                      className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div>
+                        <p className="font-medium text-slate-900">
+                          {formatTrendDate(
+                            point.date
+                          )}
+                        </p>
+
+                        {point?.evaluationId && (
+                          <p className="mt-0.5 text-xs text-slate-400">
+                            Avaliação {point.evaluationId}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="h-2.5 w-36 overflow-hidden rounded-full bg-slate-100">
+                          <div
+                            className="h-full rounded-full bg-cyan-500"
+                            style={{
+                              width: `${scoreWidth(
+                                point.value
+                              )}%`,
+                            }}
+                          />
+                        </div>
+
+                        <span className="w-10 text-right font-heading text-xl text-slate-950">
+                          {formatScore(
+                            point.value
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Sparkline({
   points = [],
   width = 116,
   height = 36,
   label = 'Evolução recente',
+  onOpen,
 }) {
   const safePoints =
     (Array.isArray(points) ? points : [])
@@ -710,7 +1109,7 @@ function Sparkline({
     safePoints.length
   } avaliações)`;
 
-  return (
+  const chart = (
     <svg
       viewBox={`0 0 ${width} ${height}`}
       className="h-9 w-[116px] shrink-0 overflow-visible"
@@ -751,9 +1150,28 @@ function Sparkline({
       ))}
     </svg>
   );
+
+  if (!onOpen) {
+    return chart;
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onOpen();
+      }}
+      className="rounded-xl outline-none transition hover:bg-white/70 focus-visible:ring-2 focus-visible:ring-cyan-500 focus-visible:ring-offset-2"
+      title={`${title}. Clique para ver o histórico completo.`}
+      aria-label={`${title}. Abrir histórico completo.`}
+    >
+      {chart}
+    </button>
+  );
 }
 
-function CriterionRow({ criterion }) {
+function CriterionRow({ criterion, onOpenTrend }) {
   const metrics =
     criterion?.metrics || {};
 
@@ -829,6 +1247,19 @@ function CriterionRow({ criterion }) {
               criterion?.observableAction ||
               'critério'
             }`}
+            onOpen={() =>
+              onOpenTrend?.({
+                title:
+                  criterion?.name ||
+                  criterion?.observableAction ||
+                  'Critério',
+                levelLabel: 'Critério',
+                points: trendPoints,
+                athleteAverage,
+                teamAverage,
+                difference,
+              })
+            }
           />
 
           <TrendBadge
@@ -894,6 +1325,7 @@ function SubdomainAccordion({
   domainId,
   open,
   onToggle,
+  onOpenTrend,
 }) {
   const metrics =
     subdomain?.metrics || {};
@@ -1032,6 +1464,21 @@ function SubdomainAccordion({
               subdomain?.label ||
               'subdomínio'
             }`}
+            onOpen={() =>
+              onOpenTrend?.({
+                title:
+                  subdomain?.label ||
+                  'Subdomínio',
+                levelLabel: 'Subdomínio',
+                points: trendPoints,
+                athleteAverage:
+                  metrics.average,
+                teamAverage:
+                  metrics.comparisonAverage,
+                difference:
+                  metrics.difference,
+              })
+            }
           />
 
           <TrendBadge
@@ -1087,6 +1534,9 @@ function SubdomainAccordion({
                   criterion={
                     criterion
                   }
+                  onOpenTrend={
+                    onOpenTrend
+                  }
                 />
               )
             )
@@ -1103,6 +1553,7 @@ function DomainAccordion({
   onToggle,
   openSubdomains,
   onToggleSubdomain,
+  onOpenTrend,
 }) {
   const metrics =
     domain?.metrics || {};
@@ -1288,6 +1739,21 @@ function DomainAccordion({
               domain?.label ||
               'domínio'
             }`}
+            onOpen={() =>
+              onOpenTrend?.({
+                title:
+                  domain?.label ||
+                  'Domínio',
+                levelLabel: 'Domínio',
+                points: trendPoints,
+                athleteAverage:
+                  metrics.average,
+                teamAverage:
+                  metrics.comparisonAverage,
+                difference:
+                  metrics.difference,
+              })
+            }
           />
 
           <TrendBadge
@@ -1389,6 +1855,9 @@ function DomainAccordion({
                           subdomainId
                         )
                       }
+                      onOpenTrend={
+                        onOpenTrend
+                      }
                     />
                   );
                 }
@@ -1465,6 +1934,11 @@ function DevelopmentComparisonTree({
     openSubdomains,
     setOpenSubdomains,
   ] = useState(new Set());
+
+  const [
+    temporalDetail,
+    setTemporalDetail,
+  ] = useState(null);
 
   const toggleDomain = (
     domainId
@@ -1696,13 +2170,22 @@ function DevelopmentComparisonTree({
               onToggleSubdomain={
                 toggleSubdomain
               }
+              onOpenTrend={
+                setTemporalDetail
+              }
             />
           );
         }
       )}
+
+      <TemporalDrilldownModal
+        detail={temporalDetail}
+        onClose={() =>
+          setTemporalDetail(null)
+        }
+      />
     </div>
   );
 }
 
 export default DevelopmentComparisonTree;
-
