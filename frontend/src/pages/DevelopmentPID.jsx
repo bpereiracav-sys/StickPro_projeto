@@ -1,0 +1,1198 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Award,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock3,
+  FileClock,
+  History,
+  Loader2,
+  Pencil,
+  RefreshCw,
+  Save,
+  ShieldCheck,
+  Sparkles,
+  Target,
+  TrendingUp,
+  UserRound,
+  Users,
+} from 'lucide-react';
+import { toast } from 'sonner';
+
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { usePermissions } from '../context/PermissionsContext';
+import { evaluationsApi, teamsApi } from '../services/api';
+
+import { Badge } from '../components/ui/badge';
+import { Button } from '../components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '../components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../components/ui/select';
+
+const PID_STATUS_CONFIG = {
+  draft: {
+    label: 'Rascunho',
+    className: 'border-slate-200 bg-slate-50 text-slate-700',
+  },
+  active: {
+    label: 'Ativo',
+    className: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+  },
+  review: {
+    label: 'Em revisão',
+    className: 'border-amber-200 bg-amber-50 text-amber-700',
+  },
+  completed: {
+    label: 'Concluído',
+    className: 'border-blue-200 bg-blue-50 text-blue-700',
+  },
+  archived: {
+    label: 'Arquivado',
+    className: 'border-slate-200 bg-slate-100 text-slate-600',
+  },
+};
+
+const normalizeCollection = (payload) => {
+  if (Array.isArray(payload)) return payload;
+  if (Array.isArray(payload?.items)) return payload.items;
+  if (Array.isArray(payload?.data)) return payload.data;
+  if (Array.isArray(payload?.results)) return payload.results;
+  if (Array.isArray(payload?.members)) return payload.members;
+  if (Array.isArray(payload?.players)) return payload.players;
+  return [];
+};
+
+const getPlayerName = (profile) =>
+  profile?.player_name ||
+  profile?.athlete_name ||
+  profile?.display_name ||
+  profile?.full_name ||
+  profile?.name ||
+  profile?.player?.name ||
+  profile?.player?.full_name ||
+  'Atleta';
+
+const getInitials = (name = '') =>
+  name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+const formatDate = (value, fallback = '—') => {
+  if (!value) return fallback;
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return fallback;
+
+  return date.toLocaleDateString('pt-PT', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const getEvaluationDate = (evaluation) =>
+  evaluation?.evaluation_date ||
+  evaluation?.created_at ||
+  evaluation?.date ||
+  evaluation?.updated_at ||
+  null;
+
+const getEvaluationAverage = (evaluation) => {
+  const direct =
+    evaluation?.overall_score ??
+    evaluation?.average_score ??
+    evaluation?.average ??
+    evaluation?.score;
+
+  if (direct !== null && direct !== undefined && direct !== '') {
+    const value = Number(direct);
+    if (Number.isFinite(value)) return value;
+  }
+
+  const scores =
+    evaluation?.scores ||
+    evaluation?.criteria_scores ||
+    evaluation?.results ||
+    [];
+
+  const values = Array.isArray(scores)
+    ? scores
+        .map((item) => Number(item?.score ?? item?.value))
+        .filter(Number.isFinite)
+    : [];
+
+  if (!values.length) return null;
+
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+};
+
+const getObjectiveProgress = (objective) => {
+  const direct = Number(
+    objective?.progress ?? objective?.progress_percentage
+  );
+
+  if (Number.isFinite(direct)) {
+    return Math.max(0, Math.min(100, direct));
+  }
+
+  const current = Number(
+    objective?.current_score ?? objective?.current_value
+  );
+
+  const target = Number(
+    objective?.target_score ?? objective?.target_value
+  );
+
+  if (Number.isFinite(current) && Number.isFinite(target) && target > 0) {
+    return Math.max(0, Math.min(100, (current / target) * 100));
+  }
+
+  return objective?.status === 'completed' ? 100 : 0;
+};
+
+function MetricCard({ icon: Icon, label, value, description, tone }) {
+  return (
+    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
+      <CardContent className="flex items-center gap-4 p-5">
+        <div
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${tone}`}
+        >
+          <Icon className="h-5 w-5" />
+        </div>
+
+        <div className="min-w-0">
+          <p className="text-xs font-bold uppercase tracking-[0.13em] text-slate-400">
+            {label}
+          </p>
+          <p className="mt-1 truncate text-lg font-bold text-slate-950">
+            {value}
+          </p>
+          <p className="mt-0.5 truncate text-xs text-slate-500">
+            {description}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ObjectiveCard({ objective }) {
+  const progress = getObjectiveProgress(objective);
+
+  const title =
+    objective?.title ||
+    objective?.criterion_name ||
+    objective?.name ||
+    'Objetivo de desenvolvimento';
+
+  const completed = objective?.status === 'completed';
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-slate-900">{title}</p>
+          <p className="mt-1 text-xs text-slate-500">
+            {objective?.domain_name ||
+              objective?.domain ||
+              objective?.category ||
+              'Plano individual'}
+          </p>
+        </div>
+
+        <Badge
+          variant="outline"
+          className={
+            completed
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-amber-200 bg-amber-50 text-amber-700'
+          }
+        >
+          {completed ? (
+            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
+          ) : (
+            <Target className="mr-1 h-3.5 w-3.5" />
+          )}
+
+          {completed ? 'Concluído' : 'Em desenvolvimento'}
+        </Badge>
+      </div>
+
+      <div className="mt-4">
+        <div className="mb-2 flex items-center justify-between text-xs">
+          <span className="font-medium text-slate-500">Progresso</span>
+          <span className="font-bold text-slate-700">
+            {Math.round(progress)}%
+          </span>
+        </div>
+
+        <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-cyan-500 transition-all"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <div className="rounded-xl bg-slate-50 p-3">
+          <p className="text-xs text-slate-400">Atual</p>
+          <p className="mt-1 font-bold text-slate-800">
+            {objective?.current_score ??
+              objective?.current_value ??
+              '—'}
+          </p>
+        </div>
+
+        <div className="rounded-xl bg-slate-50 p-3">
+          <p className="text-xs text-slate-400">Meta</p>
+          <p className="mt-1 font-bold text-slate-800">
+            {objective?.target_score ??
+              objective?.target_value ??
+              '—'}
+          </p>
+        </div>
+      </div>
+
+      {objective?.deadline && (
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
+          <CalendarDays className="h-3.5 w-3.5" />
+          Prazo: {formatDate(objective.deadline)}
+        </p>
+      )}
+    </div>
+  );
+}
+
+export default function DevelopmentPID() {
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { t } = useLanguage();
+  const permissions = usePermissions();
+
+  const { activeProfile, viewingAs, availableProfiles } = useAuth();
+
+  const [teams, setTeams] = useState([]);
+  const [players, setPlayers] = useState([]);
+  const [teamId, setTeamId] = useState(
+    searchParams.get('team_id') || ''
+  );
+  const [selectedPlayerId, setSelectedPlayerId] = useState(
+    searchParams.get('player_id') || ''
+  );
+
+  const [pid, setPid] = useState(null);
+  const [objectives, setObjectives] = useState([]);
+  const [evaluations, setEvaluations] = useState([]);
+  const [loadingTeams, setLoadingTeams] = useState(false);
+  const [loadingPlayers, setLoadingPlayers] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState(false);
+
+  const [form, setForm] = useState({
+    title: '',
+    notes: '',
+    next_review: '',
+  });
+
+  const tr = (key, fallback) => {
+    const translated = t(key);
+    return translated && translated !== key ? translated : fallback;
+  };
+
+  const effectivePlayerId =
+    permissions?.effectivePlayerId ||
+    permissions?.linkedPlayerId ||
+    null;
+
+  const isAthleteMode = Boolean(
+    effectivePlayerId &&
+      (permissions?.isPlayer === true ||
+        permissions?.isViewingAsAssociated === true)
+  );
+
+  const canManage =
+    permissions?.canCreateEvaluations === true ||
+    permissions?.hasPermission?.('create_evaluations') === true ||
+    permissions?.isAdmin === true ||
+    permissions?.isCoach === true;
+
+  const flattenedProfiles = useMemo(() => {
+    if (Array.isArray(availableProfiles)) return availableProfiles;
+
+    if (availableProfiles && typeof availableProfiles === 'object') {
+      return [
+        ...(Array.isArray(availableProfiles.self)
+          ? availableProfiles.self
+          : []),
+        ...(Array.isArray(availableProfiles.associated)
+          ? availableProfiles.associated
+          : []),
+      ];
+    }
+
+    return [];
+  }, [availableProfiles]);
+
+  const matchedAthleteProfile = useMemo(() => {
+    const targetId = selectedPlayerId || effectivePlayerId;
+    if (!targetId) return null;
+
+    return (
+      flattenedProfiles.find((profile) => {
+        const ids = [
+          profile?.id,
+          profile?.user_id,
+          profile?.player_id,
+          profile?.athlete_id,
+          profile?.profile_id,
+          profile?.player?.id,
+        ]
+          .filter((value) => value !== null && value !== undefined)
+          .map(String);
+
+        return ids.includes(String(targetId));
+      }) || null
+    );
+  }, [flattenedProfiles, selectedPlayerId, effectivePlayerId]);
+
+  const playerFromSelector = useMemo(
+    () =>
+      players.find(
+        (player) => String(player?.id) === String(selectedPlayerId)
+      ) || null,
+    [players, selectedPlayerId]
+  );
+
+  const athleteProfile =
+    playerFromSelector ||
+    matchedAthleteProfile ||
+    viewingAs ||
+    activeProfile ||
+    null;
+
+  const playerId = isAthleteMode
+    ? effectivePlayerId
+    : selectedPlayerId;
+
+  const athleteName = getPlayerName(athleteProfile);
+
+  const loadTeams = useCallback(async () => {
+    if (isAthleteMode) return;
+
+    setLoadingTeams(true);
+
+    try {
+      const response = await teamsApi.getAll();
+      setTeams(normalizeCollection(response?.data));
+    } catch (error) {
+      console.error('Error loading teams:', error);
+      toast.error('Não foi possível carregar as equipas.');
+    } finally {
+      setLoadingTeams(false);
+    }
+  }, [isAthleteMode]);
+
+  const loadPlayers = useCallback(
+    async (nextTeamId) => {
+      if (isAthleteMode || !nextTeamId) {
+        setPlayers([]);
+        return;
+      }
+
+      setLoadingPlayers(true);
+
+      try {
+        const response = await evaluationsApi.getTeamPlayers(nextTeamId);
+        setPlayers(normalizeCollection(response?.data));
+      } catch (error) {
+        console.error('Error loading players:', error);
+        setPlayers([]);
+        toast.error('Não foi possível carregar os atletas.');
+      } finally {
+        setLoadingPlayers(false);
+      }
+    },
+    [isAthleteMode]
+  );
+
+  const loadPIDData = useCallback(async (targetPlayerId) => {
+    if (!targetPlayerId) {
+      setPid(null);
+      setObjectives([]);
+      setEvaluations([]);
+      return;
+    }
+
+    setLoadingData(true);
+
+    try {
+      const [pidResult, objectivesResult, evaluationsResult] =
+        await Promise.allSettled([
+          evaluationsApi.getPlayerPID(targetPlayerId),
+          evaluationsApi.getPlayerObjectives(targetPlayerId),
+          evaluationsApi.getPlayerEvaluations(targetPlayerId),
+        ]);
+
+      const nextPID =
+        pidResult.status === 'fulfilled'
+          ? pidResult.value?.data || null
+          : null;
+
+      setPid(nextPID);
+
+      setObjectives(
+        objectivesResult.status === 'fulfilled'
+          ? normalizeCollection(objectivesResult.value?.data)
+          : []
+      );
+
+      setEvaluations(
+        evaluationsResult.status === 'fulfilled'
+          ? normalizeCollection(evaluationsResult.value?.data)
+          : []
+      );
+
+      setForm({
+        title:
+          nextPID?.title ||
+          'Plano Individual de Desenvolvimento',
+        notes: nextPID?.notes || '',
+        next_review: toDateInputValue(nextPID?.next_review),
+      });
+
+      if (pidResult.status === 'rejected') {
+        console.error('Error loading PID:', pidResult.reason);
+
+        toast.error(
+          pidResult.reason?.response?.data?.detail ||
+            'Não foi possível carregar o PID.'
+        );
+      }
+    } catch (error) {
+      console.error('Error loading PID page:', error);
+      setPid(null);
+      setObjectives([]);
+      setEvaluations([]);
+      toast.error(
+        'Não foi possível carregar o Plano Individual de Desenvolvimento.'
+      );
+    } finally {
+      setLoadingData(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadTeams();
+  }, [loadTeams]);
+
+  useEffect(() => {
+    if (!isAthleteMode && teamId) {
+      loadPlayers(teamId);
+    }
+  }, [isAthleteMode, teamId, loadPlayers]);
+
+  useEffect(() => {
+    loadPIDData(playerId);
+  }, [playerId, loadPIDData]);
+
+  useEffect(() => {
+    const params = {};
+
+    if (!isAthleteMode && teamId) {
+      params.team_id = teamId;
+    }
+
+    if (!isAthleteMode && selectedPlayerId) {
+      params.player_id = selectedPlayerId;
+    }
+
+    setSearchParams(params, { replace: true });
+  }, [
+    isAthleteMode,
+    teamId,
+    selectedPlayerId,
+    setSearchParams,
+  ]);
+
+  const summary = useMemo(() => {
+    const activeObjectives = objectives.filter(
+      (objective) => objective?.status === 'active'
+    );
+
+    const completedObjectives = objectives.filter(
+      (objective) => objective?.status === 'completed'
+    );
+
+    const progressValues = activeObjectives
+      .map(getObjectiveProgress)
+      .filter(Number.isFinite);
+
+    const averageProgress = progressValues.length
+      ? progressValues.reduce((sum, value) => sum + value, 0) /
+        progressValues.length
+      : 0;
+
+    const orderedEvaluations = [...evaluations].sort(
+      (first, second) =>
+        new Date(getEvaluationDate(second) || 0) -
+        new Date(getEvaluationDate(first) || 0)
+    );
+
+    const latestEvaluation = orderedEvaluations[0] || null;
+
+    return {
+      activeObjectives,
+      completedObjectives,
+      averageProgress,
+      latestEvaluation,
+      latestAverage: latestEvaluation
+        ? getEvaluationAverage(latestEvaluation)
+        : null,
+    };
+  }, [objectives, evaluations]);
+
+  const savePID = async () => {
+    if (!pid?.id) return;
+
+    setSaving(true);
+
+    try {
+      const payload = {
+        title:
+          form.title.trim() ||
+          'Plano Individual de Desenvolvimento',
+        notes: form.notes.trim() || null,
+        next_review: form.next_review
+          ? new Date(`${form.next_review}T12:00:00`).toISOString()
+          : null,
+      };
+
+      const response = await evaluationsApi.updatePID(pid.id, payload);
+      const updatedPID = response?.data || { ...pid, ...payload };
+
+      setPid(updatedPID);
+      setEditing(false);
+      toast.success('Plano Individual de Desenvolvimento atualizado.');
+    } catch (error) {
+      console.error('Error updating PID:', error);
+
+      toast.error(
+        error?.response?.data?.detail ||
+          'Não foi possível atualizar o PID.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const cancelEditing = () => {
+    setForm({
+      title:
+        pid?.title ||
+        'Plano Individual de Desenvolvimento',
+      notes: pid?.notes || '',
+      next_review: toDateInputValue(pid?.next_review),
+    });
+
+    setEditing(false);
+  };
+
+  const statusConfig =
+    PID_STATUS_CONFIG[pid?.status || 'active'] ||
+    PID_STATUS_CONFIG.active;
+
+  if (!isAthleteMode && !canManage) {
+    return (
+      <Card className="border-amber-200 bg-amber-50">
+        <CardContent className="p-6 text-amber-800">
+          Sem permissão para gerir Planos Individuais de Desenvolvimento.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-6 pb-20 lg:pb-0">
+      <section className="relative overflow-hidden rounded-[1.75rem] border border-cyan-100 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 px-5 py-6 text-white shadow-xl shadow-slate-200/60 sm:px-7 sm:py-8 lg:px-9">
+        <div className="pointer-events-none absolute -right-12 -top-16 h-56 w-56 rounded-full bg-cyan-400/20 blur-3xl" />
+
+        <div className="relative">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/development-center')}
+            className="mb-5 -ml-2 text-slate-300 hover:bg-white/10 hover:text-white"
+          >
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {tr(
+              'developmentCenter.title',
+              'Centro de Desenvolvimento'
+            )}
+          </Button>
+
+          <div className="grid gap-7 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end">
+            <div>
+              <div className="mb-4 flex flex-wrap gap-2">
+                <Badge className="border border-cyan-300/20 bg-cyan-400/15 text-cyan-100">
+                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                  Sistema de desenvolvimento
+                </Badge>
+
+                {pid && (
+                  <Badge className="border border-white/10 bg-white/10 text-slate-200">
+                    <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                    Versão {pid.current_version || 1}
+                  </Badge>
+                )}
+              </div>
+
+              <h1 className="font-heading text-3xl font-bold tracking-tight sm:text-4xl lg:text-5xl">
+                Plano Individual de Desenvolvimento
+              </h1>
+
+              <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-300 sm:text-base">
+                Organiza objetivos, prioridades, avaliações e momentos de revisão num único plano individual para cada atleta.
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-white/[0.07] p-4 backdrop-blur-sm">
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10 font-bold">
+                  {getInitials(athleteName)}
+                </div>
+
+                <div className="min-w-0">
+                  <p className="truncate font-heading text-xl">
+                    {playerId ? athleteName : 'Selecionar atleta'}
+                  </p>
+                  <p className="truncate text-sm text-slate-300">
+                    {pid?.season || 'Plano individual'}
+                  </p>
+                </div>
+              </div>
+
+              {pid && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Badge
+                    variant="outline"
+                    className={statusConfig.className}
+                  >
+                    {statusConfig.label}
+                  </Badge>
+
+                  <Badge className="border border-white/10 bg-white/10 text-slate-200">
+                    Início {formatDate(pid.start_date, '—')}
+                  </Badge>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {!isAthleteMode && (
+        <Card className="border-slate-200 bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5 text-cyan-600" />
+              Selecionar atleta
+            </CardTitle>
+            <CardDescription>
+              Escolha a equipa e o atleta cujo PID pretende consultar.
+            </CardDescription>
+          </CardHeader>
+
+          <CardContent className="grid gap-3 lg:grid-cols-2">
+            <Select
+              value={teamId}
+              onValueChange={(value) => {
+                setTeamId(value);
+                setSelectedPlayerId('');
+                setPlayers([]);
+              }}
+              disabled={loadingTeams}
+            >
+              <SelectTrigger className="h-12 rounded-2xl">
+                <SelectValue
+                  placeholder={
+                    loadingTeams
+                      ? 'A carregar equipas...'
+                      : 'Selecionar equipa'
+                  }
+                />
+              </SelectTrigger>
+
+              <SelectContent className="bg-white">
+                {teams.map((team) => (
+                  <SelectItem key={team.id} value={team.id}>
+                    {team.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={selectedPlayerId}
+              onValueChange={setSelectedPlayerId}
+              disabled={!teamId || loadingPlayers}
+            >
+              <SelectTrigger className="h-12 rounded-2xl">
+                <SelectValue
+                  placeholder={
+                    loadingPlayers
+                      ? 'A carregar atletas...'
+                      : 'Selecionar atleta'
+                  }
+                />
+              </SelectTrigger>
+
+              <SelectContent className="bg-white">
+                {players.map((player) => (
+                  <SelectItem key={player.id} value={player.id}>
+                    {getPlayerName(player)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+      )}
+
+      {!playerId ? (
+        <Card className="border-dashed border-slate-300 bg-slate-50">
+          <CardContent className="flex min-h-[280px] flex-col items-center justify-center p-8 text-center">
+            <UserRound className="h-12 w-12 text-slate-300" />
+            <h2 className="mt-4 font-heading text-2xl text-slate-800">
+              Selecione um atleta
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-slate-500">
+              O Plano Individual de Desenvolvimento será apresentado depois de escolher uma equipa e um atleta.
+            </p>
+          </CardContent>
+        </Card>
+      ) : loadingData ? (
+        <Card>
+          <CardContent className="flex min-h-[320px] items-center justify-center">
+            <Loader2 className="h-9 w-9 animate-spin text-cyan-600" />
+          </CardContent>
+        </Card>
+      ) : !pid ? (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex min-h-[260px] flex-col items-center justify-center p-8 text-center">
+            <FileClock className="h-12 w-12 text-red-300" />
+            <h2 className="mt-4 font-heading text-2xl text-red-900">
+              PID indisponível
+            </h2>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-red-700">
+              Não foi possível obter ou criar o Plano Individual de Desenvolvimento deste atleta.
+            </p>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="mt-5 rounded-full bg-white"
+              onClick={() => loadPIDData(playerId)}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Tentar novamente
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              icon={Target}
+              label="Objetivos ativos"
+              value={summary.activeObjectives.length}
+              description={`${summary.completedObjectives.length} concluídos`}
+              tone="bg-amber-50 text-amber-700"
+            />
+
+            <MetricCard
+              icon={TrendingUp}
+              label="Progresso médio"
+              value={`${Math.round(summary.averageProgress)}%`}
+              description="Objetivos atualmente ativos"
+              tone="bg-cyan-50 text-cyan-700"
+            />
+
+            <MetricCard
+              icon={ClipboardCheck}
+              label="Última avaliação"
+              value={
+                summary.latestAverage !== null
+                  ? summary.latestAverage.toFixed(1)
+                  : '—'
+              }
+              description={
+                summary.latestEvaluation
+                  ? formatDate(
+                      getEvaluationDate(summary.latestEvaluation)
+                    )
+                  : 'Sem avaliações'
+              }
+              tone="bg-violet-50 text-violet-700"
+            />
+
+            <MetricCard
+              icon={CalendarDays}
+              label="Próxima revisão"
+              value={formatDate(pid.next_review, 'Por definir')}
+              description={`Versão ${pid.current_version || 1}`}
+              tone="bg-emerald-50 text-emerald-700"
+            />
+          </section>
+
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-amber-600" />
+                      Objetivos do plano
+                    </CardTitle>
+                    <CardDescription>
+                      Metas ativas e concluídas associadas ao percurso do atleta.
+                    </CardDescription>
+                  </div>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-full"
+                    onClick={() =>
+                      navigate(
+                        `/evaluations/objectives?player_id=${playerId}${
+                          teamId ? `&team_id=${teamId}` : ''
+                        }`
+                      )
+                    }
+                  >
+                    Gerir objetivos
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </CardHeader>
+
+              <CardContent>
+                {summary.activeObjectives.length === 0 ? (
+                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                    <Target className="mx-auto h-10 w-10 text-slate-300" />
+                    <p className="mt-3 font-semibold text-slate-700">
+                      Ainda não existem objetivos ativos
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Os objetivos definidos pela equipa técnica aparecerão aqui.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {summary.activeObjectives.slice(0, 4).map((objective) => (
+                      <ObjectiveCard
+                        key={
+                          objective.id ||
+                          objective._id ||
+                          objective.title
+                        }
+                        objective={objective}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Pencil className="h-5 w-5 text-cyan-600" />
+                      Dados do PID
+                    </CardTitle>
+                    <CardDescription>
+                      Informação base e calendário de revisão.
+                    </CardDescription>
+                  </div>
+
+                  {canManage && !editing && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => setEditing(true)}
+                    >
+                      Editar
+                    </Button>
+                  )}
+                </div>
+              </CardHeader>
+
+              <CardContent className="space-y-4">
+                {editing ? (
+                  <>
+                    <div>
+                      <label
+                        htmlFor="pid-title"
+                        className="text-sm font-medium text-slate-700"
+                      >
+                        Título
+                      </label>
+
+                      <input
+                        id="pid-title"
+                        type="text"
+                        value={form.title}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            title: event.target.value,
+                          }))
+                        }
+                        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="pid-next-review"
+                        className="text-sm font-medium text-slate-700"
+                      >
+                        Próxima revisão
+                      </label>
+
+                      <input
+                        id="pid-next-review"
+                        type="date"
+                        value={form.next_review}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            next_review: event.target.value,
+                          }))
+                        }
+                        className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+                      />
+                    </div>
+
+                    <div>
+                      <label
+                        htmlFor="pid-notes"
+                        className="text-sm font-medium text-slate-700"
+                      >
+                        Notas técnicas
+                      </label>
+
+                      <textarea
+                        id="pid-notes"
+                        value={form.notes}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            notes: event.target.value,
+                          }))
+                        }
+                        rows={5}
+                        className="mt-2 w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+                        placeholder="Notas gerais do plano..."
+                      />
+                    </div>
+
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={cancelEditing}
+                        disabled={saving}
+                      >
+                        Cancelar
+                      </Button>
+
+                      <Button
+                        type="button"
+                        className="rounded-full"
+                        onClick={savePID}
+                        disabled={saving}
+                      >
+                        {saving ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Save className="mr-2 h-4 w-4" />
+                        )}
+                        Guardar
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Título
+                      </p>
+                      <p className="mt-2 font-semibold text-slate-900">
+                        {pid.title ||
+                          'Plano Individual de Desenvolvimento'}
+                      </p>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                          Última revisão
+                        </p>
+                        <p className="mt-2 flex items-center gap-2 font-semibold text-slate-900">
+                          <History className="h-4 w-4 text-slate-400" />
+                          {formatDate(pid.last_review, 'Sem revisão')}
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-slate-50 p-4">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                          Próxima revisão
+                        </p>
+                        <p className="mt-2 flex items-center gap-2 font-semibold text-slate-900">
+                          <Clock3 className="h-4 w-4 text-slate-400" />
+                          {formatDate(pid.next_review, 'Por definir')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl bg-slate-50 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Notas técnicas
+                      </p>
+                      <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">
+                        {pid.notes ||
+                          'Ainda não foram registadas notas gerais para este plano.'}
+                      </p>
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
+          </section>
+
+          <section className="grid gap-4 md:grid-cols-3">
+            <Card className="group border-cyan-100 bg-gradient-to-br from-white via-cyan-50/60 to-white transition hover:-translate-y-0.5 hover:shadow-md">
+              <CardContent className="p-5">
+                <TrendingUp className="h-6 w-6 text-cyan-600" />
+                <h3 className="mt-4 font-heading text-xl text-slate-950">
+                  Evolução e comparação
+                </h3>
+                <p className="mt-2 min-h-[48px] text-sm leading-6 text-slate-600">
+                  Consulte a evolução temporal, o Heat Map e a comparação com a equipa.
+                </p>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-4 w-full justify-between rounded-xl"
+                  onClick={() =>
+                    navigate(
+                      `/evaluations/history?player_id=${playerId}${
+                        teamId ? `&team_id=${teamId}` : ''
+                      }`
+                    )
+                  }
+                >
+                  Abrir desenvolvimento
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="group border-amber-100 bg-gradient-to-br from-white via-amber-50/60 to-white transition hover:-translate-y-0.5 hover:shadow-md">
+              <CardContent className="p-5">
+                <Target className="h-6 w-6 text-amber-600" />
+                <h3 className="mt-4 font-heading text-xl text-slate-950">
+                  Objetivos individuais
+                </h3>
+                <p className="mt-2 min-h-[48px] text-sm leading-6 text-slate-600">
+                  Crie, atualize e conclua as metas associadas ao plano.
+                </p>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-4 w-full justify-between rounded-xl"
+                  onClick={() =>
+                    navigate(
+                      `/evaluations/objectives?player_id=${playerId}${
+                        teamId ? `&team_id=${teamId}` : ''
+                      }`
+                    )
+                  }
+                >
+                  Gerir objetivos
+                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="group border-violet-100 bg-gradient-to-br from-white via-violet-50/60 to-white transition hover:-translate-y-0.5 hover:shadow-md">
+              <CardContent className="p-5">
+                <Award className="h-6 w-6 text-violet-600" />
+                <h3 className="mt-4 font-heading text-xl text-slate-950">
+                  Revisões do plano
+                </h3>
+                <p className="mt-2 min-h-[48px] text-sm leading-6 text-slate-600">
+                  O histórico de versões e revisões será integrado na próxima fase.
+                </p>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="mt-4 w-full justify-between rounded-xl"
+                  disabled
+                >
+                  Próxima fase
+                  <FileClock className="h-4 w-4" />
+                </Button>
+              </CardContent>
+            </Card>
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
