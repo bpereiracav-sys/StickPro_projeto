@@ -19,55 +19,123 @@ import { Card } from '../ui/card';
 
 const SCORE_MAX = 5;
 const DIFFERENCE_TOLERANCE = 0.05;
+const STRONG_DIFFERENCE = 0.75;
 
 const DOMAIN_COLORS = {
   PAT: {
-    badge:
-      'border-cyan-200 bg-cyan-50 text-cyan-700',
-    icon:
-      'text-cyan-600',
+    badge: 'border-cyan-200 bg-cyan-50 text-cyan-700',
+    icon: 'text-cyan-600',
   },
-
   TEC: {
-    badge:
-      'border-blue-200 bg-blue-50 text-blue-700',
-    icon:
-      'text-blue-600',
+    badge: 'border-blue-200 bg-blue-50 text-blue-700',
+    icon: 'text-blue-600',
   },
-
   TAC: {
-    badge:
-      'border-indigo-200 bg-indigo-50 text-indigo-700',
-    icon:
-      'text-indigo-600',
+    badge: 'border-indigo-200 bg-indigo-50 text-indigo-700',
+    icon: 'text-indigo-600',
   },
-
   FIS: {
+    badge: 'border-emerald-200 bg-emerald-50 text-emerald-700',
+    icon: 'text-emerald-600',
+  },
+  PSI: {
+    badge: 'border-purple-200 bg-purple-50 text-purple-700',
+    icon: 'text-purple-600',
+  },
+  ATT: {
+    badge: 'border-amber-200 bg-amber-50 text-amber-700',
+    icon: 'text-amber-600',
+  },
+  other: {
+    badge: 'border-slate-200 bg-slate-50 text-slate-700',
+    icon: 'text-slate-600',
+  },
+};
+
+const HEAT_STATUS = {
+  excellent: {
+    key: 'excellent',
+    label: 'Muito acima da equipa',
+    shortLabel: 'Excelente',
+    icon: TrendingUp,
+    badge:
+      'border-emerald-300 bg-emerald-100 text-emerald-800',
+    border: 'border-emerald-200',
+    side: 'border-l-4 border-l-emerald-500',
+    header:
+      'bg-gradient-to-r from-emerald-50/90 via-white to-emerald-50/40',
+    body: 'bg-emerald-50/25',
+    dot: 'bg-emerald-500',
+  },
+  above: {
+    key: 'above',
+    label: 'Acima da equipa',
+    shortLabel: 'Bom',
+    icon: TrendingUp,
     badge:
       'border-emerald-200 bg-emerald-50 text-emerald-700',
-    icon:
-      'text-emerald-600',
+    border: 'border-emerald-100',
+    side: 'border-l-4 border-l-emerald-400',
+    header:
+      'bg-gradient-to-r from-emerald-50/60 via-white to-white',
+    body: 'bg-emerald-50/15',
+    dot: 'bg-emerald-400',
   },
-
-  PSI: {
+  balanced: {
+    key: 'balanced',
+    label: 'Sem diferença relevante',
+    shortLabel: 'Equilibrado',
+    icon: CircleDot,
     badge:
-      'border-purple-200 bg-purple-50 text-purple-700',
-    icon:
-      'text-purple-600',
+      'border-slate-200 bg-white text-slate-600',
+    border: 'border-slate-200',
+    side: 'border-l-4 border-l-slate-300',
+    header:
+      'bg-gradient-to-r from-slate-50 via-white to-white',
+    body: 'bg-slate-50/50',
+    dot: 'bg-slate-400',
   },
-
-  ATT: {
+  attention: {
+    key: 'attention',
+    label: 'Necessita atenção',
+    shortLabel: 'Atenção',
+    icon: TrendingDown,
     badge:
       'border-amber-200 bg-amber-50 text-amber-700',
-    icon:
-      'text-amber-600',
+    border: 'border-amber-200',
+    side: 'border-l-4 border-l-amber-400',
+    header:
+      'bg-gradient-to-r from-amber-50/70 via-white to-white',
+    body: 'bg-amber-50/20',
+    dot: 'bg-amber-400',
   },
-
-  other: {
+  priority: {
+    key: 'priority',
+    label: 'Prioridade de desenvolvimento',
+    shortLabel: 'Prioritário',
+    icon: TrendingDown,
     badge:
-      'border-slate-200 bg-slate-50 text-slate-700',
-    icon:
-      'text-slate-600',
+      'border-red-200 bg-red-50 text-red-700',
+    border: 'border-red-200',
+    side: 'border-l-4 border-l-red-500',
+    header:
+      'bg-gradient-to-r from-red-50/80 via-white to-white',
+    body: 'bg-red-50/20',
+    dot: 'bg-red-500',
+  },
+  no_reference: {
+    key: 'no_reference',
+    label: 'Sem referência',
+    shortLabel: 'Sem referência',
+    icon: CircleDot,
+    badge:
+      'border-slate-200 bg-slate-50 text-slate-500',
+    border: 'border-slate-200',
+    side: 'border-l-4 border-l-slate-300',
+    header:
+      'bg-gradient-to-r from-slate-50 via-white to-white',
+    body: 'bg-white',
+    dot: 'bg-slate-300',
   },
 };
 
@@ -76,8 +144,7 @@ function normalizeDomainCode(value) {
     return 'other';
   }
 
-  const normalized =
-    String(value).trim().toUpperCase();
+  const normalized = String(value).trim().toUpperCase();
 
   if (DOMAIN_COLORS[normalized]) {
     return normalized;
@@ -86,27 +153,22 @@ function normalizeDomainCode(value) {
   const aliases = {
     PATINAGEM: 'PAT',
     SKATING: 'PAT',
-
     TECHNICAL: 'TEC',
     TECNICA: 'TEC',
     TÉCNICA: 'TEC',
     TECNICA_INDIVIDUAL: 'TEC',
-
     TACTICAL: 'TAC',
     TATICA: 'TAC',
     TÁTICA: 'TAC',
     DECISAO: 'TAC',
     DECISÃO: 'TAC',
     JOGO_COLETIVO: 'TAC',
-
     PHYSICAL: 'FIS',
     FISICA: 'FIS',
     FÍSICA: 'FIS',
-
     PSYCHOLOGICAL: 'PSI',
     PSICOLOGICA: 'PSI',
     PSICOLÓGICA: 'PSI',
-
     ATTITUDE: 'ATT',
     ATITUDE: 'ATT',
   };
@@ -115,12 +177,11 @@ function normalizeDomainCode(value) {
 }
 
 function getDomainStyle(domain) {
-  const code =
-    normalizeDomainCode(
-      domain?.code ||
-        domain?.id ||
-        domain?.label
-    );
+  const code = normalizeDomainCode(
+    domain?.code ||
+      domain?.id ||
+      domain?.label
+  );
 
   return (
     DOMAIN_COLORS[code] ||
@@ -186,78 +247,55 @@ function formatDifference(value) {
   )}`;
 }
 
-function getComparisonStatus(difference) {
+function getHeatStatus(difference) {
   if (
     difference === null ||
     difference === undefined ||
     !Number.isFinite(Number(difference))
   ) {
-    return {
-      label: 'Sem referência',
-      className:
-        'border-slate-200 bg-slate-50 text-slate-600',
-      icon: CircleDot,
-    };
+    return HEAT_STATUS.no_reference;
   }
 
-  const numericDifference =
-    Number(difference);
+  const value = Number(difference);
 
-  if (
-    numericDifference >
-    DIFFERENCE_TOLERANCE
-  ) {
-    return {
-      label: 'Acima da equipa',
-      className:
-        'border-emerald-200 bg-emerald-50 text-emerald-700',
-      icon: TrendingUp,
-    };
+  if (value >= STRONG_DIFFERENCE) {
+    return HEAT_STATUS.excellent;
   }
 
-  if (
-    numericDifference <
-    -DIFFERENCE_TOLERANCE
-  ) {
-    return {
-      label: 'Prioritário',
-      className:
-        'border-amber-200 bg-amber-50 text-amber-700',
-      icon: TrendingDown,
-    };
+  if (value > DIFFERENCE_TOLERANCE) {
+    return HEAT_STATUS.above;
   }
 
-  return {
-    label: 'Equilibrado',
-    className:
-      'border-slate-200 bg-white text-slate-600',
-    icon: CircleDot,
-  };
+  if (value <= -STRONG_DIFFERENCE) {
+    return HEAT_STATUS.priority;
+  }
+
+  if (value < -DIFFERENCE_TOLERANCE) {
+    return HEAT_STATUS.attention;
+  }
+
+  return HEAT_STATUS.balanced;
 }
 
 function DifferenceBadge({
   difference,
   showLabel = false,
 }) {
-  const status =
-    getComparisonStatus(
-      difference
-    );
+  const status = getHeatStatus(
+    difference
+  );
 
-  const Icon =
-    status.icon;
+  const Icon = status.icon;
 
   return (
     <Badge
       variant="outline"
-      className={
-        status.className
-      }
+      className={status.badge}
     >
       <Icon className="mr-1 h-3.5 w-3.5" />
 
       {showLabel
-        ? `${status.label} · `
+        ? `${status.shortLabel} · `
         : ''}
 
       {formatDifference(
@@ -288,6 +326,64 @@ function AverageBadge({
   );
 }
 
+function HeatSummary({
+  excellent = 0,
+  above = 0,
+  balanced = 0,
+  attention = 0,
+  priority = 0,
+}) {
+  const items = [
+    {
+      key: 'excellent',
+      count: excellent,
+      label: 'muito acima',
+      dot: HEAT_STATUS.excellent.dot,
+    },
+    {
+      key: 'above',
+      count: above,
+      label: 'acima',
+      dot: HEAT_STATUS.above.dot,
+    },
+    {
+      key: 'balanced',
+      count: balanced,
+      label: 'equilibrados',
+      dot: HEAT_STATUS.balanced.dot,
+    },
+    {
+      key: 'attention',
+      count: attention,
+      label: 'atenção',
+      dot: HEAT_STATUS.attention.dot,
+    },
+    {
+      key: 'priority',
+      count: priority,
+      label: 'prioritários',
+      dot: HEAT_STATUS.priority.dot,
+    },
+  ];
+
+  return (
+    <div className="flex flex-wrap gap-x-4 gap-y-2">
+      {items.map((item) => (
+        <span
+          key={item.key}
+          className="inline-flex items-center gap-1.5 text-xs text-slate-600"
+        >
+          <span
+            className={`h-2.5 w-2.5 rounded-full ${item.dot}`}
+          />
+
+          {item.count} {item.label}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 function CriterionRow({ criterion }) {
   const metrics =
     criterion?.metrics || {};
@@ -308,17 +404,29 @@ function CriterionRow({ criterion }) {
   const teamWidth =
     scoreWidth(teamAverage);
 
+  const heat =
+    getHeatStatus(difference);
+
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 transition-all hover:border-cyan-200 hover:shadow-sm">
+    <div
+      className={`rounded-2xl border bg-white p-4 transition-all hover:shadow-sm ${heat.border} ${heat.side}`}
+    >
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-slate-900">
-            {criterion?.name ||
-              criterion?.observableAction ||
-              'Critério sem identificação'}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <span
+              className={`h-2.5 w-2.5 shrink-0 rounded-full ${heat.dot}`}
+              aria-hidden="true"
+            />
 
-          <div className="mt-2 flex flex-wrap gap-2">
+            <p className="font-semibold text-slate-900">
+              {criterion?.name ||
+                criterion?.observableAction ||
+                'Critério sem identificação'}
+            </p>
+          </div>
+
+          <div className="mt-2 flex flex-wrap gap-2 pl-5">
             {criterion?.code && (
               <Badge
                 variant="outline"
@@ -341,6 +449,7 @@ function CriterionRow({ criterion }) {
 
         <DifferenceBadge
           difference={difference}
+          showLabel
         />
       </div>
 
@@ -468,22 +577,24 @@ function SubdomainAccordion({
   const contentId =
     `subdomain-content-${domainId}-${subdomainId}`;
 
-  const status =
-    getComparisonStatus(
+  const heat =
+    getHeatStatus(
       metrics.difference
     );
-  
-  const StatusIcon =
-    status.icon;
-  
+
+  const HeatIcon =
+    heat.icon;
+
   return (
-    <Card className="overflow-hidden border border-slate-200 shadow-sm">
+    <Card
+      className={`overflow-hidden border shadow-sm ${heat.border} ${heat.side}`}
+    >
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={contentId}
-        className="flex w-full flex-col gap-3 bg-slate-50 px-4 py-4 text-left transition-colors hover:bg-slate-100 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+        className={`flex w-full flex-col gap-3 px-4 py-4 text-left transition-colors sm:flex-row sm:items-center sm:justify-between sm:px-5 ${heat.header}`}
       >
         <div className="flex min-w-0 items-center gap-3">
           {open ? (
@@ -500,10 +611,10 @@ function SubdomainAccordion({
                 {subdomain?.label ||
                   'Subdomínio'}
               </p>
-          
+
               <Badge
                 variant="outline"
-                className="border-slate-200 bg-slate-50 text-slate-600"
+                className="border-slate-200 bg-white/80 text-slate-600"
               >
                 {criteria.length}{' '}
                 {criteria.length === 1
@@ -511,11 +622,11 @@ function SubdomainAccordion({
                   : 'critérios'}
               </Badge>
             </div>
-          
-            <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
-              <StatusIcon className="h-3.5 w-3.5" />
-          
-              {status.label}
+
+            <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-600">
+              <HeatIcon className="h-3.5 w-3.5" />
+
+              {heat.label}
             </div>
           </div>
         </div>
@@ -548,10 +659,10 @@ function SubdomainAccordion({
       {open && (
         <div
           id={contentId}
-          className="space-y-3 border-t border-slate-200 bg-white p-4"
+          className={`space-y-3 border-t border-slate-200 p-4 ${heat.body}`}
         >
           {criteria.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-slate-50 p-6 text-center text-sm text-slate-500">
+            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-6 text-center text-sm text-slate-500">
               Não existem critérios neste subdomínio.
             </div>
           ) : (
@@ -650,60 +761,62 @@ function DomainAccordion({
       [subdomains]
     );
 
-  const comparableCriteria =
-    criteria.filter(
-      (criterion) =>
-        Number.isFinite(
-          Number(
-            criterion?.metrics
-              ?.difference
-          )
-        )
+  const heatCounts =
+    useMemo(
+      () => {
+        const counts = {
+          excellent: 0,
+          above: 0,
+          balanced: 0,
+          attention: 0,
+          priority: 0,
+        };
+
+        criteria.forEach(
+          (criterion) => {
+            const status =
+              getHeatStatus(
+                criterion?.metrics
+                  ?.difference
+              );
+
+            if (
+              Object.prototype.hasOwnProperty.call(
+                counts,
+                status.key
+              )
+            ) {
+              counts[status.key] += 1;
+            }
+          }
+        );
+
+        return counts;
+      },
+      [criteria]
     );
-
-  const aboveTeam =
-    comparableCriteria.filter(
-      (criterion) =>
-        Number(
-          criterion?.metrics
-            ?.difference
-        ) >
-        DIFFERENCE_TOLERANCE
-    ).length;
-
-  const belowTeam =
-    comparableCriteria.filter(
-      (criterion) =>
-        Number(
-          criterion?.metrics
-            ?.difference
-        ) <
-        -DIFFERENCE_TOLERANCE
-    ).length;
-
-  const stableCriteria =
-    comparableCriteria.filter(
-      (criterion) =>
-        Math.abs(
-          Number(
-            criterion?.metrics
-              ?.difference
-          )
-        ) <=
-        DIFFERENCE_TOLERANCE
-    ).length;
 
   const domainStyle =
     getDomainStyle(domain);
 
+  const heat =
+    getHeatStatus(
+      metrics.difference
+    );
+
+  const HeatIcon =
+    heat.icon;
+
   return (
-    <Card className="overflow-hidden border border-slate-200 shadow-md">
+    <Card
+      className={`overflow-hidden border shadow-md ${heat.border} ${heat.side}`}
+    >
       <button
         type="button"
         onClick={onToggle}
         aria-expanded={open}
         aria-controls={contentId}
-        className="flex w-full flex-col gap-4 bg-gradient-to-r from-white via-white to-cyan-50/50 px-5 py-5 text-left transition-colors hover:to-cyan-50 sm:px-6 lg:flex-row lg:items-center lg:justify-between"
+        className={`flex w-full flex-col gap-4 px-5 py-5 text-left transition-colors sm:px-6 lg:flex-row lg:items-center lg:justify-between ${heat.header}`}
       >
         <div className="flex min-w-0 items-center gap-4">
           {open ? (
@@ -733,6 +846,17 @@ function DomainAccordion({
                 {criteria.length === 1
                   ? 'critério'
                   : 'critérios'}
+              </Badge>
+
+              <Badge
+                variant="outline"
+                className={
+                  heat.badge
+                }
+              >
+                <HeatIcon className="mr-1 h-3.5 w-3.5" />
+
+                {heat.shortLabel}
               </Badge>
             </div>
 
@@ -773,47 +897,34 @@ function DomainAccordion({
       {open && (
         <div
           id={contentId}
-          className="border-t border-slate-200 bg-slate-50"
+          className={`border-t border-slate-200 ${heat.body}`}
         >
-          <div className="grid gap-3 border-b border-slate-200 bg-white px-5 py-4 sm:grid-cols-2 lg:grid-cols-4 sm:px-6">
-            <div className="rounded-xl border border-cyan-100 bg-cyan-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-cyan-700">
-                Critérios avaliados
+          <div className="border-b border-slate-200 bg-white/90 px-5 py-3 sm:px-6">
+            <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+              <p className="text-sm font-medium text-slate-700">
+                {criteria.length}{' '}
+                {criteria.length === 1
+                  ? 'critério avaliado'
+                  : 'critérios avaliados'}
               </p>
 
-              <p className="mt-2 text-3xl font-bold text-slate-900">
-                {criteria.length}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
-                Acima da equipa
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-emerald-700">
-                {aboveTeam}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-amber-100 bg-amber-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
-                A desenvolver
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-amber-700">
-                {belowTeam}
-              </p>
-            </div>
-
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
-                Sem diferença relevante
-              </p>
-
-              <p className="mt-2 text-3xl font-bold text-slate-700">
-                {stableCriteria}
-              </p>
+              <HeatSummary
+                excellent={
+                  heatCounts.excellent
+                }
+                above={
+                  heatCounts.above
+                }
+                balanced={
+                  heatCounts.balanced
+                }
+                attention={
+                  heatCounts.attention
+                }
+                priority={
+                  heatCounts.priority
+                }
+              />
             </div>
           </div>
 
@@ -1062,43 +1173,68 @@ function DevelopmentComparisonTree({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-        <div>
-          <p className="font-semibold text-slate-800">
-            Estrutura de desenvolvimento
-          </p>
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="font-semibold text-slate-800">
+              Heat Map de desenvolvimento
+            </p>
 
-          <p className="text-xs text-slate-500">
-            Abra um domínio e depois um subdomínio para consultar os critérios.
-          </p>
+            <p className="text-xs leading-5 text-slate-500">
+              As cores permitem identificar rapidamente áreas fortes, equilibradas e prioritárias.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full bg-white"
+              onClick={
+                expandAll
+              }
+            >
+              <ChevronsDown className="mr-1.5 h-4 w-4" />
+              Expandir tudo
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="rounded-full bg-white"
+              onClick={
+                collapseAll
+              }
+            >
+              <ChevronsUp className="mr-1.5 h-4 w-4" />
+              Recolher tudo
+            </Button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full bg-white"
-            onClick={
-              expandAll
-            }
-          >
-            <ChevronsDown className="mr-1.5 h-4 w-4" />
-            Expandir tudo
-          </Button>
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 border-t border-slate-200 pt-3 text-xs text-slate-600">
+          {[
+            HEAT_STATUS.excellent,
+            HEAT_STATUS.above,
+            HEAT_STATUS.balanced,
+            HEAT_STATUS.attention,
+            HEAT_STATUS.priority,
+          ].map((status) => (
+            <span
+              key={
+                status.key
+              }
+              className="inline-flex items-center gap-1.5"
+            >
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${status.dot}`}
+              />
 
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="rounded-full bg-white"
-            onClick={
-              collapseAll
-            }
-          >
-            <ChevronsUp className="mr-1.5 h-4 w-4" />
-            Recolher tudo
-          </Button>
+              {status.shortLabel}
+            </span>
+          ))}
         </div>
       </div>
 
