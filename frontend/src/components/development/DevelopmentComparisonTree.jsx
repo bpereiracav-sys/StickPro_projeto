@@ -7,11 +7,14 @@ import {
   ChevronRight,
   CalendarDays,
   CircleDot,
+  ClipboardList,
   FolderTree,
   Layers,
+  MessageSquareText,
   Target,
   TrendingDown,
   TrendingUp,
+  UserRound,
   X,
 } from 'lucide-react';
 
@@ -412,6 +415,119 @@ function getObservationTimestamp(observation = {}) {
     : 0;
 }
 
+
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    if (
+      value !== undefined &&
+      value !== null &&
+      String(value).trim() !== ''
+    ) {
+      return value;
+    }
+  }
+
+  return null;
+}
+
+function getObservationEvaluatorName(observation = {}) {
+  return firstNonEmpty(
+    observation?.evaluatorName,
+    observation?.evaluator_name,
+    observation?.coachName,
+    observation?.coach_name,
+    observation?.trainerName,
+    observation?.trainer_name,
+    observation?.createdByName,
+    observation?.created_by_name,
+    observation?.evaluator?.display_name,
+    observation?.evaluator?.full_name,
+    observation?.evaluator?.name,
+    observation?.coach?.display_name,
+    observation?.coach?.full_name,
+    observation?.coach?.name,
+    observation?.trainer?.display_name,
+    observation?.trainer?.full_name,
+    observation?.trainer?.name,
+    observation?.created_by?.display_name,
+    observation?.created_by?.full_name,
+    observation?.created_by?.name
+  );
+}
+
+function getObservationComment(observation = {}) {
+  return firstNonEmpty(
+    observation?.comment,
+    observation?.comments,
+    observation?.note,
+    observation?.notes,
+    observation?.observation,
+    observation?.observations,
+    observation?.feedback,
+    observation?.evaluatorComment,
+    observation?.evaluator_comment,
+    observation?.coachComment,
+    observation?.coach_comment
+  );
+}
+
+function getObservationEvaluationTitle(observation = {}) {
+  return firstNonEmpty(
+    observation?.evaluationTitle,
+    observation?.evaluation_title,
+    observation?.evaluationName,
+    observation?.evaluation_name,
+    observation?.planName,
+    observation?.plan_name,
+    observation?.title,
+    observation?.evaluation?.title,
+    observation?.evaluation?.name,
+    observation?.evaluation?.plan_name
+  );
+}
+
+function uniqueNonEmpty(values = []) {
+  return [
+    ...new Set(
+      values
+        .filter(
+          (value) =>
+            value !== undefined &&
+            value !== null &&
+            String(value).trim() !== ''
+        )
+        .map((value) =>
+          String(value).trim()
+        )
+    ),
+  ];
+}
+
+function createObservationMetadata(observation = {}) {
+  return {
+    evaluationId:
+      observation?.evaluationId ||
+      observation?.evaluation_id ||
+      observation?.evaluation?.id ||
+      null,
+
+    evaluationTitle:
+      getObservationEvaluationTitle(
+        observation
+      ),
+
+    evaluatorName:
+      getObservationEvaluatorName(
+        observation
+      ),
+
+    comment:
+      getObservationComment(
+        observation
+      ),
+  };
+}
+
 function buildObservationTrend(observations = [], limit = 8) {
   const groups = new Map();
 
@@ -426,9 +542,13 @@ function buildObservationTrend(observations = [], limit = 8) {
       const timestamp =
         getObservationTimestamp(observation);
 
+      const metadata =
+        createObservationMetadata(
+          observation
+        );
+
       const identity =
-        observation?.evaluationId ||
-        observation?.evaluation_id ||
+        metadata.evaluationId ||
         (timestamp > 0
           ? `timestamp-${timestamp}`
           : `observation-${index}`);
@@ -436,25 +556,91 @@ function buildObservationTrend(observations = [], limit = 8) {
       if (!groups.has(identity)) {
         groups.set(identity, {
           timestamp,
-          date: observation?.date || null,
+          date:
+            observation?.date ||
+            observation?.evaluationDate ||
+            observation?.created_at ||
+            observation?.createdAt ||
+            null,
+          evaluationId:
+            metadata.evaluationId,
+          evaluationTitles: [],
+          evaluatorNames: [],
+          comments: [],
           values: [],
+          observationCount: 0,
         });
       }
 
-      groups.get(identity).values.push(score);
+      const group =
+        groups.get(identity);
+
+      group.values.push(score);
+      group.observationCount += 1;
+
+      if (metadata.evaluationTitle) {
+        group.evaluationTitles.push(
+          metadata.evaluationTitle
+        );
+      }
+
+      if (metadata.evaluatorName) {
+        group.evaluatorNames.push(
+          metadata.evaluatorName
+        );
+      }
+
+      if (metadata.comment) {
+        group.comments.push(
+          metadata.comment
+        );
+      }
     }
   );
 
   return Array.from(groups.values())
-    .map((group) => ({
-      timestamp: group.timestamp,
-      date: group.date,
-      value:
-        group.values.reduce(
-          (sum, value) => sum + value,
-          0
-        ) / group.values.length,
-    }))
+    .map((group) => {
+      const evaluationTitles =
+        uniqueNonEmpty(
+          group.evaluationTitles
+        );
+
+      const evaluatorNames =
+        uniqueNonEmpty(
+          group.evaluatorNames
+        );
+
+      const comments =
+        uniqueNonEmpty(
+          group.comments
+        );
+
+      return {
+        timestamp: group.timestamp,
+        date: group.date,
+        evaluationId:
+          group.evaluationId,
+        evaluationTitle:
+          evaluationTitles[0] ||
+          null,
+        evaluatorName:
+          evaluatorNames[0] ||
+          null,
+        evaluatorNames,
+        comment:
+          comments[0] ||
+          null,
+        comments,
+        observationCount:
+          group.observationCount,
+        value:
+          group.values.reduce(
+            (sum, value) =>
+              sum + value,
+            0
+          ) / group.values.length,
+      };
+    })
     .sort((first, second) => {
       if (first.timestamp !== second.timestamp) {
         return first.timestamp - second.timestamp;
@@ -466,54 +652,162 @@ function buildObservationTrend(observations = [], limit = 8) {
 }
 
 function buildCriteriaTrend(criteria = [], limit = 8) {
-  const observations =
-    (Array.isArray(criteria) ? criteria : [])
-      .flatMap((criterion) =>
-        Array.isArray(criterion?.scores)
-          ? criterion.scores
-          : []
-      );
+  const criteriaList =
+    Array.isArray(criteria)
+      ? criteria
+      : [];
 
   const groups = new Map();
 
-  observations.forEach((observation, index) => {
-    const score = Number(observation?.score);
+  criteriaList.forEach(
+    (criterion, criterionIndex) => {
+      const criterionName =
+        criterion?.name ||
+        criterion?.observableAction ||
+        `Critério ${criterionIndex + 1}`;
 
-    if (!Number.isFinite(score)) {
-      return;
+      const observations =
+        Array.isArray(
+          criterion?.scores
+        )
+          ? criterion.scores
+          : [];
+
+      observations.forEach(
+        (observation, observationIndex) => {
+          const score =
+            Number(
+              observation?.score
+            );
+
+          if (
+            !Number.isFinite(score)
+          ) {
+            return;
+          }
+
+          const timestamp =
+            getObservationTimestamp(
+              observation
+            );
+
+          const metadata =
+            createObservationMetadata(
+              observation
+            );
+
+          const identity =
+            metadata.evaluationId ||
+            (timestamp > 0
+              ? `timestamp-${timestamp}`
+              : `criterion-${criterionIndex}-observation-${observationIndex}`);
+
+          if (!groups.has(identity)) {
+            groups.set(identity, {
+              timestamp,
+              date:
+                observation?.date ||
+                observation?.evaluationDate ||
+                observation?.created_at ||
+                observation?.createdAt ||
+                null,
+              evaluationId:
+                metadata.evaluationId,
+              evaluationTitles: [],
+              evaluatorNames: [],
+              comments: [],
+              criteriaNames: [],
+              values: [],
+              observationCount: 0,
+            });
+          }
+
+          const group =
+            groups.get(identity);
+
+          group.values.push(score);
+          group.criteriaNames.push(
+            criterionName
+          );
+          group.observationCount += 1;
+
+          if (
+            metadata.evaluationTitle
+          ) {
+            group.evaluationTitles.push(
+              metadata.evaluationTitle
+            );
+          }
+
+          if (
+            metadata.evaluatorName
+          ) {
+            group.evaluatorNames.push(
+              metadata.evaluatorName
+            );
+          }
+
+          if (metadata.comment) {
+            group.comments.push(
+              metadata.comment
+            );
+          }
+        }
+      );
     }
-
-    const timestamp =
-      getObservationTimestamp(observation);
-
-    const identity =
-      observation?.evaluationId ||
-      observation?.evaluation_id ||
-      (timestamp > 0
-        ? `timestamp-${timestamp}`
-        : `observation-${index}`);
-
-    if (!groups.has(identity)) {
-      groups.set(identity, {
-        timestamp,
-        date: observation?.date || null,
-        values: [],
-      });
-    }
-
-    groups.get(identity).values.push(score);
-  });
+  );
 
   return Array.from(groups.values())
-    .map((group) => ({
-      timestamp: group.timestamp,
-      date: group.date,
-      value:
-        group.values.reduce(
-          (sum, value) => sum + value,
-          0
-        ) / group.values.length,
-    }))
+    .map((group) => {
+      const evaluationTitles =
+        uniqueNonEmpty(
+          group.evaluationTitles
+        );
+
+      const evaluatorNames =
+        uniqueNonEmpty(
+          group.evaluatorNames
+        );
+
+      const comments =
+        uniqueNonEmpty(
+          group.comments
+        );
+
+      const criteriaNames =
+        uniqueNonEmpty(
+          group.criteriaNames
+        );
+
+      return {
+        timestamp: group.timestamp,
+        date: group.date,
+        evaluationId:
+          group.evaluationId,
+        evaluationTitle:
+          evaluationTitles[0] ||
+          null,
+        evaluatorName:
+          evaluatorNames[0] ||
+          null,
+        evaluatorNames,
+        comment:
+          comments[0] ||
+          null,
+        comments,
+        criteriaNames,
+        criteriaCount:
+          criteriaNames.length,
+        observationCount:
+          group.observationCount,
+        value:
+          group.values.reduce(
+            (sum, value) =>
+              sum + value,
+            0
+          ) / group.values.length,
+      };
+    })
     .sort((first, second) => {
       if (first.timestamp !== second.timestamp) {
         return first.timestamp - second.timestamp;
@@ -820,6 +1114,217 @@ function LargeTrendChart({
   );
 }
 
+
+function TimelineEntry({
+  point,
+  index,
+  previousPoint,
+}) {
+  const pointDifference =
+    previousPoint &&
+    Number.isFinite(
+      Number(previousPoint?.value)
+    )
+      ? Number(point?.value) -
+        Number(previousPoint.value)
+      : null;
+
+  const pointTrend =
+    getTrendStatus(
+      pointDifference
+    );
+
+  const PointTrendIcon =
+    pointTrend.icon;
+
+  const evaluatorNames =
+    uniqueNonEmpty([
+      ...(Array.isArray(
+        point?.evaluatorNames
+      )
+        ? point.evaluatorNames
+        : []),
+      point?.evaluatorName,
+    ]);
+
+  const comments =
+    uniqueNonEmpty([
+      ...(Array.isArray(
+        point?.comments
+      )
+        ? point.comments
+        : []),
+      point?.comment,
+    ]);
+
+  const criteriaNames =
+    uniqueNonEmpty(
+      Array.isArray(
+        point?.criteriaNames
+      )
+        ? point.criteriaNames
+        : []
+    );
+
+  return (
+    <div className="relative pl-9">
+      <span className="absolute left-[9px] top-0 h-full w-px bg-slate-200" />
+
+      <span className="absolute left-0 top-5 flex h-5 w-5 items-center justify-center rounded-full border-4 border-white bg-cyan-500 shadow-sm" />
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="font-semibold text-slate-900">
+              {point?.evaluationTitle ||
+                `Avaliação ${index + 1}`}
+            </p>
+
+            <p className="mt-1 flex items-center gap-1.5 text-sm text-slate-500">
+              <CalendarDays className="h-4 w-4" />
+              {formatTrendDate(
+                point?.date
+              )}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {pointDifference !== null && (
+              <Badge
+                variant="outline"
+                className={
+                  pointTrend.className
+                }
+              >
+                <PointTrendIcon className="mr-1 h-3.5 w-3.5" />
+                {formatDifference(
+                  pointDifference
+                )}
+              </Badge>
+            )}
+
+            <span className="font-heading text-3xl text-slate-950">
+              {formatScore(
+                point?.value
+              )}
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-slate-100">
+          <div
+            className="h-full rounded-full bg-cyan-500"
+            style={{
+              width: `${scoreWidth(
+                point?.value
+              )}%`,
+            }}
+          />
+        </div>
+
+        {(evaluatorNames.length > 0 ||
+          comments.length > 0 ||
+          criteriaNames.length > 0 ||
+          point?.evaluationId) && (
+          <div className="mt-4 grid gap-3 border-t border-slate-100 pt-4">
+            {evaluatorNames.length > 0 && (
+              <div className="flex items-start gap-3">
+                <UserRound className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Avaliador
+                  </p>
+
+                  <p className="mt-1 text-sm text-slate-700">
+                    {evaluatorNames.join(
+                      ', '
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {comments.length > 0 && (
+              <div className="flex items-start gap-3">
+                <MessageSquareText className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Observações
+                  </p>
+
+                  <div className="mt-1 space-y-1">
+                    {comments.map(
+                      (comment) => (
+                        <p
+                          key={comment}
+                          className="text-sm leading-6 text-slate-700"
+                        >
+                          {comment}
+                        </p>
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {criteriaNames.length > 0 && (
+              <div className="flex items-start gap-3">
+                <ClipboardList className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" />
+
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                    Critérios incluídos
+                  </p>
+
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {criteriaNames
+                      .slice(0, 8)
+                      .map(
+                        (criterionName) => (
+                          <Badge
+                            key={
+                              criterionName
+                            }
+                            variant="outline"
+                            className="border-slate-200 bg-slate-50 text-slate-600"
+                          >
+                            {criterionName}
+                          </Badge>
+                        )
+                      )}
+
+                    {criteriaNames.length >
+                      8 && (
+                      <Badge
+                        variant="outline"
+                        className="border-slate-200 bg-white text-slate-500"
+                      >
+                        +
+                        {criteriaNames.length -
+                          8}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {point?.evaluationId && (
+              <p className="text-xs text-slate-400">
+                Referência da avaliação:{' '}
+                {point.evaluationId}
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function TemporalDrilldownModal({
   detail,
   onClose,
@@ -879,7 +1384,7 @@ function TemporalDrilldownModal({
               </h2>
 
               <p className="mt-1 text-sm text-slate-500">
-                Evolução nas avaliações disponíveis, organizada cronologicamente.
+                Evolução, contexto das avaliações, avaliadores e observações disponíveis.
               </p>
             </div>
 
@@ -955,13 +1460,14 @@ function TemporalDrilldownModal({
             />
           </div>
 
-          <div className="rounded-3xl border border-slate-200 bg-white">
-            <div className="border-b border-slate-200 px-5 py-4">
+          <div className="rounded-3xl border border-slate-200 bg-slate-50/60">
+            <div className="border-b border-slate-200 bg-white px-5 py-4">
               <h3 className="font-semibold text-slate-900">
-                Histórico de avaliações
+                Timeline inteligente
               </h3>
+
               <p className="mt-1 text-xs text-slate-500">
-                Valores usados para construir a tendência.
+                Consulte a sequência das avaliações, respetivos valores e informação contextual disponível.
               </p>
             </div>
 
@@ -970,48 +1476,42 @@ function TemporalDrilldownModal({
                 Não existem observações disponíveis.
               </div>
             ) : (
-              <div className="divide-y divide-slate-100">
+              <div className="space-y-4 p-5">
                 {[...points]
                   .reverse()
-                  .map((point, index) => (
-                    <div
-                      key={`${point.timestamp || point.date || index}-${index}`}
-                      className="flex flex-col gap-2 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div>
-                        <p className="font-medium text-slate-900">
-                          {formatTrendDate(
-                            point.date
-                          )}
-                        </p>
+                  .map(
+                    (
+                      point,
+                      reverseIndex,
+                      reversedPoints
+                    ) => {
+                      const chronologicalIndex =
+                        points.length -
+                        1 -
+                        reverseIndex;
 
-                        {point?.evaluationId && (
-                          <p className="mt-0.5 text-xs text-slate-400">
-                            Avaliação {point.evaluationId}
-                          </p>
-                        )}
-                      </div>
+                      const previousPoint =
+                        chronologicalIndex > 0
+                          ? points[
+                              chronologicalIndex -
+                                1
+                            ]
+                          : null;
 
-                      <div className="flex items-center gap-3">
-                        <div className="h-2.5 w-36 overflow-hidden rounded-full bg-slate-100">
-                          <div
-                            className="h-full rounded-full bg-cyan-500"
-                            style={{
-                              width: `${scoreWidth(
-                                point.value
-                              )}%`,
-                            }}
-                          />
-                        </div>
-
-                        <span className="w-10 text-right font-heading text-xl text-slate-950">
-                          {formatScore(
-                            point.value
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                      return (
+                        <TimelineEntry
+                          key={`${point.timestamp || point.date || reverseIndex}-${reverseIndex}`}
+                          point={point}
+                          index={
+                            chronologicalIndex
+                          }
+                          previousPoint={
+                            previousPoint
+                          }
+                        />
+                      );
+                    }
+                  )}
               </div>
             )}
           </div>
@@ -2076,11 +2576,11 @@ function DevelopmentComparisonTree({
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="font-semibold text-slate-800">
-              Heat Map e evolução temporal
+              Heat Map e timeline inteligente
             </p>
 
             <p className="text-xs leading-5 text-slate-500">
-              As cores identificam prioridades e as sparklines mostram a evolução nas avaliações mais recentes.
+              As cores identificam prioridades; clique numa sparkline para consultar a timeline detalhada.
             </p>
           </div>
 
