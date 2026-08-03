@@ -26,17 +26,33 @@ export function buildCriteriaTree(
 
   criteria.forEach((criterion) => {
     const criterionPlayerType =
-      criterion.playerType || 'field_player';
-
-    /**
-     * Jogador de campo
-     *
-     * nunca vê critérios GK
-     */
-
+      criterion?.playerType ||
+      criterion?.player_type ||
+      criterion?.criterion?.playerType ||
+      criterion?.criterion?.player_type ||
+      null;
+    
+    const criterionDomain =
+      criterion?.domain ||
+      criterion?.criterion?.domain ||
+      null;
+    
+    const criterionCode = String(
+      criterion?.code ||
+      criterion?.source_code ||
+      criterion?.sourceCode ||
+      criterion?.criterion?.code ||
+      ''
+    ).toUpperCase();
+    
+    const isGoalkeeperCriterion =
+      criterionPlayerType === 'goalkeeper' ||
+      criterionDomain === 'goalkeeper' ||
+      criterionCode.startsWith('GK-');
+    
     if (
       playerType === 'field_player' &&
-      criterionPlayerType === 'goalkeeper'
+      isGoalkeeperCriterion
     ) {
       return;
     }
