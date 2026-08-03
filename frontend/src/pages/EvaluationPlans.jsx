@@ -405,25 +405,77 @@ export default function EvaluationPlans() {
   };
 
   const toggleCriterion = (criterionId) => {
-    setForm((prev) => {
-      const exists = prev.criteria.some((item) => item.criterion_id === criterionId);
-
+    if (!criterionId) {
+      return;
+    }
+  
+    setForm((current) => {
+      const exists =
+        current.criteria.some(
+          (item) =>
+            String(
+              item.criterion_id
+            ) ===
+            String(criterionId)
+        );
+  
       if (exists) {
         return {
-          ...prev,
-          criteria: prev.criteria.filter((item) => item.criterion_id !== criterionId),
+          ...current,
+  
+          criteria:
+            current.criteria
+              .filter(
+                (item) =>
+                  String(
+                    item.criterion_id
+                  ) !==
+                  String(criterionId)
+              )
+              .map(
+                (item, index) => ({
+                  ...item,
+                  order: index,
+                })
+              ),
         };
       }
-
+  
+      const criterion =
+        criteria.find(
+          (candidate) =>
+            String(candidate.id) ===
+            String(criterionId)
+        );
+  
+      if (
+        criterion &&
+        !isCriterionCompatibleWithPlayerType(
+          criterion,
+          current.player_type
+        )
+      ) {
+        toast.error(
+          'Este critério não é compatível com o tipo de atleta selecionado.'
+        );
+  
+        return current;
+      }
+  
       return {
-        ...prev,
+        ...current,
+  
         criteria: [
-          ...prev.criteria,
+          ...current.criteria,
           {
-            criterion_id: criterionId,
+            criterion_id:
+              criterionId,
+  
             weight: 1,
             required: true,
-            order: prev.criteria.length,
+  
+            order:
+              current.criteria.length,
           },
         ],
       };
