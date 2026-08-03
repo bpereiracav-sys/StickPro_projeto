@@ -2409,162 +2409,190 @@ const selectedPlayer =
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {filteredEvaluations.slice(0, 8).map((evaluation, index) => {
-                      const average = getEvaluationAverage(evaluation);
-                      const previousAverage =
-                        index < filteredEvaluations.length - 1
-                          ? getEvaluationAverage(filteredEvaluations[index + 1])
-                          : null;
-                      const trend =
-                        average !== null && previousAverage !== null
-                          ? average - previousAverage
-                          : null;
-
-                      return (
-                        <div
-                          key={
-                            evaluation.id ||
-                            `${getEvaluationDate(evaluation)}-${index}`
-                          }
-                          className="rounded-3xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                                {formatDate(getEvaluationDate(evaluation))}
-                              </p>
-                              <h3 className="mt-1 truncate font-heading text-lg text-slate-950">
-                                {getEvaluationPlanName(evaluation)}
-                              </h3>
-                              {evaluation?.period_label && (
-                                <p className="mt-1 text-sm text-slate-500">
-                                  {evaluation.period_label}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="text-right">
-                              <p className="font-heading text-2xl text-slate-950">
-                                {average !== null ? average.toFixed(1) : '-'}
-                              </p>
-                              <TrendIndicator value={trend} />
-                            </div>
-                          </div>
-
-                          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-                            <span className="text-xs text-slate-400">
-                              {getCriteriaEntries(evaluation).length} critérios
-                            </span>
-
-                            {evaluation?.id && (
-                              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-
-                                <span className="text-xs text-slate-400">
-                                  {getCriteriaEntries(evaluation).length}
-                                  {' '}
-                                  critérios
-                                </span>
-                              
-                                <div className="flex items-center gap-2">
-                              
-                                  {canManageHistory && (
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="sm"
-                                      className="rounded-full border-red-200 text-red-600 hover:bg-red-50"
-                                      onClick={() => {
-                                        setEvaluationToDelete(evaluation);
-                                        setDeleteDialogOpen(true);
-                                      }}
-                                    >
+                                        {filteredEvaluations
+                                          .slice(0, 8)
+                                          .map((evaluation, index) => {
+                                            const average =
+                                              getEvaluationAverage(evaluation);
+                    
+                                            const previousAverage =
+                                              index <
+                                              filteredEvaluations.length - 1
+                                                ? getEvaluationAverage(
+                                                    filteredEvaluations[index + 1]
+                                                  )
+                                                : null;
+                    
+                                            const trend =
+                                              average !== null &&
+                                              previousAverage !== null
+                                                ? average - previousAverage
+                                                : null;
+                    
+                                            return (
+                                              <div
+                                                key={
+                                                  evaluation.id ||
+                                                  `${getEvaluationDate(evaluation)}-${index}`
+                                                }
+                                                className="rounded-3xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+                                              >
+                                                <div className="flex items-start justify-between gap-3">
+                                                  <div className="min-w-0">
+                                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                                      {formatDate(
+                                                        getEvaluationDate(evaluation)
+                                                      )}
+                                                    </p>
+                    
+                                                    <h3 className="mt-1 truncate font-heading text-lg text-slate-950">
+                                                      {getEvaluationPlanName(evaluation)}
+                                                    </h3>
+                    
+                                                    {evaluation?.period_label && (
+                                                      <p className="mt-1 text-sm text-slate-500">
+                                                        {evaluation.period_label}
+                                                      </p>
+                                                    )}
+                                                  </div>
+                    
+                                                  <div className="text-right">
+                                                    <p className="font-heading text-2xl text-slate-950">
+                                                      {average !== null
+                                                        ? average.toFixed(1)
+                                                        : '-'}
+                                                    </p>
+                    
+                                                    <TrendIndicator value={trend} />
+                                                  </div>
+                                                </div>
+                    
+                                                <div className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+                                                  <span className="text-xs text-slate-400">
+                                                    {getCriteriaEntries(evaluation).length}{' '}
+                                                    critérios
+                                                  </span>
+                    
+                                                  <div className="flex flex-wrap items-center gap-2">
+                                                    {canManageHistory &&
+                                                      evaluation?.id && (
+                                                        <Button
+                                                          type="button"
+                                                          variant="outline"
+                                                          size="sm"
+                                                          className="rounded-full border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                          onClick={() => {
+                                                            setEvaluationToDelete(
+                                                              evaluation
+                                                            );
+                                                            setDeleteDialogOpen(true);
+                                                          }}
+                                                        >
+                                                          <Trash2 className="mr-2 h-4 w-4" />
+                                                          Eliminar
+                                                        </Button>
+                                                      )}
+                    
+                                                    {evaluation?.id && (
+                                                      <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="rounded-full"
+                                                        onClick={() =>
+                                                          navigate(
+                                                            `/evaluations/${evaluation.id}`
+                                                          )
+                                                        }
+                                                      >
+                                                        Ver detalhes
+                                                        <ChevronRight className="ml-1 h-4 w-4" />
+                                                      </Button>
+                                                    )}
+                                                  </div>
+                                                </div>
+                                              </div>
+                                            );
+                                          })}
+                                      </div>
+                                    )}
+                                  </CardContent>
+                                </Card>
+                              </div>
+                            </>
+                          )}
+                    
+                          <AlertDialog
+                            open={deleteDialogOpen}
+                            onOpenChange={(open) => {
+                              if (deletingEvaluation) {
+                                return;
+                              }
+                    
+                              setDeleteDialogOpen(open);
+                    
+                              if (!open) {
+                                setEvaluationToDelete(null);
+                              }
+                            }}
+                          >
+                            <AlertDialogContent className="bg-white">
+                              <AlertDialogHeader>
+                                <AlertDialogTitle className="flex items-center gap-2">
+                                  <AlertTriangle className="h-5 w-5 text-red-600" />
+                                  Eliminar avaliação
+                                </AlertDialogTitle>
+                    
+                                <AlertDialogDescription className="space-y-2">
+                                  <span className="block">
+                                    Esta ação irá remover definitivamente esta avaliação.
+                                  </span>
+                    
+                                  {evaluationToDelete && (
+                                    <span className="block font-medium text-slate-700">
+                                      {getEvaluationPlanName(evaluationToDelete)} —{' '}
+                                      {formatDate(
+                                        getEvaluationDate(evaluationToDelete)
+                                      )}
+                                    </span>
+                                  )}
+                    
+                                  <span className="block">
+                                    O Radar, Heat Map, Timeline, comparação com a equipa
+                                    e PID serão recalculados automaticamente.
+                                  </span>
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                    
+                              <AlertDialogFooter>
+                                <AlertDialogCancel disabled={deletingEvaluation}>
+                                  Cancelar
+                                </AlertDialogCancel>
+                    
+                                <AlertDialogAction
+                                  type="button"
+                                  onClick={(event) => {
+                                    event.preventDefault();
+                                    handleDeleteEvaluation();
+                                  }}
+                                  disabled={deletingEvaluation}
+                                  className="bg-red-600 text-white hover:bg-red-700"
+                                >
+                                  {deletingEvaluation ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      A eliminar...
+                                    </>
+                                  ) : (
+                                    <>
                                       <Trash2 className="mr-2 h-4 w-4" />
                                       Eliminar
-                                    </Button>
+                                    </>
                                   )}
-                              
-                                  {evaluation?.id && (
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="rounded-full"
-                                      onClick={() =>
-                                        navigate(
-                                          `/evaluations/${evaluation.id}`
-                                        )
-                                      }
-                                    >
-                                      Ver detalhes
-                                      <ChevronRight className="ml-1 h-4 w-4" />
-                                    </Button>
-                                  )}
-                              
-                                </div>
-                              
-                              </div>
-                                Ver detalhes
-                                <ChevronRight className="ml-1 h-4 w-4" />
-                              </Button>
-                            )}
-                          </div>
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         </div>
                       );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </>
-            )}
-
-            <AlertDialog
-              open={deleteDialogOpen}
-              onOpenChange={setDeleteDialogOpen}
-            >
-              <AlertDialogContent>
-      
-                <AlertDialogHeader>
-      
-                  <AlertDialogTitle className="flex items-center gap-2">
-                    <AlertTriangle className="h-5 w-5 text-red-600" />
-                    Eliminar avaliação
-                  </AlertDialogTitle>
-      
-                  <AlertDialogDescription>
-                    Esta ação irá remover definitivamente esta avaliação.
-      
-                    O Radar, Heat Map, Timeline,
-                    Comparação com a Equipa e PID
-                    serão atualizados automaticamente.
-                  </AlertDialogDescription>
-      
-                </AlertDialogHeader>
-      
-                <AlertDialogFooter>
-      
-                  <AlertDialogCancel>
-                    Cancelar
-                  </AlertDialogCancel>
-      
-                  <AlertDialogAction
-                    onClick={handleDeleteEvaluation}
-                    disabled={deletingEvaluation}
-                    className="bg-red-600 hover:bg-red-700"
-                  >
-                    {deletingEvaluation
-                      ? 'A eliminar...'
-                      : 'Eliminar'}
-                  </AlertDialogAction>
-      
-                </AlertDialogFooter>
-      
-              </AlertDialogContent>
-            </AlertDialog>
-      
-          </div>
-        );
-}
-  );
-}
+                    }
