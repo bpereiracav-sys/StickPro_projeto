@@ -529,6 +529,9 @@ export default function PlayerObjectives() {
 
   const [searchParams, setSearchParams] =
     useSearchParams();
+  
+  const pidId =
+  searchParams.get('pid_id');
 
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -655,6 +658,16 @@ export default function PlayerObjectives() {
     const requestedTeamId =
       searchParams.get('team_id');
 
+    const create =
+      searchParams.get('create');
+    
+    if (
+      create === 'objective' &&
+      canManageObjectives
+    ) {
+      setFormOpen(true);
+    }
+    
     if (requestedTeamId) {
       setTeamId(requestedTeamId);
     }
@@ -1609,11 +1622,16 @@ export default function PlayerObjectives() {
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() =>
-            navigate(
-              '/development-center'
-            )
-          }
+          onClick={() => {
+            if (pidId) {
+              navigate(
+                `/evaluations/pid?pid_id=${pidId}`
+              );
+              return;
+            }
+        
+            navigate('/evaluations/pid');
+          }}
           className="mb-4 -ml-2 text-slate-300 hover:bg-white/10 hover:text-white"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -1630,6 +1648,12 @@ export default function PlayerObjectives() {
               Plano Individual de Desenvolvimento
             </Badge>
 
+            {pidId && (
+              <p className="mt-2 text-xs text-cyan-200">
+                Plano ativo: {pidId}
+              </p>
+            )}
+            
             <h1 className="font-heading text-3xl sm:text-5xl">
               Objetivos Individuais
             </h1>
