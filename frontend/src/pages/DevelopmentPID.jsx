@@ -20,6 +20,9 @@ import {
   TrendingUp,
   UserRound,
   Users,
+  CircleAlert,
+  Lightbulb,
+  TrendingDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -159,6 +162,42 @@ const getEvaluationAverage = (evaluation) => {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 };
 
+const getEvaluationCriterionScores = (evaluation) => {
+  const raw =
+    evaluation?.scores ||
+    evaluation?.criteria_scores ||
+    evaluation?.results ||
+    [];
+
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  return raw
+    .map((item, index) => ({
+      id:
+        item?.criterion_id ||
+        item?.id ||
+        item?.code ||
+        `${evaluation?.id || 'evaluation'}-${index}`,
+
+      name:
+        item?.criterion_name ||
+        item?.name ||
+        item?.criterion?.name ||
+        item?.criterion?.observableAction ||
+        `Critério ${index + 1}`,
+
+      score: Number(
+        item?.score ??
+        item?.value
+      ),
+    }))
+    .filter((item) =>
+      Number.isFinite(item.score)
+    );
+};
+
 const getObjectiveProgress = (objective) => {
   const direct = Number(
     objective?.progress ?? objective?.progress_percentage
@@ -181,6 +220,276 @@ const getObjectiveProgress = (objective) => {
   }
 
   return objective?.status === 'completed' ? 100 : 0;
+};
+
+const buildPIDRecommendations = ({
+  evaluations,
+  objectives,
+}) => {
+  const orderedEvaluations = [
+    ...(Array.isArray(evaluations)
+      ? evaluations
+      : []),
+  ].sort(
+    (first, second) =>
+      new Date(
+        getEvaluationDate(first) || 0
+      ) -
+      new Date(
+        getEvaluationDate(second) || 0
+      )
+  );
+
+  const criterionMap = new Map();
+
+  orderedEvaluations.forEach(
+    (evaluation) => {
+      getEvaluationCriterionScores(
+        evaluation
+      ).forEach((criterion) => {
+        if (
+          !criterionMap.has(
+            criterion.id
+          )
+        ) {
+          criterionMap.set(
+            criterion.id,
+            {
+              id: criterion.id,
+              name: criterion.name,
+              scores: [],
+            }
+          );
+        }
+
+        criterionMap
+          .get(criterion.id)
+          .scores.push(
+            criterion.score
+          );
+      });
+    }
+  );
+
+  const criterionSummaries =
+    Array.from(
+      criterionMap.values()
+    )
+      .map((criterion) => {
+        const latest =
+          criterion.scores.length
+            ? criterion.scores[
+                criterion.scores.length -
+                  1
+              ]
+            : null;
+
+        const previous =
+          criterion.scores.length > 1
+            ? criterion.scores[
+                criterion.scores.length -
+                  2
+              ]
+            : null;
+
+        const average =
+          criterion.scores.length
+            ? criterion.scores.reduce(
+                (sum, value) =>
+                  sum + value,
+                0
+              ) /
+              criterion.scores.length
+            : null;
+
+        return {
+          ...criterion,
+          latest,
+          previous,
+          average,
+          evolution:
+            latest !== null &&
+            previous !== null
+              ? latest - previous
+              : null,
+        };
+      })
+      .filter(
+        (criterion) =>
+          criterion.latest !== null
+      );
+
+  const activeObjectives =
+    (Array.isArray(objectives)
+      ? objectives
+      : []
+    ).filter(
+      (objective) =>
+        objective?.status === 'active'
+    );
+
+  const activeCriterionIds =
+    new Set(
+      activeObjectives
+        .map(
+          (objective) =>
+            objective?.criterion_id
+        )
+        .filter(Boolean)
+        .map(String)
+    );
+
+  const recommendations = [];
+
+  const priorityCriterion = [
+    ...criterionSummaries,
+  ].sort(
+    (first, second) =>
+      first.latest -
+      second.latest
+  )[0];
+
+  if (
+    priorityCriterion &&
+    priorityCriterion.latest < 3 &&
+    !activeCriterionIds.has(
+      String(
+        priorityCriterion.id
+      )
+    )
+  ) {
+    recommendations.push({
+      id: `priority-${priorityCriterion.id}`,
+      type: 'priority',
+      title: 'Criar objetivo prioritário',
+      description:
+        `${priorityCriterion.name} apresenta o valor atual mais baixo (${priorityCriterion.latest.toFixed(
+          1
+        )}) e ainda não possui um objetivo ativo.`,
+      criterionId:
+        priorityCriterion.id,
+      criterionName:
+        priorityCriterion.name,
+    });
+  }
+
+  const regressionCriterion = [
+    ...criterionSummaries,
+  ]
+    .filter(
+      (criterion) =>
+        criterion.evolution !== null &&
+        criterion.evolution < -0.25
+    )
+    .sort(
+      (first, second) =>
+        first.evolution -
+        second.evolution
+    )[0];
+
+  if (regressionCriterion) {
+    recommendations.push({
+      id: `regression-${regressionCriterion.id}`,
+      type: 'attention',
+      title: 'Rever competência em regressão',
+      description:
+        `${regressionCriterion.name} registou uma descida de ${Math.abs(
+          regressionCriterion.evolution
+        ).toFixed(
+          1
+        )} pontos na avaliação mais recente.`,
+      criterionId:
+        regressionCriterion.id,
+      criterionName:
+        regressionCriterion.name,
+    });
+  }
+
+  const positiveCriterion = [
+    ...criterionSummaries,
+  ]
+    .filter(
+      (criterion) =>
+        criterion.evolution !== null &&
+        criterion.evolution > 0.25
+    )
+    .sort(
+      (first, second) =>
+        second.evolution -
+        first.evolution
+    )[0];
+
+  if (positiveCriterion) {
+    recommendations.push({
+      id: `positive-${positiveCriterion.id}`,
+      type: 'positive',
+      title: 'Evolução positiva',
+      description:
+        `${positiveCriterion.name} melhorou ${positiveCriterion.evolution.toFixed(
+          1
+        )} pontos entre as duas últimas avaliações.`,
+      criterionId:
+        positiveCriterion.id,
+      criterionName:
+        positiveCriterion.name,
+    });
+  }
+
+  const stalledObjective =
+    activeObjectives.find(
+      (objective) =>
+        getObjectiveProgress(
+          objective
+        ) < 25
+    );
+
+  if (stalledObjective) {
+    recommendations.push({
+      id: `objective-${stalledObjective.id}`,
+      type: 'attention',
+      title: 'Objetivo com progresso reduzido',
+      description:
+        `O objetivo “${
+          stalledObjective.title ||
+          stalledObjective.criterion_name ||
+          'Objetivo individual'
+        }” apresenta progresso inferior a 25%.`,
+      criterionId:
+        stalledObjective.criterion_id,
+      criterionName:
+        stalledObjective.criterion_name,
+    });
+  }
+
+  if (
+    orderedEvaluations.length < 2
+  ) {
+    recommendations.push({
+      id: 'insufficient-history',
+      type: 'neutral',
+      title: 'Histórico ainda reduzido',
+      description:
+        'São necessárias pelo menos duas avaliações para analisar tendências de evolução com maior segurança.',
+    });
+  }
+
+  if (
+    recommendations.length === 0 &&
+    orderedEvaluations.length >= 2
+  ) {
+    recommendations.push({
+      id: 'stable-plan',
+      type: 'positive',
+      title: 'Plano globalmente equilibrado',
+      description:
+        'Não foram identificadas regressões relevantes nem objetivos com progresso crítico.',
+    });
+  }
+
+  return recommendations.slice(
+    0,
+    4
+  );
 };
 
 function MetricCard({ icon: Icon, label, value, description, tone }) {
@@ -586,6 +895,19 @@ export default function DevelopmentPID() {
     };
   }, [objectives, evaluations]);
 
+  const pidRecommendations =
+    useMemo(
+      () =>
+        buildPIDRecommendations({
+          evaluations,
+          objectives,
+        }),
+      [
+        evaluations,
+        objectives,
+      ]
+    );
+  
   const savePID = async () => {
     if (!pid?.id) return;
 
@@ -880,6 +1202,132 @@ export default function DevelopmentPID() {
             />
           </section>
 
+          <section>
+            <Card className="overflow-hidden border-indigo-100 bg-gradient-to-br from-indigo-50 via-white to-cyan-50 shadow-sm">
+              <CardHeader>
+                <div className="flex items-start gap-3">
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-white">
+                    <Sparkles className="h-6 w-6" />
+                  </div>
+          
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      Development Engine
+                    </CardTitle>
+          
+                    <CardDescription>
+                      Leitura automática das avaliações e dos objetivos ativos do PID.
+                    </CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+          
+              <CardContent>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {pidRecommendations.map(
+                    (recommendation) => {
+                      const config =
+                        recommendation.type ===
+                        'positive'
+                          ? {
+                              Icon: TrendingUp,
+                              className:
+                                'border-emerald-100 bg-emerald-50/70',
+                              iconClass:
+                                'bg-emerald-100 text-emerald-700',
+                            }
+                          : recommendation.type ===
+                              'priority'
+                            ? {
+                                Icon: Target,
+                                className:
+                                  'border-red-100 bg-red-50/70',
+                                iconClass:
+                                  'bg-red-100 text-red-700',
+                              }
+                            : recommendation.type ===
+                                'attention'
+                              ? {
+                                  Icon:
+                                    TrendingDown,
+                                  className:
+                                    'border-amber-100 bg-amber-50/70',
+                                  iconClass:
+                                    'bg-amber-100 text-amber-700',
+                                }
+                              : {
+                                  Icon:
+                                    Lightbulb,
+                                  className:
+                                    'border-slate-200 bg-white',
+                                  iconClass:
+                                    'bg-slate-100 text-slate-600',
+                                };
+          
+                      const Icon =
+                        config.Icon;
+          
+                      return (
+                        <div
+                          key={
+                            recommendation.id
+                          }
+                          className={`rounded-2xl border p-4 ${config.className}`}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div
+                              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${config.iconClass}`}
+                            >
+                              <Icon className="h-5 w-5" />
+                            </div>
+          
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-900">
+                                {
+                                  recommendation.title
+                                }
+                              </p>
+          
+                              <p className="mt-1 text-sm leading-6 text-slate-600">
+                                {
+                                  recommendation.description
+                                }
+                              </p>
+          
+                              {recommendation.type ===
+                                'priority' &&
+                                recommendation.criterionId &&
+                                canManage && (
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    className="mt-3 rounded-full bg-white"
+                                    onClick={() =>
+                                      navigate(
+                                        `/evaluations/objectives?player_id=${playerId}${
+                                          teamId
+                                            ? `&team_id=${teamId}`
+                                            : ''
+                                        }&pid_id=${pid.id}&create=objective`
+                                      )
+                                    }
+                                  >
+                                    <Target className="mr-2 h-4 w-4" />
+                                    Criar objetivo
+                                  </Button>
+                                )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </section>
+          
           <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
             <Card className="border-slate-200 bg-white shadow-sm">
               <CardHeader>
