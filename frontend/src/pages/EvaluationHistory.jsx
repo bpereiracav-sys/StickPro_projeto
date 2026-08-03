@@ -42,11 +42,24 @@ import {
   TrendingUp,
   UserRound,
   Users,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import DevelopmentComparisonTree from
 '../components/development/DevelopmentComparisonTree';
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '../components/ui/alert-dialog';
 
 const ALL_VALUE = 'all';
 const SCORE_MAX = 5;
@@ -747,6 +760,14 @@ export default function EvaluationHistory() {
   const [dateFilter, setDateFilter] = useState(ALL_VALUE);
   const [query, setQuery] = useState('');
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const [evaluationToDelete, setEvaluationToDelete] =
+    useState(null);
+  
+  const [deletingEvaluation, setDeletingEvaluation] =
+    useState(false);
+  
   const tr = (key, fallback) => {
     const value = t(key);
     return value && value !== key ? value : fallback;
@@ -924,6 +945,48 @@ export default function EvaluationHistory() {
     }
   };
 
+  const handleDeleteEvaluation = async () => {
+    if (!evaluationToDelete) {
+      return;
+    }
+  
+    try {
+      setDeletingEvaluation(true);
+  
+      await evaluationsApi.deleteEvaluation(
+        evaluationToDelete.id
+      );
+  
+      toast.success(
+        'Avaliação eliminada com sucesso.'
+      );
+  
+      setDeleteDialogOpen(false);
+  
+      setEvaluationToDelete(null);
+  
+      await fetchPlayerEvaluations(
+        selectedPlayerId
+      );
+  
+      if (
+        !isAthleteMode &&
+        players.length > 0
+      ) {
+        await fetchTeamComparison(
+          players
+        );
+      }
+    } catch (error) {
+      toast.error(
+        error?.response?.data?.detail ||
+        'Não foi possível eliminar a avaliação.'
+      );
+    } finally {
+      setDeletingEvaluation(false);
+    }
+  };
+  
   const fetchTeamComparison = async (teamPlayers) => {
     setLoadingTeamComparison(true);
 
@@ -2394,13 +2457,52 @@ const selectedPlayer =
                             </span>
 
                             {evaluation?.id && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="rounded-full"
-                                onClick={() => navigate(`/evaluations/${evaluation.id}`)}
-                              >
+                              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+
+                                <span className="text-xs text-slate-400">
+                                  {getCriteriaEntries(evaluation).length}
+                                  {' '}
+                                  critérios
+                                </span>
+                              
+                                <div className="flex items-center gap-2">
+                              
+                                  {canManageHistory && (
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      size="sm"
+                                      className="rounded-full border-red-200 text-red-600 hover:bg-red-50"
+                                      onClick={() => {
+                                        setEvaluationToDelete(evaluation);
+                                        setDeleteDialogOpen(true);
+                                      }}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Eliminar
+                                    </Button>
+                                  )}
+                              
+                                  {evaluation?.id && (
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="rounded-full"
+                                      onClick={() =>
+                                        navigate(
+                                          `/evaluations/${evaluation.id}`
+                                        )
+                                      }
+                                    >
+                                      Ver detalhes
+                                      <ChevronRight className="ml-1 h-4 w-4" />
+                                    </Button>
+                                  )}
+                              
+                                </div>
+                              
+                              </div>
                                 Ver detalhes
                                 <ChevronRight className="ml-1 h-4 w-4" />
                               </Button>
@@ -2415,7 +2517,54 @@ const selectedPlayer =
             </Card>
           </div>
         </>
-      )}
-    </div>
+            )}
+
+            <AlertDialog
+              open={deleteDialogOpen}
+              onOpenChange={setDeleteDialogOpen}
+            >
+              <AlertDialogContent>
+      
+                <AlertDialogHeader>
+      
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="h-5 w-5 text-red-600" />
+                    Eliminar avaliação
+                  </AlertDialogTitle>
+      
+                  <AlertDialogDescription>
+                    Esta ação irá remover definitivamente esta avaliação.
+      
+                    O Radar, Heat Map, Timeline,
+                    Comparação com a Equipa e PID
+                    serão atualizados automaticamente.
+                  </AlertDialogDescription>
+      
+                </AlertDialogHeader>
+      
+                <AlertDialogFooter>
+      
+                  <AlertDialogCancel>
+                    Cancelar
+                  </AlertDialogCancel>
+      
+                  <AlertDialogAction
+                    onClick={handleDeleteEvaluation}
+                    disabled={deletingEvaluation}
+                    className="bg-red-600 hover:bg-red-700"
+                  >
+                    {deletingEvaluation
+                      ? 'A eliminar...'
+                      : 'Eliminar'}
+                  </AlertDialogAction>
+      
+                </AlertDialogFooter>
+      
+              </AlertDialogContent>
+            </AlertDialog>
+      
+          </div>
+        );
+}
   );
 }
