@@ -493,7 +493,10 @@ export const evaluationsApi = {
     api.get(`/evaluations/player/${playerId}`, { params }),
 
   getEvaluation: (evaluationId) =>
-  api.get(`/evaluations/${evaluationId}`),
+    api.get(`/evaluations/${evaluationId}`),
+
+  deleteEvaluation: (evaluationId) =>
+    api.delete(`/evaluations/${evaluationId}`),
 
   // Individual development objectives
   getPlayerObjectives: (playerId) =>
