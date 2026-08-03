@@ -17255,8 +17255,17 @@ async def delete_player_evaluation(
     if not evaluation:
         raise HTTPException(status_code=404, detail="Avaliação não encontrada")
 
-    if not checker.is_admin and evaluation.get("created_by") != current_user.get("id"):
-        raise HTTPException(status_code=403, detail="Sem permissão para eliminar esta avaliação")
+    can_delete_evaluation = (
+        checker.is_admin
+        or evaluation.get("created_by") == current_user.get("id")
+        or checker.can_access_team(evaluation.get("team_id"))
+    )
+    
+    if not can_delete_evaluation:
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para eliminar esta avaliação",
+        )
 
     await db.player_evaluations.delete_one({"id": evaluation_id})
 
