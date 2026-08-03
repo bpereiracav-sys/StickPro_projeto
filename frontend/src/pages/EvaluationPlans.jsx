@@ -44,6 +44,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import CriteriaTreeSelector from
+  '../components/development/CriteriaTreeSelector';
 import {
   DEVELOPMENT_AGE_GROUPS,
   DEVELOPMENT_EVALUATION_OBJECTIVES,
@@ -99,19 +101,15 @@ const PLAN_CATEGORIES = {
   },
 };
 
-const CRITERION_CATEGORY_ORDER = [
-  'technical',
-  'tactical',
-  'physical',
-  'psychological',
-  'attitude',
-  'other',
-];
-
 const EMPTY_FORM = {
   name: '',
   description: '',
   category: 'training',
+
+  // Tipo de atleta a quem o plano se destina.
+  // Guarda-redes pode utilizar critérios gerais e específicos.
+  player_type: 'field_player',
+
   team_id: 'global',
   estimated_minutes: 5,
   criteria: [],
@@ -125,6 +123,66 @@ const EMPTY_INTELLIGENT_CONFIG = {
   player_type: 'field',
   season_moment: 'initial',
   objective: 'initial',
+};
+
+const normalizePlanPlayerType = (value) => {
+  if (
+    value === 'goalkeeper' ||
+    value === 'goalie' ||
+    value === 'gk'
+  ) {
+    return 'goalkeeper';
+  }
+
+  return 'field_player';
+};
+
+const toIntelligentPlayerType = (value) =>
+  normalizePlanPlayerType(value) === 'goalkeeper'
+    ? 'goalkeeper'
+    : 'field';
+
+const isGoalkeeperCriterion = (criterion = {}) => {
+  const playerType =
+    criterion?.playerType ||
+    criterion?.player_type ||
+    criterion?.criterion?.playerType ||
+    criterion?.criterion?.player_type ||
+    null;
+
+  const domain =
+    criterion?.domain ||
+    criterion?.criterion?.domain ||
+    null;
+
+  const code = String(
+    criterion?.code ||
+    criterion?.source_code ||
+    criterion?.criterion?.code ||
+    ''
+  ).toUpperCase();
+
+  return (
+    playerType === 'goalkeeper' ||
+    domain === 'goalkeeper' ||
+    code.startsWith('GK-')
+  );
+};
+
+const isCriterionCompatibleWithPlayerType = (
+  criterion,
+  playerType
+) => {
+  if (
+    normalizePlanPlayerType(playerType) ===
+    'goalkeeper'
+  ) {
+    // Guarda-redes pode ser avaliado por todos os critérios.
+    return true;
+  }
+
+  // Jogador de campo nunca pode receber critérios específicos de GR.
+  return !isGoalkeeperCriterion(criterion);
 };
 
 function DevelopmentIcon({ className = '' }) {
@@ -243,28 +301,107 @@ export default function EvaluationPlans() {
 
   const openCreateDialog = () => {
     setEditingPlan(null);
-    setForm(EMPTY_FORM);
-    setIntelligentConfig(EMPTY_INTELLIGENT_CONFIG);
+  
+    setForm({
+      ...EMPTY_FORM,
+    });
+  
+    setIntelligentConfig({
+      ...EMPTY_INTELLIGENT_CONFIG,
+    });
+  
     setDialogOpen(true);
   };
 
   const openEditDialog = (plan) => {
+    const planCriteria =
+      Array.isArray(plan?.criteria)
+        ? plan.criteria
+        : [];
+  
+    /*
+     * Compatibilidade com planos antigos:
+     *
+     * 1. utilizar player_type quando já existe;
+     * 2. considerar categoria goalkeeper;
+     * 3. detetar critérios GK guardados no plano.
+     */
+    const hasGoalkeeperCriteria =
+      planCriteria.some((item) => {
+        const criterion =
+          item?.criterion ||
+          criteria.find(
+            (candidate) =>
+              candidate.id ===
+              item.criterion_id
+          ) ||
+          item;
+  
+        return isGoalkeeperCriterion(
+          criterion
+        );
+      });
+  
+    const resolvedPlayerType =
+      plan?.player_type
+        ? normalizePlanPlayerType(
+            plan.player_type
+          )
+        : (
+            plan?.category === 'goalkeeper' ||
+            hasGoalkeeperCriteria
+          )
+          ? 'goalkeeper'
+          : 'field_player';
+  
     setEditingPlan(plan);
-    setIntelligentConfig((current) => ({ ...current, mode: 'manual' }));
+  
+    setIntelligentConfig((current) => ({
+      ...current,
+      mode: 'manual',
+      player_type:
+        toIntelligentPlayerType(
+          resolvedPlayerType
+        ),
+    }));
+  
     setForm({
       name: plan.name || '',
-      description: plan.description || '',
-      category: plan.category || 'training',
-      team_id: plan.team_id || 'global',
-      estimated_minutes: plan.estimated_minutes || 5,
-      is_active: plan.is_active !== false,
-      criteria: (plan.criteria || []).map((item, index) => ({
-        criterion_id: item.criterion_id,
-        weight: item.weight || 1,
-        required: item.required !== false,
-        order: item.order ?? index,
-      })),
+      description:
+        plan.description || '',
+      category:
+        plan.category || 'training',
+  
+      player_type:
+        resolvedPlayerType,
+  
+      team_id:
+        plan.team_id || 'global',
+  
+      estimated_minutes:
+        plan.estimated_minutes || 5,
+  
+      is_active:
+        plan.is_active !== false,
+  
+      criteria:
+        planCriteria.map(
+          (item, index) => ({
+            criterion_id:
+              item.criterion_id,
+  
+            weight:
+              item.weight || 1,
+  
+            required:
+              item.required !== false,
+  
+            order:
+              item.order ?? index,
+          })
+        ),
     });
+  
     setDialogOpen(true);
   };
 
@@ -294,6 +431,205 @@ export default function EvaluationPlans() {
     });
   };
 
+  const selectCriteria = (
+    criterionIds = []
+  ) => {
+    const requestedIds =
+      new Set(
+        criterionIds
+          .filter(Boolean)
+          .map(String)
+      );
+  
+    if (requestedIds.size === 0) {
+      return;
+    }
+  
+    setForm((current) => {
+      const existingIds =
+        new Set(
+          current.criteria.map(
+            (item) =>
+              String(
+                item.criterion_id
+              )
+          )
+        );
+  
+      const additions =
+        criteria
+          .filter((criterion) =>
+            requestedIds.has(
+              String(criterion.id)
+            )
+          )
+          .filter((criterion) =>
+            isCriterionCompatibleWithPlayerType(
+              criterion,
+              current.player_type
+            )
+          )
+          .filter(
+            (criterion) =>
+              !existingIds.has(
+                String(criterion.id)
+              )
+          )
+          .map(
+            (criterion, index) => ({
+              criterion_id:
+                criterion.id,
+  
+              weight: 1,
+              required: true,
+  
+              order:
+                current.criteria.length +
+                index,
+            })
+          );
+  
+      return {
+        ...current,
+        criteria: [
+          ...current.criteria,
+          ...additions,
+        ],
+      };
+    });
+  };
+  
+  const removeCriteria = (
+    criterionIds = []
+  ) => {
+    const idsToRemove =
+      new Set(
+        criterionIds
+          .filter(Boolean)
+          .map(String)
+      );
+  
+    setForm((current) => ({
+      ...current,
+  
+      criteria:
+        current.criteria
+          .filter(
+            (item) =>
+              !idsToRemove.has(
+                String(
+                  item.criterion_id
+                )
+              )
+          )
+          .map(
+            (item, index) => ({
+              ...item,
+              order: index,
+            })
+          ),
+    }));
+  };
+
+  const handlePlanPlayerTypeChange = (
+    nextPlayerType
+  ) => {
+    const normalizedPlayerType =
+      normalizePlanPlayerType(
+        nextPlayerType
+      );
+  
+    setForm((current) => {
+      const compatibleCriteria =
+        current.criteria.filter(
+          (item) => {
+            const criterion =
+              criteria.find(
+                (candidate) =>
+                  String(candidate.id) ===
+                  String(
+                    item.criterion_id
+                  )
+              );
+  
+            if (!criterion) {
+              return true;
+            }
+  
+            return isCriterionCompatibleWithPlayerType(
+              criterion,
+              normalizedPlayerType
+            );
+          }
+        );
+  
+      const removedCount =
+        current.criteria.length -
+        compatibleCriteria.length;
+  
+      if (removedCount > 0) {
+        toast.info(
+          `${removedCount} ${
+            removedCount === 1
+              ? 'critério específico de guarda-redes foi removido'
+              : 'critérios específicos de guarda-redes foram removidos'
+          } do plano.`
+        );
+      }
+  
+      return {
+        ...current,
+  
+        player_type:
+          normalizedPlayerType,
+  
+        /*
+         * Quando se escolhe GR, a categoria pode assumir
+         * automaticamente Guarda-redes.
+         *
+         * Ao regressar a jogador de campo, evita manter
+         * uma categoria incompatível.
+         */
+        category:
+          normalizedPlayerType ===
+          'goalkeeper'
+            ? (
+                current.category ===
+                'training'
+                  ? 'goalkeeper'
+                  : current.category
+              )
+            : (
+                current.category ===
+                'goalkeeper'
+                  ? 'training'
+                  : current.category
+              ),
+  
+        criteria:
+          compatibleCriteria.map(
+            (item, index) => ({
+              ...item,
+              order: index,
+            })
+          ),
+      };
+    });
+  
+    setIntelligentConfig(
+      (current) => ({
+        ...current,
+  
+        player_type:
+          toIntelligentPlayerType(
+            normalizedPlayerType
+          ),
+  
+        template_id: 'custom',
+      })
+    );
+  };
+  
   const updateCriterionWeight = (criterionId, weight) => {
     setForm((prev) => ({
       ...prev,
@@ -312,9 +648,76 @@ export default function EvaluationPlans() {
     }));
   };
 
-  const handleTemplateChange = (templateId) => {
-    setIntelligentConfig((current) =>
-      applyDevelopmentPlanTemplate(current, templateId)
+  const handleTemplateChange = (
+    templateId
+  ) => {
+    setIntelligentConfig(
+      (current) => {
+        const nextConfig =
+          applyDevelopmentPlanTemplate(
+            current,
+            templateId
+          );
+  
+        const nextPlayerType =
+          normalizePlanPlayerType(
+            nextConfig.player_type
+          );
+  
+        setForm(
+          (currentForm) => {
+            const compatibleCriteria =
+              currentForm.criteria.filter(
+                (item) => {
+                  const criterion =
+                    criteria.find(
+                      (candidate) =>
+                        String(candidate.id) ===
+                        String(
+                          item.criterion_id
+                        )
+                    );
+  
+                  return (
+                    !criterion ||
+                    isCriterionCompatibleWithPlayerType(
+                      criterion,
+                      nextPlayerType
+                    )
+                  );
+                }
+              );
+  
+            return {
+              ...currentForm,
+  
+              player_type:
+                nextPlayerType,
+  
+              category:
+                nextPlayerType ===
+                'goalkeeper'
+                  ? 'goalkeeper'
+                  : (
+                      currentForm.category ===
+                      'goalkeeper'
+                        ? 'training'
+                        : currentForm.category
+                    ),
+  
+              criteria:
+                compatibleCriteria.map(
+                  (item, index) => ({
+                    ...item,
+                    order: index,
+                  })
+                ),
+            };
+          }
+        );
+  
+        return nextConfig;
+      }
     );
   };
 
@@ -344,15 +747,65 @@ export default function EvaluationPlans() {
       return;
     }
 
+    const suggestedPlayerType =
+      normalizePlanPlayerType(
+        intelligentConfig.player_type
+      );
+    
+    const compatibleSuggestedCriteria =
+      suggestion.criteria.filter(
+        (item) => {
+          const criterion =
+            criteria.find(
+              (candidate) =>
+                String(candidate.id) ===
+                String(
+                  item.criterion_id
+                )
+            );
+    
+          return (
+            !criterion ||
+            isCriterionCompatibleWithPlayerType(
+              criterion,
+              suggestedPlayerType
+            )
+          );
+        }
+      );
+    
     setForm((current) => ({
       ...current,
-      name: current.name.trim() ? current.name : suggestion.name,
-      description: current.description.trim()
-        ? current.description
-        : suggestion.description,
-      category: suggestion.category,
-      estimated_minutes: suggestion.estimated_minutes,
-      criteria: suggestion.criteria,
+    
+      name:
+        current.name.trim()
+          ? current.name
+          : suggestion.name,
+    
+      description:
+        current.description.trim()
+          ? current.description
+          : suggestion.description,
+    
+      player_type:
+        suggestedPlayerType,
+    
+      category:
+        suggestedPlayerType ===
+        'goalkeeper'
+          ? 'goalkeeper'
+          : suggestion.category,
+    
+      estimated_minutes:
+        suggestion.estimated_minutes,
+    
+      criteria:
+        compatibleSuggestedCriteria.map(
+          (item, index) => ({
+            ...item,
+            order: index,
+          })
+        ),
     }));
 
     toast.success(
@@ -380,32 +833,84 @@ export default function EvaluationPlans() {
       );
       return;
     }
+
+  const incompatibleCriteria =
+    form.criteria
+      .map((item) =>
+        criteria.find(
+          (criterion) =>
+            String(criterion.id) ===
+            String(
+              item.criterion_id
+            )
+        )
+      )
+      .filter(Boolean)
+      .filter(
+        (criterion) =>
+          !isCriterionCompatibleWithPlayerType(
+            criterion,
+            form.player_type
+          )
+      );
   
+  if (
+    incompatibleCriteria.length > 0
+  ) {
+    toast.error(
+      'Este plano contém critérios específicos de guarda-redes e está configurado para jogadores de campo.'
+    );
+  
+    return;
+  }
+    
     setSaving(true);
   
     try {
       const payload = {
         name: form.name.trim(),
+      
         description:
-          form.description?.trim() || null,
-        category: form.category,
+          form.description?.trim() ||
+          null,
+      
+        category:
+          form.category,
+      
+        player_type:
+          normalizePlanPlayerType(
+            form.player_type
+          ),
+      
         team_id:
           form.team_id === 'global'
             ? null
             : form.team_id,
+      
         estimated_minutes:
-          Number(form.estimated_minutes) || null,
-        is_active: Boolean(form.is_active),
-        criteria: form.criteria.map(
-          (item, index) => ({
-            criterion_id: item.criterion_id,
-            weight:
-              Number(item.weight) || 1,
-            required:
-              item.required !== false,
-            order: index,
-          })
-        ),
+          Number(
+            form.estimated_minutes
+          ) || null,
+      
+        is_active:
+          Boolean(form.is_active),
+      
+        criteria:
+          form.criteria.map(
+            (item, index) => ({
+              criterion_id:
+                item.criterion_id,
+      
+              weight:
+                Number(item.weight) ||
+                1,
+      
+              required:
+                item.required !== false,
+      
+              order: index,
+            })
+          ),
       };
   
       if (editingPlan?.id) {
@@ -534,15 +1039,6 @@ export default function EvaluationPlans() {
       return true;
     });
   }, [plans, teamFilter, categoryFilter]);
-
-  const groupedCriteria = useMemo(() => {
-    return criteria.reduce((acc, criterion) => {
-      const key = criterion.category || 'other';
-      if (!acc[key]) acc[key] = [];
-      acc[key].push(criterion);
-      return acc;
-    }, {});
-  }, [criteria]);
 
   const activePlans = plans.filter((plan) => plan.is_active !== false).length;
   const globalPlans = plans.filter((plan) => !plan.team_id).length;
@@ -991,12 +1487,28 @@ export default function EvaluationPlans() {
                       </div>
 
                       <div className="grid gap-2">
-                        <Label>Posição</Label>
                         <Select
-                          value={intelligentConfig.player_type}
-                          onValueChange={(value) =>
-                            setIntelligentConfig((current) => ({ ...current, player_type: value, template_id: 'custom' }))
+                          value={
+                            intelligentConfig.player_type
                           }
+                          onValueChange={(value) => {
+                            const normalizedPlayerType =
+                              normalizePlanPlayerType(
+                                value
+                              );
+                        
+                            setIntelligentConfig(
+                              (current) => ({
+                                ...current,
+                                player_type: value,
+                                template_id: 'custom',
+                              })
+                            );
+                        
+                            handlePlanPlayerTypeChange(
+                              normalizedPlayerType
+                            );
+                          }}
                         >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-white">
@@ -1095,7 +1607,7 @@ export default function EvaluationPlans() {
               />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="grid gap-2">
                 <Label>{tr('evaluations.category', 'Categoria')}</Label>
                 <Select
@@ -1117,6 +1629,40 @@ export default function EvaluationPlans() {
                 </Select>
               </div>
 
+              <div className="grid gap-2">
+                <Label>
+                  Tipo de atleta
+                </Label>
+              
+                <Select
+                  value={form.player_type}
+                  onValueChange={
+                    handlePlanPlayerTypeChange
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+              
+                  <SelectContent className="bg-white">
+                    <SelectItem value="field_player">
+                      Jogador de campo
+                    </SelectItem>
+              
+                    <SelectItem value="goalkeeper">
+                      Guarda-redes
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              
+                <p className="text-xs leading-5 text-slate-500">
+                  {form.player_type ===
+                  'goalkeeper'
+                    ? 'Pode utilizar critérios gerais e critérios específicos de guarda-redes.'
+                    : 'Os critérios específicos de guarda-redes ficam automaticamente indisponíveis.'}
+                </p>
+              </div>
+              
               <div className="grid gap-2">
                 <Label>{tr('common.team', 'Equipa')}</Label>
                 <Select
@@ -1183,84 +1729,96 @@ export default function EvaluationPlans() {
                       'Cria primeiro critérios de avaliação para poderes construir planos.'
                     )}
                   </p>
-                  <Button asChild variant="outline" className="mt-3 rounded-full">
+              
+                  <Button
+                    asChild
+                    variant="outline"
+                    className="mt-3 rounded-full"
+                  >
                     <Link to="/evaluation-criteria">
-                      {tr('evaluations.criteriaTitle', 'Critérios de Avaliação')}
+                      {tr(
+                        'evaluations.criteriaTitle',
+                        'Critérios de Avaliação'
+                      )}
                     </Link>
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-4">
-                  {CRITERION_CATEGORY_ORDER.map((category) => {
-                    const items = groupedCriteria[category] || [];
-                    if (items.length === 0) return null;
-
+                <CriteriaTreeSelector
+                  criteria={criteria}
+                  selectedCriteria={
+                    form.criteria
+                  }
+                  playerType={
+                    form.player_type
+                  }
+                  onToggleCriterion={
+                    toggleCriterion
+                  }
+                  onSelectCriteria={
+                    selectCriteria
+                  }
+                  onRemoveCriteria={
+                    removeCriteria
+                  }
+                  searchPlaceholder="Pesquisar por domínio, subdomínio, código ou critério..."
+                  emptyMessage={
+                    form.player_type ===
+                    'goalkeeper'
+                      ? 'Não existem critérios disponíveis para guarda-redes.'
+                      : 'Não existem critérios disponíveis para jogadores de campo.'
+                  }
+                  renderCriterionExtra={({
+                    criterion,
+                    selected,
+                  }) => {
+                    if (!selected) {
+                      return null;
+                    }
+              
+                    const selectedCriterion =
+                      form.criteria.find(
+                        (item) =>
+                          String(
+                            item.criterion_id
+                          ) ===
+                          String(
+                            criterion.id
+                          )
+                      );
+              
+                    if (!selectedCriterion) {
+                      return null;
+                    }
+              
                     return (
-                      <div key={category}>
-                        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-500">
-                          {tr(`evaluations.categories.${category}`, category)}
-                        </p>
-
-                        <div className="grid gap-2 md:grid-cols-2">
-                          {items.map((criterion) => {
-                            const selected = form.criteria.find(
-                              (item) => item.criterion_id === criterion.id
-                            );
-
-                            return (
-                              <div
-                                key={criterion.id}
-                                className={`rounded-2xl border bg-white p-3 ${
-                                  selected ? 'border-cyan-300 ring-2 ring-cyan-100' : 'border-slate-200'
-                                }`}
-                              >
-                                <div className="flex items-start gap-3">
-                                  <Checkbox
-                                    checked={Boolean(selected)}
-                                    onCheckedChange={() => toggleCriterion(criterion.id)}
-                                    className="mt-1"
-                                  />
-
-                                  <div className="min-w-0 flex-1">
-                                    <p className="font-semibold text-slate-950">
-                                      {criterion.name}
-                                    </p>
-                                    {criterion.description && (
-                                      <p className="mt-1 line-clamp-2 text-xs leading-5 text-slate-500">
-                                        {criterion.description}
-                                      </p>
-                                    )}
-
-                                    {selected && (
-                                      <div className="mt-2 grid grid-cols-[1fr_90px] items-center gap-2">
-                                        <Label className="text-xs text-slate-500">
-                                          {tr('evaluations.weight', 'Peso')}
-                                        </Label>
-                                        <Input
-                                          type="number"
-                                          min="0.1"
-                                          step="0.1"
-                                          value={selected.weight}
-                                          onChange={(event) =>
-                                            updateCriterionWeight(
-                                              criterion.id,
-                                              event.target.value
-                                            )
-                                          }
-                                          className="h-8"
-                                        />
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
+                      <div className="mt-3 grid grid-cols-[1fr_90px] items-center gap-2 border-t border-cyan-100 pt-3">
+                        <Label className="text-xs text-slate-500">
+                          {tr(
+                            'evaluations.weight',
+                            'Peso'
+                          )}
+                        </Label>
+              
+                        <Input
+                          type="number"
+                          min="0.1"
+                          step="0.1"
+                          value={
+                            selectedCriterion.weight
+                          }
+                          onChange={(event) =>
+                            updateCriterionWeight(
+                              criterion.id,
+                              event.target.value
+                            )
+                          }
+                          className="h-8 bg-white"
+                        />
                       </div>
                     );
-                  })}
-                </div>
+                  }}
+                />
               )}
             </div>
           </div>
