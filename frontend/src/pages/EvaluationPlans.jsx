@@ -12,7 +12,6 @@ import { Badge } from '../components/ui/badge';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Checkbox } from '../components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -809,7 +808,7 @@ export default function EvaluationPlans() {
     }));
 
     toast.success(
-      `${suggestion.criteria.length} critérios sugeridos. Revê a seleção antes de guardar.`
+      `${compatibleSuggestedCriteria.length} critérios sugeridos. Revê a seleção antes de guardar.`
     );
   };
 
@@ -1487,29 +1486,18 @@ export default function EvaluationPlans() {
                       </div>
 
                       <div className="grid gap-2">
-                        <Select
+                          <Label>Posição</Label>
+                      
+                          <Select
                           value={
                             intelligentConfig.player_type
                           }
                           onValueChange={(value) => {
-                            const normalizedPlayerType =
-                              normalizePlanPlayerType(
-                                value
-                              );
-                        
-                            setIntelligentConfig(
-                              (current) => ({
-                                ...current,
-                                player_type: value,
-                                template_id: 'custom',
-                              })
-                            );
-                        
                             handlePlanPlayerTypeChange(
-                              normalizedPlayerType
+                              normalizePlanPlayerType(value)
                             );
                           }}
-                        >
+                          >
                           <SelectTrigger><SelectValue /></SelectTrigger>
                           <SelectContent className="bg-white">
                             {DEVELOPMENT_PLAYER_TYPES.map((item) => (
