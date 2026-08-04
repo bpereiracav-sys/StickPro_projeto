@@ -100,6 +100,24 @@ const PLAN_CATEGORIES = {
   },
 };
 
+const PLAN_PLAYER_TYPES = {
+  field_player: {
+    label: 'Jogadores de campo',
+    shortLabel: 'Campo',
+    icon: Target,
+    className:
+      'border-blue-100 bg-blue-50 text-blue-700',
+  },
+
+  goalkeeper: {
+    label: 'Guarda-redes',
+    shortLabel: 'Guarda-redes',
+    icon: Goal,
+    className:
+      'border-violet-100 bg-violet-50 text-violet-700',
+  },
+};
+
 const EMPTY_FORM = {
   name: '',
   description: '',
@@ -312,6 +330,44 @@ export default function EvaluationPlans() {
     setDialogOpen(true);
   };
 
+  const getPlanPlayerType = (plan = {}) => {
+    if (
+      plan?.player_type === 'goalkeeper'
+    ) {
+      return 'goalkeeper';
+    }
+  
+    if (
+      plan?.player_type === 'field_player'
+    ) {
+      return 'field_player';
+    }
+  
+    /*
+     * Compatibilidade com planos antigos:
+     * planos sem player_type são considerados GR
+     * quando têm categoria ou critérios específicos.
+     */
+    if (
+      plan?.category === 'goalkeeper'
+    ) {
+      return 'goalkeeper';
+    }
+  
+    const hasGoalkeeperCriteria =
+      (plan?.criteria || []).some(
+        (item) =>
+          isGoalkeeperCriterion(
+            item?.criterion ||
+            item
+          )
+      );
+  
+    return hasGoalkeeperCriteria
+      ? 'goalkeeper'
+      : 'field_player';
+  };
+  
   const openEditDialog = (plan) => {
     const planCriteria =
       Array.isArray(plan?.criteria)
@@ -988,8 +1044,16 @@ export default function EvaluationPlans() {
       }
   
       setDialogOpen(false);
+
       setEditingPlan(null);
-      setForm(EMPTY_FORM);
+      
+      setForm({
+        ...EMPTY_FORM,
+      });
+      
+      setIntelligentConfig({
+        ...EMPTY_INTELLIGENT_CONFIG,
+      });
   
       await fetchData();
     } catch (error) {
@@ -1271,6 +1335,18 @@ export default function EvaluationPlans() {
                 const config = PLAN_CATEGORIES[plan.category] || PLAN_CATEGORIES.custom;
                 const PlanIcon = config.icon;
 
+                const planPlayerType =
+                  getPlanPlayerType(plan);
+                
+                const playerTypeConfig =
+                  PLAN_PLAYER_TYPES[
+                    planPlayerType
+                  ] ||
+                  PLAN_PLAYER_TYPES.field_player;
+                
+                const PlayerTypeIcon =
+                  playerTypeConfig.icon;
+              
                 return (
                   <div
                     key={plan.id}
@@ -1283,14 +1359,38 @@ export default function EvaluationPlans() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className={config.className}>
+                          <Badge
+                            variant="outline"
+                            className={config.className}
+                          >
                             <PlanIcon className="mr-1 h-3.5 w-3.5" />
-                            {tr(config.labelKey, config.fallback)}
+                        
+                            {tr(
+                              config.labelKey,
+                              config.fallback
+                            )}
                           </Badge>
-
+                        
+                          <Badge
+                            variant="outline"
+                            className={
+                              playerTypeConfig.className
+                            }
+                          >
+                            <PlayerTypeIcon className="mr-1 h-3.5 w-3.5" />
+                        
+                            {playerTypeConfig.shortLabel}
+                          </Badge>
+                        
                           {plan.is_active === false && (
-                            <Badge variant="outline" className="border-slate-200 bg-slate-100 text-slate-500">
-                              {tr('common.archived', 'Arquivado')}
+                            <Badge
+                              variant="outline"
+                              className="border-slate-200 bg-slate-100 text-slate-500"
+                            >
+                              {tr(
+                                'common.archived',
+                                'Arquivado'
+                              )}
                             </Badge>
                           )}
                         </div>
@@ -1744,7 +1844,68 @@ export default function EvaluationPlans() {
             </div>
 
             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-              <div className="mb-3 flex items-center justify-between gap-2">
+              <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-semibold text-slate-950">
+                      {tr(
+                        'evaluations.selectCriteria',
+                        'Selecionar critérios'
+                      )}
+                    </p>
+                
+                    <p className="text-sm text-slate-500">
+                      {form.criteria.length}{' '}
+                      {tr(
+                        'evaluations.selectedCriteria',
+                        'critérios selecionados'
+                      )}
+                    </p>
+                  </div>
+                
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={
+                        PLAN_PLAYER_TYPES[
+                          form.player_type
+                        ]?.className ||
+                        PLAN_PLAYER_TYPES.field_player
+                          .className
+                      }
+                    >
+                      {form.player_type ===
+                      'goalkeeper' ? (
+                        <Goal className="mr-1 h-3.5 w-3.5" />
+                      ) : (
+                        <Target className="mr-1 h-3.5 w-3.5" />
+                      )}
+                
+                      {PLAN_PLAYER_TYPES[
+                        form.player_type
+                      ]?.label ||
+                        PLAN_PLAYER_TYPES.field_player
+                          .label}
+                    </Badge>
+                
+                    <Badge
+                      variant="outline"
+                      className="rounded-full"
+                    >
+                      {tr(
+                        'evaluations.weight',
+                        'Peso'
+                      )}
+                      :{' '}
+                      {form.criteria.reduce(
+                        (sum, item) =>
+                          sum +
+                          (Number(item.weight) || 1),
+                        0
+                      )}
+                    </Badge>
+                  </div>
+                </div>
+              
                 <div>
                   <p className="font-semibold text-slate-950">
                     {tr('evaluations.selectCriteria', 'Selecionar critérios')}
