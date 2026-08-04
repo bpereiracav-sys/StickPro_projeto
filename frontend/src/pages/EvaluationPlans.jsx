@@ -1906,22 +1906,6 @@ export default function EvaluationPlans() {
                   </div>
                 </div>
               
-                <div>
-                  <p className="font-semibold text-slate-950">
-                    {tr('evaluations.selectCriteria', 'Selecionar critérios')}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {form.criteria.length}{' '}
-                    {tr('evaluations.selectedCriteria', 'critérios selecionados')}
-                  </p>
-                </div>
-
-                <Badge variant="outline" className="rounded-full">
-                  {tr('evaluations.weight', 'Peso')}:{' '}
-                  {form.criteria.reduce((sum, item) => sum + (Number(item.weight) || 1), 0)}
-                </Badge>
-              </div>
-
               {criteria.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-center">
                   <p className="text-sm text-slate-500">
