@@ -1596,8 +1596,8 @@ class PlayerEvaluationUpdate(BaseModel):
     improvement_goals: Optional[List[str]] = None
     motivational_message: Optional[str] = None
 
-
 # Evaluation Plan Models — Sprint 4.2.3.1
+# Sprint C3.5A.5D — Compatibilidade por tipo de atleta
 EvaluationPlanCategory = Literal[
     "training",
     "match",
@@ -1605,7 +1605,12 @@ EvaluationPlanCategory = Literal[
     "technical",
     "tactical",
     "physical",
-    "custom"
+    "custom",
+]
+
+EvaluationPlanPlayerType = Literal[
+    "field_player",
+    "goalkeeper",
 ]
 
 
@@ -1620,35 +1625,78 @@ class EvaluationPlanCreate(BaseModel):
     name: str
     description: Optional[str] = None
     category: EvaluationPlanCategory = "training"
+
+    # field_player:
+    # apenas critérios gerais de jogador de campo.
+    #
+    # goalkeeper:
+    # critérios gerais + critérios específicos de guarda-redes.
+    player_type: EvaluationPlanPlayerType = "field_player"
+
     team_id: Optional[str] = None
-    criteria: List[EvaluationPlanCriterion] = []
+
+    criteria: List[EvaluationPlanCriterion] = Field(
+        default_factory=list
+    )
+
     estimated_minutes: Optional[int] = None
     is_active: bool = True
 
 
 class EvaluationPlan(BaseModel):
-    model_config = ConfigDict(extra="ignore")
+    model_config = ConfigDict(
+        extra="ignore"
+    )
 
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: str = Field(
+        default_factory=lambda: str(
+            uuid.uuid4()
+        )
+    )
+
     name: str
     description: Optional[str] = None
     category: EvaluationPlanCategory = "training"
+
+    player_type: EvaluationPlanPlayerType = (
+        "field_player"
+    )
+
     team_id: Optional[str] = None
     club_id: Optional[str] = None
-    criteria: List[dict] = []
+
+    criteria: List[dict] = Field(
+        default_factory=list
+    )
+
     estimated_minutes: Optional[int] = None
     is_active: bool = True
     created_by: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(
+            timezone.utc
+        )
+    )
+
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(
+            timezone.utc
+        )
+    )
 
 
 class EvaluationPlanUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     category: Optional[EvaluationPlanCategory] = None
+    player_type: Optional[EvaluationPlanPlayerType] = None
     team_id: Optional[str] = None
-    criteria: Optional[List[EvaluationPlanCriterion]] = None
+
+    criteria: Optional[
+        List[EvaluationPlanCriterion]
+    ] = None
+
     estimated_minutes: Optional[int] = None
     is_active: Optional[bool] = None
 
@@ -17287,98 +17335,571 @@ async def validate_evaluation_plan_access(current_user: dict, team_id: Optional[
 
     return checker
 
+# ============================================================
+# Evaluation Plans — validation and CRUD
+# Sprint C3.5A.5D
+# ============================================================
 
-async def validate_evaluation_plan_criteria(criteria: List[EvaluationPlanCriterion], team_id: Optional[str], checker) -> List[dict]:
+def normalize_evaluation_plan_player_type(
+    value: Optional[str],
+) -> str:
+    """
+    Normaliza o tipo de atleta do plano.
+
+    O backend guarda apenas:
+    - field_player
+    - goalkeeper
+    """
+
+    normalized = str(
+        value or "field_player"
+    ).strip().lower()
+
+    if normalized in {
+        "goalkeeper",
+        "goalie",
+        "gk",
+        "gr",
+        "guarda-redes",
+        "guarda_redes",
+        "guarda redes",
+    }:
+        return "goalkeeper"
+
+    return "field_player"
+
+
+def is_goalkeeper_evaluation_criterion(
+    criterion: dict,
+) -> bool:
+    """
+    Identifica critérios específicos de guarda-redes.
+
+    Suporta campos atuais, catálogo StickPro,
+    critérios importados e registos históricos.
+    """
+
+    if not isinstance(criterion, dict):
+        return False
+
+    player_type = str(
+        criterion.get("player_type")
+        or criterion.get("playerType")
+        or criterion.get("athlete_type")
+        or ""
+    ).strip().lower()
+
+    domain = str(
+        criterion.get("domain")
+        or criterion.get("domain_id")
+        or criterion.get("domainId")
+        or ""
+    ).strip().lower()
+
+    category = str(
+        criterion.get("category")
+        or ""
+    ).strip().lower()
+
+    code = str(
+        criterion.get("code")
+        or criterion.get("source_code")
+        or criterion.get("sourceCode")
+        or ""
+    ).strip().upper()
+
+    searchable_text = " ".join(
+        str(value or "")
+        for value in [
+            criterion.get("name"),
+            criterion.get("description"),
+            criterion.get("domain_label"),
+            criterion.get("domainLabel"),
+            criterion.get("subdomain"),
+            criterion.get("subdomain_label"),
+            criterion.get("subdomainLabel"),
+        ]
+    ).lower()
+
+    return (
+        player_type in {
+            "goalkeeper",
+            "goalie",
+            "gk",
+            "gr",
+        }
+        or domain in {
+            "goalkeeper",
+            "goalie",
+            "gk",
+            "gr",
+            "guarda-redes",
+            "guarda_redes",
+        }
+        or category == "goalkeeper"
+        or code.startswith("GK-")
+        or "guarda-redes" in searchable_text
+        or "guarda redes" in searchable_text
+        or "goalkeeper" in searchable_text
+    )
+
+
+def validate_plan_criteria_player_type(
+    *,
+    player_type: str,
+    criteria_dicts: List[dict],
+) -> None:
+    """
+    Jogadores de campo não podem ser avaliados
+    por critérios específicos de guarda-redes.
+
+    Guarda-redes podem utilizar:
+    - critérios gerais;
+    - critérios específicos de guarda-redes.
+    """
+
+    normalized_player_type = (
+        normalize_evaluation_plan_player_type(
+            player_type
+        )
+    )
+
+    if normalized_player_type == "goalkeeper":
+        return
+
+    incompatible = [
+        criterion
+        for criterion in criteria_dicts
+        if is_goalkeeper_evaluation_criterion(
+            criterion
+        )
+    ]
+
+    if not incompatible:
+        return
+
+    names = [
+        criterion.get("name")
+        or criterion.get("code")
+        or criterion.get("criterion_id")
+        or "Critério de guarda-redes"
+        for criterion in incompatible
+    ]
+
+    preview = ", ".join(
+        names[:5]
+    )
+
+    if len(names) > 5:
+        preview += (
+            f" e mais {len(names) - 5}"
+        )
+
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            "O plano está configurado para jogadores "
+            "de campo, mas contém critérios específicos "
+            f"de guarda-redes: {preview}"
+        ),
+    )
+
+
+async def validate_evaluation_plan_criteria(
+    criteria: List[EvaluationPlanCriterion],
+    team_id: Optional[str],
+    checker,
+) -> List[dict]:
+    """
+    Valida critérios, permissões e equipa.
+
+    O resultado inclui metadados mínimos do critério,
+    necessários para validar o tipo de atleta e manter
+    planos históricos interpretáveis.
+    """
+
     if not criteria:
-        raise HTTPException(status_code=400, detail="O plano deve incluir pelo menos um critério")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O plano deve incluir pelo menos "
+                "um critério"
+            ),
+        )
 
-    criterion_ids = [item.criterion_id for item in criteria]
-    if len(criterion_ids) != len(set(criterion_ids)):
-        raise HTTPException(status_code=400, detail="O plano contém critérios repetidos")
+    criterion_ids = [
+        item.criterion_id
+        for item in criteria
+    ]
 
-    criteria_docs = await db.evaluation_criteria.find(
-        {"id": {"$in": criterion_ids}, "is_active": {"$ne": False}},
-        {"_id": 0}
-    ).to_list(500)
+    if (
+        len(criterion_ids)
+        != len(set(criterion_ids))
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O plano contém critérios repetidos"
+            ),
+        )
 
-    found_ids = {criterion["id"] for criterion in criteria_docs}
-    missing_ids = [criterion_id for criterion_id in criterion_ids if criterion_id not in found_ids]
+    criteria_docs = (
+        await db.evaluation_criteria.find(
+            {
+                "id": {
+                    "$in": criterion_ids
+                },
+                "is_active": {
+                    "$ne": False
+                },
+            },
+            {
+                "_id": 0
+            },
+        ).to_list(500)
+    )
+
+    criteria_map = {
+        criterion["id"]: criterion
+        for criterion in criteria_docs
+    }
+
+    found_ids = set(
+        criteria_map.keys()
+    )
+
+    missing_ids = [
+        criterion_id
+        for criterion_id in criterion_ids
+        if criterion_id not in found_ids
+    ]
+
     if missing_ids:
-        raise HTTPException(status_code=400, detail=f"Critérios inválidos ou arquivados: {', '.join(missing_ids)}")
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Critérios inválidos ou arquivados: "
+                + ", ".join(missing_ids)
+            ),
+        )
 
     for criterion in criteria_docs:
-        criterion_team_id = criterion.get("team_id")
-        if criterion_team_id and team_id and criterion_team_id != team_id:
-            raise HTTPException(status_code=400, detail=f"O critério '{criterion.get('name')}' pertence a outra equipa")
-        if criterion_team_id and not team_id:
-            raise HTTPException(status_code=400, detail=f"O critério '{criterion.get('name')}' é específico de uma equipa")
-        if criterion_team_id and not checker.is_admin and not checker.can_access_team(criterion_team_id):
-            raise HTTPException(status_code=403, detail=f"Sem acesso ao critério '{criterion.get('name')}'")
+        criterion_team_id = (
+            criterion.get("team_id")
+        )
+
+        if (
+            criterion_team_id
+            and team_id
+            and criterion_team_id != team_id
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"O critério "
+                    f"'{criterion.get('name')}' "
+                    f"pertence a outra equipa"
+                ),
+            )
+
+        if (
+            criterion_team_id
+            and not team_id
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"O critério "
+                    f"'{criterion.get('name')}' "
+                    f"é específico de uma equipa"
+                ),
+            )
+
+        if (
+            criterion_team_id
+            and not checker.is_admin
+            and not checker.can_access_team(
+                criterion_team_id
+            )
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    f"Sem acesso ao critério "
+                    f"'{criterion.get('name')}'"
+                ),
+            )
 
     criteria_dicts = []
-    for index, item in enumerate(criteria):
+
+    for index, item in enumerate(
+        criteria
+    ):
         item_dict = item.model_dump()
-        item_dict["order"] = item_dict.get("order", index)
-        item_dict["weight"] = float(item_dict.get("weight", 1.0) or 1.0)
-        item_dict["required"] = bool(item_dict.get("required", True))
-        criteria_dicts.append(item_dict)
+
+        criterion = criteria_map.get(
+            item.criterion_id,
+            {},
+        )
+
+        item_dict["order"] = (
+            item_dict.get(
+                "order",
+                index,
+            )
+        )
+
+        item_dict["weight"] = float(
+            item_dict.get(
+                "weight",
+                1.0,
+            )
+            or 1.0
+        )
+
+        item_dict["required"] = bool(
+            item_dict.get(
+                "required",
+                True,
+            )
+        )
+
+        # Metadados persistidos no plano.
+        # Permitem validação de posição e preservam
+        # o significado histórico do critério.
+        item_dict["name"] = (
+            criterion.get("name")
+        )
+
+        item_dict["code"] = (
+            criterion.get("code")
+            or criterion.get("source_code")
+            or criterion.get("sourceCode")
+        )
+
+        item_dict["domain"] = (
+            criterion.get("domain")
+            or criterion.get("domain_id")
+            or criterion.get("domainId")
+        )
+
+        item_dict["domain_label"] = (
+            criterion.get("domain_label")
+            or criterion.get("domainLabel")
+        )
+
+        item_dict["subdomain"] = (
+            criterion.get("subdomain")
+            or criterion.get("subdomain_id")
+            or criterion.get("subdomainId")
+        )
+
+        item_dict["subdomain_label"] = (
+            criterion.get("subdomain_label")
+            or criterion.get("subdomainLabel")
+        )
+
+        item_dict["player_type"] = (
+            criterion.get("player_type")
+            or criterion.get("playerType")
+            or criterion.get("athlete_type")
+        )
+
+        item_dict["category"] = (
+            criterion.get("category")
+        )
+
+        criteria_dicts.append(
+            item_dict
+        )
 
     return criteria_dicts
 
 
-async def enrich_evaluation_plan(plan: dict) -> dict:
+async def enrich_evaluation_plan(
+    plan: dict,
+) -> dict:
     if not plan:
         return plan
 
-    criterion_ids = [item.get("criterion_id") for item in plan.get("criteria", []) if item.get("criterion_id")]
-    criteria_docs = []
-    if criterion_ids:
-        criteria_docs = await db.evaluation_criteria.find({"id": {"$in": criterion_ids}}, {"_id": 0}).to_list(500)
+    enriched_plan = dict(plan)
 
-    criteria_map = {criterion["id"]: criterion for criterion in criteria_docs}
+    enriched_plan["player_type"] = (
+        normalize_evaluation_plan_player_type(
+            enriched_plan.get(
+                "player_type",
+                "field_player",
+            )
+        )
+    )
+
+    criterion_ids = [
+        item.get("criterion_id")
+        for item in enriched_plan.get(
+            "criteria",
+            [],
+        )
+        if item.get("criterion_id")
+    ]
+
+    criteria_docs = []
+
+    if criterion_ids:
+        criteria_docs = (
+            await db.evaluation_criteria.find(
+                {
+                    "id": {
+                        "$in": criterion_ids
+                    }
+                },
+                {
+                    "_id": 0
+                },
+            ).to_list(500)
+        )
+
+    criteria_map = {
+        criterion["id"]: criterion
+        for criterion in criteria_docs
+    }
+
     enriched_criteria = []
     total_weight = 0.0
 
-    for item in sorted(plan.get("criteria", []), key=lambda value: value.get("order", 0)):
-        weight = float(item.get("weight", 1.0) or 1.0)
-        total_weight += weight
-        enriched_criteria.append({**item, "criterion": criteria_map.get(item.get("criterion_id"))})
+    sorted_criteria = sorted(
+        enriched_plan.get(
+            "criteria",
+            [],
+        ),
+        key=lambda value: value.get(
+            "order",
+            0,
+        ),
+    )
 
-    plan["criteria"] = enriched_criteria
-    plan["criteria_count"] = len(enriched_criteria)
-    plan["total_weight"] = round(total_weight, 2)
-    return plan
+    for item in sorted_criteria:
+        weight = float(
+            item.get(
+                "weight",
+                1.0,
+            )
+            or 1.0
+        )
+
+        total_weight += weight
+
+        enriched_criteria.append(
+            {
+                **item,
+                "criterion": criteria_map.get(
+                    item.get(
+                        "criterion_id"
+                    )
+                ),
+            }
+        )
+
+    enriched_plan["criteria"] = (
+        enriched_criteria
+    )
+
+    enriched_plan["criteria_count"] = len(
+        enriched_criteria
+    )
+
+    enriched_plan["total_weight"] = round(
+        total_weight,
+        2,
+    )
+
+    return enriched_plan
 
 
 @api_router.post("/evaluations/plans")
-async def create_evaluation_plan(plan_data: EvaluationPlanCreate, current_user: dict = Depends(get_current_user)):
-    checker = await validate_evaluation_plan_access(current_user, plan_data.team_id, write=True)
+async def create_evaluation_plan(
+    plan_data: EvaluationPlanCreate,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    checker = (
+        await validate_evaluation_plan_access(
+            current_user,
+            plan_data.team_id,
+            write=True,
+        )
+    )
 
     if not plan_data.name.strip():
-        raise HTTPException(status_code=400, detail="Indica o nome do plano")
+        raise HTTPException(
+            status_code=400,
+            detail="Indica o nome do plano",
+        )
 
-    criteria_dicts = await validate_evaluation_plan_criteria(plan_data.criteria, plan_data.team_id, checker)
+    player_type = (
+        normalize_evaluation_plan_player_type(
+            plan_data.player_type
+        )
+    )
+
+    criteria_dicts = (
+        await validate_evaluation_plan_criteria(
+            plan_data.criteria,
+            plan_data.team_id,
+            checker,
+        )
+    )
+
+    validate_plan_criteria_player_type(
+        player_type=player_type,
+        criteria_dicts=criteria_dicts,
+    )
 
     plan = EvaluationPlan(
         name=plan_data.name.strip(),
-        description=plan_data.description.strip() if plan_data.description else None,
+
+        description=(
+            plan_data.description.strip()
+            if plan_data.description
+            else None
+        ),
+
         category=plan_data.category,
+        player_type=player_type,
         team_id=plan_data.team_id,
-        club_id=current_user.get("club_id"),
+        club_id=current_user.get(
+            "club_id"
+        ),
         criteria=criteria_dicts,
-        estimated_minutes=plan_data.estimated_minutes,
+        estimated_minutes=(
+            plan_data.estimated_minutes
+        ),
         is_active=plan_data.is_active,
-        created_by=current_user["id"]
+        created_by=current_user["id"],
     )
 
     plan_dict = plan.model_dump()
-    plan_dict["created_at"] = plan_dict["created_at"].isoformat()
-    plan_dict["updated_at"] = plan_dict["updated_at"].isoformat()
 
-    await db.evaluation_plans.insert_one(dict(plan_dict))
+    plan_dict["created_at"] = (
+        plan_dict["created_at"].isoformat()
+    )
 
-    plan_dict.pop("_id", None)
-    return await enrich_evaluation_plan(plan_dict)
+    plan_dict["updated_at"] = (
+        plan_dict["updated_at"].isoformat()
+    )
+
+    await db.evaluation_plans.insert_one(
+        dict(plan_dict)
+    )
+
+    plan_dict.pop(
+        "_id",
+        None,
+    )
+
+    return await enrich_evaluation_plan(
+        plan_dict
+    )
 
 
 @api_router.get("/evaluations/plans")
@@ -17386,80 +17907,337 @@ async def get_evaluation_plans(
     team_id: Optional[str] = None,
     category: Optional[str] = None,
     include_inactive: bool = False,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(
+        get_current_user
+    ),
 ):
-    checker = await validate_evaluation_plan_access(current_user, team_id)
+    checker = (
+        await validate_evaluation_plan_access(
+            current_user,
+            team_id,
+        )
+    )
 
     query: Dict[str, Any] = {}
 
     if not include_inactive:
-        query["is_active"] = {"$ne": False}
+        query["is_active"] = {
+            "$ne": False
+        }
 
-    if category and category != "all":
+    if (
+        category
+        and category != "all"
+    ):
         query["category"] = category
 
     if team_id:
-        query["$or"] = [{"team_id": team_id}, {"team_id": None}, {"team_id": {"$exists": False}}]
-    elif not checker.is_admin:
-        accessible_team_ids = list(checker.team_ids)
         query["$or"] = [
-            {"team_id": {"$in": accessible_team_ids}},
-            {"team_id": None},
-            {"team_id": {"$exists": False}},
+            {
+                "team_id": team_id
+            },
+            {
+                "team_id": None
+            },
+            {
+                "team_id": {
+                    "$exists": False
+                }
+            },
         ]
 
-    plans = await db.evaluation_plans.find(query, {"_id": 0}).sort("category", 1).sort("name", 1).to_list(500)
-    return [await enrich_evaluation_plan(plan) for plan in plans]
+    elif not checker.is_admin:
+        accessible_team_ids = list(
+            checker.team_ids
+        )
+
+        query["$or"] = [
+            {
+                "team_id": {
+                    "$in": accessible_team_ids
+                }
+            },
+            {
+                "team_id": None
+            },
+            {
+                "team_id": {
+                    "$exists": False
+                }
+            },
+        ]
+
+    plans = (
+        await db.evaluation_plans.find(
+            query,
+            {
+                "_id": 0
+            },
+        )
+        .sort(
+            "category",
+            1,
+        )
+        .sort(
+            "name",
+            1,
+        )
+        .to_list(500)
+    )
+
+    return [
+        await enrich_evaluation_plan(
+            plan
+        )
+        for plan in plans
+    ]
 
 
-@api_router.get("/evaluations/plans/{plan_id}")
-async def get_evaluation_plan(plan_id: str, current_user: dict = Depends(get_current_user)):
-    plan = await db.evaluation_plans.find_one({"id": plan_id}, {"_id": 0})
+@api_router.get(
+    "/evaluations/plans/{plan_id}"
+)
+async def get_evaluation_plan(
+    plan_id: str,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    plan = (
+        await db.evaluation_plans.find_one(
+            {
+                "id": plan_id
+            },
+            {
+                "_id": 0
+            },
+        )
+    )
+
     if not plan:
-        raise HTTPException(status_code=404, detail="Plano não encontrado")
+        raise HTTPException(
+            status_code=404,
+            detail="Plano não encontrado",
+        )
 
-    await validate_evaluation_plan_access(current_user, plan.get("team_id"))
-    return await enrich_evaluation_plan(plan)
+    await validate_evaluation_plan_access(
+        current_user,
+        plan.get("team_id"),
+    )
+
+    return await enrich_evaluation_plan(
+        plan
+    )
 
 
-@api_router.put("/evaluations/plans/{plan_id}")
+@api_router.put(
+    "/evaluations/plans/{plan_id}"
+)
 async def update_evaluation_plan(
     plan_id: str,
     updates: EvaluationPlanUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(
+        get_current_user
+    ),
 ):
-    checker = get_permission_checker(current_user)
+    checker = get_permission_checker(
+        current_user
+    )
 
-    plan = await db.evaluation_plans.find_one({"id": plan_id}, {"_id": 0})
+    plan = (
+        await db.evaluation_plans.find_one(
+            {
+                "id": plan_id
+            },
+            {
+                "_id": 0
+            },
+        )
+    )
+
     if not plan:
-        raise HTTPException(status_code=404, detail="Plano não encontrado")
+        raise HTTPException(
+            status_code=404,
+            detail="Plano não encontrado",
+        )
 
-    next_team_id = updates.team_id if updates.team_id is not None else plan.get("team_id")
-    await validate_evaluation_plan_access(current_user, next_team_id, write=True)
+    update_data = updates.model_dump(
+        exclude_unset=True
+    )
+
+    next_team_id = (
+        update_data.get("team_id")
+        if "team_id" in update_data
+        else plan.get("team_id")
+    )
+
+    await validate_evaluation_plan_access(
+        current_user,
+        next_team_id,
+        write=True,
+    )
 
     if not checker.is_admin:
-        if plan.get("created_by") != current_user.get("id") and not checker.can_access_team(plan.get("team_id")):
-            raise HTTPException(status_code=403, detail="Sem permissão para editar este plano")
+        can_edit_plan = (
+            plan.get("created_by")
+            == current_user.get("id")
+            or checker.can_access_team(
+                plan.get("team_id")
+            )
+        )
 
-    update_data = updates.model_dump(exclude_unset=True)
+        if not can_edit_plan:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Sem permissão para editar "
+                    "este plano"
+                ),
+            )
 
     if "name" in update_data:
-        if not update_data["name"].strip():
-            raise HTTPException(status_code=400, detail="Indica o nome do plano")
-        update_data["name"] = update_data["name"].strip()
+        name = str(
+            update_data.get("name")
+            or ""
+        ).strip()
 
-    if "description" in update_data and update_data["description"]:
-        update_data["description"] = update_data["description"].strip()
+        if not name:
+            raise HTTPException(
+                status_code=400,
+                detail="Indica o nome do plano",
+            )
 
-    if "criteria" in update_data and update_data["criteria"] is not None:
-        update_data["criteria"] = await validate_evaluation_plan_criteria(update_data["criteria"], next_team_id, checker)
+        update_data["name"] = name
 
-    if update_data:
-        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        await db.evaluation_plans.update_one({"id": plan_id}, {"$set": update_data})
+    if "description" in update_data:
+        description = (
+            update_data.get(
+                "description"
+            )
+        )
 
-    updated = await db.evaluation_plans.find_one({"id": plan_id}, {"_id": 0})
-    return await enrich_evaluation_plan(updated)
+        update_data["description"] = (
+            str(description).strip()
+            if description
+            else None
+        )
+
+    next_player_type = (
+        normalize_evaluation_plan_player_type(
+            update_data.get(
+                "player_type",
+                plan.get(
+                    "player_type",
+                    "field_player",
+                ),
+            )
+        )
+    )
+
+    update_data["player_type"] = (
+        next_player_type
+    )
+
+    if (
+        "criteria" in update_data
+        and update_data["criteria"] is not None
+    ):
+        criteria_payload = [
+            EvaluationPlanCriterion(
+                **item
+            )
+            if isinstance(item, dict)
+            else item
+            for item in update_data[
+                "criteria"
+            ]
+        ]
+
+    else:
+        criteria_payload = [
+            EvaluationPlanCriterion(
+                criterion_id=item.get(
+                    "criterion_id"
+                ),
+                weight=float(
+                    item.get(
+                        "weight",
+                        1.0,
+                    )
+                    or 1.0
+                ),
+                required=bool(
+                    item.get(
+                        "required",
+                        True,
+                    )
+                ),
+                order=int(
+                    item.get(
+                        "order",
+                        index,
+                    )
+                    or index
+                ),
+            )
+            for index, item in enumerate(
+                plan.get(
+                    "criteria",
+                    [],
+                )
+            )
+            if item.get(
+                "criterion_id"
+            )
+        ]
+
+    next_criteria = (
+        await validate_evaluation_plan_criteria(
+            criteria_payload,
+            next_team_id,
+            checker,
+        )
+    )
+
+    validate_plan_criteria_player_type(
+        player_type=next_player_type,
+        criteria_dicts=next_criteria,
+    )
+
+    # Também atualiza planos antigos com os novos
+    # metadados dos critérios.
+    update_data["criteria"] = (
+        next_criteria
+    )
+
+    update_data["updated_at"] = (
+        datetime.now(
+            timezone.utc
+        ).isoformat()
+    )
+
+    await db.evaluation_plans.update_one(
+        {
+            "id": plan_id
+        },
+        {
+            "$set": update_data
+        },
+    )
+
+    updated = (
+        await db.evaluation_plans.find_one(
+            {
+                "id": plan_id
+            },
+            {
+                "_id": 0
+            },
+        )
+    )
+
+    return await enrich_evaluation_plan(
+        updated
+    )
 
 
 @api_router.post("/evaluations/plans/{plan_id}/duplicate")
