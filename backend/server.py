@@ -19156,29 +19156,238 @@ async def delete_player_objective(
 
 # ==================== EVALUATION EXECUTION ROUTES — Sprint 4.2.4.1 ====================
 
-async def get_team_players_for_evaluation(team_id: str, current_user: dict) -> List[dict]:
-    checker = get_permission_checker(current_user)
+# ============================================================
+# Evaluation Execution — athlete position compatibility
+# Sprint C3.5A.7
+# ============================================================
 
-    if not checker.is_admin and not checker.can_access_team(team_id):
-        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
+def normalize_player_position(
+    value: Optional[str],
+) -> Optional[str]:
+    """
+    Normaliza a posição real do atleta.
 
-    players = await db.users.find(
-        {
-            "team_ids": team_id,
-            "role": {"$in": ["jogador", "atleta", "player"]}
-        },
-        {
-            "_id": 0,
-            "hashed_password": 0,
-            "password": 0,
-            "reset_token": 0,
-            "reset_token_expires": 0,
-        }
-    ).sort("name", 1).to_list(1000)
+    Resultado:
+    - goalkeeper
+    - field_player
+    - None, quando a posição não está definida
+    """
 
-    return players
+    if value is None:
+        return None
+
+    normalized = str(value).strip().lower()
+
+    if not normalized:
+        return None
+
+    if normalized in {
+        "gr",
+        "gk",
+        "goalkeeper",
+        "goalie",
+        "guarda-redes",
+        "guarda_redes",
+        "guarda redes",
+        "guarda-redes de hóquei",
+        "guarda redes de hóquei",
+    }:
+        return "goalkeeper"
+
+    if normalized in {
+        "jc",
+        "field",
+        "field_player",
+        "field player",
+        "jogador",
+        "jogador de campo",
+        "atleta de campo",
+        "defesa",
+        "avançado",
+        "avancado",
+    }:
+        return "field_player"
+
+    return None
 
 
+def get_player_position_value(
+    player: dict,
+) -> Optional[str]:
+    """
+    Obtém a posição do atleta suportando as diferentes
+    estruturas históricas existentes no StickPro.
+    """
+
+    if not isinstance(player, dict):
+        return None
+
+    profile = player.get("profile") or {}
+
+    sports_info = (
+        profile.get("sports_info")
+        or profile.get("sports")
+        or {}
+    )
+
+    candidate_values = [
+        player.get("position"),
+        profile.get("position"),
+        sports_info.get("position"),
+        sports_info.get("player_position"),
+        player.get("player_position"),
+    ]
+
+    for value in candidate_values:
+        normalized = normalize_player_position(
+            value
+        )
+
+        if normalized:
+            return normalized
+
+    return None
+
+
+def get_plan_player_type(
+    plan: dict,
+) -> str:
+    """
+    Obtém o tipo de atleta definido no plano.
+
+    Planos antigos sem player_type:
+    - categoria goalkeeper → goalkeeper;
+    - restantes → field_player.
+    """
+
+    stored_value = plan.get(
+        "player_type"
+    )
+
+    if stored_value:
+        return (
+            normalize_evaluation_plan_player_type(
+                stored_value
+            )
+        )
+
+    if plan.get("category") == "goalkeeper":
+        return "goalkeeper"
+
+    return "field_player"
+
+
+def is_player_compatible_with_plan(
+    *,
+    player: dict,
+    plan: dict,
+) -> bool:
+    """
+    Regra StickPro:
+
+    Plano para jogador de campo:
+    - apenas atletas de campo.
+
+    Plano para guarda-redes:
+    - apenas guarda-redes.
+
+    Atletas sem posição definida não são considerados
+    compatíveis, porque a aplicação não deve adivinhar.
+    """
+
+    player_position = (
+        get_player_position_value(
+            player
+        )
+    )
+
+    plan_player_type = (
+        get_plan_player_type(
+            plan
+        )
+    )
+
+    if player_position is None:
+        return False
+
+    return (
+        player_position
+        == plan_player_type
+    )
+
+
+def get_player_display_name(
+    player: dict,
+) -> str:
+    return (
+        player.get("name")
+        or player.get("full_name")
+        or player.get("email")
+        or player.get("id")
+        or "Atleta"
+    )
+
+
+async def get_team_players_for_evaluation(
+    team_id: str,
+    current_user: dict,
+) -> List[dict]:
+    checker = get_permission_checker(
+        current_user
+    )
+
+    if (
+        not checker.is_admin
+        and not checker.can_access_team(
+            team_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a esta equipa",
+        )
+
+    players = (
+        await db.users.find(
+            {
+                "team_ids": team_id,
+                "role": {
+                    "$in": [
+                        "jogador",
+                        "atleta",
+                        "player",
+                    ]
+                },
+            },
+            {
+                "_id": 0,
+                "hashed_password": 0,
+                "password": 0,
+                "reset_token": 0,
+                "reset_token_expires": 0,
+            },
+        )
+        .sort("name", 1)
+        .to_list(1000)
+    )
+
+    enriched_players = []
+
+    for player in players:
+        enriched = dict(player)
+
+        enriched["normalized_position"] = (
+            get_player_position_value(
+                player
+            )
+        )
+
+        enriched_players.append(
+            enriched
+        )
+
+    return enriched_players
+    
 def normalize_plan_scores_for_player(
     scores: List[EvaluationFromPlanScore],
     plan: dict,
@@ -19274,16 +19483,108 @@ async def create_bulk_evaluations_from_plan(
         if event.get("team_id") and event.get("team_id") != payload.team_id:
             raise HTTPException(status_code=400, detail="O evento pertence a outra equipa")
 
-    team_players = await get_team_players_for_evaluation(payload.team_id, current_user)
-    valid_player_ids = {player["id"] for player in team_players}
-
-    requested_player_ids = [item.player_id for item in payload.evaluations]
-    invalid_players = [player_id for player_id in requested_player_ids if player_id not in valid_player_ids]
-
-    if invalid_players:
+    team_players = (
+        await get_team_players_for_evaluation(
+            payload.team_id,
+            current_user,
+        )
+    )
+    
+    players_map = {
+        player["id"]: player
+        for player in team_players
+    }
+    
+    requested_player_ids = [
+        item.player_id
+        for item in payload.evaluations
+    ]
+    
+    invalid_player_ids = [
+        player_id
+        for player_id in requested_player_ids
+        if player_id not in players_map
+    ]
+    
+    if invalid_player_ids:
         raise HTTPException(
             status_code=400,
-            detail=f"Atletas inválidos para esta equipa: {', '.join(invalid_players)}"
+            detail=(
+                "Atletas inválidos para esta equipa: "
+                + ", ".join(
+                    invalid_player_ids
+                )
+            ),
+        )
+    
+    requested_players = [
+        players_map[player_id]
+        for player_id in requested_player_ids
+    ]
+    
+    players_without_position = [
+        player
+        for player in requested_players
+        if get_player_position_value(
+            player
+        ) is None
+    ]
+    
+    if players_without_position:
+        names = ", ".join(
+            get_player_display_name(
+                player
+            )
+            for player in players_without_position
+        )
+    
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Não é possível iniciar a avaliação porque "
+                "existem atletas sem posição definida: "
+                f"{names}. Define a posição como JC ou GR "
+                "no perfil do atleta."
+            ),
+        )
+    
+    incompatible_players = [
+        player
+        for player in requested_players
+        if not is_player_compatible_with_plan(
+            player=player,
+            plan=plan,
+        )
+    ]
+    
+    if incompatible_players:
+        plan_player_type = (
+            get_plan_player_type(
+                plan
+            )
+        )
+    
+        expected_label = (
+            "guarda-redes"
+            if plan_player_type
+            == "goalkeeper"
+            else "jogadores de campo"
+        )
+    
+        names = ", ".join(
+            get_player_display_name(
+                player
+            )
+            for player in incompatible_players
+        )
+    
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"O plano selecionado destina-se a "
+                f"{expected_label}, mas foram incluídos "
+                f"atletas incompatíveis: {names}."
+            ),
         )
 
     criterion_ids = [
