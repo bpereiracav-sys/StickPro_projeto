@@ -52,6 +52,60 @@ const PLAN_CATEGORY_LABELS = {
   custom: 'Personalizado',
 };
 
+// ============================================================
+// Player Type Helpers
+// Sprint C3.5A.7C
+// ============================================================
+
+function normalizePlayerPosition(position) {
+  const value = String(position || '')
+    .trim()
+    .toLowerCase();
+
+  if (
+    [
+      'gr',
+      'gk',
+      'goalkeeper',
+      'goalie',
+      'guarda-redes',
+      'guarda_redes',
+      'guarda redes',
+    ].includes(value)
+  ) {
+    return 'goalkeeper';
+  }
+
+  if (
+    [
+      'jc',
+      'field_player',
+      'field player',
+      'field',
+      'jogador',
+      'jogador de campo',
+    ].includes(value)
+  ) {
+    return 'field_player';
+  }
+
+  return null;
+}
+
+function getPlanPlayerType(plan) {
+  if (!plan) return 'field_player';
+
+  if (plan.player_type) {
+    return plan.player_type;
+  }
+
+  if (plan.category === 'goalkeeper') {
+    return 'goalkeeper';
+  }
+
+  return 'field_player';
+}
+
 function DevelopmentIcon({ className = '' }) {
   return (
     <svg
@@ -166,6 +220,16 @@ export default function EvaluationExecution() {
       setSelectedPlayerIds([]);
     }
   }, [selectedTeamId]);
+
+  useEffect(() => {
+    setSelectedPlayerIds((current) =>
+      current.filter((id) =>
+        eligiblePlayers.some(
+          (player) => player.id === id
+        )
+      )
+    );
+  }, [eligiblePlayers]);
 
   const fetchInitialData = async () => {
     setLoading(true);
@@ -298,6 +362,32 @@ export default function EvaluationExecution() {
     return players.filter((player) => selectedPlayerIds.includes(player.id));
   }, [players, selectedPlayerIds]);
 
+  const eligiblePlayers = useMemo(() => {
+    if (!selectedPlan) {
+      return players;
+    }
+  
+    const expectedType =
+      getPlanPlayerType(selectedPlan);
+  
+    return players.filter((player) => {
+      const position =
+        player.normalized_position ||
+        normalizePlayerPosition(
+          player.position
+        );
+  
+      if (!position) {
+        return false;
+      }
+  
+      return position === expectedType;
+    });
+  }, [
+    players,
+    selectedPlan,
+  ]);  
+  
   const planCriteria = useMemo(() => {
     return [...(selectedPlan?.criteria || [])].sort(
       (a, b) => (a.order ?? 0) - (b.order ?? 0)
@@ -362,12 +452,19 @@ export default function EvaluationExecution() {
   };
 
   const toggleAllPlayers = () => {
-    if (selectedPlayerIds.length === players.length) {
+    if (
+      selectedPlayerIds.length ===
+      eligiblePlayers.length
+    ) {
       setSelectedPlayerIds([]);
       return;
     }
-
-    setSelectedPlayerIds(players.map((player) => player.id));
+  
+    setSelectedPlayerIds(
+      eligiblePlayers.map(
+        (player) => player.id
+      )
+    );
   };
 
   const goToEvaluationGrid = () => {
@@ -1404,7 +1501,7 @@ export default function EvaluationExecution() {
                     {tr('evaluations.selectPlayers', 'Selecionar atletas')}
                   </p>
                   <p className="text-sm text-slate-500">
-                    {selectedPlayerIds.length}/{players.length}{' '}
+                    {selectedPlayerIds.length}/{eligiblePlayers.length}{' '}
                     {tr('evaluations.playersSelected', 'atletas selecionados')}
                   </p>
                 </div>
@@ -1427,16 +1524,16 @@ export default function EvaluationExecution() {
                 <div className="flex min-h-[240px] items-center justify-center">
                   <Loader2 className="h-8 w-8 animate-spin text-cyan-600" />
                 </div>
-              ) : players.length === 0 ? (
+              ) : eligiblePlayers.length === 0 ? (
                 <div className="rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
                   <Users className="mx-auto mb-3 h-12 w-12 text-slate-300" />
                   <p className="font-semibold text-slate-700">
-                    {tr('evaluations.noPlayersForTeam', 'Não foram encontrados atletas nesta equipa')}
+                    {tr('evaluations.noPlayersForTeam', 'Não existem atletas compatíveis com o tipo de atleta deste plano.')}
                   </p>
                 </div>
               ) : (
                 <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {players.map((player) => {
+                  {eligiblePlayers.map((player) => {
                     const selected = selectedPlayerIds.includes(player.id);
 
                     return (
