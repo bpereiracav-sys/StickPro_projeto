@@ -10,6 +10,13 @@ import { evaluationsApi, teamsApi } from '../services/api';
 import {
   buildPlayerTeamDevelopmentTree,
 } from '../components/development/criteriaTree';
+
+import {
+  buildAutomaticDevelopmentRecommendations,
+  formatRecommendationTrend,
+  getDevelopmentPriorityConfig,
+} from '../components/development/developmentRecommendations';
+
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
 import {
@@ -730,6 +737,307 @@ function InsightList({ title, description, items, tone }) {
             ))}
           </div>
         )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function AutomaticRecommendationsPanel({
+  recommendationsEngine,
+}) {
+  const recommendations =
+    recommendationsEngine?.recommendations || [];
+
+  const primaryRecommendation =
+    recommendationsEngine?.primaryRecommendation || null;
+
+  const priorities =
+    recommendationsEngine?.priorities || [];
+
+  const strengths =
+    recommendationsEngine?.strengths || [];
+
+  if (!recommendationsEngine?.hasData) {
+    return (
+      <Card className="border border-dashed border-slate-200 bg-slate-50">
+        <CardContent className="flex min-h-[220px] flex-col items-center justify-center p-8 text-center">
+          <Sparkles className="mb-3 h-12 w-12 text-slate-300" />
+
+          <p className="font-heading text-xl text-slate-900">
+            Recomendações ainda indisponíveis
+          </p>
+
+          <p className="mt-2 max-w-lg text-sm leading-6 text-slate-500">
+            São necessárias avaliações com critérios e pontuações
+            válidas para gerar recomendações automáticas.
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const primaryPriorityConfig =
+    primaryRecommendation
+      ? getDevelopmentPriorityConfig(
+          primaryRecommendation.priority
+        )
+      : null;
+
+  return (
+    <Card className="overflow-hidden border border-cyan-100 bg-white shadow-xl shadow-slate-200/60">
+      <CardHeader className="border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-violet-50">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-cyan-600" />
+
+              Recomendações Inteligentes
+            </CardTitle>
+
+            <CardDescription>
+              Orientações automáticas calculadas a partir das
+              avaliações e da evolução recente do atleta.
+            </CardDescription>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Badge
+              variant="outline"
+              className="rounded-full border-amber-200 bg-amber-50 text-amber-700"
+            >
+              <Target className="mr-1 h-3.5 w-3.5" />
+
+              {priorities.length}{' '}
+              {priorities.length === 1
+                ? 'prioridade'
+                : 'prioridades'}
+            </Badge>
+
+            <Badge
+              variant="outline"
+              className="rounded-full border-emerald-200 bg-emerald-50 text-emerald-700"
+            >
+              <TrendingUp className="mr-1 h-3.5 w-3.5" />
+
+              {strengths.length}{' '}
+              {strengths.length === 1
+                ? 'ponto forte'
+                : 'pontos fortes'}
+            </Badge>
+          </div>
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-5 p-5">
+        {primaryRecommendation && (
+          <div className="overflow-hidden rounded-3xl border border-cyan-200 bg-gradient-to-br from-cyan-50 via-white to-blue-50">
+            <div className="border-b border-cyan-100 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+                    Recomendação principal
+                  </p>
+
+                  <h3 className="mt-1 font-heading text-2xl text-slate-950">
+                    {primaryRecommendation.criterionName}
+                  </h3>
+
+                  <p className="mt-1 text-sm text-slate-500">
+                    {[
+                      primaryRecommendation.domainLabel,
+                      primaryRecommendation.subdomainLabel,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                </div>
+
+                <Badge
+                  variant="outline"
+                  className={
+                    primaryPriorityConfig?.className ||
+                    'border-slate-200 bg-slate-50 text-slate-700'
+                  }
+                >
+                  {primaryPriorityConfig?.label ||
+                    primaryRecommendation.priorityLabel}
+                </Badge>
+              </div>
+            </div>
+
+            <div className="grid gap-4 p-4 lg:grid-cols-[1fr_220px]">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Objetivo sugerido
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  {primaryRecommendation.objective}
+                </p>
+
+                {primaryRecommendation.coachMessage && (
+                  <div className="mt-4 rounded-2xl border border-white bg-white/80 p-3">
+                    <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+                      Orientação ao treinador
+                    </p>
+
+                    <p className="mt-1 text-sm leading-6 text-slate-600">
+                      {primaryRecommendation.coachMessage}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-2xl border border-white bg-white/80 p-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                  Índice de desenvolvimento
+                </p>
+
+                <p className="mt-2 font-heading text-4xl text-slate-950">
+                  {Number(
+                    primaryRecommendation.recommendationIndex || 0
+                  ).toFixed(0)}
+                  <span className="text-lg text-slate-400">
+                    /100
+                  </span>
+                </p>
+
+                <p className="mt-2 text-xs text-slate-500">
+                  {formatRecommendationTrend(
+                    primaryRecommendation.trend
+                  )}
+                </p>
+
+                <p className="mt-1 text-xs text-slate-400">
+                  {primaryRecommendation.evaluationCount}{' '}
+                  {primaryRecommendation.evaluationCount === 1
+                    ? 'avaliação considerada'
+                    : 'avaliações consideradas'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {recommendations.length > 0 && (
+          <div>
+            <div className="mb-3">
+              <p className="font-heading text-lg text-slate-950">
+                Recomendações por competência
+              </p>
+
+              <p className="text-sm text-slate-500">
+                Prioridades ordenadas pelo nível de necessidade de
+                intervenção.
+              </p>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-2">
+              {recommendations.map((recommendation) => {
+                const priorityConfig =
+                  getDevelopmentPriorityConfig(
+                    recommendation.priority
+                  );
+
+                return (
+                  <div
+                    key={recommendation.id}
+                    className="rounded-3xl border border-slate-200 bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-slate-950">
+                          {recommendation.criterionName}
+                        </p>
+
+                        <p className="mt-1 text-xs text-slate-500">
+                          {[
+                            recommendation.domainLabel,
+                            recommendation.subdomainLabel,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      </div>
+
+                      <Badge
+                        variant="outline"
+                        className={priorityConfig.className}
+                      >
+                        {priorityConfig.shortLabel}
+                      </Badge>
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-2 gap-2">
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                          Resultado
+                        </p>
+
+                        <p className="mt-1 font-heading text-2xl text-slate-900">
+                          {Number(
+                            recommendation.recommendationIndex || 0
+                          ).toFixed(0)}
+                          <span className="text-sm text-slate-400">
+                            /100
+                          </span>
+                        </p>
+                      </div>
+
+                      <div className="rounded-2xl bg-slate-50 p-3">
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
+                          Tendência
+                        </p>
+
+                        <p className="mt-2 text-xs font-semibold text-slate-700">
+                          {formatRecommendationTrend(
+                            recommendation.trend
+                          )}
+                        </p>
+                      </div>
+                    </div>
+
+                    <p className="mt-3 text-sm leading-6 text-slate-600">
+                      {recommendation.objective}
+                    </p>
+
+                    {recommendation.trainingFocus?.length > 0 && (
+                      <div className="mt-3 border-t border-slate-100 pt-3">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                          Focos de treino
+                        </p>
+
+                        <div className="mt-2 space-y-2">
+                          {recommendation.trainingFocus
+                            .slice(0, 3)
+                            .map((focus, index) => (
+                              <div
+                                key={`${recommendation.id}-focus-${index}`}
+                                className="flex items-start gap-2 text-sm text-slate-600"
+                              >
+                                <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" />
+
+                                <span>{focus}</span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+          <p className="text-xs leading-5 text-slate-500">
+            Estas recomendações são geradas automaticamente através
+            de regras de desenvolvimento e das avaliações disponíveis.
+            Devem ser interpretadas pelo treinador no contexto do
+            atleta, equipa, escalão e momento da época.
+          </p>
+        </div>
       </CardContent>
     </Card>
   );
@@ -1744,6 +2052,16 @@ const selectedPlayer =
     selectedPlayerId,
   ]);
 
+  const automaticRecommendations =
+    useMemo(
+      () =>
+        buildAutomaticDevelopmentRecommendations({
+          evaluations: filteredEvaluations,
+          maximumRecommendations: 8,
+        }),
+      [filteredEvaluations]
+    );
+  
   const effectiveTeamDifference =
     developmentMetrics?.difference !== null &&
     developmentMetrics?.difference !== undefined
@@ -2002,6 +2320,12 @@ const selectedPlayer =
               accent="amber"
             />
           </div>
+
+          <AutomaticRecommendationsPanel
+            recommendationsEngine={
+              automaticRecommendations
+            }
+          />
 
           {canManageHistory && (
           <Card className="overflow-hidden border border-violet-100 bg-white shadow-xl shadow-slate-200/60">
