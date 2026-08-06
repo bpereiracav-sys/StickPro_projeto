@@ -725,6 +725,161 @@ const normalizeEvaluationScores = ({
   return normalized;
 };
 
+const groupScoresByCriterion = (
+  normalizedScores = []
+) => {
+  const groups = new Map();
+
+  normalizedScores.forEach(
+    (scoreEntry) => {
+      const key =
+        scoreEntry.criterionKey;
+
+      if (!key) {
+        return;
+      }
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          criterionKey: key,
+
+          criterionId:
+            scoreEntry.criterionId ||
+            null,
+
+          criterionCode:
+            scoreEntry.criterionCode ||
+            null,
+
+          criterionName:
+            scoreEntry.criterionName ||
+            'Critério',
+
+          criterionDescription:
+            scoreEntry
+              .criterionDescription ||
+            null,
+
+          domainId:
+            scoreEntry.domainId ||
+            'other',
+
+          domainLabel:
+            scoreEntry.domainLabel ||
+            'Outro',
+
+          subdomainId:
+            scoreEntry.subdomainId ||
+            'general',
+
+          subdomainLabel:
+            scoreEntry.subdomainLabel ||
+            'Geral',
+
+          expectedLevels:
+            Array.isArray(
+              scoreEntry.expectedLevels
+            )
+              ? scoreEntry.expectedLevels
+              : [],
+
+          teamId:
+            scoreEntry.teamId ||
+            null,
+
+          ageGroup:
+            scoreEntry.ageGroup ||
+            null,
+
+          playerType:
+            scoreEntry.playerType ||
+            null,
+
+          entries: [],
+        });
+      }
+
+      const group =
+        groups.get(key);
+
+      /*
+       * Preserva os metadados mais completos encontrados
+       * nas várias avaliações históricas do critério.
+       */
+
+      if (
+        (
+          !Array.isArray(
+            group.expectedLevels
+          ) ||
+          group.expectedLevels.length === 0
+        ) &&
+        Array.isArray(
+          scoreEntry.expectedLevels
+        ) &&
+        scoreEntry.expectedLevels.length > 0
+      ) {
+        group.expectedLevels =
+          scoreEntry.expectedLevels;
+      }
+
+      if (
+        !group.teamId &&
+        scoreEntry.teamId
+      ) {
+        group.teamId =
+          scoreEntry.teamId;
+      }
+
+      if (
+        !group.ageGroup &&
+        scoreEntry.ageGroup
+      ) {
+        group.ageGroup =
+          scoreEntry.ageGroup;
+      }
+
+      if (
+        !group.playerType &&
+        scoreEntry.playerType
+      ) {
+        group.playerType =
+          scoreEntry.playerType;
+      }
+
+      if (
+        (
+          !group.criterionName ||
+          group.criterionName ===
+            'Critério'
+        ) &&
+        scoreEntry.criterionName
+      ) {
+        group.criterionName =
+          scoreEntry.criterionName;
+      }
+
+      if (
+        !group.criterionDescription &&
+        scoreEntry
+          .criterionDescription
+      ) {
+        group.criterionDescription =
+          scoreEntry
+            .criterionDescription;
+      }
+
+      group.entries.push(
+        scoreEntry
+      );
+    }
+  );
+
+  return Array.from(
+    groups.values()
+  );
+};
+
 const calculateCriterionTrend = (
   entries = []
 ) => {
