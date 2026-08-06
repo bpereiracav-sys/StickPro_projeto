@@ -1625,7 +1625,7 @@ const buildCriterionRecommendation = (
     calculateCriterionTrend(
       group.entries
     );
-
+  
   const intelligentDevelopmentIndex =
     calculateIntelligentDevelopmentIndex({
       recommendationIndex,
@@ -1651,6 +1651,21 @@ const buildCriterionRecommendation = (
       entries:
         group.entries,
     });
+  
+  const priority =
+    resolvePriority({
+      idiScore:
+        intelligentDevelopmentIndex.score,
+  
+      expectedComparison,
+  
+      recommendationIndex,
+    });
+  
+  const priorityConfig =
+    DEVELOPMENT_PRIORITY_CONFIG[
+      priority
+    ];
   
   return {
     id:
@@ -1974,6 +1989,263 @@ const groupRecommendationsByDomain = (
  * - recomendação principal.
  */
 
+// ============================================================
+// Intelligent Development Index by Competency
+// Sprint C3.5B.4A
+// ============================================================
+
+export function buildCompetencyIDI(
+  recommendations = []
+) {
+  const groups = new Map();
+
+  recommendations.forEach(
+    (recommendation) => {
+      const key =
+        recommendation.subdomainId ||
+        recommendation.domainId ||
+        'general';
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          id: key,
+
+          name:
+            recommendation.subdomainLabel ||
+            recommendation.domainLabel ||
+            'Competência',
+
+          domainId:
+            recommendation.domainId ||
+            'other',
+
+          domainName:
+            recommendation.domainLabel ||
+            'Outro',
+
+          recommendations: [],
+        });
+      }
+
+      groups
+        .get(key)
+        .recommendations.push(
+          recommendation
+        );
+    }
+  );
+
+  return Array.from(
+    groups.values()
+  )
+    .map((group) => {
+      const idiScores =
+        group.recommendations
+          .map(
+            (item) =>
+              Number(
+                item.idiScore
+              )
+          )
+          .filter(
+            Number.isFinite
+          );
+
+      const averageIDI =
+        idiScores.length > 0
+          ? roundValue(
+              idiScores.reduce(
+                (sum, value) =>
+                  sum + value,
+                0
+              ) /
+                idiScores.length,
+              1
+            )
+          : null;
+
+      const strengths =
+        group.recommendations.filter(
+          (item) =>
+            item.priority ===
+            'strength'
+        ).length;
+
+      const critical =
+        group.recommendations.filter(
+          (item) =>
+            item.priority ===
+            'critical'
+        ).length;
+
+      const high =
+        group.recommendations.filter(
+          (item) =>
+            item.priority ===
+            'high'
+        ).length;
+
+      const moderate =
+        group.recommendations.filter(
+          (item) =>
+            item.priority ===
+            'moderate'
+        ).length;
+
+      const consolidation =
+        group.recommendations.filter(
+          (item) =>
+            item.priority ===
+            'consolidation'
+        ).length;
+
+      let status =
+        'unknown';
+
+      let statusLabel =
+        'Sem dados suficientes';
+
+      if (
+        Number.isFinite(
+          averageIDI
+        )
+      ) {
+        if (averageIDI < 35) {
+          status =
+            'critical';
+
+          statusLabel =
+            'Desenvolvimento prioritário';
+        } else if (
+          averageIDI < 55
+        ) {
+          status =
+            'attention';
+
+          statusLabel =
+            'Necessita de atenção';
+        } else if (
+          averageIDI < 75
+        ) {
+          status =
+            'progressing';
+
+          statusLabel =
+            'Em desenvolvimento';
+        } else if (
+          averageIDI < 90
+        ) {
+          status =
+            'expected';
+
+          statusLabel =
+            'Dentro do esperado';
+        } else {
+          status =
+            'advanced';
+
+          statusLabel =
+            'Desempenho avançado';
+        }
+      }
+
+      return {
+        id: group.id,
+
+        name: group.name,
+
+        domainId:
+          group.domainId,
+
+        domainName:
+          group.domainName,
+
+        idiScore:
+          averageIDI,
+
+        status,
+
+        statusLabel,
+
+        recommendationCount:
+          group.recommendations
+            .length,
+
+        strengths,
+
+        critical,
+
+        high,
+
+        moderate,
+
+        consolidation,
+
+        recommendations:
+          group.recommendations,
+      };
+    })
+    .sort(
+      (first, second) => {
+        const firstScore =
+          Number(
+            first.idiScore
+          );
+
+        const secondScore =
+          Number(
+            second.idiScore
+          );
+
+        if (
+          Number.isFinite(
+            firstScore
+          ) &&
+          Number.isFinite(
+            secondScore
+          )
+        ) {
+          return (
+            firstScore -
+            secondScore
+          );
+        }
+
+        if (
+          Number.isFinite(
+            firstScore
+          )
+        ) {
+          return -1;
+        }
+
+        if (
+          Number.isFinite(
+            secondScore
+          )
+        ) {
+          return 1;
+        }
+
+        return first.name.localeCompare(
+          second.name
+        );
+      }
+    );
+}
+
+
+/**
+ * Função principal do motor.
+ *
+ * Recebe as avaliações completas do atleta e devolve:
+ * - recomendações por critério;
+ * - prioridades;
+ * - pontos fortes;
+ * - síntese por domínio;
+ * - IDI por competência;
+ * - recomendação principal.
+ */
 export function buildAutomaticDevelopmentRecommendations({
   evaluations = [],
   criteria = [],
@@ -2022,11 +2294,6 @@ export function buildAutomaticDevelopmentRecommendations({
             return priorityDifference;
           }
 
-          /*
-           * Quando ambos possuem intervalos esperados,
-           * a maior distância abaixo do mínimo aparece
-           * primeiro.
-           */
           if (
             first.usesExpectedLevel &&
             second.usesExpectedLevel
@@ -2062,12 +2329,12 @@ export function buildAutomaticDevelopmentRecommendations({
             Number(
               first.idiScore
             );
-          
+
           const secondIdi =
             Number(
               second.idiScore
             );
-          
+
           if (
             Number.isFinite(
               firstIdi
@@ -2075,14 +2342,15 @@ export function buildAutomaticDevelopmentRecommendations({
             Number.isFinite(
               secondIdi
             ) &&
-            firstIdi !== secondIdi
+            firstIdi !==
+              secondIdi
           ) {
             return (
               firstIdi -
               secondIdi
             );
           }
-          
+
           return (
             first.recommendationIndex -
             second.recommendationIndex
@@ -2120,7 +2388,8 @@ export function buildAutomaticDevelopmentRecommendations({
     allRecommendations.filter(
       (recommendation) =>
         recommendation
-          .usesExpectedLevel === true
+          .usesExpectedLevel ===
+        true
     );
 
   const recommendationsBelowExpected =
@@ -2160,6 +2429,11 @@ export function buildAutomaticDevelopmentRecommendations({
 
   const domains =
     groupRecommendationsByDomain(
+      allRecommendations
+    );
+
+  const competencyIDI =
+    buildCompetencyIDI(
       allRecommendations
     );
 
@@ -2207,6 +2481,9 @@ export function buildAutomaticDevelopmentRecommendations({
       recommendationsAboveExpected
         .length,
 
+    competencyCount:
+      competencyIDI.length,
+
     recommendations:
       visibleRecommendations,
 
@@ -2228,11 +2505,8 @@ export function buildAutomaticDevelopmentRecommendations({
 
     domains,
 
-    competencyIDI:
-      buildCompetencyIDI(
-        allRecommendations
-      ),
-    
+    competencyIDI,
+
     primaryRecommendation:
       priorities[0] ||
       recommendationsBelowExpected[0] ||
@@ -2240,158 +2514,6 @@ export function buildAutomaticDevelopmentRecommendations({
       strengths[0] ||
       null,
   };
-  // ============================================================
-  // Intelligent Development Index by Competency
-  // Sprint C3.5B.4A
-  // ============================================================
-  
-  export function buildCompetencyIDI(
-    recommendations = []
-  ) {
-    const groups = new Map();
-  
-    recommendations.forEach(
-      (recommendation) => {
-        const key =
-          recommendation.subdomainId ||
-          recommendation.domainId ||
-          'general';
-  
-        if (!groups.has(key)) {
-          groups.set(key, {
-            id: key,
-  
-            name:
-              recommendation.subdomainLabel ||
-              recommendation.domainLabel ||
-              'Competência',
-  
-            recommendations: [],
-          });
-        }
-  
-        groups
-          .get(key)
-          .recommendations.push(
-            recommendation
-          );
-      }
-    );
-  
-    return Array.from(
-      groups.values()
-    )
-      .map((group) => {
-        const idiScores =
-          group.recommendations
-            .map(
-              (item) =>
-                Number(
-                  item.idiScore
-                )
-            )
-            .filter(
-              Number.isFinite
-            );
-  
-        const averageIDI =
-          idiScores.length > 0
-            ? roundValue(
-                idiScores.reduce(
-                  (sum, value) =>
-                    sum + value,
-                  0
-                ) /
-                  idiScores.length,
-                1
-              )
-            : 0;
-  
-        const strengths =
-          group.recommendations.filter(
-            (item) =>
-              item.priority ===
-              'strength'
-          ).length;
-  
-        const critical =
-          group.recommendations.filter(
-            (item) =>
-              item.priority ===
-              'critical'
-          ).length;
-  
-        const high =
-          group.recommendations.filter(
-            (item) =>
-              item.priority ===
-              'high'
-          ).length;
-  
-        const moderate =
-          group.recommendations.filter(
-            (item) =>
-              item.priority ===
-              'moderate'
-          ).length;
-  
-        let status =
-          'expected';
-  
-        if (
-          averageIDI < 35
-        ) {
-          status =
-            'critical';
-        } else if (
-          averageIDI < 55
-        ) {
-          status =
-            'attention';
-        } else if (
-          averageIDI < 75
-        ) {
-          status =
-            'progressing';
-        } else if (
-          averageIDI >= 90
-        ) {
-          status =
-            'advanced';
-        }
-  
-        return {
-          id: group.id,
-  
-          name: group.name,
-  
-          idiScore:
-            averageIDI,
-  
-          status,
-  
-          recommendationCount:
-            group.recommendations
-              .length,
-  
-          strengths,
-  
-          critical,
-  
-          high,
-  
-          moderate,
-  
-          recommendations:
-            group.recommendations,
-        };
-      })
-      .sort(
-        (a, b) =>
-          a.idiScore -
-          b.idiScore
-      );
-  }
 }
 
 export function getDevelopmentPriorityConfig(
