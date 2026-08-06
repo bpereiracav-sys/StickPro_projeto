@@ -1497,6 +1497,13 @@ class EvaluationCriterionCreate(BaseModel):
     scale_max: int = 5
     weight: float = 1.0
     team_id: Optional[str] = None
+
+    expected_levels: List[
+        ExpectedDevelopmentLevel
+    ] = Field(
+        default_factory=list
+    )
+    
     is_active: bool = True
 
 
@@ -1510,24 +1517,83 @@ class EvaluationCriterion(BaseModel):
     scale_min: int = 1
     scale_max: int = 5
     weight: float = 1.0
+
     team_id: Optional[str] = None
+    
     club_id: Optional[str] = None
+    
+    
+    # ========================================================
+    # Níveis esperados oficiais StickPro
+    # ========================================================
+    
+    expected_levels: List[
+        ExpectedDevelopmentLevel
+    ] = Field(
+        default_factory=list
+    )
     is_active: bool = True
     created_by: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class EvaluationCriterionUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    category: Optional[EvaluationCriterionCategory] = None
-    scale_min: Optional[int] = None
-    scale_max: Optional[int] = None
-    weight: Optional[float] = None
+# ============================================================
+# StickPro Intelligent Development Levels
+# Sprint C3.5B.2
+# ============================================================
+
+class ExpectedDevelopmentLevel(BaseModel):
+    """
+    Intervalo esperado para uma competência.
+
+    Pode ser utilizado para:
+
+    - valor geral
+    - escalão
+    - posição
+    - equipa
+    - futuras versões (competição, género, etc.)
+    """
+
+    age_group: Optional[str] = None
+
+    player_type: Optional[
+        EvaluationPlanPlayerType
+    ] = None
+
     team_id: Optional[str] = None
+
+    minimum: float
+
+    maximum: float
+
+
+class EvaluationCriterionUpdate(BaseModel):
+
+    name: Optional[str] = None
+
+    description: Optional[str] = None
+
+    category: Optional[
+        EvaluationCriterionCategory
+    ] = None
+
+    scale_min: Optional[int] = None
+
+    scale_max: Optional[int] = None
+
+    weight: Optional[float] = None
+
+    team_id: Optional[str] = None
+
     is_active: Optional[bool] = None
 
+    expected_levels: Optional[
+        List[
+            ExpectedDevelopmentLevel
+        ]
+    ] = None
 
 class PlayerEvaluationScore(BaseModel):
     criterion_id: str
