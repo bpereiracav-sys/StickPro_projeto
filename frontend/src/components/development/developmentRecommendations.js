@@ -1571,96 +1571,83 @@ const buildCriterionRecommendation = (
       1
     );
 
-  const {
-    expectedLevel,
-    comparison:
-      expectedComparison,
-  } =
-    resolveAndCompareExpectedLevel({
-      expectedLevels:
-        group.expectedLevels ||
-        [],
-
-      score:
-        latestEntry?.score ??
-        null,
-
-      teamId:
-        group.teamId ||
-        latestEntry?.teamId ||
-        null,
-
-      ageGroup:
-        group.ageGroup ||
-        latestEntry?.ageGroup ||
-        null,
-
-      playerType:
-        group.playerType ||
-        latestEntry?.playerType ||
-        null,
-    });
-
-  /*
-   * Neste primeiro deploy mantemos a classificação
-   * percentual. No próximo sprint, resolvePriority
-   * passará a considerar expectedComparison.
-   */
-  const priority =
-    resolvePriority({
-      idiScore:
-        intelligentDevelopmentIndex.score,
-  
-      expectedComparison,
-  
-      recommendationIndex,
-    });
-
-  const priorityConfig =
-    DEVELOPMENT_PRIORITY_CONFIG[
-      priority
-    ];
-
-  const trend =
-    calculateCriterionTrend(
-      group.entries
-    );
-  
-  const intelligentDevelopmentIndex =
-    calculateIntelligentDevelopmentIndex({
-      recommendationIndex,
-  
+    const {
       expectedLevel,
+      comparison:
+        expectedComparison,
+    } =
+      resolveAndCompareExpectedLevel({
+        expectedLevels:
+          group.expectedLevels ||
+          [],
   
-      expectedComparison,
+        score:
+          latestEntry?.score ??
+          null,
   
-      latestScore:
-        latestEntry?.score ??
-        null,
+        teamId:
+          group.teamId ||
+          latestEntry?.teamId ||
+          null,
   
-      scaleMin:
-        latestEntry?.scaleMin ??
-        DEFAULT_SCALE_MIN,
+        ageGroup:
+          group.ageGroup ||
+          latestEntry?.ageGroup ||
+          null,
   
-      scaleMax:
-        latestEntry?.scaleMax ??
-        DEFAULT_SCALE_MAX,
+        playerType:
+          group.playerType ||
+          latestEntry?.playerType ||
+          null,
+      });
   
-      trend,
+    const trend =
+      calculateCriterionTrend(
+        group.entries
+      );
   
-      entries:
-        group.entries,
-    });
+    const intelligentDevelopmentIndex =
+      calculateIntelligentDevelopmentIndex({
+        recommendationIndex,
   
-  const priority =
-    resolvePriority({
-      idiScore:
-        intelligentDevelopmentIndex.score,
+        expectedLevel,
   
-      expectedComparison,
+        expectedComparison,
   
-      recommendationIndex,
-    });
+        latestScore:
+          latestEntry?.score ??
+          null,
+  
+        scaleMin:
+          latestEntry?.scaleMin ??
+          DEFAULT_SCALE_MIN,
+  
+        scaleMax:
+          latestEntry?.scaleMax ??
+          DEFAULT_SCALE_MAX,
+  
+        trend,
+  
+        entries:
+          group.entries,
+      });
+  
+    const priority =
+      resolvePriority({
+        idiScore:
+          intelligentDevelopmentIndex.score,
+  
+        expectedComparison,
+  
+        recommendationIndex,
+      });
+  
+    const priorityConfig =
+      DEVELOPMENT_PRIORITY_CONFIG[
+        priority
+      ];
+  
+    return {
   
   const priorityConfig =
     DEVELOPMENT_PRIORITY_CONFIG[
