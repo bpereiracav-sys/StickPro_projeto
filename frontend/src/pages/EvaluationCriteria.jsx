@@ -126,6 +126,60 @@ const CATEGORY_CONFIG = {
   },
 };
 
+const EXPECTED_LEVEL_AGE_GROUPS = [
+  {
+    value: 'general',
+    label: 'Geral',
+  },
+  {
+    value: 'sub7',
+    label: 'Sub-7',
+  },
+  {
+    value: 'sub9',
+    label: 'Sub-9',
+  },
+  {
+    value: 'sub11',
+    label: 'Sub-11',
+  },
+  {
+    value: 'sub13',
+    label: 'Sub-13',
+  },
+  {
+    value: 'sub15',
+    label: 'Sub-15',
+  },
+  {
+    value: 'sub17',
+    label: 'Sub-17',
+  },
+  {
+    value: 'sub19',
+    label: 'Sub-19',
+  },
+  {
+    value: 'senior',
+    label: 'Sénior',
+  },
+];
+
+const EXPECTED_LEVEL_PLAYER_TYPES = [
+  {
+    value: 'all',
+    label: 'Todos os atletas',
+  },
+  {
+    value: 'field_player',
+    label: 'Jogador de campo',
+  },
+  {
+    value: 'goalkeeper',
+    label: 'Guarda-redes',
+  },
+];
+
 const EMPTY_FORM = {
   name: '',
   description: '',
@@ -135,7 +189,6 @@ const EMPTY_FORM = {
   weight: 1,
   team_id: 'global',
   is_active: true,
-
   expected_levels: [],
 };
 
@@ -194,27 +247,41 @@ export default function EvaluationCriteria() {
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
   const addExpectedLevel = () => {
-    setForm((prev) => ({
-      ...prev,
+    setForm((current) => ({
+      ...current,
+  
       expected_levels: [
-        ...(prev.expected_levels || []),
+        ...(current.expected_levels || []),
+  
         {
-          age_group: '',
-          player_type: 'field_player',
-          team_id: '',
-          expected_min: 3,
-          expected_max: 4,
+          age_group: null,
+          player_type: null,
+          team_id: null,
+          minimum: Number(
+            current.scale_min
+          ) || 1,
+          maximum: Number(
+            current.scale_max
+          ) || 5,
         },
       ],
     }));
   };
   
-  const removeExpectedLevel = (index) => {
-    setForm((prev) => ({
-      ...prev,
-      expected_levels: prev.expected_levels.filter(
-        (_, i) => i !== index
-      ),
+  const removeExpectedLevel = (
+    index
+  ) => {
+    setForm((current) => ({
+      ...current,
+  
+      expected_levels:
+        (
+          current.expected_levels ||
+          []
+        ).filter(
+          (_, itemIndex) =>
+            itemIndex !== index
+        ),
     }));
   };
   
@@ -223,17 +290,76 @@ export default function EvaluationCriteria() {
     field,
     value
   ) => {
-    setForm((prev) => ({
-      ...prev,
-      expected_levels: prev.expected_levels.map(
-        (item, i) =>
-          i === index
-            ? {
+    setForm((current) => ({
+      ...current,
+  
+      expected_levels:
+        (
+          current.expected_levels ||
+          []
+        ).map(
+          (item, itemIndex) => {
+            if (
+              itemIndex !== index
+            ) {
+              return item;
+            }
+  
+            if (
+              field === 'minimum' ||
+              field === 'maximum'
+            ) {
+              return {
                 ...item,
-                [field]: value,
-              }
-            : item
-      ),
+                [field]:
+                  value === ''
+                    ? ''
+                    : Number(value),
+              };
+            }
+  
+            if (
+              field === 'age_group'
+            ) {
+              return {
+                ...item,
+                age_group:
+                  value === 'general'
+                    ? null
+                    : value,
+              };
+            }
+  
+            if (
+              field === 'player_type'
+            ) {
+              return {
+                ...item,
+                player_type:
+                  value === 'all'
+                    ? null
+                    : value,
+              };
+            }
+  
+            if (
+              field === 'team_id'
+            ) {
+              return {
+                ...item,
+                team_id:
+                  value === 'global'
+                    ? null
+                    : value,
+              };
+            }
+  
+            return {
+              ...item,
+              [field]: value,
+            };
+          }
+        ),
     }));
   };
   
@@ -296,7 +422,35 @@ const fetchData = async () => {
       is_active: criterion.is_active !== false,
 
       expected_levels:
-        criterion.expected_levels || [],
+        Array.isArray(
+          criterion.expected_levels
+        )
+          ? criterion.expected_levels.map(
+              (level) => ({
+                age_group:
+                  level?.age_group ||
+                  null,
+      
+                player_type:
+                  level?.player_type ||
+                  null,
+      
+                team_id:
+                  level?.team_id ||
+                  null,
+      
+                minimum:
+                  Number(
+                    level?.minimum
+                  ),
+      
+                maximum:
+                  Number(
+                    level?.maximum
+                  ),
+              })
+            )
+          : [],
     });
     setDialogOpen(true);
   };
@@ -316,7 +470,88 @@ const fetchData = async () => {
       );
       return;
     }
-
+    const normalizedExpectedLevels =
+      (
+        form.expected_levels ||
+        []
+      ).map((level) => ({
+        age_group:
+          level?.age_group ||
+          null,
+    
+        player_type:
+          level?.player_type ||
+          null,
+    
+        team_id:
+          level?.team_id ||
+          null,
+    
+        minimum:
+          Number(
+            level?.minimum
+          ),
+    
+        maximum:
+          Number(
+            level?.maximum
+          ),
+      }));
+    
+    const invalidExpectedLevel =
+      normalizedExpectedLevels.find(
+        (level) =>
+          !Number.isFinite(
+            level.minimum
+          ) ||
+          !Number.isFinite(
+            level.maximum
+          ) ||
+          level.minimum >=
+            level.maximum ||
+          level.minimum <
+            Number(
+              form.scale_min
+            ) ||
+          level.maximum >
+            Number(
+              form.scale_max
+            )
+      );
+    
+    if (invalidExpectedLevel) {
+      toast.error(
+        `Cada intervalo esperado deve estar dentro da escala ${form.scale_min}–${form.scale_max} e o mínimo deve ser inferior ao máximo.`
+      );
+    
+      return;
+    }
+    
+    const expectedLevelKeys =
+      normalizedExpectedLevels.map(
+        (level) =>
+          [
+            level.age_group ||
+              '*',
+            level.player_type ||
+              '*',
+            level.team_id ||
+              '*',
+          ].join('|')
+      );
+    
+    if (
+      new Set(
+        expectedLevelKeys
+      ).size !==
+      expectedLevelKeys.length
+    ) {
+      toast.error(
+        'Existem níveis esperados repetidos para o mesmo escalão, tipo de atleta e equipa.'
+      );
+    
+      return;
+    }
     setSaving(true);
 
     try {
@@ -331,7 +566,7 @@ const fetchData = async () => {
         is_active: Boolean(form.is_active),
 
         expected_levels:
-          form.expected_levels || [],
+          normalizedExpectedLevels,
       };
 
       if (editingCriterion?.id) {
@@ -775,7 +1010,7 @@ const fetchData = async () => {
       </Card>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl bg-white">
+        <DialogContent className="max-h-[90vh] max-w-4xl overflow-y-auto bg-white">
           <DialogHeader>
             <DialogTitle>
               {editingCriterion
@@ -913,6 +1148,314 @@ const fetchData = async () => {
                   }
                 />
               </div>
+            </div>
+            <div className="rounded-3xl border border-cyan-100 bg-gradient-to-br from-cyan-50/70 via-white to-slate-50 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <p className="font-heading text-lg text-slate-950">
+                    Níveis esperados
+                  </p>
+            
+                  <p className="mt-1 max-w-xl text-sm leading-6 text-slate-500">
+                    Define intervalos de desempenho esperados por escalão,
+                    tipo de atleta ou equipa. Um contexto sem seleção funciona
+                    como padrão geral.
+                  </p>
+                </div>
+            
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 rounded-full border-cyan-200 bg-white text-cyan-700 hover:bg-cyan-50"
+                  onClick={addExpectedLevel}
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+            
+                  Adicionar intervalo
+                </Button>
+              </div>
+            
+              {(form.expected_levels || []).length === 0 ? (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-5 text-center">
+                  <Target className="mx-auto h-8 w-8 text-slate-300" />
+            
+                  <p className="mt-2 font-semibold text-slate-700">
+                    Sem níveis configurados
+                  </p>
+            
+                  <p className="mt-1 text-xs leading-5 text-slate-500">
+                    Enquanto não existir um intervalo definido, o motor
+                    utilizará as regras gerais de desenvolvimento.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-4 space-y-3">
+                  {(form.expected_levels || []).map(
+                    (level, index) => {
+                      const ageGroupValue =
+                        level?.age_group ||
+                        'general';
+            
+                      const playerTypeValue =
+                        level?.player_type ||
+                        'all';
+            
+                      const teamValue =
+                        level?.team_id ||
+                        'global';
+            
+                      const intervalValid =
+                        Number.isFinite(
+                          Number(
+                            level?.minimum
+                          )
+                        ) &&
+                        Number.isFinite(
+                          Number(
+                            level?.maximum
+                          )
+                        ) &&
+                        Number(
+                          level.minimum
+                        ) <
+                          Number(
+                            level.maximum
+                          ) &&
+                        Number(
+                          level.minimum
+                        ) >=
+                          Number(
+                            form.scale_min
+                          ) &&
+                        Number(
+                          level.maximum
+                        ) <=
+                          Number(
+                            form.scale_max
+                          );
+            
+                      return (
+                        <div
+                          key={`expected-level-${index}`}
+                          className={`rounded-2xl border bg-white p-4 ${
+                            intervalValid
+                              ? 'border-slate-200'
+                              : 'border-red-200 ring-2 ring-red-50'
+                          }`}
+                        >
+                          <div className="mb-3 flex items-start justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-slate-900">
+                                Intervalo esperado {index + 1}
+                              </p>
+            
+                              <p className="mt-0.5 text-xs text-slate-500">
+                                Define o contexto em que este intervalo deverá
+                                ser aplicado.
+                              </p>
+                            </div>
+            
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9 shrink-0 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
+                              onClick={() =>
+                                removeExpectedLevel(
+                                  index
+                                )
+                              }
+                              aria-label="Remover intervalo"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+            
+                          <div className="grid gap-3 md:grid-cols-3">
+                            <div className="grid gap-2">
+                              <Label>
+                                Escalão
+                              </Label>
+            
+                              <Select
+                                value={ageGroupValue}
+                                onValueChange={(value) =>
+                                  updateExpectedLevel(
+                                    index,
+                                    'age_group',
+                                    value
+                                  )
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+            
+                                <SelectContent className="bg-white">
+                                  {EXPECTED_LEVEL_AGE_GROUPS.map(
+                                    (item) => (
+                                      <SelectItem
+                                        key={item.value}
+                                        value={item.value}
+                                      >
+                                        {item.label}
+                                      </SelectItem>
+                                    )
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+            
+                            <div className="grid gap-2">
+                              <Label>
+                                Tipo de atleta
+                              </Label>
+            
+                              <Select
+                                value={playerTypeValue}
+                                onValueChange={(value) =>
+                                  updateExpectedLevel(
+                                    index,
+                                    'player_type',
+                                    value
+                                  )
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+            
+                                <SelectContent className="bg-white">
+                                  {EXPECTED_LEVEL_PLAYER_TYPES.map(
+                                    (item) => (
+                                      <SelectItem
+                                        key={item.value}
+                                        value={item.value}
+                                      >
+                                        {item.label}
+                                      </SelectItem>
+                                    )
+                                  )}
+                                </SelectContent>
+                              </Select>
+                            </div>
+            
+                            <div className="grid gap-2">
+                              <Label>
+                                Equipa
+                              </Label>
+            
+                              <Select
+                                value={teamValue}
+                                onValueChange={(value) =>
+                                  updateExpectedLevel(
+                                    index,
+                                    'team_id',
+                                    value
+                                  )
+                                }
+                              >
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+            
+                                <SelectContent className="bg-white">
+                                  <SelectItem value="global">
+                                    Todas as equipas
+                                  </SelectItem>
+            
+                                  {teams.map((team) => (
+                                    <SelectItem
+                                      key={team.id}
+                                      value={team.id}
+                                    >
+                                      {team.name}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+            
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                              <Label>
+                                Mínimo esperado
+                              </Label>
+            
+                              <Input
+                                type="number"
+                                min={form.scale_min}
+                                max={form.scale_max}
+                                step="0.1"
+                                value={
+                                  level?.minimum ??
+                                  ''
+                                }
+                                onChange={(event) =>
+                                  updateExpectedLevel(
+                                    index,
+                                    'minimum',
+                                    event.target.value
+                                  )
+                                }
+                              />
+                            </div>
+            
+                            <div className="grid gap-2">
+                              <Label>
+                                Máximo esperado
+                              </Label>
+            
+                              <Input
+                                type="number"
+                                min={form.scale_min}
+                                max={form.scale_max}
+                                step="0.1"
+                                value={
+                                  level?.maximum ??
+                                  ''
+                                }
+                                onChange={(event) =>
+                                  updateExpectedLevel(
+                                    index,
+                                    'maximum',
+                                    event.target.value
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+            
+                          <div
+                            className={`mt-3 rounded-2xl border p-3 ${
+                              intervalValid
+                                ? 'border-emerald-100 bg-emerald-50/70'
+                                : 'border-red-100 bg-red-50/70'
+                            }`}
+                          >
+                            <p
+                              className={`text-xs font-semibold ${
+                                intervalValid
+                                  ? 'text-emerald-700'
+                                  : 'text-red-700'
+                              }`}
+                            >
+                              {intervalValid
+                                ? `Intervalo válido: ${Number(
+                                    level.minimum
+                                  ).toFixed(1)}–${Number(
+                                    level.maximum
+                                  ).toFixed(1)}`
+                                : `O intervalo deve estar dentro da escala ${form.scale_min}–${form.scale_max}, com mínimo inferior ao máximo.`}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
