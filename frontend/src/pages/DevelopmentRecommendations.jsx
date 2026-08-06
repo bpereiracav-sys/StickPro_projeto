@@ -397,98 +397,7 @@ const getIdiStatusConfig = (
   );
 };
 
-
-const resolveIdiStatusFromScore = (
-  score
-) => {
-  const numericScore =
-    Number(score);
-
-  if (
-    !Number.isFinite(
-      numericScore
-    )
-  ) {
-    return 'unknown';
-  }
-
-  if (numericScore < 35) {
-    return 'critical';
-  }
-
-  if (numericScore < 55) {
-    return 'attention';
-  }
-
-  if (numericScore < 75) {
-    return 'progressing';
-  }
-
-  if (numericScore < 90) {
-    return 'expected';
-  }
-
-  return 'advanced';
-};
-function DevelopmentIcon({
-  className = '',
-}) {
-  return (
-    <svg
-      viewBox="0 0 64 64"
-      className={className}
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <path
-        d="M12 48c8-17 17-26 32-32"
-        stroke="currentColor"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-
-      <path
-        d="M18 44h28"
-        stroke="currentColor"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-
-      <circle
-        cx="22"
-        cy="51"
-        r="5"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-
-      <circle
-        cx="42"
-        cy="51"
-        r="5"
-        stroke="currentColor"
-        strokeWidth="4"
-      />
-
-      <path
-        d="M38 12h12v12"
-        stroke="#06b6d4"
-        strokeWidth="4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      <path
-        d="M50 12 34 28"
-        stroke="#06b6d4"
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
-}
-
+const getIdiStatusConfig = (
 
 function SummaryMetric({
   label,
@@ -1276,115 +1185,111 @@ export default function DevelopmentRecommendations() {
       ?.competencyIDI ||
     [];
 
+  const domainIDI =
+    recommendationsEngine
+      ?.domainIDI ||
+    [];
+  
+  const globalIDI =
+    recommendationsEngine
+      ?.globalIDI ||
+    null;
+  
   const developmentDashboard =
     useMemo(
       () => {
-        const validCompetencies =
-          competencyIDI.filter(
-            (competency) =>
-              Number.isFinite(
-                Number(
-                  competency?.idiScore
-                )
-              )
+        const globalIdiScore =
+          Number(
+            globalIDI?.idiScore
           );
   
-        if (
-          validCompetencies.length === 0
-        ) {
-          return {
-            globalIdi: null,
+        const hasGlobalIdi =
+          Number.isFinite(
+            globalIdiScore
+          );
   
-            globalStatus:
-              'unknown',
+        const priorityDomain =
+          globalIDI
+            ?.priorityDomain ||
+          recommendationsEngine
+            ?.primaryDomain ||
+          domainIDI[0] ||
+          null;
   
-            globalStatusLabel:
-              'Sem dados suficientes',
-  
-            priorityCompetency:
-              null,
-  
-            strongestCompetency:
-              null,
-  
-            attentionCount: 0,
-  
-            advancedCount: 0,
-          };
-        }
-  
-        const globalIdi =
-          validCompetencies.reduce(
-            (
-              total,
-              competency
-            ) =>
-              total +
-              Number(
-                competency.idiScore
-              ),
-            0
-          ) /
-          validCompetencies.length;
-  
-        const orderedCompetencies =
-          [...validCompetencies].sort(
-            (
-              first,
-              second
-            ) =>
-              Number(
-                first.idiScore
-              ) -
-              Number(
-                second.idiScore
-              )
+        const strongestDomain =
+          globalIDI
+            ?.strongestDomain ||
+          recommendationsEngine
+            ?.strongestDomain ||
+          (
+            domainIDI.length > 0
+              ? domainIDI[
+                  domainIDI.length -
+                    1
+                ]
+              : null
           );
   
         const priorityCompetency =
-          orderedCompetencies[0] ||
+          recommendationsEngine
+            ?.primaryCompetency ||
+          competencyIDI[0] ||
           null;
   
         const strongestCompetency =
-          orderedCompetencies[
-            orderedCompetencies.length -
-              1
-          ] ||
-          null;
+          recommendationsEngine
+            ?.strongestCompetency ||
+          (
+            competencyIDI.length > 0
+              ? competencyIDI[
+                  competencyIDI.length -
+                    1
+                ]
+              : null
+          );
   
         const attentionCount =
-          validCompetencies.filter(
+          competencyIDI.filter(
             (competency) =>
               [
                 'critical',
                 'attention',
                 'progressing',
               ].includes(
-                competency.status
+                competency?.status
               )
           ).length;
   
-        const advancedCount =
-          validCompetencies.filter(
-            (competency) =>
-              competency.status ===
-                'advanced'
+        const domainsAttentionCount =
+          domainIDI.filter(
+            (domain) =>
+              [
+                'critical',
+                'attention',
+                'progressing',
+              ].includes(
+                domain?.status
+              )
           ).length;
   
-        const globalStatus =
-          resolveIdiStatusFromScore(
-            globalIdi
-          );
-  
         return {
-          globalIdi,
+          globalIdi:
+            hasGlobalIdi
+              ? globalIdiScore
+              : null,
   
-          globalStatus,
+          globalStatus:
+            globalIDI?.status ||
+            'unknown',
   
           globalStatusLabel:
-            getIdiStatusConfig(
-              globalStatus
-            ).label,
+            globalIDI
+              ?.statusLabel ||
+            'Sem dados suficientes',
+  
+          priorityDomain,
+  
+          strongestDomain,
   
           priorityCompetency,
   
@@ -1392,11 +1297,37 @@ export default function DevelopmentRecommendations() {
   
           attentionCount,
   
-          advancedCount,
+          domainsAttentionCount,
+  
+          domainCount:
+            Number(
+              globalIDI?.domainCount
+            ) || domainIDI.length,
+  
+          competencyCount:
+            Number(
+              globalIDI
+                ?.competencyCount
+            ) ||
+            competencyIDI.length,
+  
+          criterionCount:
+            Number(
+              globalIDI
+                ?.criterionCount
+            ) || 0,
+  
+          weightingMethod:
+            globalIDI
+              ?.weightingMethod ||
+            'criterion_count',
         };
       },
       [
+        globalIDI,
+        domainIDI,
         competencyIDI,
+        recommendationsEngine,
       ]
     );
   
@@ -1826,7 +1757,7 @@ export default function DevelopmentRecommendations() {
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryMetric
-              label="IDI Global"
+              label="IDI Global ponderado"
               value={
                 developmentDashboard
                   .globalIdi !== null
@@ -1838,8 +1769,7 @@ export default function DevelopmentRecommendations() {
               helper={
                 developmentDashboard
                   .globalIdi !== null
-                  ? developmentDashboard
-                      .globalStatusLabel
+                  ? `${developmentDashboard.globalStatusLabel} · ${developmentDashboard.criterionCount} critérios considerados`
                   : 'Ainda não existem dados suficientes.'
               }
               icon={Gauge}
@@ -1847,70 +1777,67 @@ export default function DevelopmentRecommendations() {
             />
           
             <SummaryMetric
-              label="Competência prioritária"
+              label="Domínio prioritário"
               value={
                 developmentDashboard
-                  .priorityCompetency
+                  .priorityDomain
                   ?.name ||
                 '—'
               }
               helper={
                 developmentDashboard
-                  .priorityCompetency
+                  .priorityDomain
                   ? `IDI ${Number(
                       developmentDashboard
-                        .priorityCompetency
+                        .priorityDomain
                         .idiScore
                     ).toFixed(1)} · ${
                       developmentDashboard
-                        .priorityCompetency
+                        .priorityDomain
                         .statusLabel
                     }`
-                  : 'Sem competências calculadas.'
+                  : 'Sem domínios calculados.'
               }
               icon={Target}
               accent="amber"
             />
           
             <SummaryMetric
-              label="Competência mais forte"
+              label="Domínio mais forte"
               value={
                 developmentDashboard
-                  .strongestCompetency
+                  .strongestDomain
                   ?.name ||
                 '—'
               }
               helper={
                 developmentDashboard
-                  .strongestCompetency
+                  .strongestDomain
                   ? `IDI ${Number(
                       developmentDashboard
-                        .strongestCompetency
+                        .strongestDomain
                         .idiScore
                     ).toFixed(1)} · ${
                       developmentDashboard
-                        .strongestCompetency
+                        .strongestDomain
                         .statusLabel
                     }`
-                  : 'Sem competências calculadas.'
+                  : 'Sem domínios calculados.'
               }
               icon={TrendingUp}
               accent="emerald"
             />
           
             <SummaryMetric
-              label="Exigem atenção"
+              label="Cobertura da análise"
               value={
                 developmentDashboard
-                  .attentionCount
+                  .domainCount
               }
               helper={
-                developmentDashboard
-                  .attentionCount === 1
-                  ? '1 competência abaixo do nível esperado.'
-                  : `${developmentDashboard.attentionCount} competências abaixo do nível esperado.`
+                `${developmentDashboard.competencyCount} competências · ${developmentDashboard.criterionCount} critérios`
               }
-              icon={ShieldCheck}
+              icon={BarChart3}
               accent="cyan"
             />
           </div>
@@ -1939,9 +1866,10 @@ export default function DevelopmentRecommendations() {
                       </h3>
           
                       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-                        O Índice Inteligente de Desenvolvimento combina o nível
-                        atual, a tendência e a consistência das competências
-                        avaliadas.
+                        O IDI Global é calculado a partir dos domínios avaliados,
+                        ponderando cada domínio pelo número de critérios válidos que
+                        representa. Cada critério combina nível atual, tendência e
+                        consistência.
                       </p>
                     </div>
                   </div>
@@ -1962,7 +1890,135 @@ export default function DevelopmentRecommendations() {
                   </Badge>
                 </div>
           
-                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                      Domínio prioritário
+                    </p>
+                
+                    <p className="mt-2 font-semibold text-slate-900">
+                      {
+                        developmentDashboard
+                          .priorityDomain
+                          ?.name ||
+                        'Sem dados'
+                      }
+                    </p>
+                
+                    {developmentDashboard
+                      .priorityDomain && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        IDI{' '}
+                        {Number(
+                          developmentDashboard
+                            .priorityDomain
+                            .idiScore
+                        ).toFixed(1)}
+                        {' · '}
+                        {
+                          developmentDashboard
+                            .priorityDomain
+                            .competencyCount
+                        }{' '}
+                        competências
+                      </p>
+                    )}
+                  </div>
+                
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                      Domínio mais forte
+                    </p>
+                
+                    <p className="mt-2 font-semibold text-slate-900">
+                      {
+                        developmentDashboard
+                          .strongestDomain
+                          ?.name ||
+                        'Sem dados'
+                      }
+                    </p>
+                
+                    {developmentDashboard
+                      .strongestDomain && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        IDI{' '}
+                        {Number(
+                          developmentDashboard
+                            .strongestDomain
+                            .idiScore
+                        ).toFixed(1)}
+                        {' · '}
+                        {
+                          developmentDashboard
+                            .strongestDomain
+                            .criterionCount
+                        }{' '}
+                        critérios
+                      </p>
+                    )}
+                  </div>
+                
+                  <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+                      Competência prioritária
+                    </p>
+                
+                    <p className="mt-2 font-semibold text-slate-900">
+                      {
+                        developmentDashboard
+                          .priorityCompetency
+                          ?.name ||
+                        'Sem dados'
+                      }
+                    </p>
+                
+                    {developmentDashboard
+                      .priorityCompetency && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        IDI{' '}
+                        {Number(
+                          developmentDashboard
+                            .priorityCompetency
+                            .idiScore
+                        ).toFixed(1)}
+                        {' · '}
+                        {
+                          developmentDashboard
+                            .priorityCompetency
+                            .statusLabel
+                        }
+                      </p>
+                    )}
+                  </div>
+                
+                  <div className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-purple-700">
+                      Base de cálculo
+                    </p>
+                
+                    <p className="mt-2 font-semibold text-slate-900">
+                      {
+                        developmentDashboard
+                          .criterionCount
+                      }{' '}
+                      critérios
+                    </p>
+                
+                    <p className="mt-1 text-xs text-slate-500">
+                      {
+                        developmentDashboard
+                          .domainCount
+                      }{' '}
+                      domínios ·{' '}
+                      {
+                        developmentDashboard
+                          .competencyCount
+                      }{' '}
+                      competências
+                    </p>
+                  </div>
+                </div>
                   <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
                       Prioridade
@@ -2046,6 +2102,162 @@ export default function DevelopmentRecommendations() {
               </CardContent>
             </Card>
           )}
+
+          <Card className="border border-blue-100 bg-gradient-to-br from-white via-blue-50/50 to-slate-50 shadow-xl shadow-slate-200/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-blue-600" />
+          
+                Índice Inteligente por Domínio
+              </CardTitle>
+          
+              <CardDescription>
+                Agregação ponderada das competências em cada domínio de
+                desenvolvimento.
+              </CardDescription>
+            </CardHeader>
+          
+            <CardContent>
+              {domainIDI.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Ainda não existem domínios calculados.
+                </p>
+              ) : (
+                <div className="grid gap-3 lg:grid-cols-2">
+                  {domainIDI.map(
+                    (domain) => (
+                      <div
+                        key={domain.id}
+                        className="rounded-2xl border border-slate-200 bg-white p-4"
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="min-w-0">
+                            <p className="font-heading text-xl text-slate-950">
+                              {domain.name}
+                            </p>
+          
+                            <p className="mt-1 text-xs text-slate-500">
+                              {
+                                domain
+                                  .competencyCount
+                              }{' '}
+                              {
+                                domain
+                                  .competencyCount ===
+                                1
+                                  ? 'competência'
+                                  : 'competências'
+                              }
+                              {' · '}
+                              {
+                                domain
+                                  .criterionCount
+                              }{' '}
+                              {
+                                domain
+                                  .criterionCount ===
+                                1
+                                  ? 'critério'
+                                  : 'critérios'
+                              }
+                            </p>
+                          </div>
+          
+                          <div className="shrink-0 text-right">
+                            <p className="font-heading text-3xl text-slate-950">
+                              {Number(
+                                domain.idiScore
+                              ).toFixed(1)}
+                            </p>
+          
+                            <p className="text-xs text-slate-400">
+                              /100
+                            </p>
+                          </div>
+                        </div>
+          
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <Badge
+                            variant="outline"
+                            className={
+                              getIdiStatusConfig(
+                                domain.status
+                              ).className
+                            }
+                          >
+                            {domain.statusLabel}
+                          </Badge>
+          
+                          <Badge
+                            variant="outline"
+                            className="border-slate-200 bg-slate-50 text-slate-600"
+                          >
+                            Ponderado por critérios
+                          </Badge>
+                        </div>
+          
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                          <div className="rounded-xl bg-amber-50 p-3">
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+                              Competência prioritária
+                            </p>
+          
+                            <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                              {
+                                domain
+                                  .priorityCompetency
+                                  ?.name ||
+                                '—'
+                              }
+                            </p>
+          
+                            {domain
+                              .priorityCompetency && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                IDI{' '}
+                                {Number(
+                                  domain
+                                    .priorityCompetency
+                                    .idiScore
+                                ).toFixed(1)}
+                              </p>
+                            )}
+                          </div>
+          
+                          <div className="rounded-xl bg-emerald-50 p-3">
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
+                              Competência mais forte
+                            </p>
+          
+                            <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                              {
+                                domain
+                                  .strongestCompetency
+                                  ?.name ||
+                                '—'
+                              }
+                            </p>
+          
+                            {domain
+                              .strongestCompetency && (
+                              <p className="mt-1 text-xs text-slate-500">
+                                IDI{' '}
+                                {Number(
+                                  domain
+                                    .strongestCompetency
+                                    .idiScore
+                                ).toFixed(1)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
           
           <Card className="border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/50 to-slate-50 shadow-xl shadow-slate-200/60">
             <CardHeader>
