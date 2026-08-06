@@ -16776,38 +16776,382 @@ async def build_public_player_evaluation_view(
         ),
     }
 
+# ============================================================
+# Expected Development Levels — validation
+# Sprint C3.5B.2A
+# ============================================================
 
+def normalize_expected_level_age_group(
+    value: Optional[str],
+) -> Optional[str]:
+    if value is None:
+        return None
+
+    normalized = str(value).strip().lower()
+
+    if not normalized:
+        return None
+
+    aliases = {
+        "sub 7": "sub7",
+        "sub-7": "sub7",
+        "sub 9": "sub9",
+        "sub-9": "sub9",
+        "sub 11": "sub11",
+        "sub-11": "sub11",
+        "sub 13": "sub13",
+        "sub-13": "sub13",
+        "sub 15": "sub15",
+        "sub-15": "sub15",
+        "sub 17": "sub17",
+        "sub-17": "sub17",
+        "sub 19": "sub19",
+        "sub-19": "sub19",
+        "senior": "senior",
+        "sénior": "senior",
+        "seniores": "senior",
+    }
+
+    return aliases.get(
+        normalized,
+        normalized.replace(
+            " ",
+            ""
+        ).replace(
+            "-",
+            ""
+        ),
+    )
+
+
+def normalize_expected_level_player_type(
+    value: Optional[str],
+) -> Optional[str]:
+    if value is None:
+        return None
+
+    normalized = str(value).strip().lower()
+
+    if not normalized:
+        return None
+
+    if normalized in {
+        "goalkeeper",
+        "goalie",
+        "gk",
+        "gr",
+        "guarda-redes",
+        "guarda_redes",
+        "guarda redes",
+    }:
+        return "goalkeeper"
+
+    if normalized in {
+        "field_player",
+        "field player",
+        "field",
+        "player",
+        "jc",
+        "jogador",
+        "jogador de campo",
+    }:
+        return "field_player"
+
+    raise HTTPException(
+        status_code=400,
+        detail=(
+            "Tipo de atleta inválido nos níveis esperados"
+        ),
+    )
+
+
+def build_expected_level_context_key(
+    level: dict,
+) -> str:
+    return "|".join(
+        [
+            str(
+                level.get("age_group")
+                or "*"
+            ),
+            str(
+                level.get("player_type")
+                or "*"
+            ),
+            str(
+                level.get("team_id")
+                or "*"
+            ),
+        ]
+    )
+
+
+def validate_and_normalize_expected_levels(
+    *,
+    expected_levels: Optional[List[Any]],
+    scale_min: float,
+    scale_max: float,
+    checker,
+) -> List[dict]:
+    """
+    Valida e normaliza os intervalos esperados.
+
+    Regras:
+    - minimum < maximum;
+    - ambos dentro da escala do critério;
+    - não pode haver dois níveis para o mesmo contexto;
+    - treinadores apenas podem configurar equipas acessíveis;
+    - contexto vazio representa o padrão geral.
+    """
+
+    if expected_levels is None:
+        return []
+
+    normalized_levels = []
+    context_keys = set()
+
+    for index, raw_level in enumerate(
+        expected_levels
+    ):
+        if hasattr(
+            raw_level,
+            "model_dump",
+        ):
+            level = raw_level.model_dump()
+        elif isinstance(
+            raw_level,
+            dict,
+        ):
+            level = dict(raw_level)
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Formato inválido num nível esperado"
+                ),
+            )
+
+        age_group = (
+            normalize_expected_level_age_group(
+                level.get("age_group")
+            )
+        )
+
+        player_type = (
+            normalize_expected_level_player_type(
+                level.get("player_type")
+            )
+        )
+
+        team_id = level.get("team_id")
+
+        if team_id is not None:
+            team_id = str(
+                team_id
+            ).strip() or None
+
+        try:
+            minimum = float(
+                level.get("minimum")
+            )
+
+            maximum = float(
+                level.get("maximum")
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"Valores inválidos no nível esperado "
+                    f"{index + 1}"
+                ),
+            )
+
+        if minimum >= maximum:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "O nível mínimo esperado deve ser "
+                    "inferior ao nível máximo esperado"
+                ),
+            )
+
+        if (
+            minimum < float(scale_min)
+            or maximum > float(scale_max)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    f"O intervalo esperado "
+                    f"{minimum:g}–{maximum:g} está fora "
+                    f"da escala {scale_min:g}–{scale_max:g}"
+                ),
+            )
+
+        if (
+            team_id
+            and not checker.is_admin
+            and not checker.can_access_team(
+                team_id
+            )
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Sem acesso à equipa indicada "
+                    "num nível esperado"
+                ),
+            )
+
+        normalized_level = {
+            "age_group": age_group,
+            "player_type": player_type,
+            "team_id": team_id,
+            "minimum": round(
+                minimum,
+                2,
+            ),
+            "maximum": round(
+                maximum,
+                2,
+            ),
+        }
+
+        context_key = (
+            build_expected_level_context_key(
+                normalized_level
+            )
+        )
+
+        if context_key in context_keys:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Existem níveis esperados repetidos "
+                    "para o mesmo escalão, tipo de atleta "
+                    "e equipa"
+                ),
+            )
+
+        context_keys.add(
+            context_key
+        )
+
+        normalized_levels.append(
+            normalized_level
+        )
+
+    return normalized_levels
+    
 @api_router.post("/evaluations/criteria")
 async def create_evaluation_criterion(
     criterion_data: EvaluationCriterionCreate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(
+        get_current_user
+    ),
 ):
-    checker = get_permission_checker(current_user)
-
-    if not checker.is_staff and not checker.is_admin:
-        raise HTTPException(status_code=403, detail="Sem permissão para criar critérios de avaliação")
-
-    if criterion_data.team_id and not checker.is_admin and not checker.can_access_team(criterion_data.team_id):
-        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
-
-    if criterion_data.scale_min >= criterion_data.scale_max:
-        raise HTTPException(status_code=400, detail="A escala mínima deve ser inferior à escala máxima")
-
-    criterion = EvaluationCriterion(
-        **criterion_data.model_dump(),
-        club_id=current_user.get("club_id"),
-        created_by=current_user["id"]
+    checker = get_permission_checker(
+        current_user
     )
 
-    criterion_dict = criterion.model_dump()
-    criterion_dict["created_at"] = criterion_dict["created_at"].isoformat()
-    criterion_dict["updated_at"] = criterion_dict["updated_at"].isoformat()
+    if (
+        not checker.is_staff
+        and not checker.is_admin
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para criar "
+                "critérios de avaliação"
+            ),
+        )
 
-    await db.evaluation_criteria.insert_one(dict(criterion_dict))
+    if (
+        criterion_data.team_id
+        and not checker.is_admin
+        and not checker.can_access_team(
+            criterion_data.team_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a esta equipa",
+        )
 
-    criterion_dict.pop("_id", None)
+    if (
+        criterion_data.scale_min
+        >= criterion_data.scale_max
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "A escala mínima deve ser "
+                "inferior à escala máxima"
+            ),
+        )
+
+    expected_levels = (
+        validate_and_normalize_expected_levels(
+            expected_levels=(
+                criterion_data.expected_levels
+            ),
+            scale_min=(
+                criterion_data.scale_min
+            ),
+            scale_max=(
+                criterion_data.scale_max
+            ),
+            checker=checker,
+        )
+    )
+
+    criterion_payload = (
+        criterion_data.model_dump(
+            exclude={
+                "expected_levels"
+            }
+        )
+    )
+
+    criterion = EvaluationCriterion(
+        **criterion_payload,
+        expected_levels=expected_levels,
+        club_id=current_user.get(
+            "club_id"
+        ),
+        created_by=current_user["id"],
+    )
+
+    criterion_dict = (
+        criterion.model_dump()
+    )
+
+    criterion_dict["created_at"] = (
+        criterion_dict[
+            "created_at"
+        ].isoformat()
+    )
+
+    criterion_dict["updated_at"] = (
+        criterion_dict[
+            "updated_at"
+        ].isoformat()
+    )
+
+    await db.evaluation_criteria.insert_one(
+        dict(criterion_dict)
+    )
+
+    criterion_dict.pop(
+        "_id",
+        None,
+    )
+
     return criterion_dict
-
 
 @api_router.get("/evaluations/criteria")
 async def get_evaluation_criteria(
@@ -16837,65 +17181,121 @@ async def get_evaluation_criteria(
     criteria = await db.evaluation_criteria.find(query, {"_id": 0}).sort("category", 1).sort("name", 1).to_list(500)
     return criteria
 
-@api_router.post("/evaluations/criteria/import-system")
+@api_router.post(
+    "/evaluations/criteria/import-system"
+)
 async def import_system_evaluation_criteria(
     payload: Dict[str, Any],
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(
+        get_current_user
+    ),
 ):
-    checker = get_permission_checker(current_user)
+    checker = get_permission_checker(
+        current_user
+    )
 
-    if not checker.is_staff and not checker.is_admin:
+    if (
+        not checker.is_staff
+        and not checker.is_admin
+    ):
         raise HTTPException(
             status_code=403,
-            detail="Sem permissão para importar critérios de avaliação"
+            detail=(
+                "Sem permissão para importar "
+                "critérios de avaliação"
+            ),
         )
 
-    club_id = current_user.get("club_id")
+    club_id = current_user.get(
+        "club_id"
+    )
 
-    # Administradores podem estar associados ao clube através de admin_ids,
-    # mesmo quando o utilizador não possui club_id diretamente.
-    if not club_id and checker.is_admin:
+    if (
+        not club_id
+        and checker.is_admin
+    ):
         club = await db.clubs.find_one(
-            {"admin_ids": current_user["id"]},
-            {"_id": 0, "id": 1}
+            {
+                "admin_ids": current_user[
+                    "id"
+                ]
+            },
+            {
+                "_id": 0,
+                "id": 1,
+            },
         )
-    
+
         if club:
-            club_id = club.get("id")
-    
-    # Elementos da equipa técnica podem obter o clube através
-    # de uma das equipas às quais têm acesso.
-    if not club_id and checker.is_staff:
-        accessible_team_ids = list(checker.team_ids or [])
-    
+            club_id = club.get(
+                "id"
+            )
+
+    if (
+        not club_id
+        and checker.is_staff
+    ):
+        accessible_team_ids = list(
+            checker.team_ids or []
+        )
+
         if accessible_team_ids:
             team = await db.teams.find_one(
-                {"id": {"$in": accessible_team_ids}},
-                {"_id": 0, "club_id": 1}
+                {
+                    "id": {
+                        "$in":
+                            accessible_team_ids
+                    }
+                },
+                {
+                    "_id": 0,
+                    "club_id": 1,
+                },
             )
-    
+
             if team:
-                club_id = team.get("club_id")
-    
+                club_id = team.get(
+                    "club_id"
+                )
+
     if not club_id:
         raise HTTPException(
             status_code=400,
-            detail="Não foi possível determinar o clube associado ao utilizador"
+            detail=(
+                "Não foi possível determinar "
+                "o clube associado ao utilizador"
+            ),
         )
 
-    source_criteria = payload.get("criteria", [])
+    source_criteria = payload.get(
+        "criteria",
+        [],
+    )
 
-    if not isinstance(source_criteria, list) or len(source_criteria) == 0:
+    if (
+        not isinstance(
+            source_criteria,
+            list,
+        )
+        or len(
+            source_criteria
+        ) == 0
+    ):
         raise HTTPException(
             status_code=400,
-            detail="Seleciona pelo menos uma competência para importar"
+            detail=(
+                "Seleciona pelo menos uma "
+                "competência para importar"
+            ),
         )
 
-    # Limite de proteção contra pedidos excessivamente grandes.
     if len(source_criteria) > 250:
         raise HTTPException(
             status_code=400,
-            detail="Não é possível importar mais de 250 competências de uma vez"
+            detail=(
+                "Não é possível importar mais "
+                "de 250 competências de uma vez"
+            ),
         )
 
     category_by_domain = {
@@ -16912,161 +17312,444 @@ async def import_system_evaluation_criteria(
     skipped_criteria = []
     received_codes = set()
 
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
 
     for source in source_criteria:
-        if not isinstance(source, dict):
+        if not isinstance(
+            source,
+            dict,
+        ):
             continue
 
-        source_code = str(source.get("code") or "").strip()
-        name = str(
-            source.get("name")
-            or source.get("observableAction")
+        source_code = str(
+            source.get("code")
             or ""
         ).strip()
 
-        if not source_code or not name:
+        name = str(
+            source.get("name")
+            or source.get(
+                "observableAction"
+            )
+            or ""
+        ).strip()
+
+        if (
+            not source_code
+            or not name
+        ):
             continue
 
-        # Evita códigos repetidos no próprio pedido.
         if source_code in received_codes:
-            skipped_criteria.append({
-                "code": source_code,
-                "sourceCode": source_code,
-                "reason": "duplicate_request",
-            })
+            skipped_criteria.append(
+                {
+                    "code": source_code,
+                    "sourceCode":
+                        source_code,
+                    "reason":
+                        "duplicate_request",
+                }
+            )
+
             continue
 
-        received_codes.add(source_code)
+        received_codes.add(
+            source_code
+        )
 
-        existing = await db.evaluation_criteria.find_one(
-            {
-                "club_id": club_id,
-                "$or": [
-                    {"sourceCode": source_code},
-                    {"source_code": source_code},
-                ],
-            },
-            {"_id": 0}
+        existing = (
+            await db.evaluation_criteria.find_one(
+                {
+                    "club_id": club_id,
+                    "$or": [
+                        {
+                            "sourceCode":
+                                source_code
+                        },
+                        {
+                            "source_code":
+                                source_code
+                        },
+                    ],
+                },
+                {
+                    "_id": 0
+                },
+            )
         )
 
         if existing:
-            skipped_criteria.append({
-                "code": source_code,
-                "sourceCode": source_code,
-                "name": existing.get("name", name),
-                "reason": "already_imported",
-            })
+            skipped_criteria.append(
+                {
+                    "code": source_code,
+                    "sourceCode":
+                        source_code,
+                    "name": existing.get(
+                        "name",
+                        name,
+                    ),
+                    "reason":
+                        "already_imported",
+                }
+            )
+
             continue
 
-        domain = source.get("domain")
-        domain_label = source.get("domainLabel")
-        subdomain = source.get("subdomain")
-        subdomain_label = source.get("subdomainLabel")
+        domain = source.get(
+            "domain"
+        )
 
-        contexts = source.get("contexts", [])
-        if not isinstance(contexts, list):
+        domain_label = source.get(
+            "domainLabel"
+        )
+
+        subdomain = source.get(
+            "subdomain"
+        )
+
+        subdomain_label = source.get(
+            "subdomainLabel"
+        )
+
+        contexts = source.get(
+            "contexts",
+            [],
+        )
+
+        if not isinstance(
+            contexts,
+            list,
+        ):
             contexts = []
 
-        player_type = source.get("playerType", "field_player")
+        player_type = source.get(
+            "playerType",
+            "field_player",
+        )
 
         default_weight = source.get(
             "defaultWeight",
-            source.get("weight", 1)
+            source.get(
+                "weight",
+                1,
+            ),
         )
 
         try:
-            weight = float(default_weight or 1)
-        except (TypeError, ValueError):
+            weight = float(
+                default_weight or 1
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
             weight = 1
 
+        source_expected_levels = (
+            source.get(
+                "expectedLevels"
+            )
+            or source.get(
+                "expected_levels"
+            )
+            or []
+        )
+
+        expected_levels = (
+            validate_and_normalize_expected_levels(
+                expected_levels=(
+                    source_expected_levels
+                ),
+                scale_min=1,
+                scale_max=5,
+                checker=checker,
+            )
+        )
+
         criterion = {
-            "id": str(uuid.uuid4()),
+            "id": str(
+                uuid.uuid4()
+            ),
             "name": name,
             "description": (
-                str(source.get("description")).strip()
-                if source.get("description")
+                str(
+                    source.get(
+                        "description"
+                    )
+                ).strip()
+                if source.get(
+                    "description"
+                )
                 else None
             ),
-            "category": category_by_domain.get(domain, "other"),
+            "category":
+                category_by_domain.get(
+                    domain,
+                    "other",
+                ),
             "scale_min": 1,
             "scale_max": 5,
             "weight": weight,
             "team_id": None,
+            "expected_levels":
+                expected_levels,
             "is_active": True,
 
-            # Origem do critério
-            "source": "stickpro_library",
-            "sourceCode": source_code,
+            "source":
+                "stickpro_library",
+            "sourceCode":
+                source_code,
             "is_system": False,
 
-            # Estrutura oficial StickPro
             "domain": domain,
-            "domainLabel": domain_label,
-            "subdomain": subdomain,
-            "subdomainLabel": subdomain_label,
+            "domainLabel":
+                domain_label,
+            "subdomain":
+                subdomain,
+            "subdomainLabel":
+                subdomain_label,
             "observableAction": (
-                source.get("observableAction")
+                source.get(
+                    "observableAction"
+                )
                 or name
             ),
             "contexts": contexts,
-            "playerType": player_type,
+            "playerType":
+                player_type,
 
-            # Auditoria e associação
             "club_id": club_id,
-            "created_by": current_user["id"],
+            "created_by":
+                current_user["id"],
             "created_at": now,
             "updated_at": now,
         }
 
-        await db.evaluation_criteria.insert_one(dict(criterion))
+        await db.evaluation_criteria.insert_one(
+            dict(criterion)
+        )
 
-        criterion.pop("_id", None)
-        imported_criteria.append(criterion)
+        criterion.pop(
+            "_id",
+            None,
+        )
+
+        imported_criteria.append(
+            criterion
+        )
 
     return {
-        "imported": len(imported_criteria),
-        "skipped": len(skipped_criteria),
-        "importedCriteria": imported_criteria,
-        "skippedCriteria": skipped_criteria,
+        "imported":
+            len(imported_criteria),
+        "skipped":
+            len(skipped_criteria),
+        "importedCriteria":
+            imported_criteria,
+        "skippedCriteria":
+            skipped_criteria,
     }
-@api_router.put("/evaluations/criteria/{criterion_id}")
+    
+@api_router.put(
+    "/evaluations/criteria/{criterion_id}"
+)
 async def update_evaluation_criterion(
     criterion_id: str,
     updates: EvaluationCriterionUpdate,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(
+        get_current_user
+    ),
 ):
-    checker = get_permission_checker(current_user)
+    checker = get_permission_checker(
+        current_user
+    )
 
-    criterion = await db.evaluation_criteria.find_one({"id": criterion_id}, {"_id": 0})
+    criterion = (
+        await db.evaluation_criteria.find_one(
+            {
+                "id": criterion_id
+            },
+            {
+                "_id": 0
+            },
+        )
+    )
+
     if not criterion:
-        raise HTTPException(status_code=404, detail="Critério não encontrado")
-
-    if not checker.is_admin:
-        if criterion.get("created_by") != current_user.get("id") and not checker.can_access_team(criterion.get("team_id")):
-            raise HTTPException(status_code=403, detail="Sem permissão para editar este critério")
-
-    update_data = updates.model_dump(exclude_unset=True)
-
-    if "scale_min" in update_data or "scale_max" in update_data:
-        next_min = update_data.get("scale_min", criterion.get("scale_min", 1))
-        next_max = update_data.get("scale_max", criterion.get("scale_max", 5))
-        if next_min >= next_max:
-            raise HTTPException(status_code=400, detail="A escala mínima deve ser inferior à escala máxima")
-
-    if update_data.get("team_id") and not checker.is_admin and not checker.can_access_team(update_data["team_id"]):
-        raise HTTPException(status_code=403, detail="Sem acesso a esta equipa")
-
-    if update_data:
-        update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
-        await db.evaluation_criteria.update_one(
-            {"id": criterion_id},
-            {"$set": update_data}
+        raise HTTPException(
+            status_code=404,
+            detail="Critério não encontrado",
         )
 
-    updated = await db.evaluation_criteria.find_one({"id": criterion_id}, {"_id": 0})
-    return updated
+    if not checker.is_admin:
+        can_edit_criterion = (
+            criterion.get(
+                "created_by"
+            ) ==
+            current_user.get(
+                "id"
+            )
+            or checker.can_access_team(
+                criterion.get(
+                    "team_id"
+                )
+            )
+        )
 
+        if not can_edit_criterion:
+            raise HTTPException(
+                status_code=403,
+                detail=(
+                    "Sem permissão para editar "
+                    "este critério"
+                ),
+            )
+
+    update_data = updates.model_dump(
+        exclude_unset=True
+    )
+
+    next_scale_min = float(
+        update_data.get(
+            "scale_min",
+            criterion.get(
+                "scale_min",
+                1,
+            ),
+        )
+    )
+
+    next_scale_max = float(
+        update_data.get(
+            "scale_max",
+            criterion.get(
+                "scale_max",
+                5,
+            ),
+        )
+    )
+
+    if (
+        next_scale_min
+        >= next_scale_max
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "A escala mínima deve ser "
+                "inferior à escala máxima"
+            ),
+        )
+
+    next_team_id = (
+        update_data.get(
+            "team_id"
+        )
+        if "team_id" in update_data
+        else criterion.get(
+            "team_id"
+        )
+    )
+
+    if (
+        next_team_id
+        and not checker.is_admin
+        and not checker.can_access_team(
+            next_team_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a esta equipa",
+        )
+
+    if "expected_levels" in update_data:
+        expected_levels_payload = (
+            update_data.get(
+                "expected_levels"
+            )
+            or []
+        )
+    else:
+        expected_levels_payload = (
+            criterion.get(
+                "expected_levels"
+            )
+            or []
+        )
+
+    update_data["expected_levels"] = (
+        validate_and_normalize_expected_levels(
+            expected_levels=(
+                expected_levels_payload
+            ),
+            scale_min=next_scale_min,
+            scale_max=next_scale_max,
+            checker=checker,
+        )
+    )
+
+    if "name" in update_data:
+        name = str(
+            update_data.get(
+                "name"
+            )
+            or ""
+        ).strip()
+
+        if not name:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Indica o nome do critério"
+                ),
+            )
+
+        update_data["name"] = name
+
+    if "description" in update_data:
+        description = (
+            update_data.get(
+                "description"
+            )
+        )
+
+        update_data["description"] = (
+            str(
+                description
+            ).strip()
+            if description
+            else None
+        )
+
+    update_data["updated_at"] = (
+        datetime.now(
+            timezone.utc
+        ).isoformat()
+    )
+
+    await db.evaluation_criteria.update_one(
+        {
+            "id": criterion_id
+        },
+        {
+            "$set": update_data
+        },
+    )
+
+    updated = (
+        await db.evaluation_criteria.find_one(
+            {
+                "id": criterion_id
+            },
+            {
+                "_id": 0
+            },
+        )
+    )
+
+    return updated
 
 @api_router.delete("/evaluations/criteria/{criterion_id}")
 async def archive_evaluation_criterion(
