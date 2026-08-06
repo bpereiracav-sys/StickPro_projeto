@@ -135,6 +135,8 @@ const EMPTY_FORM = {
   weight: 1,
   team_id: 'global',
   is_active: true,
+
+  expected_levels: [],
 };
 
 function StickEvaluationIcon({ className = '' }) {
@@ -191,6 +193,50 @@ export default function EvaluationCriteria() {
   const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
 
+  const addExpectedLevel = () => {
+    setForm((prev) => ({
+      ...prev,
+      expected_levels: [
+        ...(prev.expected_levels || []),
+        {
+          age_group: '',
+          player_type: 'field_player',
+          team_id: '',
+          expected_min: 3,
+          expected_max: 4,
+        },
+      ],
+    }));
+  };
+  
+  const removeExpectedLevel = (index) => {
+    setForm((prev) => ({
+      ...prev,
+      expected_levels: prev.expected_levels.filter(
+        (_, i) => i !== index
+      ),
+    }));
+  };
+  
+  const updateExpectedLevel = (
+    index,
+    field,
+    value
+  ) => {
+    setForm((prev) => ({
+      ...prev,
+      expected_levels: prev.expected_levels.map(
+        (item, i) =>
+          i === index
+            ? {
+                ...item,
+                [field]: value,
+              }
+            : item
+      ),
+    }));
+  };
+  
   const tr = (key, fallback) => {
   const value = t(key);
   return value && value !== key ? value : fallback;
@@ -248,6 +294,9 @@ const fetchData = async () => {
       weight: criterion.weight || 1,
       team_id: criterion.team_id || 'global',
       is_active: criterion.is_active !== false,
+
+      expected_levels:
+        criterion.expected_levels || [],
     });
     setDialogOpen(true);
   };
@@ -280,6 +329,9 @@ const fetchData = async () => {
         weight: Number(form.weight) || 1,
         team_id: form.team_id === 'global' ? null : form.team_id,
         is_active: Boolean(form.is_active),
+
+        expected_levels:
+          form.expected_levels || [],
       };
 
       if (editingCriterion?.id) {
