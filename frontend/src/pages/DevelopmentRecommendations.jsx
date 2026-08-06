@@ -397,7 +397,6 @@ const getIdiStatusConfig = (
   );
 };
 
-const getIdiStatusConfig = (
 
 function SummaryMetric({
   label,
@@ -1895,7 +1894,7 @@ export default function DevelopmentRecommendations() {
                     <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
                       Domínio prioritário
                     </p>
-                
+          
                     <p className="mt-2 font-semibold text-slate-900">
                       {
                         developmentDashboard
@@ -1904,7 +1903,7 @@ export default function DevelopmentRecommendations() {
                         'Sem dados'
                       }
                     </p>
-                
+          
                     {developmentDashboard
                       .priorityDomain && (
                       <p className="mt-1 text-xs text-slate-500">
@@ -1924,12 +1923,12 @@ export default function DevelopmentRecommendations() {
                       </p>
                     )}
                   </div>
-                
+          
                   <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
                       Domínio mais forte
                     </p>
-                
+          
                     <p className="mt-2 font-semibold text-slate-900">
                       {
                         developmentDashboard
@@ -1938,7 +1937,7 @@ export default function DevelopmentRecommendations() {
                         'Sem dados'
                       }
                     </p>
-                
+          
                     {developmentDashboard
                       .strongestDomain && (
                       <p className="mt-1 text-xs text-slate-500">
@@ -1958,12 +1957,12 @@ export default function DevelopmentRecommendations() {
                       </p>
                     )}
                   </div>
-                
+          
                   <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
                       Competência prioritária
                     </p>
-                
+          
                     <p className="mt-2 font-semibold text-slate-900">
                       {
                         developmentDashboard
@@ -1972,7 +1971,7 @@ export default function DevelopmentRecommendations() {
                         'Sem dados'
                       }
                     </p>
-                
+          
                     {developmentDashboard
                       .priorityCompetency && (
                       <p className="mt-1 text-xs text-slate-500">
@@ -1991,12 +1990,12 @@ export default function DevelopmentRecommendations() {
                       </p>
                     )}
                   </div>
-                
+          
                   <div className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-purple-700">
                       Base de cálculo
                     </p>
-                
+          
                     <p className="mt-2 font-semibold text-slate-900">
                       {
                         developmentDashboard
@@ -2004,7 +2003,7 @@ export default function DevelopmentRecommendations() {
                       }{' '}
                       critérios
                     </p>
-                
+          
                     <p className="mt-1 text-xs text-slate-500">
                       {
                         developmentDashboard
@@ -2019,90 +2018,9 @@ export default function DevelopmentRecommendations() {
                     </p>
                   </div>
                 </div>
-                  <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
-                      Prioridade
-                    </p>
-          
-                    <p className="mt-2 font-semibold text-slate-900">
-                      {
-                        developmentDashboard
-                          .priorityCompetency
-                          ?.name ||
-                        'Sem dados'
-                      }
-                    </p>
-          
-                    {developmentDashboard
-                      .priorityCompetency && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        IDI{' '}
-                        {Number(
-                          developmentDashboard
-                            .priorityCompetency
-                            .idiScore
-                        ).toFixed(1)}
-                      </p>
-                    )}
-                  </div>
-          
-                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                      Ponto mais forte
-                    </p>
-          
-                    <p className="mt-2 font-semibold text-slate-900">
-                      {
-                        developmentDashboard
-                          .strongestCompetency
-                          ?.name ||
-                        'Sem dados'
-                      }
-                    </p>
-          
-                    {developmentDashboard
-                      .strongestCompetency && (
-                      <p className="mt-1 text-xs text-slate-500">
-                        IDI{' '}
-                        {Number(
-                          developmentDashboard
-                            .strongestCompetency
-                            .idiScore
-                        ).toFixed(1)}
-                      </p>
-                    )}
-                  </div>
-          
-                  <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
-                      Estado global
-                    </p>
-          
-                    <p className="mt-2 font-semibold text-slate-900">
-                      {
-                        developmentDashboard
-                          .globalStatusLabel
-                      }
-                    </p>
-          
-                    <p className="mt-1 text-xs text-slate-500">
-                      {
-                        developmentDashboard
-                          .attentionCount
-                      }{' '}
-                      {
-                        developmentDashboard
-                          .attentionCount === 1
-                          ? 'competência exige atenção'
-                          : 'competências exigem atenção'
-                      }
-                    </p>
-                  </div>
-                </div>
               </CardContent>
             </Card>
           )}
-
           <Card className="border border-blue-100 bg-gradient-to-br from-white via-blue-50/50 to-slate-50 shadow-xl shadow-slate-200/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
