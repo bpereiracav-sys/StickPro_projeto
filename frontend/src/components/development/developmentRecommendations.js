@@ -1557,11 +1557,9 @@ const buildCriterionRecommendation = (
     averagePercentage;
 
   /*
-   * Índice histórico anterior.
-   *
-   * Continua disponível para:
+   * Índice histórico mantido apenas para:
+   * - compatibilidade;
    * - critérios ainda sem nível esperado;
-   * - compatibilidade com a interface atual;
    * - ordenação secundária.
    */
   const recommendationIndex =
@@ -1571,89 +1569,82 @@ const buildCriterionRecommendation = (
       1
     );
 
-    const {
+  const {
+    expectedLevel,
+    comparison:
+      expectedComparison,
+  } =
+    resolveAndCompareExpectedLevel({
+      expectedLevels:
+        group.expectedLevels ||
+        [],
+
+      score:
+        latestEntry?.score ??
+        null,
+
+      teamId:
+        group.teamId ||
+        latestEntry?.teamId ||
+        null,
+
+      ageGroup:
+        group.ageGroup ||
+        latestEntry?.ageGroup ||
+        null,
+
+      playerType:
+        group.playerType ||
+        latestEntry?.playerType ||
+        null,
+    });
+
+  const trend =
+    calculateCriterionTrend(
+      group.entries
+    );
+
+  const intelligentDevelopmentIndex =
+    calculateIntelligentDevelopmentIndex({
+      recommendationIndex,
+
       expectedLevel,
-      comparison:
-        expectedComparison,
-    } =
-      resolveAndCompareExpectedLevel({
-        expectedLevels:
-          group.expectedLevels ||
-          [],
-  
-        score:
-          latestEntry?.score ??
-          null,
-  
-        teamId:
-          group.teamId ||
-          latestEntry?.teamId ||
-          null,
-  
-        ageGroup:
-          group.ageGroup ||
-          latestEntry?.ageGroup ||
-          null,
-  
-        playerType:
-          group.playerType ||
-          latestEntry?.playerType ||
-          null,
-      });
-  
-    const trend =
-      calculateCriterionTrend(
-        group.entries
-      );
-  
-    const intelligentDevelopmentIndex =
-      calculateIntelligentDevelopmentIndex({
-        recommendationIndex,
-  
-        expectedLevel,
-  
-        expectedComparison,
-  
-        latestScore:
-          latestEntry?.score ??
-          null,
-  
-        scaleMin:
-          latestEntry?.scaleMin ??
-          DEFAULT_SCALE_MIN,
-  
-        scaleMax:
-          latestEntry?.scaleMax ??
-          DEFAULT_SCALE_MAX,
-  
-        trend,
-  
-        entries:
-          group.entries,
-      });
-  
-    const priority =
-      resolvePriority({
-        idiScore:
-          intelligentDevelopmentIndex.score,
-  
-        expectedComparison,
-  
-        recommendationIndex,
-      });
-  
-    const priorityConfig =
-      DEVELOPMENT_PRIORITY_CONFIG[
-        priority
-      ];
-  
-    return {
-  
+
+      expectedComparison,
+
+      latestScore:
+        latestEntry?.score ??
+        null,
+
+      scaleMin:
+        latestEntry?.scaleMin ??
+        DEFAULT_SCALE_MIN,
+
+      scaleMax:
+        latestEntry?.scaleMax ??
+        DEFAULT_SCALE_MAX,
+
+      trend,
+
+      entries:
+        group.entries,
+    });
+
+  const priority =
+    resolvePriority({
+      idiScore:
+        intelligentDevelopmentIndex.score,
+
+      expectedComparison,
+
+      recommendationIndex,
+    });
+
   const priorityConfig =
     DEVELOPMENT_PRIORITY_CONFIG[
       priority
     ];
-  
+
   return {
     id:
       `recommendation:${group.criterionKey}`,
@@ -1698,36 +1689,38 @@ const buildCriterionRecommendation = (
     // Índice Inteligente de Desenvolvimento
     // Sprint C3.5B.3
     // ========================================================
-    
+
     idi:
       intelligentDevelopmentIndex,
-    
+
     idiScore:
       intelligentDevelopmentIndex.score,
-    
+
     idiStatus:
       intelligentDevelopmentIndex.status,
-    
+
     idiStatusLabel:
-      intelligentDevelopmentIndex.statusLabel,
-    
+      intelligentDevelopmentIndex
+        .statusLabel,
+
     idiLevelComponent:
       intelligentDevelopmentIndex
         .components.level,
-    
+
     idiTrendComponent:
       intelligentDevelopmentIndex
         .components.trend,
-    
+
     idiConsistencyComponent:
       intelligentDevelopmentIndex
         .components.consistency,
-    
+
     consistency:
       intelligentDevelopmentIndex
         .consistency,
-    
+
     averagePercentage,
+
     latestPercentage,
 
     latestScore:
@@ -1742,9 +1735,11 @@ const buildCriterionRecommendation = (
       latestEntry?.scaleMax ??
       DEFAULT_SCALE_MAX,
 
-    /*
-     * Novos dados do Sprint C3.5B.2C.
-     */
+    // ========================================================
+    // Nível esperado aplicado
+    // Sprint C3.5B.2C
+    // ========================================================
+
     expectedLevel,
 
     expectedMinimum:
@@ -1788,7 +1783,9 @@ const buildCriterionRecommendation = (
       null,
 
     usesExpectedLevel:
-      Boolean(expectedLevel),
+      Boolean(
+        expectedLevel
+      ),
 
     teamId:
       group.teamId ||
@@ -1819,6 +1816,7 @@ const buildCriterionRecommendation = (
       buildObjectiveText({
         criterionName:
           group.criterionName,
+
         priority,
       }),
 
@@ -1826,6 +1824,7 @@ const buildCriterionRecommendation = (
       buildTrainingFocus({
         criterionName:
           group.criterionName,
+
         priority,
       }),
 
@@ -1833,6 +1832,7 @@ const buildCriterionRecommendation = (
       buildCoachMessage({
         criterionName:
           group.criterionName,
+
         priority,
       }),
 
@@ -1845,6 +1845,7 @@ const buildCriterionRecommendation = (
       new Date().toISOString(),
   };
 };
+
 
 const groupRecommendationsByDomain = (
   recommendations = []
