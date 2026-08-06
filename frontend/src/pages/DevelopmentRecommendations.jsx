@@ -533,7 +533,7 @@ function RecommendationCard({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <div className="mt-4 grid gap-2 sm:grid-cols-4">
           <div className="rounded-2xl bg-slate-50 p-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
               Resultado atual
@@ -558,6 +558,25 @@ function RecommendationCard({
             </p>
           </div>
 
+          <div className="rounded-2xl bg-indigo-50 p-3">
+            <p className="text-[11px] font-bold uppercase tracking-wide text-indigo-500">
+              IDI
+            </p>
+          
+            <p className="mt-1 font-heading text-2xl text-slate-900">
+              {Number(
+                recommendation.idiScore || 0
+              ).toFixed(1)}
+          
+              <span className="text-sm text-slate-400">
+                /100
+              </span>
+            </p>
+          
+            <p className="mt-1 text-xs text-slate-500">
+              {recommendation.idiStatusLabel}
+            </p>
+          </div>          
           <div className="rounded-2xl bg-slate-50 p-3">
             <p className="text-[11px] font-bold uppercase tracking-wide text-slate-400">
               Índice
@@ -1167,6 +1186,11 @@ export default function DevelopmentRecommendations() {
       ?.allRecommendations ||
     [];
 
+  const competencyIDI =
+    recommendationsEngine
+      ?.competencyIDI ||
+    [];
+  
   const filteredRecommendations =
     useMemo(
       () => {
@@ -1645,6 +1669,118 @@ export default function DevelopmentRecommendations() {
             />
           </div>
 
+          <Card className="border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/50 to-slate-50 shadow-xl shadow-slate-200/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Gauge className="h-5 w-5 text-indigo-600" />
+          
+                Índice Inteligente por Competência
+              </CardTitle>
+          
+              <CardDescription>
+                Síntese automática do desenvolvimento por competência.
+              </CardDescription>
+            </CardHeader>
+          
+            <CardContent>
+              {competencyIDI.length === 0 ? (
+                <p className="text-sm text-slate-500">
+                  Ainda não existem competências calculadas.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {competencyIDI.map((competency) => (
+                    <div
+                      key={competency.id}
+                      className="rounded-2xl border border-slate-200 bg-white p-4"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            {competency.name}
+                          </p>
+          
+                          <p className="text-xs text-slate-500">
+                            {competency.domainName}
+                          </p>
+                        </div>
+          
+                        <div className="text-right">
+                          <p className="font-heading text-2xl text-slate-900">
+                            {Number(
+                              competency.idiScore || 0
+                            ).toFixed(1)}
+                          </p>
+          
+                          <p className="text-xs text-slate-500">
+                            /100
+                          </p>
+                        </div>
+                      </div>
+          
+                      <div className="mt-3">
+                        <Badge
+                          className="border border-indigo-200 bg-indigo-50 text-indigo-700"
+                        >
+                          {competency.statusLabel}
+                        </Badge>
+                      </div>
+          
+                      <div className="mt-4 grid grid-cols-5 gap-2 text-center">
+          
+                        <div>
+                          <p className="font-bold text-red-600">
+                            {competency.critical}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            Críticos
+                          </p>
+                        </div>
+          
+                        <div>
+                          <p className="font-bold text-orange-600">
+                            {competency.high}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            Elevados
+                          </p>
+                        </div>
+          
+                        <div>
+                          <p className="font-bold text-amber-600">
+                            {competency.moderate}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            Moderados
+                          </p>
+                        </div>
+          
+                        <div>
+                          <p className="font-bold text-cyan-600">
+                            {competency.consolidation}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            Consolidação
+                          </p>
+                        </div>
+          
+                        <div>
+                          <p className="font-bold text-emerald-600">
+                            {competency.strengths}
+                          </p>
+                          <p className="text-[10px] text-slate-500">
+                            Fortes
+                          </p>
+                        </div>
+          
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>   
+          
           {primaryRecommendation && (
             <Card className="overflow-hidden border border-cyan-200 bg-white shadow-xl shadow-cyan-100/50">
               <CardHeader className="border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-blue-50">
