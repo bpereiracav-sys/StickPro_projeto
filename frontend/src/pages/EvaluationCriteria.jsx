@@ -192,6 +192,125 @@ const EMPTY_FORM = {
   expected_levels: [],
 };
 
+const getExpectedLevelAgeGroupLabel = (
+  ageGroup
+) => {
+  if (!ageGroup) {
+    return 'Geral';
+  }
+
+  const config =
+    EXPECTED_LEVEL_AGE_GROUPS.find(
+      (item) =>
+        item.value === ageGroup
+    );
+
+  return (
+    config?.label ||
+    ageGroup
+  );
+};
+
+
+const getExpectedLevelPlayerTypeLabel = (
+  playerType
+) => {
+  if (!playerType) {
+    return 'Todos os atletas';
+  }
+
+  const config =
+    EXPECTED_LEVEL_PLAYER_TYPES.find(
+      (item) =>
+        item.value === playerType
+    );
+
+  return (
+    config?.label ||
+    playerType
+  );
+};
+
+
+const getExpectedLevelContextLabel = (
+  level,
+  teams = []
+) => {
+  const parts = [
+    getExpectedLevelAgeGroupLabel(
+      level?.age_group
+    ),
+
+    getExpectedLevelPlayerTypeLabel(
+      level?.player_type
+    ),
+  ];
+
+  if (level?.team_id) {
+    const team =
+      teams.find(
+        (item) =>
+          String(item.id) ===
+          String(level.team_id)
+      );
+
+    parts.push(
+      team?.name ||
+      'Equipa específica'
+    );
+  } else {
+    parts.push(
+      'Todas as equipas'
+    );
+  }
+
+  return parts.join(' · ');
+};
+
+
+const normalizeExpectedLevels = (
+  criterion
+) =>
+  Array.isArray(
+    criterion?.expected_levels
+  )
+    ? criterion.expected_levels
+        .map((level) => ({
+          age_group:
+            level?.age_group ||
+            null,
+
+          player_type:
+            level?.player_type ||
+            null,
+
+          team_id:
+            level?.team_id ||
+            null,
+
+          minimum:
+            Number(
+              level?.minimum
+            ),
+
+          maximum:
+            Number(
+              level?.maximum
+            ),
+        }))
+        .filter(
+          (level) =>
+            Number.isFinite(
+              level.minimum
+            ) &&
+            Number.isFinite(
+              level.maximum
+            ) &&
+            level.minimum <
+              level.maximum
+        )
+    : [];
+
 function StickEvaluationIcon({ className = '' }) {
   return (
     <svg
@@ -912,7 +1031,26 @@ const fetchData = async () => {
                     </div>
 
                     <div className="grid gap-3 lg:grid-cols-2">
-                      {items.map((criterion) => (
+                      {items.map((criterion) => {
+                        const expectedLevels =
+                          normalizeExpectedLevels(
+                            criterion
+                          );
+                      
+                        const visibleExpectedLevels =
+                          expectedLevels.slice(
+                            0,
+                            3
+                          );
+                      
+                        const hiddenExpectedLevelsCount =
+                          Math.max(
+                            0,
+                            expectedLevels.length -
+                              visibleExpectedLevels.length
+                          );
+                      
+                        return (
                         <div
                           key={criterion.id}
                           className={`rounded-3xl border p-4 transition hover:-translate-y-0.5 hover:shadow-lg ${
@@ -998,8 +1136,103 @@ const fetchData = async () => {
                               </p>
                             </div>
                           </div>
+                          <div className="mt-4 border-t border-slate-100 pt-4">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <div>
+                                <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                                  Níveis esperados
+                                </p>
+                          
+                                <p className="mt-0.5 text-xs text-slate-500">
+                                  {expectedLevels.length > 0
+                                    ? `${expectedLevels.length} ${
+                                        expectedLevels.length === 1
+                                          ? 'intervalo configurado'
+                                          : 'intervalos configurados'
+                                      }`
+                                    : 'Sem intervalos configurados'}
+                                </p>
+                              </div>
+                          
+                              {expectedLevels.length > 0 && (
+                                <Badge
+                                  variant="outline"
+                                  className="rounded-full border-cyan-200 bg-cyan-50 text-cyan-700"
+                                >
+                                  <Target className="mr-1 h-3.5 w-3.5" />
+                          
+                                  Configurado
+                                </Badge>
+                              )}
+                            </div>
+                          
+                            {expectedLevels.length === 0 ? (
+                              <div className="mt-3 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-3">
+                                <p className="text-xs leading-5 text-slate-500">
+                                  Este critério ainda utiliza apenas as regras gerais
+                                  do motor de desenvolvimento.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="mt-3 space-y-2">
+                                {visibleExpectedLevels.map(
+                                  (level, index) => (
+                                    <div
+                                      key={
+                                        [
+                                          criterion.id,
+                                          level.age_group ||
+                                            'general',
+                                          level.player_type ||
+                                            'all',
+                                          level.team_id ||
+                                            'global',
+                                          index,
+                                        ].join(':')
+                                      }
+                                      className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-3"
+                                    >
+                                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                        <p className="min-w-0 text-xs font-medium leading-5 text-slate-600">
+                                          {getExpectedLevelContextLabel(
+                                            level,
+                                            teams
+                                          )}
+                                        </p>
+                          
+                                        <Badge
+                                          variant="outline"
+                                          className="w-fit shrink-0 rounded-full border-cyan-200 bg-white font-semibold text-cyan-700"
+                                        >
+                                          {Number(
+                                            level.minimum
+                                          ).toFixed(1)}
+                                          {' – '}
+                                          {Number(
+                                            level.maximum
+                                          ).toFixed(1)}
+                                        </Badge>
+                                      </div>
+                                    </div>
+                                  )
+                                )}
+                          
+                                {hiddenExpectedLevelsCount > 0 && (
+                                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
+                                    <p className="text-xs font-medium text-slate-500">
+                                      +{hiddenExpectedLevelsCount}{' '}
+                                      {hiddenExpectedLevelsCount === 1
+                                        ? 'outro intervalo'
+                                        : 'outros intervalos'}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </section>
                 );
