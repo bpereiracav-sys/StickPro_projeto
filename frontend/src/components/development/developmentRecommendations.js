@@ -961,6 +961,483 @@ const calculateCriterionTrend = (
   };
 };
 
+// ============================================================
+// Intelligent Development Index — IDI
+// Sprint C3.5B.3
+// ============================================================
+
+const clampValue = (
+  value,
+  minimum = 0,
+  maximum = 100
+) =>
+  Math.max(
+    minimum,
+    Math.min(
+      maximum,
+      Number(value) || 0
+    )
+  );
+
+
+const calculateConsistency = (
+  entries = []
+) => {
+  const recentValues =
+    [...entries]
+      .sort(
+        (first, second) => {
+          const firstTime =
+            first.evaluationDate
+              ? new Date(
+                  first.evaluationDate
+                ).getTime()
+              : 0;
+
+          const secondTime =
+            second.evaluationDate
+              ? new Date(
+                  second.evaluationDate
+                ).getTime()
+              : 0;
+
+          return (
+            secondTime -
+            firstTime
+          );
+        }
+      )
+      .slice(0, 5)
+      .map(
+        (entry) =>
+          Number(
+            entry.normalizedPercentage
+          )
+      )
+      .filter(
+        Number.isFinite
+      );
+
+  if (
+    recentValues.length < 2
+  ) {
+    return {
+      score: 50,
+      label: 'Dados insuficientes',
+      standardDeviation: null,
+      sampleSize:
+        recentValues.length,
+    };
+  }
+
+  const average =
+    recentValues.reduce(
+      (sum, value) =>
+        sum + value,
+      0
+    ) /
+    recentValues.length;
+
+  const variance =
+    recentValues.reduce(
+      (sum, value) =>
+        sum +
+        (
+          value -
+          average
+        ) ** 2,
+      0
+    ) /
+    recentValues.length;
+
+  const standardDeviation =
+    Math.sqrt(
+      variance
+    );
+
+  /*
+   * Desvio padrão:
+   * 0%   → consistência 100
+   * 25%+ → consistência 0
+   */
+  const score =
+    roundValue(
+      clampValue(
+        100 -
+        standardDeviation * 4
+      ),
+      1
+    );
+
+  let label =
+    'Baixa';
+
+  if (score >= 80) {
+    label = 'Elevada';
+  } else if (score >= 60) {
+    label = 'Boa';
+  } else if (score >= 40) {
+    label = 'Moderada';
+  }
+
+  return {
+    score,
+    label,
+
+    standardDeviation:
+      roundValue(
+        standardDeviation,
+        1
+      ),
+
+    sampleSize:
+      recentValues.length,
+  };
+};
+
+
+const calculateTrendComponent = (
+  trend = {}
+) => {
+  const difference =
+    Number(
+      trend?.difference
+    );
+
+  if (
+    !Number.isFinite(
+      difference
+    )
+  ) {
+    return 50;
+  }
+
+  /*
+   * Tendência neutra = 50.
+   * Cada ponto percentual de evolução altera
+   * o componente em dois pontos.
+   */
+  return roundValue(
+    clampValue(
+      50 +
+      difference * 2
+    ),
+    1
+  );
+};
+
+
+const calculateLevelComponent = ({
+  recommendationIndex,
+  expectedLevel,
+  expectedComparison,
+  latestScore,
+  scaleMin,
+  scaleMax,
+}) => {
+  /*
+   * Sem intervalo esperado:
+   * mantém-se o índice percentual anterior.
+   */
+  if (
+    !expectedLevel ||
+    expectedComparison?.status ===
+      'not_configured'
+  ) {
+    return roundValue(
+      clampValue(
+        recommendationIndex
+      ),
+      1
+    );
+  }
+
+  const numericScore =
+    Number(
+      latestScore
+    );
+
+  const expectedMinimum =
+    Number(
+      expectedLevel.minimum
+    );
+
+  const expectedMaximum =
+    Number(
+      expectedLevel.maximum
+    );
+
+  const numericScaleMin =
+    Number(
+      scaleMin
+    );
+
+  const numericScaleMax =
+    Number(
+      scaleMax
+    );
+
+  const scaleRange =
+    numericScaleMax -
+    numericScaleMin;
+
+  if (
+    !Number.isFinite(
+      numericScore
+    ) ||
+    !Number.isFinite(
+      expectedMinimum
+    ) ||
+    !Number.isFinite(
+      expectedMaximum
+    ) ||
+    !Number.isFinite(
+      scaleRange
+    ) ||
+    scaleRange <= 0
+  ) {
+    return roundValue(
+      clampValue(
+        recommendationIndex
+      ),
+      1
+    );
+  }
+
+  if (
+    expectedComparison.status ===
+    'below_expected'
+  ) {
+    const gap =
+      Math.max(
+        0,
+        expectedMinimum -
+        numericScore
+      );
+
+    /*
+     * Próximo do mínimo esperado:
+     * aproxima-se de 70.
+     *
+     * Muito abaixo:
+     * aproxima-se de 0.
+     */
+    return roundValue(
+      clampValue(
+        70 -
+        (
+          gap /
+          scaleRange
+        ) *
+        100,
+        0,
+        69
+      ),
+      1
+    );
+  }
+
+  if (
+    expectedComparison.status ===
+    'within_expected'
+  ) {
+    const intervalRange =
+      expectedMaximum -
+      expectedMinimum;
+
+    const progress =
+      intervalRange > 0
+        ? (
+            numericScore -
+            expectedMinimum
+          ) /
+          intervalRange
+        : 0.5;
+
+    return roundValue(
+      clampValue(
+        75 +
+        progress * 10,
+        75,
+        85
+      ),
+      1
+    );
+  }
+
+  if (
+    expectedComparison.status ===
+    'above_expected'
+  ) {
+    const excess =
+      Math.max(
+        0,
+        numericScore -
+        expectedMaximum
+      );
+
+    return roundValue(
+      clampValue(
+        90 +
+        (
+          excess /
+          scaleRange
+        ) *
+        10,
+        90,
+        100
+      ),
+      1
+    );
+  }
+
+  return roundValue(
+    clampValue(
+      recommendationIndex
+    ),
+    1
+  );
+};
+
+
+const resolveIdiStatus = (
+  idiScore
+) => {
+  const score =
+    Number(
+      idiScore
+    );
+
+  if (
+    !Number.isFinite(
+      score
+    )
+  ) {
+    return {
+      id: 'unknown',
+      label:
+        'Sem dados suficientes',
+    };
+  }
+
+  if (score < 35) {
+    return {
+      id: 'critical',
+      label:
+        'Desenvolvimento prioritário',
+    };
+  }
+
+  if (score < 55) {
+    return {
+      id: 'attention',
+      label:
+        'Necessita de atenção',
+    };
+  }
+
+  if (score < 75) {
+    return {
+      id: 'progressing',
+      label:
+        'Em desenvolvimento',
+    };
+  }
+
+  if (score < 90) {
+    return {
+      id: 'expected',
+      label:
+        'Dentro do esperado',
+    };
+  }
+
+  return {
+    id: 'advanced',
+    label:
+      'Desempenho avançado',
+  };
+};
+
+
+const calculateIntelligentDevelopmentIndex = ({
+  recommendationIndex,
+  expectedLevel,
+  expectedComparison,
+  latestScore,
+  scaleMin,
+  scaleMax,
+  trend,
+  entries,
+}) => {
+  const levelComponent =
+    calculateLevelComponent({
+      recommendationIndex,
+      expectedLevel,
+      expectedComparison,
+      latestScore,
+      scaleMin,
+      scaleMax,
+    });
+
+  const trendComponent =
+    calculateTrendComponent(
+      trend
+    );
+
+  const consistency =
+    calculateConsistency(
+      entries
+    );
+
+  /*
+   * IDI:
+   * 60% nível atual
+   * 25% tendência
+   * 15% consistência
+   */
+  const score =
+    roundValue(
+      levelComponent * 0.6 +
+      trendComponent * 0.25 +
+      consistency.score * 0.15,
+      1
+    );
+
+  const status =
+    resolveIdiStatus(
+      score
+    );
+
+  return {
+    score,
+
+    status:
+      status.id,
+
+    statusLabel:
+      status.label,
+
+    components: {
+      level:
+        levelComponent,
+
+      trend:
+        trendComponent,
+
+      consistency:
+        consistency.score,
+    },
+
+    consistency,
+
+    weights: {
+      level: 0.6,
+      trend: 0.25,
+      consistency: 0.15,
+    },
+  };
+};
 
 const buildCriterionRecommendation = (
   group
@@ -1088,6 +1565,32 @@ const buildCriterionRecommendation = (
       group.entries
     );
 
+  const intelligentDevelopmentIndex =
+    calculateIntelligentDevelopmentIndex({
+      recommendationIndex,
+  
+      expectedLevel,
+  
+      expectedComparison,
+  
+      latestScore:
+        latestEntry?.score ??
+        null,
+  
+      scaleMin:
+        latestEntry?.scaleMin ??
+        DEFAULT_SCALE_MIN,
+  
+      scaleMax:
+        latestEntry?.scaleMax ??
+        DEFAULT_SCALE_MAX,
+  
+      trend,
+  
+      entries:
+        group.entries,
+    });
+  
   return {
     id:
       `recommendation:${group.criterionKey}`,
@@ -1128,6 +1631,39 @@ const buildCriterionRecommendation = (
 
     recommendationIndex,
 
+    // ========================================================
+    // Índice Inteligente de Desenvolvimento
+    // Sprint C3.5B.3
+    // ========================================================
+    
+    idi:
+      intelligentDevelopmentIndex,
+    
+    idiScore:
+      intelligentDevelopmentIndex.score,
+    
+    idiStatus:
+      intelligentDevelopmentIndex.status,
+    
+    idiStatusLabel:
+      intelligentDevelopmentIndex.statusLabel,
+    
+    idiLevelComponent:
+      intelligentDevelopmentIndex
+        .components.level,
+    
+    idiTrendComponent:
+      intelligentDevelopmentIndex
+        .components.trend,
+    
+    idiConsistencyComponent:
+      intelligentDevelopmentIndex
+        .components.consistency,
+    
+    consistency:
+      intelligentDevelopmentIndex
+        .consistency,
+    
     averagePercentage,
     latestPercentage,
 
@@ -1461,6 +1997,31 @@ export function buildAutomaticDevelopmentRecommendations({
             }
           }
 
+          const firstIdi =
+            Number(
+              first.idiScore
+            );
+          
+          const secondIdi =
+            Number(
+              second.idiScore
+            );
+          
+          if (
+            Number.isFinite(
+              firstIdi
+            ) &&
+            Number.isFinite(
+              secondIdi
+            ) &&
+            firstIdi !== secondIdi
+          ) {
+            return (
+              firstIdi -
+              secondIdi
+            );
+          }
+          
           return (
             first.recommendationIndex -
             second.recommendationIndex
