@@ -2222,7 +2222,468 @@ export function buildCompetencyIDI(
     );
 }
 
+// ============================================================
+// Intelligent Development Index by Domain
+// Sprint C3.5B.4D
+// ============================================================
 
+export function buildDomainIDI(
+  competencyIDI = []
+) {
+  const groups = new Map();
+
+  (
+    Array.isArray(
+      competencyIDI
+    )
+      ? competencyIDI
+      : []
+  ).forEach(
+    (competency) => {
+      const idiScore =
+        Number(
+          competency?.idiScore
+        );
+
+      if (
+        !Number.isFinite(
+          idiScore
+        )
+      ) {
+        return;
+      }
+
+      const domainId =
+        competency?.domainId ||
+        'other';
+
+      const domainName =
+        competency?.domainName ||
+        'Outro';
+
+      if (
+        !groups.has(
+          domainId
+        )
+      ) {
+        groups.set(
+          domainId,
+          {
+            id:
+              domainId,
+
+            name:
+              domainName,
+
+            competencies: [],
+          }
+        );
+      }
+
+      groups
+        .get(domainId)
+        .competencies
+        .push(
+          competency
+        );
+    }
+  );
+
+  return Array.from(
+    groups.values()
+  )
+    .map((group) => {
+      let weightedTotal = 0;
+      let totalWeight = 0;
+
+      let criterionCount = 0;
+      let critical = 0;
+      let high = 0;
+      let moderate = 0;
+      let consolidation = 0;
+      let strengths = 0;
+
+      group.competencies.forEach(
+        (competency) => {
+          const score =
+            Number(
+              competency.idiScore
+            );
+
+          if (
+            !Number.isFinite(
+              score
+            )
+          ) {
+            return;
+          }
+
+          /*
+           * A competência é ponderada pelo
+           * número de critérios que contém.
+           */
+          const weight =
+            Math.max(
+              1,
+              Number(
+                competency
+                  .recommendationCount
+              ) || 0
+            );
+
+          weightedTotal +=
+            score * weight;
+
+          totalWeight +=
+            weight;
+
+          criterionCount +=
+            weight;
+
+          critical +=
+            Number(
+              competency.critical
+            ) || 0;
+
+          high +=
+            Number(
+              competency.high
+            ) || 0;
+
+          moderate +=
+            Number(
+              competency.moderate
+            ) || 0;
+
+          consolidation +=
+            Number(
+              competency
+                .consolidation
+            ) || 0;
+
+          strengths +=
+            Number(
+              competency.strengths
+            ) || 0;
+        }
+      );
+
+      const idiScore =
+        totalWeight > 0
+          ? roundValue(
+              weightedTotal /
+                totalWeight,
+              1
+            )
+          : null;
+
+      const status =
+        resolveIdiStatus(
+          idiScore
+        );
+
+      const orderedCompetencies =
+        [
+          ...group.competencies,
+        ].sort(
+          (
+            first,
+            second
+          ) => {
+            const firstScore =
+              Number(
+                first.idiScore
+              );
+
+            const secondScore =
+              Number(
+                second.idiScore
+              );
+
+            if (
+              Number.isFinite(
+                firstScore
+              ) &&
+              Number.isFinite(
+                secondScore
+              )
+            ) {
+              return (
+                firstScore -
+                secondScore
+              );
+            }
+
+            return 0;
+          }
+        );
+
+      return {
+        id:
+          group.id,
+
+        name:
+          group.name,
+
+        idiScore,
+
+        status:
+          status.id,
+
+        statusLabel:
+          status.label,
+
+        competencyCount:
+          orderedCompetencies
+            .length,
+
+        criterionCount,
+
+        critical,
+
+        high,
+
+        moderate,
+
+        consolidation,
+
+        strengths,
+
+        priorityCompetency:
+          orderedCompetencies[0] ||
+          null,
+
+        strongestCompetency:
+          orderedCompetencies[
+            orderedCompetencies.length -
+              1
+          ] ||
+          null,
+
+        competencies:
+          orderedCompetencies,
+
+        weightingMethod:
+          'criterion_count',
+      };
+    })
+    .sort(
+      (
+        first,
+        second
+      ) => {
+        const firstScore =
+          Number(
+            first.idiScore
+          );
+
+        const secondScore =
+          Number(
+            second.idiScore
+          );
+
+        if (
+          Number.isFinite(
+            firstScore
+          ) &&
+          Number.isFinite(
+            secondScore
+          )
+        ) {
+          return (
+            firstScore -
+            secondScore
+          );
+        }
+
+        if (
+          Number.isFinite(
+            firstScore
+          )
+        ) {
+          return -1;
+        }
+
+        if (
+          Number.isFinite(
+            secondScore
+          )
+        ) {
+          return 1;
+        }
+
+        return first.name.localeCompare(
+          second.name
+        );
+      }
+    );
+}
+
+
+// ============================================================
+// Global Intelligent Development Index
+// Sprint C3.5B.4D
+// ============================================================
+
+export function buildGlobalIDI(
+  domainIDI = []
+) {
+  const validDomains =
+    (
+      Array.isArray(
+        domainIDI
+      )
+        ? domainIDI
+        : []
+    ).filter(
+      (domain) =>
+        Number.isFinite(
+          Number(
+            domain?.idiScore
+          )
+        )
+    );
+
+  if (
+    validDomains.length === 0
+  ) {
+    return {
+      idiScore:
+        null,
+
+      status:
+        'unknown',
+
+      statusLabel:
+        'Sem dados suficientes',
+
+      domainCount: 0,
+
+      competencyCount: 0,
+
+      criterionCount: 0,
+
+      priorityDomain:
+        null,
+
+      strongestDomain:
+        null,
+
+      domains: [],
+
+      weightingMethod:
+        'criterion_count',
+    };
+  }
+
+  let weightedTotal = 0;
+  let totalWeight = 0;
+
+  let competencyCount = 0;
+  let criterionCount = 0;
+
+  validDomains.forEach(
+    (domain) => {
+      const score =
+        Number(
+          domain.idiScore
+        );
+
+      /*
+       * Cada domínio é ponderado pelo total
+       * de critérios válidos que representa.
+       */
+      const weight =
+        Math.max(
+          1,
+          Number(
+            domain.criterionCount
+          ) || 0
+        );
+
+      weightedTotal +=
+        score * weight;
+
+      totalWeight +=
+        weight;
+
+      competencyCount +=
+        Number(
+          domain.competencyCount
+        ) || 0;
+
+      criterionCount +=
+        Number(
+          domain.criterionCount
+        ) || 0;
+    }
+  );
+
+  const idiScore =
+    totalWeight > 0
+      ? roundValue(
+          weightedTotal /
+            totalWeight,
+          1
+        )
+      : null;
+
+  const status =
+    resolveIdiStatus(
+      idiScore
+    );
+
+  const orderedDomains =
+    [...validDomains].sort(
+      (
+        first,
+        second
+      ) =>
+        Number(
+          first.idiScore
+        ) -
+        Number(
+          second.idiScore
+        )
+    );
+
+  return {
+    idiScore,
+
+    status:
+      status.id,
+
+    statusLabel:
+      status.label,
+
+    domainCount:
+      orderedDomains.length,
+
+    competencyCount,
+
+    criterionCount,
+
+    priorityDomain:
+      orderedDomains[0] ||
+      null,
+
+    strongestDomain:
+      orderedDomains[
+        orderedDomains.length -
+          1
+      ] ||
+      null,
+
+    domains:
+      orderedDomains,
+
+    weightingMethod:
+      'criterion_count',
+
+    generatedAt:
+      new Date().toISOString(),
+  };
+}
 /**
  * Função principal do motor.
  *
@@ -2424,6 +2885,16 @@ export function buildAutomaticDevelopmentRecommendations({
     buildCompetencyIDI(
       allRecommendations
     );
+  
+  const domainIDI =
+    buildDomainIDI(
+      competencyIDI
+    );
+  
+  const globalIDI =
+    buildGlobalIDI(
+      domainIDI
+    );
 
   return {
     hasData:
@@ -2471,6 +2942,18 @@ export function buildAutomaticDevelopmentRecommendations({
 
     competencyCount:
       competencyIDI.length,
+    
+    domainCount:
+      domainIDI.length,
+    
+    globalIdiScore:
+      globalIDI.idiScore,
+    
+    globalIdiStatus:
+      globalIDI.status,
+    
+    globalIdiStatusLabel:
+      globalIDI.statusLabel,
 
     recommendations:
       visibleRecommendations,
@@ -2491,10 +2974,39 @@ export function buildAutomaticDevelopmentRecommendations({
 
     recommendationsAboveExpected,
 
+    /*
+     * Estrutura histórica por domínio.
+     * Mantida temporariamente por compatibilidade.
+     */
     domains,
-
+    
+    /*
+     * Nova arquitetura oficial IDI.
+     */
     competencyIDI,
-
+    
+    domainIDI,
+    
+    globalIDI,
+    
+    primaryCompetency:
+      competencyIDI[0] ||
+      null,
+    
+    strongestCompetency:
+      competencyIDI.length > 0
+        ? competencyIDI[
+            competencyIDI.length -
+              1
+          ]
+        : null,
+    
+    primaryDomain:
+      globalIDI.priorityDomain,
+    
+    strongestDomain:
+      globalIDI.strongestDomain,
+    
     primaryRecommendation:
       priorities[0] ||
       recommendationsBelowExpected[0] ||
