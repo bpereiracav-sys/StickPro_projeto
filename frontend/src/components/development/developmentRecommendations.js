@@ -250,35 +250,91 @@ const normalizeScorePercentage = ({
   );
 };
 
-const resolvePriority = (
-  normalizedPercentage
-) => {
-  if (
-    normalizedPercentage === null
-  ) {
-    return null;
+const resolvePriority = ({
+  idiScore,
+  expectedComparison,
+  recommendationIndex,
+}) => {
+  /*
+   * Novo motor StickPro.
+   *
+   * Sempre que existir IDI, este passa a ser
+   * a única fonte de verdade.
+   */
+
+  if (Number.isFinite(idiScore)) {
+    if (idiScore < 35) {
+      return 'critical';
+    }
+
+    if (idiScore < 55) {
+      return 'high';
+    }
+
+    if (idiScore < 75) {
+      return 'moderate';
+    }
+
+    if (idiScore < 90) {
+      return 'consolidation';
+    }
+
+    return 'strength';
   }
 
-  if (
-    normalizedPercentage < 30
-  ) {
-    return 'critical';
-  }
+  /*
+   * Compatibilidade.
+   *
+   * Critérios antigos que ainda não possuem IDI.
+   */
 
   if (
-    normalizedPercentage < 50
+    expectedComparison?.status ===
+    'below_expected'
   ) {
     return 'high';
   }
 
   if (
-    normalizedPercentage < 70
+    expectedComparison?.status ===
+    'within_expected'
+  ) {
+    return 'consolidation';
+  }
+
+  if (
+    expectedComparison?.status ===
+    'above_expected'
+  ) {
+    return 'strength';
+  }
+
+  if (
+    recommendationIndex == null
+  ) {
+    return null;
+  }
+
+  if (
+    recommendationIndex < 30
+  ) {
+    return 'critical';
+  }
+
+  if (
+    recommendationIndex < 50
+  ) {
+    return 'high';
+  }
+
+  if (
+    recommendationIndex < 70
   ) {
     return 'moderate';
   }
 
   if (
-    normalizedPercentage < 85
+    recommendationIndex < 85
   ) {
     return 'consolidation';
   }
@@ -1551,9 +1607,14 @@ const buildCriterionRecommendation = (
    * passará a considerar expectedComparison.
    */
   const priority =
-    resolvePriority(
-      recommendationIndex
-    );
+    resolvePriority({
+      idiScore:
+        intelligentDevelopmentIndex.score,
+  
+      expectedComparison,
+  
+      recommendationIndex,
+    });
 
   const priorityConfig =
     DEVELOPMENT_PRIORITY_CONFIG[
