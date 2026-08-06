@@ -1471,13 +1471,14 @@ class TrainingFeedback(BaseModel):
 
 
 # Evaluation Models — Sprint 4.2.1
+
 EvaluationCriterionCategory = Literal[
     "technical",
     "tactical",
     "physical",
     "psychological",
     "attitude",
-    "other"
+    "other",
 ]
 
 EvaluationVisibility = Literal[
@@ -1485,57 +1486,13 @@ EvaluationVisibility = Literal[
     "technical_staff",
     "player",
     "guardian",
-    "all"
+    "all",
 ]
 
-
-class EvaluationCriterionCreate(BaseModel):
-    name: str
-    description: Optional[str] = None
-    category: EvaluationCriterionCategory = "technical"
-    scale_min: int = 1
-    scale_max: int = 5
-    weight: float = 1.0
-    team_id: Optional[str] = None
-
-    expected_levels: List[
-        ExpectedDevelopmentLevel
-    ] = Field(
-        default_factory=list
-    )
-    
-    is_active: bool = True
-
-
-class EvaluationCriterion(BaseModel):
-    model_config = ConfigDict(extra="ignore")
-
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    description: Optional[str] = None
-    category: EvaluationCriterionCategory = "technical"
-    scale_min: int = 1
-    scale_max: int = 5
-    weight: float = 1.0
-
-    team_id: Optional[str] = None
-    
-    club_id: Optional[str] = None
-    
-    
-    # ========================================================
-    # Níveis esperados oficiais StickPro
-    # ========================================================
-    
-    expected_levels: List[
-        ExpectedDevelopmentLevel
-    ] = Field(
-        default_factory=list
-    )
-    is_active: bool = True
-    created_by: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+EvaluationCriterionPlayerType = Literal[
+    "field_player",
+    "goalkeeper",
+]
 
 
 # ============================================================
@@ -1547,30 +1504,98 @@ class ExpectedDevelopmentLevel(BaseModel):
     """
     Intervalo esperado para uma competência.
 
-    Pode ser utilizado para:
-
-    - valor geral
-    - escalão
-    - posição
-    - equipa
-    - futuras versões (competição, género, etc.)
+    Pode ser definido por:
+    - escalão;
+    - tipo de atleta;
+    - equipa;
+    - combinação destes contextos.
     """
 
     age_group: Optional[str] = None
 
     player_type: Optional[
-        EvaluationPlanPlayerType
+        EvaluationCriterionPlayerType
     ] = None
 
     team_id: Optional[str] = None
 
     minimum: float
-
     maximum: float
 
 
-class EvaluationCriterionUpdate(BaseModel):
+class EvaluationCriterionCreate(BaseModel):
+    name: str
+    description: Optional[str] = None
+    category: EvaluationCriterionCategory = "technical"
 
+    scale_min: int = 1
+    scale_max: int = 5
+
+    weight: float = 1.0
+
+    team_id: Optional[str] = None
+
+    expected_levels: List[
+        ExpectedDevelopmentLevel
+    ] = Field(
+        default_factory=list
+    )
+
+    is_active: bool = True
+
+
+class EvaluationCriterion(BaseModel):
+    model_config = ConfigDict(
+        extra="ignore"
+    )
+
+    id: str = Field(
+        default_factory=lambda: str(
+            uuid.uuid4()
+        )
+    )
+
+    name: str
+
+    description: Optional[str] = None
+
+    category: EvaluationCriterionCategory = (
+        "technical"
+    )
+
+    scale_min: int = 1
+    scale_max: int = 5
+
+    weight: float = 1.0
+
+    team_id: Optional[str] = None
+
+    club_id: Optional[str] = None
+
+    expected_levels: List[
+        ExpectedDevelopmentLevel
+    ] = Field(
+        default_factory=list
+    )
+
+    is_active: bool = True
+
+    created_by: str
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(
+            timezone.utc
+        )
+    )
+
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(
+            timezone.utc
+        )
+    )
+
+
+class EvaluationCriterionUpdate(BaseModel):
     name: Optional[str] = None
 
     description: Optional[str] = None
@@ -1580,14 +1605,11 @@ class EvaluationCriterionUpdate(BaseModel):
     ] = None
 
     scale_min: Optional[int] = None
-
     scale_max: Optional[int] = None
 
     weight: Optional[float] = None
 
     team_id: Optional[str] = None
-
-    is_active: Optional[bool] = None
 
     expected_levels: Optional[
         List[
@@ -1595,6 +1617,8 @@ class EvaluationCriterionUpdate(BaseModel):
         ]
     ] = None
 
+    is_active: Optional[bool] = None
+    
 class PlayerEvaluationScore(BaseModel):
     criterion_id: str
     score: float
