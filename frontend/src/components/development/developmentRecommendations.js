@@ -1,3 +1,7 @@
+import {
+  resolveAndCompareExpectedLevel,
+} from './expectedLevelResolver';
+
 // ============================================================
 // StickPro Development Recommendations
 // Sprint C3.5B.1A
@@ -409,10 +413,130 @@ const buildCoachMessage = ({
   }
 };
 
-const normalizeEvaluationScores = (
-  evaluations = []
+const getCriterionExpectedLevels = (
+  entry = {}
 ) => {
+  const candidates = [
+    entry?.expected_levels,
+    entry?.expectedLevels,
+
+    entry?.criterion
+      ?.expected_levels,
+
+    entry?.criterion
+      ?.expectedLevels,
+  ];
+
+  const expectedLevels =
+    candidates.find(
+      Array.isArray
+    );
+
+  return Array.isArray(
+    expectedLevels
+  )
+    ? expectedLevels
+    : [];
+};
+
+
+const getEntryTeamId = (
+  entry = {},
+  evaluation = {}
+) =>
+  entry?.team_id ||
+  entry?.teamId ||
+  entry?.criterion?.team_id ||
+  entry?.criterion?.teamId ||
+  evaluation?.team_id ||
+  evaluation?.teamId ||
+  null;
+
+
+const getEntryAgeGroup = (
+  entry = {},
+  evaluation = {}
+) =>
+  entry?.age_group ||
+  entry?.ageGroup ||
+  entry?.criterion?.age_group ||
+  entry?.criterion?.ageGroup ||
+  evaluation?.age_group ||
+  evaluation?.ageGroup ||
+  evaluation?.team_age_group ||
+  evaluation?.teamAgeGroup ||
+  null;
+
+
+const getEntryPlayerType = (
+  entry = {},
+  evaluation = {}
+) =>
+  entry?.player_type ||
+  entry?.playerType ||
+  entry?.criterion?.player_type ||
+  entry?.criterion?.playerType ||
+  evaluation?.player_type ||
+  evaluation?.playerType ||
+  null;
+
+
+const buildCriteriaMap = (
+  criteria = []
+) => {
+  const map = new Map();
+
+  (
+    Array.isArray(criteria)
+      ? criteria
+      : []
+  ).forEach(
+    (criterion) => {
+      const criterionId =
+        criterion?.id ||
+        criterion?.criterion_id ||
+        criterion?.criterionId ||
+        null;
+
+      const criterionCode =
+        criterion?.code ||
+        criterion?.sourceCode ||
+        criterion?.source_code ||
+        null;
+
+      if (criterionId) {
+        map.set(
+          String(criterionId),
+          criterion
+        );
+      }
+
+      if (criterionCode) {
+        map.set(
+          String(criterionCode),
+          criterion
+        );
+      }
+    }
+  );
+
+  return map;
+};
+
+
+const normalizeEvaluationScores = ({
+  evaluations = [],
+  criteria = [],
+  teamId = null,
+  ageGroup = null,
+  playerType = null,
+} = {}) => {
   const normalized = [];
+
+  const criteriaMap =
+    buildCriteriaMap(
+      criteria
+    );
 
   evaluations.forEach(
     (evaluation) => {
@@ -448,23 +572,6 @@ const normalizeEvaluationScores = (
             return;
           }
 
-          const scaleMin =
-            getScaleMin(
-              scoreEntry
-            );
-
-          const scaleMax =
-            getScaleMax(
-              scoreEntry
-            );
-
-          const normalizedPercentage =
-            normalizeScorePercentage({
-              score,
-              scaleMin,
-              scaleMax,
-            });
-
           const criterionId =
             getCriterionId(
               scoreEntry
@@ -483,6 +590,78 @@ const normalizeEvaluationScores = (
             return;
           }
 
+          const externalCriterion =
+            criteriaMap.get(
+              String(criterionId)
+            ) ||
+            criteriaMap.get(
+              String(criterionCode)
+            ) ||
+            null;
+
+          /*
+           * Alguns endpoints já devolvem o critério
+           * dentro de scoreEntry.criterion.
+           *
+           * Quando isso não acontece, utilizamos a
+           * lista de critérios fornecida à função principal.
+           */
+          const enrichedScoreEntry = {
+            ...(externalCriterion || {}),
+            ...scoreEntry,
+
+            criterion: {
+              ...(externalCriterion || {}),
+              ...(scoreEntry?.criterion || {}),
+            },
+          };
+
+          const scaleMin =
+            getScaleMin(
+              enrichedScoreEntry
+            );
+
+          const scaleMax =
+            getScaleMax(
+              enrichedScoreEntry
+            );
+
+          const normalizedPercentage =
+            normalizeScorePercentage({
+              score,
+              scaleMin,
+              scaleMax,
+            });
+
+          const resolvedTeamId =
+            getEntryTeamId(
+              enrichedScoreEntry,
+              evaluation
+            ) ||
+            teamId ||
+            null;
+
+          const resolvedAgeGroup =
+            getEntryAgeGroup(
+              enrichedScoreEntry,
+              evaluation
+            ) ||
+            ageGroup ||
+            null;
+
+          const resolvedPlayerType =
+            getEntryPlayerType(
+              enrichedScoreEntry,
+              evaluation
+            ) ||
+            playerType ||
+            null;
+
+          const expectedLevels =
+            getCriterionExpectedLevels(
+              enrichedScoreEntry
+            );
+
           normalized.push({
             evaluationId,
             planId,
@@ -494,33 +673,44 @@ const normalizeEvaluationScores = (
 
             criterionName:
               getCriterionName(
-                scoreEntry
+                enrichedScoreEntry
               ),
 
             criterionDescription:
               getCriterionDescription(
-                scoreEntry
+                enrichedScoreEntry
               ),
 
             domainId:
               getDomainId(
-                scoreEntry
+                enrichedScoreEntry
               ),
 
             domainLabel:
               getDomainLabel(
-                scoreEntry
+                enrichedScoreEntry
               ),
 
             subdomainId:
               getSubdomainId(
-                scoreEntry
+                enrichedScoreEntry
               ),
 
             subdomainLabel:
               getSubdomainLabel(
-                scoreEntry
+                enrichedScoreEntry
               ),
+
+            expectedLevels,
+
+            teamId:
+              resolvedTeamId,
+
+            ageGroup:
+              resolvedAgeGroup,
+
+            playerType:
+              resolvedPlayerType,
 
             score,
             scaleMin,
@@ -533,6 +723,486 @@ const normalizeEvaluationScores = (
   );
 
   return normalized;
+};
+
+
+const groupScoresByCriterion = (
+  normalizedScores = []
+) => {
+  const groups = new Map();
+
+  normalizedScores.forEach(
+    (scoreEntry) => {
+      const key =
+        scoreEntry.criterionKey;
+
+      if (!groups.has(key)) {
+        groups.set(key, {
+          criterionKey: key,
+
+          criterionId:
+            scoreEntry.criterionId,
+
+          criterionCode:
+            scoreEntry.criterionCode,
+
+          criterionName:
+            scoreEntry.criterionName,
+
+          criterionDescription:
+            scoreEntry
+              .criterionDescription,
+
+          domainId:
+            scoreEntry.domainId,
+
+          domainLabel:
+            scoreEntry.domainLabel,
+
+          subdomainId:
+            scoreEntry.subdomainId,
+
+          subdomainLabel:
+            scoreEntry.subdomainLabel,
+
+          expectedLevels:
+            scoreEntry.expectedLevels ||
+            [],
+
+          teamId:
+            scoreEntry.teamId ||
+            null,
+
+          ageGroup:
+            scoreEntry.ageGroup ||
+            null,
+
+          playerType:
+            scoreEntry.playerType ||
+            null,
+
+          entries: [],
+        });
+      }
+
+      const group =
+        groups.get(key);
+
+      /*
+       * Se a primeira avaliação histórica não tinha
+       * metadados, mas uma avaliação posterior já tem,
+       * preservamos a configuração mais completa.
+       */
+      if (
+        group.expectedLevels.length === 0 &&
+        scoreEntry.expectedLevels
+          ?.length > 0
+      ) {
+        group.expectedLevels =
+          scoreEntry.expectedLevels;
+      }
+
+      if (
+        !group.teamId &&
+        scoreEntry.teamId
+      ) {
+        group.teamId =
+          scoreEntry.teamId;
+      }
+
+      if (
+        !group.ageGroup &&
+        scoreEntry.ageGroup
+      ) {
+        group.ageGroup =
+          scoreEntry.ageGroup;
+      }
+
+      if (
+        !group.playerType &&
+        scoreEntry.playerType
+      ) {
+        group.playerType =
+          scoreEntry.playerType;
+      }
+
+      group.entries.push(
+        scoreEntry
+      );
+    }
+  );
+
+  return Array.from(
+    groups.values()
+  );
+};
+
+
+const calculateCriterionTrend = (
+  entries = []
+) => {
+  const ordered = [...entries].sort(
+    (first, second) => {
+      const firstTime =
+        first.evaluationDate
+          ? new Date(
+              first.evaluationDate
+            ).getTime()
+          : 0;
+
+      const secondTime =
+        second.evaluationDate
+          ? new Date(
+              second.evaluationDate
+            ).getTime()
+          : 0;
+
+      return (
+        firstTime -
+        secondTime
+      );
+    }
+  );
+
+  if (ordered.length < 2) {
+    return {
+      direction: 'stable',
+      difference: 0,
+    };
+  }
+
+  const latest =
+    ordered[
+      ordered.length - 1
+    ]?.normalizedPercentage;
+
+  const previous =
+    ordered[
+      ordered.length - 2
+    ]?.normalizedPercentage;
+
+  if (
+    latest === null ||
+    latest === undefined ||
+    previous === null ||
+    previous === undefined
+  ) {
+    return {
+      direction: 'stable',
+      difference: 0,
+    };
+  }
+
+  const difference =
+    roundValue(
+      latest - previous,
+      1
+    );
+
+  if (difference >= 5) {
+    return {
+      direction: 'improving',
+      difference,
+    };
+  }
+
+  if (difference <= -5) {
+    return {
+      direction: 'declining',
+      difference,
+    };
+  }
+
+  return {
+    direction: 'stable',
+    difference,
+  };
+};
+
+
+const buildCriterionRecommendation = (
+  group
+) => {
+  const percentages =
+    group.entries
+      .map(
+        (entry) =>
+          entry.normalizedPercentage
+      )
+      .filter(
+        (value) =>
+          value !== null &&
+          value !== undefined
+      );
+
+  if (
+    percentages.length === 0
+  ) {
+    return null;
+  }
+
+  const averagePercentage =
+    roundValue(
+      percentages.reduce(
+        (sum, value) =>
+          sum + value,
+        0
+      ) /
+        percentages.length,
+      1
+    );
+
+  const latestEntry =
+    [...group.entries].sort(
+      (first, second) => {
+        const firstTime =
+          first.evaluationDate
+            ? new Date(
+                first.evaluationDate
+              ).getTime()
+            : 0;
+
+        const secondTime =
+          second.evaluationDate
+            ? new Date(
+                second.evaluationDate
+              ).getTime()
+            : 0;
+
+        return (
+          secondTime -
+          firstTime
+        );
+      }
+    )[0];
+
+  const latestPercentage =
+    latestEntry
+      ?.normalizedPercentage ??
+    averagePercentage;
+
+  /*
+   * Índice histórico anterior.
+   *
+   * Continua disponível para:
+   * - critérios ainda sem nível esperado;
+   * - compatibilidade com a interface atual;
+   * - ordenação secundária.
+   */
+  const recommendationIndex =
+    roundValue(
+      latestPercentage * 0.65 +
+        averagePercentage * 0.35,
+      1
+    );
+
+  const {
+    expectedLevel,
+    comparison:
+      expectedComparison,
+  } =
+    resolveAndCompareExpectedLevel({
+      expectedLevels:
+        group.expectedLevels ||
+        [],
+
+      score:
+        latestEntry?.score ??
+        null,
+
+      teamId:
+        group.teamId ||
+        latestEntry?.teamId ||
+        null,
+
+      ageGroup:
+        group.ageGroup ||
+        latestEntry?.ageGroup ||
+        null,
+
+      playerType:
+        group.playerType ||
+        latestEntry?.playerType ||
+        null,
+    });
+
+  /*
+   * Neste primeiro deploy mantemos a classificação
+   * percentual. No próximo sprint, resolvePriority
+   * passará a considerar expectedComparison.
+   */
+  const priority =
+    resolvePriority(
+      recommendationIndex
+    );
+
+  const priorityConfig =
+    DEVELOPMENT_PRIORITY_CONFIG[
+      priority
+    ];
+
+  const trend =
+    calculateCriterionTrend(
+      group.entries
+    );
+
+  return {
+    id:
+      `recommendation:${group.criterionKey}`,
+
+    criterionId:
+      group.criterionId,
+
+    criterionCode:
+      group.criterionCode,
+
+    criterionName:
+      group.criterionName,
+
+    criterionDescription:
+      group.criterionDescription,
+
+    domainId:
+      group.domainId,
+
+    domainLabel:
+      group.domainLabel,
+
+    subdomainId:
+      group.subdomainId,
+
+    subdomainLabel:
+      group.subdomainLabel,
+
+    priority,
+
+    priorityLabel:
+      priorityConfig?.label ||
+      priority,
+
+    priorityClassName:
+      priorityConfig?.className ||
+      '',
+
+    recommendationIndex,
+
+    averagePercentage,
+    latestPercentage,
+
+    latestScore:
+      latestEntry?.score ??
+      null,
+
+    scaleMin:
+      latestEntry?.scaleMin ??
+      DEFAULT_SCALE_MIN,
+
+    scaleMax:
+      latestEntry?.scaleMax ??
+      DEFAULT_SCALE_MAX,
+
+    /*
+     * Novos dados do Sprint C3.5B.2C.
+     */
+    expectedLevel,
+
+    expectedMinimum:
+      expectedLevel?.minimum ??
+      null,
+
+    expectedMaximum:
+      expectedLevel?.maximum ??
+      null,
+
+    expectedLevelContext:
+      expectedLevel?.contextLabel ||
+      null,
+
+    expectedLevelSource:
+      expectedLevel?.source ||
+      null,
+
+    expectedComparison,
+
+    expectedStatus:
+      expectedComparison?.status ||
+      'not_configured',
+
+    expectedStatusLabel:
+      expectedComparison?.label ||
+      'Sem nível esperado',
+
+    differenceToExpectedMinimum:
+      expectedComparison
+        ?.differenceToMinimum ??
+      null,
+
+    differenceToExpectedMaximum:
+      expectedComparison
+        ?.differenceToMaximum ??
+      null,
+
+    expectedDistance:
+      expectedComparison?.distance ??
+      null,
+
+    usesExpectedLevel:
+      Boolean(expectedLevel),
+
+    teamId:
+      group.teamId ||
+      latestEntry?.teamId ||
+      null,
+
+    ageGroup:
+      group.ageGroup ||
+      latestEntry?.ageGroup ||
+      null,
+
+    playerType:
+      group.playerType ||
+      latestEntry?.playerType ||
+      null,
+
+    evaluationCount:
+      group.entries.length,
+
+    latestEvaluationDate:
+      latestEntry
+        ?.evaluationDate ||
+      null,
+
+    trend,
+
+    objective:
+      buildObjectiveText({
+        criterionName:
+          group.criterionName,
+        priority,
+      }),
+
+    trainingFocus:
+      buildTrainingFocus({
+        criterionName:
+          group.criterionName,
+        priority,
+      }),
+
+    coachMessage:
+      buildCoachMessage({
+        criterionName:
+          group.criterionName,
+        priority,
+      }),
+
+    source:
+      expectedLevel
+        ? 'expected_level_rule_engine'
+        : 'automatic_rule_engine',
+
+    generatedAt:
+      new Date().toISOString(),
+  };
 };
 
 const groupScoresByCriterion = (
@@ -965,14 +1635,23 @@ const groupRecommendationsByDomain = (
  * - síntese por domínio;
  * - recomendação principal.
  */
+
 export function buildAutomaticDevelopmentRecommendations({
   evaluations = [],
+  criteria = [],
+  teamId = null,
+  ageGroup = null,
+  playerType = null,
   maximumRecommendations = 12,
 } = {}) {
   const normalizedScores =
-    normalizeEvaluationScores(
-      evaluations
-    );
+    normalizeEvaluationScores({
+      evaluations,
+      criteria,
+      teamId,
+      ageGroup,
+      playerType,
+    });
 
   const criterionGroups =
     groupScoresByCriterion(
@@ -1003,6 +1682,42 @@ export function buildAutomaticDevelopmentRecommendations({
             priorityDifference !== 0
           ) {
             return priorityDifference;
+          }
+
+          /*
+           * Quando ambos possuem intervalos esperados,
+           * a maior distância abaixo do mínimo aparece
+           * primeiro.
+           */
+          if (
+            first.usesExpectedLevel &&
+            second.usesExpectedLevel
+          ) {
+            const firstDistance =
+              first.expectedStatus ===
+              'below_expected'
+                ? Number(
+                    first.expectedDistance
+                  ) || 0
+                : 0;
+
+            const secondDistance =
+              second.expectedStatus ===
+              'below_expected'
+                ? Number(
+                    second.expectedDistance
+                  ) || 0
+                : 0;
+
+            if (
+              firstDistance !==
+              secondDistance
+            ) {
+              return (
+                secondDistance -
+                firstDistance
+              );
+            }
           }
 
           return (
@@ -1038,6 +1753,37 @@ export function buildAutomaticDevelopmentRecommendations({
         'strength'
     );
 
+  const recommendationsWithExpectedLevel =
+    allRecommendations.filter(
+      (recommendation) =>
+        recommendation
+          .usesExpectedLevel === true
+    );
+
+  const recommendationsBelowExpected =
+    allRecommendations.filter(
+      (recommendation) =>
+        recommendation
+          .expectedStatus ===
+        'below_expected'
+    );
+
+  const recommendationsWithinExpected =
+    allRecommendations.filter(
+      (recommendation) =>
+        recommendation
+          .expectedStatus ===
+        'within_expected'
+    );
+
+  const recommendationsAboveExpected =
+    allRecommendations.filter(
+      (recommendation) =>
+        recommendation
+          .expectedStatus ===
+        'above_expected'
+    );
+
   const visibleRecommendations =
     allRecommendations.slice(
       0,
@@ -1062,7 +1808,10 @@ export function buildAutomaticDevelopmentRecommendations({
       new Date().toISOString(),
 
     source:
-      'automatic_rule_engine',
+      recommendationsWithExpectedLevel
+        .length > 0
+        ? 'expected_level_rule_engine'
+        : 'automatic_rule_engine',
 
     evaluationCount:
       evaluations.length,
@@ -1079,6 +1828,22 @@ export function buildAutomaticDevelopmentRecommendations({
     strengthCount:
       strengths.length,
 
+    expectedLevelCount:
+      recommendationsWithExpectedLevel
+        .length,
+
+    belowExpectedCount:
+      recommendationsBelowExpected
+        .length,
+
+    withinExpectedCount:
+      recommendationsWithinExpected
+        .length,
+
+    aboveExpectedCount:
+      recommendationsAboveExpected
+        .length,
+
     recommendations:
       visibleRecommendations,
 
@@ -1090,10 +1855,19 @@ export function buildAutomaticDevelopmentRecommendations({
 
     strengths,
 
+    recommendationsWithExpectedLevel,
+
+    recommendationsBelowExpected,
+
+    recommendationsWithinExpected,
+
+    recommendationsAboveExpected,
+
     domains,
 
     primaryRecommendation:
       priorities[0] ||
+      recommendationsBelowExpected[0] ||
       consolidation[0] ||
       strengths[0] ||
       null,
