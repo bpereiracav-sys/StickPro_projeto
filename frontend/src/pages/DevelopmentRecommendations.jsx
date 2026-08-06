@@ -344,7 +344,92 @@ const getRecommendationState = (
   };
 };
 
+const getIdiStatusConfig = (
+  status
+) => {
+  const configs = {
+    critical: {
+      label:
+        'Desenvolvimento prioritário',
+      className:
+        'border-red-200 bg-red-50 text-red-700',
+    },
 
+    attention: {
+      label:
+        'Necessita de atenção',
+      className:
+        'border-orange-200 bg-orange-50 text-orange-700',
+    },
+
+    progressing: {
+      label:
+        'Em desenvolvimento',
+      className:
+        'border-amber-200 bg-amber-50 text-amber-700',
+    },
+
+    expected: {
+      label:
+        'Dentro do esperado',
+      className:
+        'border-cyan-200 bg-cyan-50 text-cyan-700',
+    },
+
+    advanced: {
+      label:
+        'Desempenho avançado',
+      className:
+        'border-emerald-200 bg-emerald-50 text-emerald-700',
+    },
+
+    unknown: {
+      label:
+        'Sem dados suficientes',
+      className:
+        'border-slate-200 bg-slate-50 text-slate-600',
+    },
+  };
+
+  return (
+    configs[status] ||
+    configs.unknown
+  );
+};
+
+
+const resolveIdiStatusFromScore = (
+  score
+) => {
+  const numericScore =
+    Number(score);
+
+  if (
+    !Number.isFinite(
+      numericScore
+    )
+  ) {
+    return 'unknown';
+  }
+
+  if (numericScore < 35) {
+    return 'critical';
+  }
+
+  if (numericScore < 55) {
+    return 'attention';
+  }
+
+  if (numericScore < 75) {
+    return 'progressing';
+  }
+
+  if (numericScore < 90) {
+    return 'expected';
+  }
+
+  return 'advanced';
+};
 function DevelopmentIcon({
   className = '',
 }) {
@@ -1190,6 +1275,130 @@ export default function DevelopmentRecommendations() {
     recommendationsEngine
       ?.competencyIDI ||
     [];
+
+  const developmentDashboard =
+    useMemo(
+      () => {
+        const validCompetencies =
+          competencyIDI.filter(
+            (competency) =>
+              Number.isFinite(
+                Number(
+                  competency?.idiScore
+                )
+              )
+          );
+  
+        if (
+          validCompetencies.length === 0
+        ) {
+          return {
+            globalIdi: null,
+  
+            globalStatus:
+              'unknown',
+  
+            globalStatusLabel:
+              'Sem dados suficientes',
+  
+            priorityCompetency:
+              null,
+  
+            strongestCompetency:
+              null,
+  
+            attentionCount: 0,
+  
+            advancedCount: 0,
+          };
+        }
+  
+        const globalIdi =
+          validCompetencies.reduce(
+            (
+              total,
+              competency
+            ) =>
+              total +
+              Number(
+                competency.idiScore
+              ),
+            0
+          ) /
+          validCompetencies.length;
+  
+        const orderedCompetencies =
+          [...validCompetencies].sort(
+            (
+              first,
+              second
+            ) =>
+              Number(
+                first.idiScore
+              ) -
+              Number(
+                second.idiScore
+              )
+          );
+  
+        const priorityCompetency =
+          orderedCompetencies[0] ||
+          null;
+  
+        const strongestCompetency =
+          orderedCompetencies[
+            orderedCompetencies.length -
+              1
+          ] ||
+          null;
+  
+        const attentionCount =
+          validCompetencies.filter(
+            (competency) =>
+              [
+                'critical',
+                'attention',
+                'progressing',
+              ].includes(
+                competency.status
+              )
+          ).length;
+  
+        const advancedCount =
+          validCompetencies.filter(
+            (competency) =>
+              competency.status ===
+                'advanced'
+          ).length;
+  
+        const globalStatus =
+          resolveIdiStatusFromScore(
+            globalIdi
+          );
+  
+        return {
+          globalIdi,
+  
+          globalStatus,
+  
+          globalStatusLabel:
+            getIdiStatusConfig(
+              globalStatus
+            ).label,
+  
+          priorityCompetency,
+  
+          strongestCompetency,
+  
+          attentionCount,
+  
+          advancedCount,
+        };
+      },
+      [
+        competencyIDI,
+      ]
+    );
   
   const filteredRecommendations =
     useMemo(
@@ -1617,58 +1826,227 @@ export default function DevelopmentRecommendations() {
 
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryMetric
-              label="Prioridades"
+              label="IDI Global"
               value={
-                priorityRecommendations
-                  .length
-              }
-              helper="Competências que necessitam de intervenção."
-              icon={Target}
-              accent="amber"
-            />
-
-            <SummaryMetric
-              label="Consolidação"
-              value={
-                consolidationRecommendations
-                  .length
-              }
-              helper="Competências dentro de um nível funcional."
-              icon={
-                ShieldCheck
-              }
-              accent="cyan"
-            />
-
-            <SummaryMetric
-              label="Pontos fortes"
-              value={
-                strengthRecommendations
-                  .length
-              }
-              helper="Competências com desempenho elevado."
-              icon={
-                TrendingUp
-              }
-              accent="emerald"
-            />
-
-            <SummaryMetric
-              label="Média recente"
-              value={
-                latestAverage !==
-                null
-                  ? latestAverage.toFixed(
-                      1
-                    )
+                developmentDashboard
+                  .globalIdi !== null
+                  ? developmentDashboard
+                      .globalIdi
+                      .toFixed(1)
                   : '—'
               }
-              helper="Média da avaliação mais recente."
+              helper={
+                developmentDashboard
+                  .globalIdi !== null
+                  ? developmentDashboard
+                      .globalStatusLabel
+                  : 'Ainda não existem dados suficientes.'
+              }
               icon={Gauge}
               accent="purple"
             />
+          
+            <SummaryMetric
+              label="Competência prioritária"
+              value={
+                developmentDashboard
+                  .priorityCompetency
+                  ?.name ||
+                '—'
+              }
+              helper={
+                developmentDashboard
+                  .priorityCompetency
+                  ? `IDI ${Number(
+                      developmentDashboard
+                        .priorityCompetency
+                        .idiScore
+                    ).toFixed(1)} · ${
+                      developmentDashboard
+                        .priorityCompetency
+                        .statusLabel
+                    }`
+                  : 'Sem competências calculadas.'
+              }
+              icon={Target}
+              accent="amber"
+            />
+          
+            <SummaryMetric
+              label="Competência mais forte"
+              value={
+                developmentDashboard
+                  .strongestCompetency
+                  ?.name ||
+                '—'
+              }
+              helper={
+                developmentDashboard
+                  .strongestCompetency
+                  ? `IDI ${Number(
+                      developmentDashboard
+                        .strongestCompetency
+                        .idiScore
+                    ).toFixed(1)} · ${
+                      developmentDashboard
+                        .strongestCompetency
+                        .statusLabel
+                    }`
+                  : 'Sem competências calculadas.'
+              }
+              icon={TrendingUp}
+              accent="emerald"
+            />
+          
+            <SummaryMetric
+              label="Exigem atenção"
+              value={
+                developmentDashboard
+                  .attentionCount
+              }
+              helper={
+                developmentDashboard
+                  .attentionCount === 1
+                  ? '1 competência abaixo do nível esperado.'
+                  : `${developmentDashboard.attentionCount} competências abaixo do nível esperado.`
+              }
+              icon={ShieldCheck}
+              accent="cyan"
+            />
           </div>
 
+          {developmentDashboard
+            .globalIdi !== null && (
+            <Card className="overflow-hidden border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
+              <CardContent className="p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-950 text-white">
+                      <Gauge className="h-7 w-7" />
+                    </div>
+          
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Síntese inteligente
+                      </p>
+          
+                      <h3 className="mt-1 font-heading text-2xl text-slate-950">
+                        IDI Global{' '}
+                        {developmentDashboard
+                          .globalIdi
+                          .toFixed(1)}
+                        /100
+                      </h3>
+          
+                      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                        O Índice Inteligente de Desenvolvimento combina o nível
+                        atual, a tendência e a consistência das competências
+                        avaliadas.
+                      </p>
+                    </div>
+                  </div>
+          
+                  <Badge
+                    variant="outline"
+                    className={
+                      getIdiStatusConfig(
+                        developmentDashboard
+                          .globalStatus
+                      ).className
+                    }
+                  >
+                    {
+                      developmentDashboard
+                        .globalStatusLabel
+                    }
+                  </Badge>
+                </div>
+          
+                <div className="mt-5 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-amber-100 bg-amber-50/60 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                      Prioridade
+                    </p>
+          
+                    <p className="mt-2 font-semibold text-slate-900">
+                      {
+                        developmentDashboard
+                          .priorityCompetency
+                          ?.name ||
+                        'Sem dados'
+                      }
+                    </p>
+          
+                    {developmentDashboard
+                      .priorityCompetency && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        IDI{' '}
+                        {Number(
+                          developmentDashboard
+                            .priorityCompetency
+                            .idiScore
+                        ).toFixed(1)}
+                      </p>
+                    )}
+                  </div>
+          
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                      Ponto mais forte
+                    </p>
+          
+                    <p className="mt-2 font-semibold text-slate-900">
+                      {
+                        developmentDashboard
+                          .strongestCompetency
+                          ?.name ||
+                        'Sem dados'
+                      }
+                    </p>
+          
+                    {developmentDashboard
+                      .strongestCompetency && (
+                      <p className="mt-1 text-xs text-slate-500">
+                        IDI{' '}
+                        {Number(
+                          developmentDashboard
+                            .strongestCompetency
+                            .idiScore
+                        ).toFixed(1)}
+                      </p>
+                    )}
+                  </div>
+          
+                  <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+                      Estado global
+                    </p>
+          
+                    <p className="mt-2 font-semibold text-slate-900">
+                      {
+                        developmentDashboard
+                          .globalStatusLabel
+                      }
+                    </p>
+          
+                    <p className="mt-1 text-xs text-slate-500">
+                      {
+                        developmentDashboard
+                          .attentionCount
+                      }{' '}
+                      {
+                        developmentDashboard
+                          .attentionCount === 1
+                          ? 'competência exige atenção'
+                          : 'competências exigem atenção'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          
           <Card className="border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/50 to-slate-50 shadow-xl shadow-slate-200/60">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -2180,26 +2558,25 @@ export default function DevelopmentRecommendations() {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-semibold text-slate-900">
-                    Próxima evolução
+                    Índice Inteligente de Desenvolvimento
                   </p>
-
+          
                   <p className="mt-1 text-sm leading-6 text-slate-500">
-                    A próxima fase permitirá comparar cada resultado com
-                    intervalos esperados configurados pelo Coordenador Técnico
-                    ou pelo treinador.
+                    O IDI combina o nível atual, a tendência e a consistência.
+                    Os intervalos esperados configurados pelo Coordenador Técnico
+                    ou pelo treinador são aplicados automaticamente quando
+                    disponíveis.
                   </p>
                 </div>
-
-                <Button
-                  type="button"
+          
+                <Badge
                   variant="outline"
-                  className="shrink-0 rounded-full"
-                  disabled
+                  className="shrink-0 rounded-full border-cyan-200 bg-cyan-50 text-cyan-700"
                 >
-                  <Target className="mr-2 h-4 w-4" />
-
-                  Definir níveis esperados
-                </Button>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+          
+                  Motor ativo
+                </Badge>
               </div>
             </CardContent>
           </Card>
