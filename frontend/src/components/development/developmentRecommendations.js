@@ -2228,6 +2228,11 @@ export function buildAutomaticDevelopmentRecommendations({
 
     domains,
 
+    competencyIDI:
+      buildCompetencyIDI(
+        allRecommendations
+      ),
+    
     primaryRecommendation:
       priorities[0] ||
       recommendationsBelowExpected[0] ||
@@ -2235,6 +2240,158 @@ export function buildAutomaticDevelopmentRecommendations({
       strengths[0] ||
       null,
   };
+  // ============================================================
+  // Intelligent Development Index by Competency
+  // Sprint C3.5B.4A
+  // ============================================================
+  
+  export function buildCompetencyIDI(
+    recommendations = []
+  ) {
+    const groups = new Map();
+  
+    recommendations.forEach(
+      (recommendation) => {
+        const key =
+          recommendation.subdomainId ||
+          recommendation.domainId ||
+          'general';
+  
+        if (!groups.has(key)) {
+          groups.set(key, {
+            id: key,
+  
+            name:
+              recommendation.subdomainLabel ||
+              recommendation.domainLabel ||
+              'Competência',
+  
+            recommendations: [],
+          });
+        }
+  
+        groups
+          .get(key)
+          .recommendations.push(
+            recommendation
+          );
+      }
+    );
+  
+    return Array.from(
+      groups.values()
+    )
+      .map((group) => {
+        const idiScores =
+          group.recommendations
+            .map(
+              (item) =>
+                Number(
+                  item.idiScore
+                )
+            )
+            .filter(
+              Number.isFinite
+            );
+  
+        const averageIDI =
+          idiScores.length > 0
+            ? roundValue(
+                idiScores.reduce(
+                  (sum, value) =>
+                    sum + value,
+                  0
+                ) /
+                  idiScores.length,
+                1
+              )
+            : 0;
+  
+        const strengths =
+          group.recommendations.filter(
+            (item) =>
+              item.priority ===
+              'strength'
+          ).length;
+  
+        const critical =
+          group.recommendations.filter(
+            (item) =>
+              item.priority ===
+              'critical'
+          ).length;
+  
+        const high =
+          group.recommendations.filter(
+            (item) =>
+              item.priority ===
+              'high'
+          ).length;
+  
+        const moderate =
+          group.recommendations.filter(
+            (item) =>
+              item.priority ===
+              'moderate'
+          ).length;
+  
+        let status =
+          'expected';
+  
+        if (
+          averageIDI < 35
+        ) {
+          status =
+            'critical';
+        } else if (
+          averageIDI < 55
+        ) {
+          status =
+            'attention';
+        } else if (
+          averageIDI < 75
+        ) {
+          status =
+            'progressing';
+        } else if (
+          averageIDI >= 90
+        ) {
+          status =
+            'advanced';
+        }
+  
+        return {
+          id: group.id,
+  
+          name: group.name,
+  
+          idiScore:
+            averageIDI,
+  
+          status,
+  
+          recommendationCount:
+            group.recommendations
+              .length,
+  
+          strengths,
+  
+          critical,
+  
+          high,
+  
+          moderate,
+  
+          recommendations:
+            group.recommendations,
+        };
+      })
+      .sort(
+        (a, b) =>
+          a.idiScore -
+          b.idiScore
+      );
+  }
 }
 
 export function getDevelopmentPriorityConfig(
