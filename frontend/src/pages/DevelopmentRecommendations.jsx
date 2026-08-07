@@ -46,6 +46,10 @@ import {
 } from '../components/development/developmentRecommendations';
 
 import {
+  buildDevelopmentPlan,
+} from '../utils/developmentPlanEngine';
+
+import {
   Badge,
 } from '../components/ui/badge';
 
@@ -849,6 +853,14 @@ function CompactRecommendationCard({
   const [expanded, setExpanded] =
     useState(false);
 
+  const developmentPlan =
+    useMemo(
+      () =>
+        buildDevelopmentPlan(
+          recommendation
+        ),
+      [recommendation]
+    );  
   const priorityConfig =
     getDevelopmentPriorityConfig(
       recommendation.priority
@@ -1029,8 +1041,8 @@ function CompactRecommendationCard({
             }
           >
             {expanded
-              ? 'Ocultar plano'
-              : 'Ver plano'}
+              ? 'Ocultar PID'
+              : 'Abrir PID'}
 
             <ArrowRight
               className={`ml-2 h-3.5 w-3.5 transition-transform ${
@@ -1043,74 +1055,291 @@ function CompactRecommendationCard({
         </div>
       </div>
 
-      {expanded && (
-        <div className="border-t border-slate-100 bg-slate-50/70 p-4">
-          <div className="grid gap-3 lg:grid-cols-2">
-            <div className="rounded-2xl border border-white bg-white p-4">
+    {expanded && (
+      <div className="border-t border-slate-100 bg-slate-50/70 p-4">
+        {!developmentPlan ? (
+          <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-6 text-center">
+            <ClipboardCheck className="mx-auto mb-3 h-9 w-9 text-slate-300" />
+    
+            <p className="font-semibold text-slate-800">
+              Plano indisponível
+            </p>
+    
+            <p className="mt-1 text-sm text-slate-500">
+              Não foi possível gerar um plano automático para esta recomendação.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-2xl border border-purple-100 bg-purple-50/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-purple-700">
+                  Duração
+                </p>
+    
+                <p className="mt-2 font-heading text-2xl text-slate-950">
+                  {developmentPlan.totalWeeks}
+                </p>
+    
+                <p className="text-xs text-slate-500">
+                  semanas
+                </p>
+              </div>
+    
+              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-700">
+                  Frequência
+                </p>
+    
+                <p className="mt-2 font-heading text-2xl text-slate-950">
+                  {
+                    developmentPlan
+                      .sessionsPerWeek
+                  }
+                </p>
+    
+                <p className="text-xs text-slate-500">
+                  sessões/semana
+                </p>
+              </div>
+    
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+                  Volume estimado
+                </p>
+    
+                <p className="mt-2 font-heading text-2xl text-slate-950">
+                  {
+                    developmentPlan
+                      .estimatedSessions
+                  }
+                </p>
+    
+                <p className="text-xs text-slate-500">
+                  sessões
+                </p>
+              </div>
+    
+              <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                  Reavaliação
+                </p>
+    
+                <p className="mt-2 font-heading text-2xl text-slate-950">
+                  {
+                    developmentPlan
+                      .review
+                      ?.recommendedAfterDays ??
+                    '—'
+                  }
+                </p>
+    
+                <p className="text-xs text-slate-500">
+                  dias
+                </p>
+              </div>
+            </div>
+    
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
               <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                Objetivo sugerido
+                Objetivo principal
               </p>
-
+    
               <p className="mt-2 text-sm leading-6 text-slate-700">
                 {
-                  recommendation
-                    .objective ||
-                  'Sem objetivo definido.'
+                  developmentPlan
+                    .objective
                 }
               </p>
             </div>
-
-            {recommendation
-              .coachMessage && (
-              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-700">
-                  Orientação ao treinador
-                </p>
-
-                <p className="mt-2 text-sm leading-6 text-slate-600">
+    
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                    Fases do plano
+                  </p>
+    
+                  <p className="mt-1 text-sm text-slate-500">
+                    Progressão automática da intervenção.
+                  </p>
+                </div>
+    
+                <Badge
+                  variant="outline"
+                  className="rounded-full border-slate-200 bg-slate-50 text-slate-600"
+                >
                   {
-                    recommendation
-                      .coachMessage
-                  }
-                </p>
+                    developmentPlan
+                      .phases
+                      ?.length || 0
+                  }{' '}
+                  fases
+                </Badge>
               </div>
-            )}
-          </div>
-
-          {recommendation
-            .trainingFocus
-            ?.length > 0 && (
-            <div className="mt-3 rounded-2xl border border-white bg-white p-4">
-              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                Focos de treino
-              </p>
-
-              <div className="mt-3 grid gap-2 lg:grid-cols-3">
-                {recommendation
-                  .trainingFocus
-                  .slice(0, 3)
-                  .map(
+    
+              <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                {developmentPlan
+                  .phases
+                  ?.map(
                     (
-                      focus,
+                      phase,
                       index
                     ) => (
                       <div
-                        key={`${recommendation.id}-compact-focus-${index}`}
-                        className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600"
+                        key={
+                          phase.id
+                        }
+                        className="relative rounded-2xl border border-slate-200 bg-slate-50 p-4"
                       >
-                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" />
-
-                        <span>
-                          {focus}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white">
+                            {
+                              index +
+                              1
+                            }
+                          </div>
+    
+                          <div>
+                            <p className="font-semibold text-slate-900">
+                              {
+                                phase.label
+                              }
+                            </p>
+    
+                            <p className="text-xs text-slate-500">
+                              Semanas{' '}
+                              {
+                                phase.startWeek
+                              }
+                              –
+                              {
+                                phase.endWeek
+                              }
+                            </p>
+                          </div>
+                        </div>
+    
+                        <p className="mt-3 text-sm leading-6 text-slate-600">
+                          {
+                            phase.objective
+                          }
+                        </p>
+    
+                        <div className="mt-3 rounded-xl bg-white p-3">
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            Volume
+                          </p>
+    
+                          <p className="mt-1 text-sm font-semibold text-slate-800">
+                            {
+                              phase
+                                .estimatedSessions
+                            }{' '}
+                            sessões
+                          </p>
+                        </div>
                       </div>
                     )
                   )}
               </div>
             </div>
-          )}
-        </div>
-      )}
+    
+            {developmentPlan
+              .trainingFocus
+              ?.length > 0 && (
+              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-700">
+                  Focos de treino
+                </p>
+    
+                <div className="mt-3 grid gap-2 lg:grid-cols-2">
+                  {developmentPlan
+                    .trainingFocus
+                    .slice(0, 5)
+                    .map(
+                      (
+                        focus,
+                        index
+                      ) => (
+                        <div
+                          key={`${developmentPlan.id}-focus-${index}`}
+                          className="flex items-start gap-2 rounded-xl bg-white/80 p-3 text-sm leading-5 text-slate-600"
+                        >
+                          <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600" />
+    
+                          <span>
+                            {focus}
+                          </span>
+                        </div>
+                      )
+                    )}
+                </div>
+              </div>
+            )}
+    
+            {developmentPlan
+              .successCriteria
+              ?.length > 0 && (
+              <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">
+                  Critérios de sucesso
+                </p>
+    
+                <div className="mt-3 space-y-2">
+                  {developmentPlan
+                    .successCriteria
+                    .map(
+                      (
+                        criterion,
+                        index
+                      ) => (
+                        <div
+                          key={`${developmentPlan.id}-success-${index}`}
+                          className="flex items-start gap-2 text-sm leading-6 text-slate-600"
+                        >
+                          <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
+    
+                          <span>
+                            {criterion}
+                          </span>
+                        </div>
+                      )
+                    )}
+                </div>
+              </div>
+            )}
+    
+            <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                Reavaliação inteligente
+              </p>
+    
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {
+                  developmentPlan
+                    .review
+                    ?.reason
+                }
+              </p>
+    
+              {developmentPlan
+                .review
+                ?.recommendedDate && (
+                <p className="mt-2 text-xs font-semibold text-slate-700">
+                  Data recomendada:{' '}
+                  {formatDate(
+                    developmentPlan
+                      .review
+                      .recommendedDate
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    )}
     </div>
   );
 }
