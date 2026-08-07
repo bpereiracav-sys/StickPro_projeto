@@ -2369,115 +2369,315 @@ export default function DevelopmentRecommendations() {
           
           <Card className="border border-indigo-100 bg-gradient-to-br from-white via-indigo-50/50 to-slate-50 shadow-xl shadow-slate-200/60">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Gauge className="h-5 w-5 text-indigo-600" />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Gauge className="h-5 w-5 text-indigo-600" />
           
-                Índice Inteligente por Competência
-              </CardTitle>
+                    Índice Inteligente por Competência
+                  </CardTitle>
           
-              <CardDescription>
-                Síntese automática do desenvolvimento por competência.
-              </CardDescription>
+                  <CardDescription className="mt-1">
+                    Leitura detalhada do desenvolvimento do atleta em cada competência.
+                  </CardDescription>
+                </div>
+          
+                <Badge
+                  variant="outline"
+                  className="w-fit rounded-full border-indigo-200 bg-indigo-50 text-indigo-700"
+                >
+                  {competencyIDI.length}{' '}
+                  {competencyIDI.length === 1
+                    ? 'competência avaliada'
+                    : 'competências avaliadas'}
+                </Badge>
+              </div>
             </CardHeader>
           
             <CardContent>
               {competencyIDI.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  Ainda não existem competências calculadas.
-                </p>
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-8 text-center">
+                  <Gauge className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+          
+                  <p className="font-semibold text-slate-800">
+                    Ainda não existem competências calculadas
+                  </p>
+          
+                  <p className="mt-1 text-sm text-slate-500">
+                    O IDI por competência será apresentado quando existirem avaliações
+                    suficientes.
+                  </p>
+                </div>
               ) : (
-                <div className="space-y-3">
-                  {competencyIDI.map((competency) => (
-                    <div
-                      key={competency.id}
-                      className="rounded-2xl border border-slate-200 bg-white p-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="whitespace-normal break-words font-semibold leading-tight text-slate-900">
-                            {competency.name}
-                          </p>
+                <div className="space-y-4">
+                  {competencyIDI.map(
+                    (competency) => {
+                      const idiValue =
+                        Number(
+                          competency.idiScore
+                        );
           
-                          <p className="mt-1 whitespace-normal break-words text-xs leading-tight text-slate-500">
-                            {competency.domainName}
-                          </p>
-                        </div>
+                      const safeIdiValue =
+                        Number.isFinite(
+                          idiValue
+                        )
+                          ? Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                idiValue
+                              )
+                            )
+                          : 0;
           
-                        <div className="text-right">
-                          <p className="font-heading text-2xl text-slate-900">
-                            {Number(
-                              competency.idiScore || 0
-                            ).toFixed(1)}
-                          </p>
+                      const statusConfig =
+                        getIdiStatusConfig(
+                          competency.status
+                        );
           
-                          <p className="text-xs text-slate-500">
-                            /100
-                          </p>
-                        </div>
-                      </div>
+                      const distributionTotal =
+                        (
+                          Number(
+                            competency.critical
+                          ) || 0
+                        ) +
+                        (
+                          Number(
+                            competency.high
+                          ) || 0
+                        ) +
+                        (
+                          Number(
+                            competency.moderate
+                          ) || 0
+                        ) +
+                        (
+                          Number(
+                            competency.consolidation
+                          ) || 0
+                        ) +
+                        (
+                          Number(
+                            competency.strengths
+                          ) || 0
+                        );
           
-                      <div className="mt-3">
-                        <Badge
-                          className="border border-indigo-200 bg-indigo-50 text-indigo-700"
+                      const distributionItems = [
+                        {
+                          label: 'Críticos',
+                          value:
+                            Number(
+                              competency.critical
+                            ) || 0,
+                          className:
+                            'bg-red-500',
+                        },
+                        {
+                          label: 'Elevados',
+                          value:
+                            Number(
+                              competency.high
+                            ) || 0,
+                          className:
+                            'bg-orange-500',
+                        },
+                        {
+                          label: 'Moderados',
+                          value:
+                            Number(
+                              competency.moderate
+                            ) || 0,
+                          className:
+                            'bg-amber-500',
+                        },
+                        {
+                          label: 'Consolidação',
+                          value:
+                            Number(
+                              competency.consolidation
+                            ) || 0,
+                          className:
+                            'bg-cyan-500',
+                        },
+                        {
+                          label: 'Fortes',
+                          value:
+                            Number(
+                              competency.strengths
+                            ) || 0,
+                          className:
+                            'bg-emerald-500',
+                        },
+                      ];
+          
+                      return (
+                        <div
+                          key={competency.id}
+                          className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
                         >
-                          {competency.statusLabel}
-                        </Badge>
-                      </div>
+                          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="min-w-0 flex-1">
+                              <p className="whitespace-normal break-normal font-heading text-xl leading-tight text-slate-950">
+                                {competency.name}
+                              </p>
           
-                      <div className="mt-4 grid grid-cols-5 gap-2 text-center">
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                {competency.domainName}
+                              </p>
           
-                        <div>
-                          <p className="font-bold text-red-600">
-                            {competency.critical}
-                          </p>
-                          <p className="text-[10px] text-slate-500">
-                            Críticos
-                          </p>
+                              <div className="mt-3">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    statusConfig.className
+                                  }
+                                >
+                                  {competency.statusLabel}
+                                </Badge>
+                              </div>
+                            </div>
+          
+                            <div className="shrink-0 text-left lg:text-right">
+                              <div className="flex items-baseline gap-1 lg:justify-end">
+                                <p className="font-heading text-3xl leading-none text-slate-950">
+                                  {Number.isFinite(
+                                    idiValue
+                                  )
+                                    ? idiValue.toFixed(
+                                        1
+                                      )
+                                    : '—'}
+                                </p>
+          
+                                <span className="text-xs font-medium text-slate-400">
+                                  /100
+                                </span>
+                              </div>
+          
+                              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                IDI
+                              </p>
+                            </div>
+                          </div>
+          
+                          <div className="mt-4">
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                              <p className="text-xs font-semibold text-slate-600">
+                                Desenvolvimento global da competência
+                              </p>
+          
+                              <p className="text-xs font-semibold text-slate-500">
+                                {safeIdiValue.toFixed(
+                                  1
+                                )}
+                                %
+                              </p>
+                            </div>
+          
+                            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${getIdiProgressClass(
+                                  competency.status
+                                )}`}
+                                style={{
+                                  width: `${safeIdiValue}%`,
+                                }}
+                              />
+                            </div>
+          
+                            <div className="mt-1 flex justify-between text-[9px] text-slate-400">
+                              <span>0</span>
+                              <span>25</span>
+                              <span>50</span>
+                              <span>75</span>
+                              <span>100</span>
+                            </div>
+                          </div>
+          
+                          <div className="mt-5">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                                Distribuição dos critérios
+                              </p>
+          
+                              <p className="text-xs text-slate-500">
+                                {distributionTotal}{' '}
+                                {distributionTotal === 1
+                                  ? 'critério'
+                                  : 'critérios'}
+                              </p>
+                            </div>
+          
+                            <div className="mt-3 flex h-3 overflow-hidden rounded-full bg-slate-100">
+                              {distributionTotal > 0 &&
+                                distributionItems.map(
+                                  (item) => {
+                                    if (
+                                      item.value <= 0
+                                    ) {
+                                      return null;
+                                    }
+          
+                                    const percentage =
+                                      (
+                                        item.value /
+                                        distributionTotal
+                                      ) *
+                                      100;
+          
+                                    return (
+                                      <div
+                                        key={
+                                          `${competency.id}-${item.label}`
+                                        }
+                                        className={
+                                          item.className
+                                        }
+                                        style={{
+                                          width: `${percentage}%`,
+                                        }}
+                                        title={`${item.label}: ${item.value}`}
+                                      />
+                                    );
+                                  }
+                                )}
+                            </div>
+          
+                            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
+                              {distributionItems.map(
+                                (item) => (
+                                  <div
+                                    key={
+                                      `${competency.id}-${item.label}-legend`
+                                    }
+                                    className="rounded-2xl border border-slate-100 bg-slate-50 p-3"
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span
+                                        className={`h-2.5 w-2.5 shrink-0 rounded-full ${item.className}`}
+                                      />
+          
+                                      <p className="text-[10px] font-semibold uppercase leading-tight tracking-wide text-slate-500">
+                                        {item.label}
+                                      </p>
+                                    </div>
+          
+                                    <p className="mt-2 font-heading text-xl leading-none text-slate-950">
+                                      {item.value}
+                                    </p>
+                                  </div>
+                                )
+                              )}
+                            </div>
+                          </div>
                         </div>
-          
-                        <div>
-                          <p className="font-bold text-orange-600">
-                            {competency.high}
-                          </p>
-                          <p className="text-[10px] text-slate-500">
-                            Elevados
-                          </p>
-                        </div>
-          
-                        <div>
-                          <p className="font-bold text-amber-600">
-                            {competency.moderate}
-                          </p>
-                          <p className="text-[10px] text-slate-500">
-                            Moderados
-                          </p>
-                        </div>
-          
-                        <div>
-                          <p className="font-bold text-cyan-600">
-                            {competency.consolidation}
-                          </p>
-                          <p className="text-[10px] text-slate-500">
-                            Consolidação
-                          </p>
-                        </div>
-          
-                        <div>
-                          <p className="font-bold text-emerald-600">
-                            {competency.strengths}
-                          </p>
-                          <p className="text-[10px] text-slate-500">
-                            Fortes
-                          </p>
-                        </div>
-          
-                      </div>
-                    </div>
-                  ))}
+                      );
+                    }
+                  )}
                 </div>
               )}
             </CardContent>
-          </Card>   
+          </Card>
           
           {primaryRecommendation && (
             <Card className="overflow-hidden border border-cyan-200 bg-white shadow-xl shadow-cyan-100/50">
