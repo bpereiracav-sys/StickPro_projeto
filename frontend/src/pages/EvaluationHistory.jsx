@@ -548,82 +548,216 @@ function EvolutionLineChart({ points }) {
   );
 }
 
-function RadarChart({ data }) {
-  const width = 420;
-  const height = 360;
-  const centerX = width / 2;
-  const centerY = 174;
-  const radius = 118;
-  const values = data.length >= 3 ? data : [];
+function RadarChart({
+  data = [],
+}) {
+  const RADAR_MAX = 100;
 
-  if (values.length < 3) {
+  const width = 460;
+  const height = 400;
+
+  const centerX =
+    width / 2;
+
+  const centerY = 190;
+
+  const radius = 125;
+
+  const values =
+    (
+      Array.isArray(data)
+        ? data
+        : []
+    ).filter(
+      (item) =>
+        Number.isFinite(
+          Number(
+            item?.value
+          )
+        )
+    );
+
+  if (
+    values.length < 3
+  ) {
     return (
-      <div className="flex min-h-[320px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+      <div className="flex min-h-[340px] flex-col items-center justify-center rounded-3xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
         <Target className="mb-3 h-12 w-12 text-slate-300" />
-        <p className="font-semibold text-slate-800">Radar indisponível</p>
-        <p className="mt-1 text-sm text-slate-500">
-          São necessárias avaliações em pelo menos três domínios.
+
+        <p className="font-semibold text-slate-800">
+          Radar indisponível
+        </p>
+
+        <p className="mt-1 max-w-sm text-sm leading-6 text-slate-500">
+          São necessárias avaliações válidas em pelo menos três
+          competências para construir o Radar Inteligente.
         </p>
       </div>
     );
   }
 
-  const angleFor = (index) => -Math.PI / 2 + (index / values.length) * Math.PI * 2;
-  const pointFor = (index, fraction) => {
-    const angle = angleFor(index);
+  const angleFor = (
+    index
+  ) =>
+    -Math.PI / 2 +
+    (
+      index /
+      values.length
+    ) *
+      Math.PI *
+      2;
+
+  const pointFor = (
+    index,
+    fraction
+  ) => {
+    const angle =
+      angleFor(index);
+
     return {
-      x: centerX + Math.cos(angle) * radius * fraction,
-      y: centerY + Math.sin(angle) * radius * fraction,
+      x:
+        centerX +
+        Math.cos(angle) *
+          radius *
+          fraction,
+
+      y:
+        centerY +
+        Math.sin(angle) *
+          radius *
+          fraction,
     };
   };
 
-  const polygon = values
-    .map((item, index) => {
-      const point = pointFor(index, Math.max(0, Math.min(SCORE_MAX, item.value)) / SCORE_MAX);
-      return `${point.x},${point.y}`;
-    })
-    .join(' ');
+  const normalizeValue = (
+    value
+  ) =>
+    Math.max(
+      0,
+      Math.min(
+        RADAR_MAX,
+        Number(value) || 0
+      )
+    ) /
+    RADAR_MAX;
+
+  const polygon =
+    values
+      .map(
+        (
+          item,
+          index
+        ) => {
+          const point =
+            pointFor(
+              index,
+              normalizeValue(
+                item.value
+              )
+            );
+
+          return `${point.x},${point.y}`;
+        }
+      )
+      .join(' ');
+
+  /*
+   * Encurta apenas visualmente nomes muito longos.
+   * O valor original continua preservado em item.label.
+   */
+  const formatRadarLabel = (
+    label
+  ) => {
+    const text =
+      String(
+        label || 'Competência'
+      );
+
+    if (
+      text.length <= 18
+    ) {
+      return text;
+    }
+
+    return (
+      `${text.slice(
+        0,
+        16
+      )}…`
+    );
+  };
 
   return (
     <div className="flex justify-center overflow-x-auto">
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className="min-w-[360px] max-w-[430px] w-full"
+        className="w-full min-w-[390px] max-w-[470px]"
         role="img"
-        aria-label="Radar de competências"
+        aria-label="Radar Inteligente de Desenvolvimento por competência"
       >
-        {[1, 2, 3, 4, 5].map((level) => {
-          const points = values
-            .map((_, index) => {
-              const point = pointFor(index, level / SCORE_MAX);
-              return `${point.x},${point.y}`;
-            })
-            .join(' ');
+        {[20, 40, 60, 80, 100].map(
+          (level) => {
+            const points =
+              values
+                .map(
+                  (
+                    _,
+                    index
+                  ) => {
+                    const point =
+                      pointFor(
+                        index,
+                        level /
+                          RADAR_MAX
+                      );
 
-          return (
-            <polygon
-              key={level}
-              points={points}
-              fill={level === 5 ? 'rgb(248 250 252)' : 'none'}
-              stroke="rgb(203 213 225)"
-              strokeWidth="1"
-            />
-          );
-        })}
+                    return `${point.x},${point.y}`;
+                  }
+                )
+                .join(' ');
 
-        {values.map((_, index) => {
-          const point = pointFor(index, 1);
-          return (
-            <line
-              key={index}
-              x1={centerX}
-              y1={centerY}
-              x2={point.x}
-              y2={point.y}
-              stroke="rgb(203 213 225)"
-            />
-          );
-        })}
+            return (
+              <polygon
+                key={level}
+                points={points}
+                fill={
+                  level ===
+                  RADAR_MAX
+                    ? 'rgb(248 250 252)'
+                    : 'none'
+                }
+                stroke="rgb(203 213 225)"
+                strokeWidth="1"
+              />
+            );
+          }
+        )}
+
+        {values.map(
+          (
+            _,
+            index
+          ) => {
+            const point =
+              pointFor(
+                index,
+                1
+              );
+
+            return (
+              <line
+                key={
+                  `axis-${index}`
+                }
+                x1={centerX}
+                y1={centerY}
+                x2={point.x}
+                y2={point.y}
+                stroke="rgb(203 213 225)"
+              />
+            );
+          }
+        )}
 
         <polygon
           points={polygon}
@@ -634,49 +768,91 @@ function RadarChart({ data }) {
           strokeLinejoin="round"
         />
 
-        {values.map((item, index) => {
-          const point = pointFor(index, Math.max(0, Math.min(SCORE_MAX, item.value)) / SCORE_MAX);
-          const labelPoint = pointFor(index, 1.2);
+        {values.map(
+          (
+            item,
+            index
+          ) => {
+            const point =
+              pointFor(
+                index,
+                normalizeValue(
+                  item.value
+                )
+              );
 
-          return (
-            <g key={item.key}>
-              <circle
-                cx={point.x}
-                cy={point.y}
-                r="5"
-                fill="white"
-                stroke="rgb(124 58 237)"
-                strokeWidth="3"
-              />
-              <text
-                x={labelPoint.x}
-                y={labelPoint.y}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize="12"
-                fontWeight="700"
-                fill="rgb(51 65 85)"
+            const labelPoint =
+              pointFor(
+                index,
+                1.24
+              );
+
+            return (
+              <g
+                key={
+                  item.id ||
+                  item.key ||
+                  item.competencyId ||
+                  index
+                }
               >
-                {item.label}
-              </text>
-              <text
-                x={labelPoint.x}
-                y={labelPoint.y + 16}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize="11"
-                fill="rgb(124 58 237)"
-              >
-                {item.value.toFixed(1)}
-              </text>
-            </g>
-          );
-        })}
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r="5"
+                  fill="white"
+                  stroke="rgb(124 58 237)"
+                  strokeWidth="3"
+                />
+
+                <text
+                  x={labelPoint.x}
+                  y={labelPoint.y}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="11"
+                  fontWeight="700"
+                  fill="rgb(51 65 85)"
+                >
+                  {formatRadarLabel(
+                    item.label
+                  )}
+                </text>
+
+                <text
+                  x={labelPoint.x}
+                  y={
+                    labelPoint.y +
+                    16
+                  }
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize="11"
+                  fontWeight="700"
+                  fill="rgb(124 58 237)"
+                >
+                  {Number(
+                    item.value
+                  ).toFixed(1)}
+                </text>
+              </g>
+            );
+          }
+        )}
+
+        <text
+          x={centerX}
+          y={height - 8}
+          textAnchor="middle"
+          fontSize="10"
+          fill="rgb(148 163 184)"
+        >
+          IDI · escala 0–100
+        </text>
       </svg>
     </div>
   );
 }
-
 function InsightList({ title, description, items, tone }) {
   const positive = tone === 'positive';
 
@@ -1608,9 +1784,6 @@ const selectedPlayer =
   const developmentMetrics =
     developmentEngine?.metrics || {};
   
-  const developmentRadar =
-    developmentEngine?.radar || [];
-  
   const developmentStrengths =
     developmentEngine?.strengths || [];
   
@@ -1622,22 +1795,6 @@ const selectedPlayer =
   
   const developmentTeamComparison =
     developmentEngine?.teamComparison || [];
-
-  const engineRadarData = developmentRadar.map((item) => ({
-    key: item.id,
-    label:
-      item.domainLabel ||
-      item.subject ||
-      item.id,
-  
-    value:
-      Number(item.value) || 0,
-  
-    comparison:
-      item.comparison !== undefined
-        ? Number(item.comparison) || 0
-        : undefined,
-  }));
   
   const criterionEvolution = useMemo(() => {
     const historyByCriterion = new Map();
@@ -1927,6 +2084,52 @@ const selectedPlayer =
           maximumRecommendations: 8,
         }),
       [filteredEvaluations]
+    );
+
+  const intelligentRadarData =
+    useMemo(
+      () =>
+        (
+          Array.isArray(
+            automaticRecommendations
+              ?.radarData
+          )
+            ? automaticRecommendations
+                .radarData
+            : []
+        )
+          .filter(
+            (item) =>
+              Number.isFinite(
+                Number(
+                  item?.idiScore ??
+                  item?.value
+                )
+              )
+          )
+          .map(
+            (item) => ({
+              ...item,
+  
+              key:
+                item.competencyId ||
+                item.id,
+  
+              label:
+                item.label ||
+                item.competencyName ||
+                item.id,
+  
+              value:
+                Number(
+                  item.idiScore ??
+                  item.value
+                ),
+            })
+          ),
+      [
+        automaticRecommendations,
+      ]
     );
   
   const effectiveTeamDifference =
@@ -2418,25 +2621,54 @@ const selectedPlayer =
 
             <Card className="border border-slate-200 bg-white shadow-xl shadow-slate-200/60">
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5 text-purple-600" />
-                  Radar de competências
-                </CardTitle>
-                <CardDescription>
-                  Perfil médio por domínio de desenvolvimento.
-                </CardDescription>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-purple-600" />
+            
+                      Radar Inteligente de Desenvolvimento
+                    </CardTitle>
+            
+                    <CardDescription className="mt-1">
+                      IDI atual por competência, calculado a partir do nível,
+                      tendência e consistência do atleta.
+                    </CardDescription>
+                  </div>
+            
+                  {intelligentRadarData.length >=
+                    3 && (
+                    <Badge
+                      variant="outline"
+                      className="w-fit shrink-0 rounded-full border-purple-200 bg-purple-50 text-purple-700"
+                    >
+                      {
+                        intelligentRadarData.length
+                      }{' '}
+                      competências
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
+            
               <CardContent>
                 <RadarChart
                   data={
-                    engineRadarData.length >= 3
-                      ? engineRadarData
-                      : dashboard.categoryAverages
+                    intelligentRadarData
                   }
                 />
+            
+                {intelligentRadarData.length >=
+                  3 && (
+                  <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/40 p-3">
+                    <p className="text-xs leading-5 text-slate-600">
+                      Cada eixo representa uma competência avaliada. O valor apresentado
+                      corresponde ao respetivo Índice Inteligente de Desenvolvimento
+                      numa escala de 0 a 100.
+                    </p>
+                  </div>
+                )}
               </CardContent>
             </Card>
-          </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
             <InsightList
