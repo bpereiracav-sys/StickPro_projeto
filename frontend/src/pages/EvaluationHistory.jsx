@@ -2669,6 +2669,7 @@ const selectedPlayer =
                 )}
               </CardContent>
             </Card>
+          </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
             <InsightList
