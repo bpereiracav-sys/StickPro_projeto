@@ -385,6 +385,29 @@ const getIdiStatusConfig = (
   );
 };
 
+const getIdiProgressClass = (
+  status
+) => {
+  switch (status) {
+    case 'critical':
+      return 'bg-red-500';
+
+    case 'attention':
+      return 'bg-orange-500';
+
+    case 'progressing':
+      return 'bg-amber-500';
+
+    case 'expected':
+      return 'bg-cyan-500';
+
+    case 'advanced':
+      return 'bg-emerald-500';
+
+    default:
+      return 'bg-slate-400';
+  }
+};
 
 function SummaryMetric({
   label,
@@ -2087,154 +2110,257 @@ export default function DevelopmentRecommendations() {
           )}
           <Card className="border border-blue-100 bg-gradient-to-br from-white via-blue-50/50 to-slate-50 shadow-xl shadow-slate-200/60">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="h-5 w-5 text-blue-600" />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5 text-blue-600" />
           
-                Índice Inteligente por Domínio
-              </CardTitle>
+                    Índice Inteligente por Domínio
+                  </CardTitle>
           
-              <CardDescription>
-                Agregação ponderada das competências em cada domínio de
-                desenvolvimento.
-              </CardDescription>
+                  <CardDescription className="mt-1">
+                    Visão agregada do desenvolvimento do atleta em cada domínio.
+                  </CardDescription>
+                </div>
+          
+                <Badge
+                  variant="outline"
+                  className="w-fit rounded-full border-blue-200 bg-blue-50 text-blue-700"
+                >
+                  {domainIDI.length}{' '}
+                  {domainIDI.length === 1
+                    ? 'domínio avaliado'
+                    : 'domínios avaliados'}
+                </Badge>
+              </div>
             </CardHeader>
           
             <CardContent>
               {domainIDI.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  Ainda não existem domínios calculados.
-                </p>
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-8 text-center">
+                  <BarChart3 className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+          
+                  <p className="font-semibold text-slate-800">
+                    Ainda não existem domínios calculados
+                  </p>
+          
+                  <p className="mt-1 text-sm text-slate-500">
+                    O IDI por domínio será apresentado quando existirem avaliações
+                    suficientes.
+                  </p>
+                </div>
               ) : (
-                <div className="grid gap-3 lg:grid-cols-2">
+                <div className="grid gap-4 lg:grid-cols-2">
                   {domainIDI.map(
-                    (domain) => (
-                      <div
-                        key={domain.id}
-                        className="rounded-2xl border border-slate-200 bg-white p-4"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <p className="whitespace-normal break-words font-heading text-xl leading-tight text-slate-950">
-                              {domain.name}
-                            </p>
+                    (domain) => {
+                      const idiValue =
+                        Number(
+                          domain.idiScore
+                        );
           
-                            <p className="mt-1 text-xs text-slate-500">
-                              {
-                                domain
-                                  .competencyCount
-                              }{' '}
-                              {
-                                domain
-                                  .competencyCount ===
-                                1
-                                  ? 'competência'
-                                  : 'competências'
-                              }
-                              {' · '}
-                              {
-                                domain
-                                  .criterionCount
-                              }{' '}
-                              {
-                                domain
-                                  .criterionCount ===
-                                1
-                                  ? 'critério'
-                                  : 'critérios'
-                              }
-                            </p>
+                      const safeIdiValue =
+                        Number.isFinite(
+                          idiValue
+                        )
+                          ? Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                idiValue
+                              )
+                            )
+                          : 0;
+          
+                      const statusConfig =
+                        getIdiStatusConfig(
+                          domain.status
+                        );
+          
+                      return (
+                        <div
+                          key={domain.id}
+                          className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm"
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0 flex-1">
+                              <p className="whitespace-normal break-normal font-heading text-xl leading-tight text-slate-950">
+                                {domain.name}
+                              </p>
+          
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                {
+                                  domain
+                                    .competencyCount
+                                }{' '}
+                                {
+                                  domain
+                                    .competencyCount ===
+                                  1
+                                    ? 'competência'
+                                    : 'competências'
+                                }
+                                {' · '}
+                                {
+                                  domain
+                                    .criterionCount
+                                }{' '}
+                                {
+                                  domain
+                                    .criterionCount ===
+                                  1
+                                    ? 'critério'
+                                    : 'critérios'
+                                }
+                              </p>
+                            </div>
+          
+                            <div className="shrink-0 text-right">
+                              <div className="flex items-baseline justify-end gap-1">
+                                <p className="font-heading text-3xl leading-none text-slate-950">
+                                  {Number.isFinite(
+                                    idiValue
+                                  )
+                                    ? idiValue.toFixed(
+                                        1
+                                      )
+                                    : '—'}
+                                </p>
+          
+                                <span className="text-xs font-medium text-slate-400">
+                                  /100
+                                </span>
+                              </div>
+          
+                              <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                                IDI
+                              </p>
+                            </div>
                           </div>
           
-                          <div className="shrink-0 text-right">
-                            <p className="font-heading text-3xl text-slate-950">
-                              {Number(
-                                domain.idiScore
-                              ).toFixed(1)}
-                            </p>
+                          <div className="mt-4">
+                            <div className="mb-2 flex items-center justify-between gap-3">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  statusConfig.className
+                                }
+                              >
+                                {
+                                  domain
+                                    .statusLabel
+                                }
+                              </Badge>
           
-                            <p className="text-xs text-slate-400">
-                              /100
-                            </p>
+                              <p className="text-xs font-medium text-slate-500">
+                                {safeIdiValue.toFixed(
+                                  1
+                                )}
+                                %
+                              </p>
+                            </div>
+          
+                            <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
+                              <div
+                                className={`h-full rounded-full transition-all duration-500 ${getIdiProgressClass(
+                                  domain.status
+                                )}`}
+                                style={{
+                                  width: `${safeIdiValue}%`,
+                                }}
+                              />
+                            </div>
+          
+                            <div className="mt-1 flex justify-between text-[9px] text-slate-400">
+                              <span>0</span>
+                              <span>25</span>
+                              <span>50</span>
+                              <span>75</span>
+                              <span>100</span>
+                            </div>
                           </div>
-                        </div>
           
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          <Badge
-                            variant="outline"
-                            className={
-                              getIdiStatusConfig(
-                                domain.status
-                              ).className
-                            }
-                          >
-                            {domain.statusLabel}
-                          </Badge>
+                          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-3.5">
+                              <div className="flex items-center gap-2">
+                                <Target className="h-4 w-4 shrink-0 text-amber-600" />
           
-                          <Badge
-                            variant="outline"
-                            className="border-slate-200 bg-slate-50 text-slate-600"
-                          >
-                            Ponderado por critérios
-                          </Badge>
-                        </div>
+                                <p className="text-[10px] font-bold uppercase leading-tight tracking-wide text-amber-700">
+                                  Competência prioritária
+                                </p>
+                              </div>
           
-                        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                          <div className="rounded-xl bg-amber-50 p-3">
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
-                              Competência prioritária
-                            </p>
-          
-                            <p className="mt-1 whitespace-normal break-words text-sm font-semibold leading-tight text-slate-900">
-                              {
-                                domain
-                                  .priorityCompetency
-                                  ?.name ||
-                                '—'
-                              }
-                            </p>
-          
-                            {domain
-                              .priorityCompetency && (
-                              <p className="mt-1 text-xs text-slate-500">
-                                IDI{' '}
-                                {Number(
+                              <p className="mt-2 whitespace-normal break-normal text-sm font-semibold leading-tight text-slate-900">
+                                {
                                   domain
                                     .priorityCompetency
-                                    .idiScore
-                                ).toFixed(1)}
+                                    ?.name ||
+                                  '—'
+                                }
                               </p>
-                            )}
-                          </div>
           
-                          <div className="rounded-xl bg-emerald-50 p-3">
-                            <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-700">
-                              Competência mais forte
-                            </p>
+                              {domain
+                                .priorityCompetency && (
+                                <div className="mt-2 flex items-center justify-between gap-2">
+                                  <p className="text-xs text-slate-500">
+                                    IDI
+                                  </p>
           
-                            <p className="mt-1 whitespace-normal break-words text-sm font-semibold leading-tight text-slate-900">
-                              {
-                                domain
-                                  .strongestCompetency
-                                  ?.name ||
-                                '—'
-                              }
-                            </p>
+                                  <p className="text-xs font-semibold text-slate-700">
+                                    {Number(
+                                      domain
+                                        .priorityCompetency
+                                        .idiScore
+                                    ).toFixed(
+                                      1
+                                    )}
+                                    /100
+                                  </p>
+                                </div>
+                              )}
+                            </div>
           
-                            {domain
-                              .strongestCompetency && (
-                              <p className="mt-1 text-xs text-slate-500">
-                                IDI{' '}
-                                {Number(
+                            <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 p-3.5">
+                              <div className="flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 shrink-0 text-emerald-600" />
+          
+                                <p className="text-[10px] font-bold uppercase leading-tight tracking-wide text-emerald-700">
+                                  Competência mais forte
+                                </p>
+                              </div>
+          
+                              <p className="mt-2 whitespace-normal break-normal text-sm font-semibold leading-tight text-slate-900">
+                                {
                                   domain
                                     .strongestCompetency
-                                    .idiScore
-                                ).toFixed(1)}
+                                    ?.name ||
+                                  '—'
+                                }
                               </p>
-                            )}
+          
+                              {domain
+                                .strongestCompetency && (
+                                <div className="mt-2 flex items-center justify-between gap-2">
+                                  <p className="text-xs text-slate-500">
+                                    IDI
+                                  </p>
+          
+                                  <p className="text-xs font-semibold text-slate-700">
+                                    {Number(
+                                      domain
+                                        .strongestCompetency
+                                        .idiScore
+                                    ).toFixed(
+                                      1
+                                    )}
+                                    /100
+                                  </p>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
+                      );
+                    }
                   )}
                 </div>
               )}
