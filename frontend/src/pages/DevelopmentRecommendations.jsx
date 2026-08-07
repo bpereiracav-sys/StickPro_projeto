@@ -843,7 +843,277 @@ function RecommendationCard({
   );
 }
 
+function CompactRecommendationCard({
+  recommendation,
+}) {
+  const [expanded, setExpanded] =
+    useState(false);
 
+  const priorityConfig =
+    getDevelopmentPriorityConfig(
+      recommendation.priority
+    );
+
+  const idiScore =
+    Number(
+      recommendation.idiScore
+    );
+
+  const recommendationIndex =
+    Number(
+      recommendation
+        .recommendationIndex
+    );
+
+  const hasIdi =
+    Number.isFinite(
+      idiScore
+    );
+
+  const hasIndex =
+    Number.isFinite(
+      recommendationIndex
+    );
+
+  return (
+    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white transition-all duration-200 hover:border-slate-300 hover:shadow-md">
+      <div className="p-4">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="whitespace-normal break-normal font-heading text-lg leading-tight text-slate-950">
+                {
+                  recommendation
+                    .criterionName
+                }
+              </p>
+
+              <Badge
+                variant="outline"
+                className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] ${
+                  priorityConfig.className
+                }`}
+              >
+                {
+                  priorityConfig
+                    .label
+                }
+              </Badge>
+            </div>
+
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              {[
+                recommendation
+                  .domainLabel,
+                recommendation
+                  .subdomainLabel,
+              ]
+                .filter(Boolean)
+                .join(' · ')}
+            </p>
+          </div>
+
+          <div className="grid shrink-0 grid-cols-3 gap-2 sm:min-w-[300px]">
+            <div className="rounded-xl bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                Resultado
+              </p>
+
+              <p className="mt-1 font-heading text-lg leading-none text-slate-950">
+                {recommendation
+                  .latestScore !==
+                null
+                  ? Number(
+                      recommendation
+                        .latestScore
+                    ).toFixed(1)
+                  : '—'}
+
+                <span className="ml-0.5 text-[10px] font-normal text-slate-400">
+                  /
+                  {
+                    recommendation
+                      .scaleMax
+                  }
+                </span>
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-indigo-50 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-indigo-500">
+                IDI
+              </p>
+
+              <p className="mt-1 font-heading text-lg leading-none text-slate-950">
+                {hasIdi
+                  ? idiScore.toFixed(
+                      1
+                    )
+                  : '—'}
+
+                <span className="ml-0.5 text-[10px] font-normal text-slate-400">
+                  /100
+                </span>
+              </p>
+            </div>
+
+            <div className="rounded-xl bg-slate-50 px-3 py-2">
+              <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">
+                Índice
+              </p>
+
+              <p className="mt-1 font-heading text-lg leading-none text-slate-950">
+                {hasIndex
+                  ? recommendationIndex.toFixed(
+                      0
+                    )
+                  : '—'}
+
+                <span className="ml-0.5 text-[10px] font-normal text-slate-400">
+                  /100
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div className="flex items-center gap-1.5 text-xs text-slate-500">
+              {recommendation
+                ?.trend
+                ?.direction ===
+              'improving' ? (
+                <TrendingUp className="h-3.5 w-3.5 text-emerald-600" />
+              ) : recommendation
+                  ?.trend
+                  ?.direction ===
+                'declining' ? (
+                <TrendingDown className="h-3.5 w-3.5 text-red-600" />
+              ) : (
+                <BarChart3 className="h-3.5 w-3.5 text-slate-400" />
+              )}
+
+              <span>
+                {formatRecommendationTrend(
+                  recommendation.trend
+                )}
+              </span>
+            </div>
+
+            <span className="text-xs text-slate-400">
+              {
+                recommendation
+                  .evaluationCount
+              }{' '}
+              {
+                recommendation
+                  .evaluationCount ===
+                1
+                  ? 'avaliação'
+                  : 'avaliações'
+              }
+            </span>
+          </div>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8 w-fit rounded-full px-3 text-cyan-700 hover:bg-cyan-50 hover:text-cyan-800"
+            onClick={() =>
+              setExpanded(
+                (current) =>
+                  !current
+              )
+            }
+          >
+            {expanded
+              ? 'Ocultar plano'
+              : 'Ver plano'}
+
+            <ArrowRight
+              className={`ml-2 h-3.5 w-3.5 transition-transform ${
+                expanded
+                  ? 'rotate-90'
+                  : ''
+              }`}
+            />
+          </Button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-slate-100 bg-slate-50/70 p-4">
+          <div className="grid gap-3 lg:grid-cols-2">
+            <div className="rounded-2xl border border-white bg-white p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Objetivo sugerido
+              </p>
+
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {
+                  recommendation
+                    .objective ||
+                  'Sem objetivo definido.'
+                }
+              </p>
+            </div>
+
+            {recommendation
+              .coachMessage && (
+              <div className="rounded-2xl border border-cyan-100 bg-cyan-50/60 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-700">
+                  Orientação ao treinador
+                </p>
+
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {
+                    recommendation
+                      .coachMessage
+                  }
+                </p>
+              </div>
+            )}
+          </div>
+
+          {recommendation
+            .trainingFocus
+            ?.length > 0 && (
+            <div className="mt-3 rounded-2xl border border-white bg-white p-4">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                Focos de treino
+              </p>
+
+              <div className="mt-3 grid gap-2 lg:grid-cols-3">
+                {recommendation
+                  .trainingFocus
+                  .slice(0, 3)
+                  .map(
+                    (
+                      focus,
+                      index
+                    ) => (
+                      <div
+                        key={`${recommendation.id}-compact-focus-${index}`}
+                        className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-600"
+                      >
+                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-500" />
+
+                        <span>
+                          {focus}
+                        </span>
+                      </div>
+                    )
+                  )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 export default function DevelopmentRecommendations() {
   const {
     t,
@@ -3218,30 +3488,58 @@ export default function DevelopmentRecommendations() {
                 <TabsList className="h-auto flex-wrap justify-start rounded-2xl bg-slate-100 p-1">
                   <TabsTrigger
                     value="all"
-                    className="rounded-xl"
+                    className="rounded-xl gap-2"
                   >
                     Todas
+                  
+                    <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                      {
+                        filteredRecommendations
+                          .length
+                      }
+                    </span>
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="priorities"
-                    className="rounded-xl"
+                    className="rounded-xl gap-2"
                   >
                     Prioridades
+                  
+                    <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                      {
+                        priorityRecommendations
+                          .length
+                      }
+                    </span>
                   </TabsTrigger>
-
+                  
                   <TabsTrigger
                     value="consolidation"
-                    className="rounded-xl"
+                    className="rounded-xl gap-2"
                   >
                     Consolidação
+                  
+                    <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                      {
+                        consolidationRecommendations
+                          .length
+                      }
+                    </span>
                   </TabsTrigger>
 
                   <TabsTrigger
                     value="strengths"
-                    className="rounded-xl"
+                    className="rounded-xl gap-2"
                   >
                     Pontos fortes
+                  
+                    <span className="rounded-full bg-white/80 px-1.5 py-0.5 text-[10px] font-semibold text-slate-500">
+                      {
+                        strengthRecommendations
+                          .length
+                      }
+                    </span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -3259,12 +3557,12 @@ export default function DevelopmentRecommendations() {
                       </p>
                     </div>
                   ) : (
-                    <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="space-y-3">
                       {filteredRecommendations.map(
                         (
                           recommendation
                         ) => (
-                          <RecommendationCard
+                          <CompactRecommendationCard
                             key={
                               recommendation.id
                             }
@@ -3282,12 +3580,12 @@ export default function DevelopmentRecommendations() {
                   value="priorities"
                   className="mt-0"
                 >
-                  <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="space-y-3">
                     {priorityRecommendations.map(
                       (
                         recommendation
                       ) => (
-                        <RecommendationCard
+                        <CompactRecommendationCard
                           key={
                             recommendation.id
                           }
@@ -3304,12 +3602,12 @@ export default function DevelopmentRecommendations() {
                   value="consolidation"
                   className="mt-0"
                 >
-                  <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="space-y-3">
                     {consolidationRecommendations.map(
                       (
                         recommendation
                       ) => (
-                        <RecommendationCard
+                        <CompactRecommendationCard
                           key={
                             recommendation.id
                           }
@@ -3326,12 +3624,12 @@ export default function DevelopmentRecommendations() {
                   value="strengths"
                   className="mt-0"
                 >
-                  <div className="grid gap-4 xl:grid-cols-2">
+                  <div className="space-y-3">
                     {strengthRecommendations.map(
                       (
                         recommendation
                       ) => (
-                        <RecommendationCard
+                        <CompactRecommendationCard
                           key={
                             recommendation.id
                           }
