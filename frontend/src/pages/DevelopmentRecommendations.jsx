@@ -415,13 +415,13 @@ function SummaryMetric({
       }
     >
       <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-wide">
               {label}
             </p>
 
-            <p className="mt-2 truncate font-heading text-3xl text-slate-950">
+            <p className="mt-2 whitespace-normal break-words font-heading text-2xl leading-tight text-slate-950 xl:text-3xl">
               {value}
             </p>
 
@@ -1840,40 +1840,40 @@ export default function DevelopmentRecommendations() {
             
                 <div className="mt-4 grid grid-cols-3 gap-2">
                   <div className="rounded-2xl border border-cyan-100 bg-white/80 p-3 text-center">
-                    <p className="font-heading text-2xl text-slate-950">
+                    <p className="font-heading text-2xl leading-none text-slate-950 xl:text-3xl">
                       {
                         developmentDashboard
                           .domainCount
                       }
                     </p>
             
-                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    <p className="mt-2 text-[10px] font-semibold uppercase leading-tight tracking-wide text-slate-500">
                       Domínios
                     </p>
                   </div>
             
                   <div className="rounded-2xl border border-cyan-100 bg-white/80 p-3 text-center">
-                    <p className="font-heading text-2xl text-slate-950">
+                    <p className="font-heading text-2xl leading-none text-slate-950 xl:text-3xl">
                       {
                         developmentDashboard
                           .competencyCount
                       }
                     </p>
             
-                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    <p className="mt-2 text-[10px] font-semibold uppercase leading-tight tracking-wide text-slate-500">
                       Competências
                     </p>
                   </div>
             
                   <div className="rounded-2xl border border-cyan-100 bg-white/80 p-3 text-center">
-                    <p className="font-heading text-2xl text-slate-950">
+                    <p className="font-heading text-2xl leading-none text-slate-950 xl:text-3xl">
                       {
                         developmentDashboard
                           .criterionCount
                       }
                     </p>
             
-                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                    <p className="mt-2 text-[10px] font-semibold uppercase leading-tight tracking-wide text-slate-500">
                       Critérios
                     </p>
                   </div>
@@ -1974,7 +1974,7 @@ export default function DevelopmentRecommendations() {
                       Domínio mais forte
                     </p>
           
-                    <p className="mt-2 font-semibold text-slate-900">
+                    className="mt-2 whitespace-normal break-words font-semibold leading-tight text-slate-900"
                       {
                         developmentDashboard
                           .strongestDomain
@@ -2082,7 +2082,7 @@ export default function DevelopmentRecommendations() {
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div className="min-w-0">
-                            <p className="font-heading text-xl text-slate-950">
+                            <p className="whitespace-normal break-words font-heading text-xl leading-tight text-slate-950">
                               {domain.name}
                             </p>
           
@@ -2152,7 +2152,7 @@ export default function DevelopmentRecommendations() {
                               Competência prioritária
                             </p>
           
-                            <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                            <p className="mt-1 whitespace-normal break-words text-sm font-semibold leading-tight text-slate-900">
                               {
                                 domain
                                   .priorityCompetency
@@ -2179,7 +2179,7 @@ export default function DevelopmentRecommendations() {
                               Competência mais forte
                             </p>
           
-                            <p className="mt-1 truncate text-sm font-semibold text-slate-900">
+                            <p className="mt-1 whitespace-normal break-words text-sm font-semibold leading-tight text-slate-900">
                               {
                                 domain
                                   .strongestCompetency
@@ -2236,11 +2236,11 @@ export default function DevelopmentRecommendations() {
                     >
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-semibold text-slate-900">
+                          <p className="whitespace-normal break-words font-semibold leading-tight text-slate-900">
                             {competency.name}
                           </p>
           
-                          <p className="text-xs text-slate-500">
+                          <p className="mt-1 whitespace-normal break-words text-xs leading-tight text-slate-500">
                             {competency.domainName}
                           </p>
                         </div>
