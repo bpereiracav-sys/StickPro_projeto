@@ -1826,18 +1826,64 @@ export default function DevelopmentRecommendations() {
               accent="emerald"
             />
           
-            <SummaryMetric
-              label="Cobertura da análise"
-              value={
-                developmentDashboard
-                  .domainCount
-              }
-              helper={
-                `${developmentDashboard.competencyCount} competências · ${developmentDashboard.criterionCount} critérios`
-              }
-              icon={BarChart3}
-              accent="cyan"
-            />
+            <Card className="border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-slate-50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+                    Cobertura da análise
+                  </p>
+            
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-white/80 text-cyan-700">
+                    <BarChart3 className="h-5 w-5" />
+                  </div>
+                </div>
+            
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  <div className="rounded-2xl border border-cyan-100 bg-white/80 p-3 text-center">
+                    <p className="font-heading text-2xl text-slate-950">
+                      {
+                        developmentDashboard
+                          .domainCount
+                      }
+                    </p>
+            
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      Domínios
+                    </p>
+                  </div>
+            
+                  <div className="rounded-2xl border border-cyan-100 bg-white/80 p-3 text-center">
+                    <p className="font-heading text-2xl text-slate-950">
+                      {
+                        developmentDashboard
+                          .competencyCount
+                      }
+                    </p>
+            
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      Competências
+                    </p>
+                  </div>
+            
+                  <div className="rounded-2xl border border-cyan-100 bg-white/80 p-3 text-center">
+                    <p className="font-heading text-2xl text-slate-950">
+                      {
+                        developmentDashboard
+                          .criterionCount
+                      }
+                    </p>
+            
+                    <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                      Critérios
+                    </p>
+                  </div>
+                </div>
+            
+                <p className="mt-3 text-xs leading-5 text-slate-500">
+                  Base considerada no cálculo do IDI Global ponderado.
+                </p>
+              </CardContent>
+            </Card>
           </div>
 
           {developmentDashboard
@@ -1992,28 +2038,15 @@ export default function DevelopmentRecommendations() {
           
                   <div className="rounded-2xl border border-purple-100 bg-purple-50/60 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-purple-700">
-                      Base de cálculo
+                      Método de cálculo
                     </p>
-          
+                  
                     <p className="mt-2 font-semibold text-slate-900">
-                      {
-                        developmentDashboard
-                          .criterionCount
-                      }{' '}
-                      critérios
+                      IDI ponderado
                     </p>
-          
-                    <p className="mt-1 text-xs text-slate-500">
-                      {
-                        developmentDashboard
-                          .domainCount
-                      }{' '}
-                      domínios ·{' '}
-                      {
-                        developmentDashboard
-                          .competencyCount
-                      }{' '}
-                      competências
+                  
+                    <p className="mt-1 text-xs leading-5 text-slate-500">
+                      O peso de cada domínio considera o número de critérios válidos avaliados.
                     </p>
                   </div>
                 </div>
