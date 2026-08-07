@@ -1861,7 +1861,7 @@ export default function DevelopmentRecommendations() {
                     </p>
             
                     <p className="mt-2 text-[9px] font-semibold leading-tight text-slate-500 xl:text-[10px]">
-                      Comp.
+                      COMP.
                     </p>
                   </div>
             
