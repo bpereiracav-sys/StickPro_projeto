@@ -1973,8 +1973,8 @@ export default function DevelopmentRecommendations() {
                     <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
                       Domínio mais forte
                     </p>
-          
-                    className="mt-2 whitespace-normal break-words font-semibold leading-tight text-slate-900"
+                  
+                    <p className="mt-2 whitespace-normal break-words font-semibold leading-tight text-slate-900">
                       {
                         developmentDashboard
                           .strongestDomain
@@ -1982,7 +1982,7 @@ export default function DevelopmentRecommendations() {
                         'Sem dados'
                       }
                     </p>
-          
+                  
                     {developmentDashboard
                       .strongestDomain && (
                       <p className="mt-1 text-xs text-slate-500">
