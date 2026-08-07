@@ -332,74 +332,6 @@ const getLatestEvaluation = (
     )[0] ||
   null;
 
-
-const getRecommendationState = (
-  recommendation
-) => {
-  if (!recommendation) {
-    return {
-      label: 'Sem dados',
-      className:
-        'border-slate-200 bg-slate-50 text-slate-600',
-    };
-  }
-
-  if (
-    recommendation.priority ===
-    'critical'
-  ) {
-    return {
-      label:
-        'Intervenção imediata',
-      className:
-        'border-red-200 bg-red-50 text-red-700',
-    };
-  }
-
-  if (
-    recommendation.priority ===
-    'high'
-  ) {
-    return {
-      label:
-        'Trabalhar nos próximos treinos',
-      className:
-        'border-orange-200 bg-orange-50 text-orange-700',
-    };
-  }
-
-  if (
-    recommendation.priority ===
-    'moderate'
-  ) {
-    return {
-      label:
-        'Desenvolvimento progressivo',
-      className:
-        'border-amber-200 bg-amber-50 text-amber-700',
-    };
-  }
-
-  if (
-    recommendation.priority ===
-    'consolidation'
-  ) {
-    return {
-      label:
-        'Consolidar',
-      className:
-        'border-cyan-200 bg-cyan-50 text-cyan-700',
-    };
-  }
-
-  return {
-    label:
-      'Manter como ponto forte',
-    className:
-      'border-emerald-200 bg-emerald-50 text-emerald-700',
-  };
-};
-
 const getIdiStatusConfig = (
   status
 ) => {
@@ -522,11 +454,6 @@ function RecommendationCard({
       recommendation.priority
     );
 
-  const recommendationState =
-    getRecommendationState(
-      recommendation
-    );
-
   return (
     <Card className="overflow-hidden border border-slate-200 bg-white transition hover:-translate-y-0.5 hover:shadow-lg">
       <CardContent
@@ -557,30 +484,14 @@ function RecommendationCard({
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Badge
               variant="outline"
-              className={
+              className={`rounded-full px-3 py-1 ${
                 priorityConfig.className
-              }
+              }`}
             >
-              {
-                priorityConfig
-                  .shortLabel
-              }
-            </Badge>
-
-            <Badge
-              variant="outline"
-              className={
-                recommendationState
-                  .className
-              }
-            >
-              {
-                recommendationState
-                  .label
-              }
+              {priorityConfig.label}
             </Badge>
           </div>
         </div>
@@ -2404,23 +2315,6 @@ export default function DevelopmentRecommendations() {
                         .join(' · ')}
                     </CardDescription>
                   </div>
-
-                  <Badge
-                    variant="outline"
-                    className={
-                      getDevelopmentPriorityConfig(
-                        primaryRecommendation
-                          .priority
-                      ).className
-                    }
-                  >
-                    {
-                      getDevelopmentPriorityConfig(
-                        primaryRecommendation
-                          .priority
-                      ).label
-                    }
-                  </Badge>
                 </div>
               </CardHeader>
 
