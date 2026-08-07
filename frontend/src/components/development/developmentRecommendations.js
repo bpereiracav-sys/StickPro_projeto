@@ -10,6 +10,46 @@ import {
 const DEFAULT_SCALE_MIN = 1;
 const DEFAULT_SCALE_MAX = 5;
 
+/*************************************************************************
+ * DOMAIN NORMALIZATION
+ * Sprint C3.5.1
+ *************************************************************************/
+
+const DOMAIN_LABELS = {
+  technical: 'Técnica Individual',
+  tactical: 'Tática',
+  physical: 'Físico',
+  psychological: 'Psicológico',
+  attitude: 'Atitude',
+
+  skating: 'Patinagem',
+  technique: 'Técnica Individual',
+  goalkeeper: 'Guarda-Redes',
+
+  general: 'Competências Gerais',
+  other: 'Competências Gerais',
+  default: 'Competências Gerais',
+  misc: 'Competências Gerais',
+};
+
+export function normalizeDomainLabel(domain) {
+  if (!domain) {
+    return 'Competências Gerais';
+  }
+
+  const key = String(domain)
+    .trim()
+    .toLowerCase();
+
+  return (
+    DOMAIN_LABELS[key] ||
+    String(domain)
+      .trim()
+      .replace(/_/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+  );
+}
+
 const PRIORITY_ORDER = {
   critical: 0,
   high: 1,
@@ -162,12 +202,13 @@ const getDomainId = (
 const getDomainLabel = (
   entry = {}
 ) =>
-  entry?.domain_label ||
-  entry?.domainLabel ||
-  entry?.criterion?.domain_label ||
-  entry?.criterion?.domainLabel ||
-  getDomainId(entry) ||
-  'Outro';
+  normalizeDomainLabel(
+    entry?.domain_label ||
+    entry?.domainLabel ||
+    entry?.criterion?.domain_label ||
+    entry?.criterion?.domainLabel ||
+    getDomainId(entry)
+  );
 
 const getSubdomainId = (
   entry = {}
@@ -821,8 +862,11 @@ const groupScoresByCriterion = (
             'other',
 
           domainLabel:
-            scoreEntry.domainLabel ||
-            'Outro',
+            normalizeDomainLabel(
+              scoreEntry.domainLabel ||
+              scoreEntry.domain ||
+              scoreEntry.category
+            ),
 
           subdomainId:
             scoreEntry.subdomainId ||
@@ -1665,7 +1709,9 @@ const buildCriterionRecommendation = (
       group.domainId,
 
     domainLabel:
-      group.domainLabel,
+      normalizeDomainLabel(
+        group.domainLabel
+      ),
 
     subdomainId:
       group.subdomainId,
@@ -2008,8 +2054,12 @@ export function buildCompetencyIDI(
             'other',
 
           domainName:
-            recommendation.domainLabel ||
-            'Outro',
+            normalizeDomainLabel(
+              recommendation.domainName ||
+              recommendation.domainLabel ||
+              recommendation.domain ||
+              recommendation.category
+            ),
 
           recommendations: [],
         });
@@ -2146,7 +2196,10 @@ export function buildCompetencyIDI(
           group.domainId,
 
         domainName:
-          group.domainName,
+          normalizeDomainLabel(
+            group.domainName ||
+            group.domainLabel
+          ),
 
         idiScore:
           averageIDI,
@@ -2258,8 +2311,11 @@ export function buildDomainIDI(
         'other';
 
       const domainName =
-        competency?.domainName ||
-        'Outro';
+        normalizeDomainLabel(
+          competency?.domainName ||
+          competency?.domainLabel ||
+          competency?.domainId
+        );
 
       if (
         !groups.has(
@@ -2923,9 +2979,12 @@ export function buildAutomaticDevelopmentRecommendations({
         item.domainId,
   
       domainLabel:
-        item.domainName ||
-        item.domainLabel ||
-        'Outro',
+        normalizeDomainLabel(
+          item.domainName ||
+          item.domainLabel ||
+          item.domain ||
+          item.category
+        ),
   
       idiScore:
         Number(item.idiScore),
