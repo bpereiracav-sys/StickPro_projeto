@@ -2895,7 +2895,73 @@ export function buildAutomaticDevelopmentRecommendations({
     buildGlobalIDI(
       domainIDI
     );
-
+  
+  /*************************************************************************
+   * OFFICIAL RADAR EXPORT
+   * Sprint C3.5B.5A
+   *************************************************************************/
+  
+  const radarData = (competencyIDI || [])
+    .filter(
+      (item) =>
+        Number.isFinite(
+          Number(item?.idiScore)
+        )
+    )
+    .map((item) => ({
+      id: item.id,
+  
+      competencyId: item.id,
+  
+      competencyName: item.name,
+  
+      label:
+        item.shortName ||
+        item.name,
+  
+      domainId:
+        item.domainId,
+  
+      domainLabel:
+        item.domainName ||
+        item.domainLabel ||
+        'Outro',
+  
+      idiScore:
+        Number(item.idiScore),
+  
+      value:
+        Number(item.idiScore),
+  
+      status:
+        item.status,
+  
+      statusLabel:
+        item.statusLabel,
+  
+      recommendationCount:
+        item.recommendationCount,
+    }))
+    .sort(
+      (a, b) =>
+        String(
+          a.domainLabel || ''
+        ).localeCompare(
+          String(
+            b.domainLabel || ''
+          ),
+          'pt-PT'
+        ) ||
+        String(
+          a.label || ''
+        ).localeCompare(
+          String(
+            b.label || ''
+          ),
+          'pt-PT'
+        )
+    );
+  
   return {
     hasData:
       allRecommendations.length > 0,
@@ -3006,6 +3072,14 @@ export function buildAutomaticDevelopmentRecommendations({
     
     strongestDomain:
       globalIDI.strongestDomain,
+
+    dashboard: {
+      globalIDI,
+      competencyIDI,
+      domainIDI,
+    },
+    
+    radarData,
     
     primaryRecommendation:
       priorities[0] ||
