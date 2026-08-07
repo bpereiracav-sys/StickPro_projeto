@@ -16,25 +16,25 @@ const DEFAULT_SCALE_MAX = 5;
  *************************************************************************/
 
 const DOMAIN_LABELS = {
-  technical: 'Técnica Individual',
+  technical: 'Tecnica Individual',
   tactical: 'Tática',
   physical: 'Físico',
   psychological: 'Psicológico',
   attitude: 'Atitude',
 
   skating: 'Patinagem',
-  technique: 'Técnica Individual',
+  technique: 'Tecnica Individual',
   goalkeeper: 'Guarda-Redes',
 
-  general: 'Competências Gerais',
-  other: 'Competências Gerais',
-  default: 'Competências Gerais',
-  misc: 'Competências Gerais',
+  general: 'Competencias Gerais',
+  other: 'Competencias Gerais',
+  default: 'Competencias Gerais',
+  misc: 'Competencias Gerais',
 };
 
 export function normalizeDomainLabel(domain) {
   if (!domain) {
-    return 'Competências Gerais';
+    return 'Competencias Gerais';
   }
 
   const key = String(domain)
