@@ -1845,7 +1845,43 @@ class DevelopmentPID(BaseModel):
 
     notes: Optional[str] = None
 
+    # ========================================================
+    # Intelligent Development Plan
+    # Sprint C3.6.4
+    # ========================================================
+
+    intelligent_plan: Optional[dict] = None
+
+    intelligent_plan_status: Optional[
+        Literal[
+            "suggested",
+            "active",
+            "review",
+            "completed",
+        ]
+    ] = None
+
+    intelligent_plan_source: Optional[str] = None
+
+    intelligent_plan_activated_at: Optional[datetime] = None
+
+    intelligent_plan_activated_by: Optional[str] = None
+
+    intelligent_plan_updated_at: Optional[datetime] = None
+    
     archived: bool = False
+
+# ============================================================
+# Intelligent PID Activation
+# Sprint C3.6.4
+# ============================================================
+
+class IntelligentPIDActivation(BaseModel):
+    plan: dict
+
+    source: str = "automatic_recommendation"
+
+    next_review: Optional[datetime] = None
 
 # Evaluation Execution Models — Sprint 4.2.4.1
 class EvaluationFromPlanScore(BaseModel):
@@ -17975,6 +18011,152 @@ async def update_pid(
     )
 
     return pid
+
+@api_router.post(
+    "/evaluations/pids/{pid_id}/activate-intelligent-plan"
+)
+async def activate_intelligent_pid_plan(
+    pid_id: str,
+    activation: IntelligentPIDActivation,
+    current_user: dict = Depends(get_current_user),
+):
+    checker = get_permission_checker(
+        current_user
+    )
+
+    pid = await db.evaluation_pids.find_one(
+        {
+            "id": pid_id,
+            "archived": False,
+        }
+    )
+
+    if not pid:
+        raise HTTPException(
+            status_code=404,
+            detail="PID não encontrado",
+        )
+
+    player_id = pid.get(
+        "player_id"
+    )
+
+    if (
+        not checker.is_admin
+        and not checker.is_staff
+        and not checker.can_access_player(
+            player_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para ativar este PID",
+        )
+
+    plan = activation.plan
+
+    if (
+        not isinstance(
+            plan,
+            dict,
+        )
+        or not plan
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail="Plano inteligente inválido",
+        )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    next_review = (
+        activation.next_review
+        or (
+            datetime.fromisoformat(
+                plan["review"][
+                    "recommendedDate"
+                ].replace(
+                    "Z",
+                    "+00:00",
+                )
+            )
+            if (
+                isinstance(
+                    plan.get(
+                        "review"
+                    ),
+                    dict,
+                )
+                and plan[
+                    "review"
+                ].get(
+                    "recommendedDate"
+                )
+            )
+            else None
+        )
+    )
+
+    update_data = {
+        "intelligent_plan":
+            plan,
+
+        "intelligent_plan_status":
+            "active",
+
+        "intelligent_plan_source":
+            activation.source,
+
+        "intelligent_plan_activated_at":
+            now,
+
+        "intelligent_plan_activated_by":
+            current_user["id"],
+
+        "intelligent_plan_updated_at":
+            now,
+
+        "updated_at":
+            now,
+
+        "current_version":
+            int(
+                pid.get(
+                    "current_version",
+                    1,
+                )
+            ) + 1,
+    }
+
+    if next_review:
+        update_data[
+            "next_review"
+        ] = next_review
+
+    await db.evaluation_pids.update_one(
+        {
+            "id": pid_id,
+        },
+        {
+            "$set":
+                update_data,
+        },
+    )
+
+    updated_pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id": pid_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    return updated_pid
 
 @api_router.patch("/evaluations/pids/{pid_id}/archive")
 async def archive_pid(
