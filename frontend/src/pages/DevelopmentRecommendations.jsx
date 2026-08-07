@@ -394,53 +394,83 @@ function SummaryMetric({
   accent = 'cyan',
 }) {
   const styles = {
-    cyan:
-      'border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-slate-50 text-cyan-700',
+    cyan: {
+      card:
+        'border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-slate-50',
+      label:
+        'text-cyan-700',
+      icon:
+        'text-cyan-700',
+    },
 
-    amber:
-      'border-amber-100 bg-gradient-to-br from-white via-amber-50/70 to-slate-50 text-amber-700',
+    amber: {
+      card:
+        'border-amber-100 bg-gradient-to-br from-white via-amber-50/70 to-slate-50',
+      label:
+        'text-amber-700',
+      icon:
+        'text-amber-700',
+    },
 
-    emerald:
-      'border-emerald-100 bg-gradient-to-br from-white via-emerald-50/70 to-slate-50 text-emerald-700',
+    emerald: {
+      card:
+        'border-emerald-100 bg-gradient-to-br from-white via-emerald-50/70 to-slate-50',
+      label:
+        'text-emerald-700',
+      icon:
+        'text-emerald-700',
+    },
 
-    purple:
-      'border-purple-100 bg-gradient-to-br from-white via-purple-50/70 to-slate-50 text-purple-700',
+    purple: {
+      card:
+        'border-purple-100 bg-gradient-to-br from-white via-purple-50/70 to-slate-50',
+      label:
+        'text-purple-700',
+      icon:
+        'text-purple-700',
+    },
   };
+
+  const style =
+    styles[accent] ||
+    styles.cyan;
 
   return (
     <Card
-      className={
-        styles[accent] ||
-        styles.cyan
-      }
+      className={`h-full ${style.card}`}
     >
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-bold uppercase tracking-wide">
-              {label}
-            </p>
+      <CardContent className="flex h-full flex-col p-4">
+        <div className="flex items-start justify-between gap-3">
+          <p
+            className={`min-w-0 flex-1 text-xs font-bold uppercase leading-tight tracking-wide ${style.label}`}
+          >
+            {label}
+          </p>
 
-            <p className="mt-2 whitespace-normal break-normal font-heading text-xl leading-tight text-slate-950 xl:text-2xl">
-              {value}
-            </p>
-            
-            {helper && (
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                {helper}
-              </p>
-            )}
-          </div>
-
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-white/80">
+          <div
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/80 bg-white/80 ${style.icon}`}
+          >
             <Icon className="h-5 w-5" />
           </div>
+        </div>
+
+        <div className="mt-4 flex min-h-[68px] items-start">
+          <p className="whitespace-normal break-normal font-heading text-2xl leading-[1.05] text-slate-950 xl:text-[28px]">
+            {value}
+          </p>
+        </div>
+
+        <div className="mt-auto pt-2">
+          {helper && (
+            <p className="text-xs leading-5 text-slate-500">
+              {helper}
+            </p>
+          )}
         </div>
       </CardContent>
     </Card>
   );
 }
-
 
 function RecommendationCard({
   recommendation,
@@ -1753,7 +1783,7 @@ export default function DevelopmentRecommendations() {
             </div>
           </Card>
 
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="grid items-stretch gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <SummaryMetric
               label="IDI Global ponderado"
               value={
@@ -1826,10 +1856,10 @@ export default function DevelopmentRecommendations() {
               accent="emerald"
             />
           
-            <Card className="border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-slate-50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+            <Card className="h-full border-cyan-100 bg-gradient-to-br from-white via-cyan-50/70 to-slate-50">
+              <CardContent className="flex h-full flex-col p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 flex-1 text-xs font-bold uppercase leading-tight tracking-wide text-cyan-700">
                     Cobertura da análise
                   </p>
             
@@ -1838,50 +1868,52 @@ export default function DevelopmentRecommendations() {
                   </div>
                 </div>
             
-                <div className="mt-4 grid grid-cols-3 gap-1.5">
-                  <div className="min-w-0 rounded-2xl border border-cyan-100 bg-white/80 px-2 py-3 text-center">
-                    <p className="font-heading text-2xl leading-none text-slate-950 xl:text-3xl">
+                <div className="mt-4 grid min-h-[68px] grid-cols-3 gap-2">
+                  <div className="flex min-w-0 flex-col items-center justify-center rounded-2xl border border-cyan-100 bg-white/80 px-1.5 py-2 text-center">
+                    <p className="font-heading text-2xl leading-none text-slate-950">
                       {
                         developmentDashboard
                           .domainCount
                       }
                     </p>
             
-                    <p className="mt-2 whitespace-normal text-[9px] font-semibold uppercase leading-tight tracking-normal text-slate-500 xl:text-[10px]">
+                    <p className="mt-2 text-[9px] font-semibold leading-tight text-slate-500">
                       Domínios
                     </p>
                   </div>
             
-                  <div className="min-w-0 rounded-2xl border border-cyan-100 bg-white/80 px-2 py-3 text-center">
-                    <p className="font-heading text-2xl leading-none text-slate-950 xl:text-3xl">
+                  <div className="flex min-w-0 flex-col items-center justify-center rounded-2xl border border-cyan-100 bg-white/80 px-1.5 py-2 text-center">
+                    <p className="font-heading text-2xl leading-none text-slate-950">
                       {
                         developmentDashboard
                           .competencyCount
                       }
                     </p>
             
-                    <p className="mt-2 text-[9px] font-semibold leading-tight text-slate-500 xl:text-[10px]">
-                      COMP.
+                    <p className="mt-2 text-[9px] font-semibold leading-tight text-slate-500">
+                      Competências
                     </p>
                   </div>
             
-                  <div className="min-w-0 rounded-2xl border border-cyan-100 bg-white/80 px-2 py-3 text-center">
-                    <p className="font-heading text-2xl leading-none text-slate-950 xl:text-3xl">
+                  <div className="flex min-w-0 flex-col items-center justify-center rounded-2xl border border-cyan-100 bg-white/80 px-1.5 py-2 text-center">
+                    <p className="font-heading text-2xl leading-none text-slate-950">
                       {
                         developmentDashboard
                           .criterionCount
                       }
                     </p>
             
-                    <p className="mt-2 whitespace-normal text-[9px] font-semibold uppercase leading-tight tracking-normal text-slate-500 xl:text-[10px]">
+                    <p className="mt-2 text-[9px] font-semibold leading-tight text-slate-500">
                       Critérios
                     </p>
                   </div>
                 </div>
             
-                <p className="mt-3 text-xs leading-5 text-slate-500">
-                  Base considerada no cálculo do IDI Global ponderado.
-                </p>
+                <div className="mt-auto pt-2">
+                  <p className="text-xs leading-5 text-slate-500">
+                    Base considerada no cálculo do IDI Global ponderado.
+                  </p>
+                </div>
               </CardContent>
             </Card>
           </div>
