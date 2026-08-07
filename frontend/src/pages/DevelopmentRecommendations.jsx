@@ -95,6 +95,62 @@ import {
 
 const ALL_VALUE = 'all';
 
+function DevelopmentIcon({ className = '' }) {
+  return (
+    <svg
+      viewBox="0 0 64 64"
+      className={className}
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <path
+        d="M12 48c8-17 17-26 32-32"
+        stroke="currentColor"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+
+      <path
+        d="M18 44h28"
+        stroke="currentColor"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+
+      <circle
+        cx="22"
+        cy="51"
+        r="5"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+
+      <circle
+        cx="42"
+        cy="51"
+        r="5"
+        stroke="currentColor"
+        strokeWidth="4"
+      />
+
+      <path
+        d="M38 12h12v12"
+        stroke="#06b6d4"
+        strokeWidth="4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M50 12 34 28"
+        stroke="#06b6d4"
+        strokeWidth="4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
 
 const normalizeCollection = (
   payload
