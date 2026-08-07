@@ -18041,16 +18041,28 @@ async def activate_intelligent_pid_plan(
         "player_id"
     )
 
+    # Apenas equipa técnica / administração.
     if (
         not checker.is_admin
         and not checker.is_staff
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão para ativar este PID",
+        )
+
+    # Se o utilizador não for admin,
+    # confirma também acesso ao atleta.
+    if (
+        not checker.is_admin
+        and player_id
         and not checker.can_access_player(
             player_id
         )
     ):
         raise HTTPException(
             status_code=403,
-            detail="Sem permissão para ativar este PID",
+            detail="Sem acesso a este atleta",
         )
 
     plan = activation.plan
@@ -18067,47 +18079,127 @@ async def activate_intelligent_pid_plan(
             detail="Plano inteligente inválido",
         )
 
+    criterion_name = (
+        plan.get(
+            "criterionName"
+        )
+        or ""
+    )
+
+    if not criterion_name:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O Plano Inteligente "
+                "não contém uma competência válida"
+            ),
+        )
+
     now = datetime.now(
         timezone.utc
     )
 
+    # --------------------------------------------------------
+    # Próxima revisão
+    # --------------------------------------------------------
+
     next_review = (
         activation.next_review
-        or (
-            datetime.fromisoformat(
-                plan["review"][
-                    "recommendedDate"
-                ].replace(
-                    "Z",
-                    "+00:00",
-                )
-            )
-            if (
-                isinstance(
-                    plan.get(
-                        "review"
-                    ),
-                    dict,
-                )
-                and plan[
-                    "review"
-                ].get(
-                    "recommendedDate"
-                )
-            )
-            else None
+    )
+
+    if (
+        next_review is None
+        and isinstance(
+            plan.get(
+                "review"
+            ),
+            dict,
         )
+    ):
+        recommended_date = (
+            plan.get(
+                "review",
+                {},
+            ).get(
+                "recommendedDate"
+            )
+        )
+
+        if recommended_date:
+            try:
+                next_review = (
+                    datetime.fromisoformat(
+                        str(
+                            recommended_date
+                        ).replace(
+                            "Z",
+                            "+00:00",
+                        )
+                    )
+                )
+            except (
+                ValueError,
+                TypeError,
+            ):
+                next_review = None
+
+    # --------------------------------------------------------
+    # Garantir estado persistido do próprio plano
+    # --------------------------------------------------------
+
+    persisted_plan = dict(
+        plan
+    )
+
+    persisted_plan[
+        "planStatus"
+    ] = "active"
+
+    persisted_plan[
+        "accepted"
+    ] = True
+
+    persisted_plan[
+        "activatedAt"
+    ] = now.isoformat()
+
+    persisted_plan[
+        "activatedBy"
+    ] = current_user[
+        "id"
+    ]
+
+    persisted_plan[
+        "engineVersion"
+    ] = (
+        persisted_plan.get(
+            "engineVersion"
+        )
+        or "C3.6.2"
+    )
+
+    # --------------------------------------------------------
+    # Atualização oficial do PID
+    # --------------------------------------------------------
+
+    current_version = int(
+        pid.get(
+            "current_version",
+            1,
+        )
+        or 1
     )
 
     update_data = {
         "intelligent_plan":
-            plan,
+            persisted_plan,
 
         "intelligent_plan_status":
             "active",
 
         "intelligent_plan_source":
-            activation.source,
+            activation.source
+            or "automatic_recommendation",
 
         "intelligent_plan_activated_at":
             now,
@@ -18118,16 +18210,15 @@ async def activate_intelligent_pid_plan(
         "intelligent_plan_updated_at":
             now,
 
+        # O PID oficial permanece ativo.
+        "status":
+            "active",
+
         "updated_at":
             now,
 
         "current_version":
-            int(
-                pid.get(
-                    "current_version",
-                    1,
-                )
-            ) + 1,
+            current_version + 1,
     }
 
     if next_review:
@@ -18135,15 +18226,26 @@ async def activate_intelligent_pid_plan(
             "next_review"
         ] = next_review
 
-    await db.evaluation_pids.update_one(
-        {
-            "id": pid_id,
-        },
-        {
-            "$set":
-                update_data,
-        },
+    result = (
+        await db.evaluation_pids.update_one(
+            {
+                "id": pid_id,
+                "archived": False,
+            },
+            {
+                "$set":
+                    update_data,
+            },
+        )
     )
+
+    if (
+        result.matched_count == 0
+    ):
+        raise HTTPException(
+            status_code=404,
+            detail="PID não encontrado",
+        )
 
     updated_pid = (
         await db.evaluation_pids.find_one(
@@ -18155,6 +18257,16 @@ async def activate_intelligent_pid_plan(
             },
         )
     )
+
+    if not updated_pid:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "O PID foi atualizado, "
+                "mas não foi possível recuperar "
+                "a nova versão"
+            ),
+        )
 
     return updated_pid
 
