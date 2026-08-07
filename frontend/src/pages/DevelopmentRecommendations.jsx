@@ -907,24 +907,40 @@ function CompactRecommendationCard({
           );
         }
   
-        await evaluationsApi
-          .activateIntelligentPIDPlan(
-            pid.id,
-            {
-              plan:
-                developmentPlan,
-  
-              source:
-                'automatic_recommendation',
-  
-              next_review:
-                developmentPlan
-                  ?.review
-                  ?.recommendedDate ||
-                null,
-            }
+        const activationResponse =
+          await evaluationsApi
+            .activateIntelligentPIDPlan(
+              pid.id,
+              {
+                plan:
+                  developmentPlan,
+        
+                source:
+                  'automatic_recommendation',
+        
+                next_review:
+                  developmentPlan
+                    ?.review
+                    ?.recommendedDate ||
+                  null,
+              }
+            );
+        
+        const persistedPID =
+          activationResponse?.data;
+        
+        if (
+          !persistedPID
+            ?.intelligent_plan ||
+          persistedPID
+            ?.intelligent_plan_status !==
+              'active'
+        ) {
+          throw new Error(
+            'O backend não confirmou a persistência do Plano Inteligente.'
           );
-  
+        }
+        
         setActivatedPlan(true);
   
         toast.success(
