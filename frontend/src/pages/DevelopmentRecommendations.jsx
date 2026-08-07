@@ -409,6 +409,105 @@ const getIdiProgressClass = (
   }
 };
 
+/*************************************************************************
+ * INTELLIGENT HEAT MAP
+ * Sprint C3.5.8
+ *************************************************************************/
+
+const getHeatMapConfig = (
+  status
+) => {
+  const configs = {
+    critical: {
+      label:
+        'Prioritário',
+
+      cell:
+        'border-red-200 bg-red-50 hover:bg-red-100',
+
+      indicator:
+        'bg-red-500',
+
+      value:
+        'text-red-700',
+    },
+
+    attention: {
+      label:
+        'Atenção',
+
+      cell:
+        'border-orange-200 bg-orange-50 hover:bg-orange-100',
+
+      indicator:
+        'bg-orange-500',
+
+      value:
+        'text-orange-700',
+    },
+
+    progressing: {
+      label:
+        'Em desenvolvimento',
+
+      cell:
+        'border-amber-200 bg-amber-50 hover:bg-amber-100',
+
+      indicator:
+        'bg-amber-500',
+
+      value:
+        'text-amber-700',
+    },
+
+    expected: {
+      label:
+        'Dentro do esperado',
+
+      cell:
+        'border-cyan-200 bg-cyan-50 hover:bg-cyan-100',
+
+      indicator:
+        'bg-cyan-500',
+
+      value:
+        'text-cyan-700',
+    },
+
+    advanced: {
+      label:
+        'Avançado',
+
+      cell:
+        'border-emerald-200 bg-emerald-50 hover:bg-emerald-100',
+
+      indicator:
+        'bg-emerald-500',
+
+      value:
+        'text-emerald-700',
+    },
+
+    unknown: {
+      label:
+        'Sem dados',
+
+      cell:
+        'border-slate-200 bg-slate-50 hover:bg-slate-100',
+
+      indicator:
+        'bg-slate-400',
+
+      value:
+        'text-slate-600',
+    },
+  };
+
+  return (
+    configs[status] ||
+    configs.unknown
+  );
+};
 function SummaryMetric({
   label,
   value,
@@ -2362,6 +2461,318 @@ export default function DevelopmentRecommendations() {
                       );
                     }
                   )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card className="border border-slate-200 bg-gradient-to-br from-white via-slate-50/80 to-cyan-50/30 shadow-xl shadow-slate-200/60">
+            <CardHeader>
+              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5 text-cyan-600" />
+          
+                    Mapa Inteligente de Desenvolvimento
+                  </CardTitle>
+          
+                  <CardDescription className="mt-1">
+                    Visão rápida do estado das competências do atleta,
+                    organizada por domínio.
+                  </CardDescription>
+                </div>
+          
+                <div className="flex flex-wrap gap-2">
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-slate-200 bg-white text-slate-600"
+                  >
+                    {
+                      competencyIDI.length
+                    }{' '}
+                    {
+                      competencyIDI.length ===
+                      1
+                        ? 'competência'
+                        : 'competências'
+                    }
+                  </Badge>
+          
+                  <Badge
+                    variant="outline"
+                    className="rounded-full border-slate-200 bg-white text-slate-600"
+                  >
+                    {
+                      domainIDI.length
+                    }{' '}
+                    {
+                      domainIDI.length ===
+                      1
+                        ? 'domínio'
+                        : 'domínios'
+                    }
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+          
+            <CardContent>
+              {domainIDI.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-8 text-center">
+                  <Sparkles className="mx-auto mb-3 h-10 w-10 text-slate-300" />
+          
+                  <p className="font-semibold text-slate-800">
+                    Ainda não existem dados suficientes
+                  </p>
+          
+                  <p className="mt-1 text-sm leading-6 text-slate-500">
+                    O mapa de desenvolvimento ficará disponível quando existirem
+                    competências avaliadas.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {domainIDI.map(
+                    (domain) => {
+                      const competencies =
+                        Array.isArray(
+                          domain.competencies
+                        )
+                          ? domain.competencies
+                          : [];
+          
+                      return (
+                        <div
+                          key={
+                            `heatmap-${domain.id}`
+                          }
+                          className="rounded-3xl border border-slate-200 bg-white/80 p-4"
+                        >
+                          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`h-3 w-3 shrink-0 rounded-full ${getIdiProgressClass(
+                                    domain.status
+                                  )}`}
+                                />
+          
+                                <p className="whitespace-normal break-normal font-heading text-lg leading-tight text-slate-950">
+                                  {
+                                    domain.name
+                                  }
+                                </p>
+                              </div>
+          
+                              <p className="mt-1 pl-5 text-xs text-slate-500">
+                                {
+                                  domain
+                                    .competencyCount
+                                }{' '}
+                                {
+                                  domain
+                                    .competencyCount ===
+                                  1
+                                    ? 'competência'
+                                    : 'competências'
+                                }
+                                {' · IDI '}
+                                {Number(
+                                  domain.idiScore
+                                ).toFixed(
+                                  1
+                                )}
+                              </p>
+                            </div>
+          
+                            <Badge
+                              variant="outline"
+                              className={
+                                getIdiStatusConfig(
+                                  domain.status
+                                ).className
+                              }
+                            >
+                              {
+                                domain.statusLabel
+                              }
+                            </Badge>
+                          </div>
+          
+                          {competencies.length ===
+                          0 ? (
+                            <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
+                              Não existem competências disponíveis neste domínio.
+                            </p>
+                          ) : (
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                              {competencies.map(
+                                (
+                                  competency
+                                ) => {
+                                  const config =
+                                    getHeatMapConfig(
+                                      competency.status
+                                    );
+          
+                                  const idiValue =
+                                    Number(
+                                      competency.idiScore
+                                    );
+          
+                                  const safeIdi =
+                                    Number.isFinite(
+                                      idiValue
+                                    )
+                                      ? Math.max(
+                                          0,
+                                          Math.min(
+                                            100,
+                                            idiValue
+                                          )
+                                        )
+                                      : 0;
+          
+                                  return (
+                                    <div
+                                      key={
+                                        `heat-${domain.id}-${competency.id}`
+                                      }
+                                      className={`group relative min-h-[128px] overflow-hidden rounded-2xl border p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md ${config.cell}`}
+                                    >
+                                      <div
+                                        className={`absolute left-0 top-0 h-full w-1.5 ${config.indicator}`}
+                                      />
+          
+                                      <div className="flex h-full flex-col pl-1">
+                                        <div className="flex items-start justify-between gap-3">
+                                          <div className="min-w-0 flex-1">
+                                            <p className="whitespace-normal break-normal font-semibold leading-tight text-slate-900">
+                                              {
+                                                competency.name
+                                              }
+                                            </p>
+          
+                                            <p className="mt-1 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                                              {
+                                                config.label
+                                              }
+                                            </p>
+                                          </div>
+          
+                                          <div className="shrink-0 text-right">
+                                            <p
+                                              className={`font-heading text-2xl leading-none ${config.value}`}
+                                            >
+                                              {Number.isFinite(
+                                                idiValue
+                                              )
+                                                ? idiValue.toFixed(
+                                                    1
+                                                  )
+                                                : '—'}
+                                            </p>
+          
+                                            <p className="mt-1 text-[9px] font-medium uppercase text-slate-400">
+                                              IDI
+                                            </p>
+                                          </div>
+                                        </div>
+          
+                                        <div className="mt-auto pt-4">
+                                          <div className="h-1.5 overflow-hidden rounded-full bg-white/80">
+                                            <div
+                                              className={`h-full rounded-full ${config.indicator}`}
+                                              style={{
+                                                width: `${safeIdi}%`,
+                                              }}
+                                            />
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                }
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                  )}
+                </div>
+              )}
+          
+              {domainIDI.length > 0 && (
+                <div className="mt-5 rounded-2xl border border-slate-200 bg-white/70 p-4">
+                  <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                    Legenda
+                  </p>
+          
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-3">
+                    {[
+                      {
+                        status:
+                          'critical',
+                        label:
+                          'Prioritário',
+                      },
+          
+                      {
+                        status:
+                          'attention',
+                        label:
+                          'Atenção',
+                      },
+          
+                      {
+                        status:
+                          'progressing',
+                        label:
+                          'Em desenvolvimento',
+                      },
+          
+                      {
+                        status:
+                          'expected',
+                        label:
+                          'Dentro do esperado',
+                      },
+          
+                      {
+                        status:
+                          'advanced',
+                        label:
+                          'Avançado',
+                      },
+                    ].map(
+                      (item) => {
+                        const config =
+                          getHeatMapConfig(
+                            item.status
+                          );
+          
+                        return (
+                          <div
+                            key={
+                              item.status
+                            }
+                            className="flex items-center gap-2"
+                          >
+                            <span
+                              className={`h-2.5 w-2.5 rounded-full ${config.indicator}`}
+                            />
+          
+                            <span className="text-xs text-slate-600">
+                              {
+                                item.label
+                              }
+                            </span>
+                          </div>
+                        );
+                      }
+                    )}
+                  </div>
                 </div>
               )}
             </CardContent>
