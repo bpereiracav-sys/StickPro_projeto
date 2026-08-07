@@ -50,6 +50,42 @@ export function normalizeDomainLabel(domain) {
   );
 }
 
+/*************************************************************************
+ * COMPETENCY NORMALIZATION
+ * Sprint C3.5.2
+ *************************************************************************/
+
+const COMPETENCY_LABELS = {
+  general: 'Competência Geral',
+  other: 'Competência Geral',
+  default: 'Competência Geral',
+  misc: 'Competência Geral',
+};
+
+export function normalizeCompetencyLabel(
+  competency
+) {
+  if (!competency) {
+    return 'Competência Geral';
+  }
+
+  const value =
+    String(competency).trim();
+
+  const key =
+    value.toLowerCase();
+
+  return (
+    COMPETENCY_LABELS[key] ||
+    value
+      .replace(/_/g, ' ')
+      .replace(
+        /\b\w/g,
+        (character) =>
+          character.toUpperCase()
+      )
+  );
+}
 const PRIORITY_ORDER = {
   critical: 0,
   high: 1,
@@ -223,12 +259,13 @@ const getSubdomainId = (
 const getSubdomainLabel = (
   entry = {}
 ) =>
-  entry?.subdomain_label ||
-  entry?.subdomainLabel ||
-  entry?.criterion?.subdomain_label ||
-  entry?.criterion?.subdomainLabel ||
-  getSubdomainId(entry) ||
-  'Geral';
+  normalizeCompetencyLabel(
+    entry?.subdomain_label ||
+    entry?.subdomainLabel ||
+    entry?.criterion?.subdomain_label ||
+    entry?.criterion?.subdomainLabel ||
+    getSubdomainId(entry)
+  );
 
 const getScaleMin = (
   entry = {}
@@ -873,8 +910,11 @@ const groupScoresByCriterion = (
             'general',
 
           subdomainLabel:
-            scoreEntry.subdomainLabel ||
-            'Geral',
+            normalizeCompetencyLabel(
+              scoreEntry.subdomainLabel ||
+              scoreEntry.subdomainId ||
+              'general'
+            ),
 
           expectedLevels:
             Array.isArray(
@@ -2043,24 +2083,24 @@ export function buildCompetencyIDI(
       if (!groups.has(key)) {
         groups.set(key, {
           id: key,
-
+        
           name:
-            recommendation.subdomainLabel ||
-            recommendation.domainLabel ||
-            'Competência',
-
+            normalizeCompetencyLabel(
+              recommendation.subdomainLabel ||
+              recommendation.subdomainId ||
+              'general'
+            ),
+        
           domainId:
             recommendation.domainId ||
             'other',
-
+        
           domainName:
             normalizeDomainLabel(
-              recommendation.domainName ||
               recommendation.domainLabel ||
-              recommendation.domain ||
-              recommendation.category
+              recommendation.domainId
             ),
-
+        
           recommendations: [],
         });
       }
