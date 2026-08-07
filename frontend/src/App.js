@@ -426,13 +426,17 @@ function AppRoutes() {
         path="/evaluations/new"
         element={
           <PermissionRoute
-            allowedRoles={["admin", "gestor_desportivo", "treinador"]}
+            allowedRoles={[
+              "admin",
+              "gestor_desportivo",
+              "treinador",
+            ]}
           >
             <EvaluationExecution />
           </PermissionRoute>
         }
       />
-
+      
       <Route
         path="/evaluations/history"
         element={
@@ -441,21 +445,30 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
+      
       <Route
-        path="/evaluations/:evaluationId"
+        path="/evaluations/pid"
         element={
           <ProtectedRoute>
-            <EvaluationDetail />
+            <DevelopmentPID />
           </ProtectedRoute>
         }
       />
-          
+      
       <Route
         path="/evaluations/objectives"
         element={
           <ProtectedRoute>
             <PlayerObjectives />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/evaluations/:evaluationId"
+        element={
+          <ProtectedRoute>
+            <EvaluationDetail />
           </ProtectedRoute>
         }
       />
@@ -465,6 +478,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <DevelopmentRecommendations />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/development/pid"
+        element={
+          <ProtectedRoute>
+            <DevelopmentPID />
           </ProtectedRoute>
         }
       />
