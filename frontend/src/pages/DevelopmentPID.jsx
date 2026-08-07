@@ -71,6 +71,37 @@ const PID_STATUS_CONFIG = {
   },
 };
 
+// ============================================================
+// Intelligent Development Plan
+// Sprint C3.6.5
+// ============================================================
+
+const INTELLIGENT_PLAN_STATUS_CONFIG = {
+  suggested: {
+    label: 'Sugerido',
+    className:
+      'border-slate-200 bg-slate-50 text-slate-700',
+  },
+
+  active: {
+    label: 'Plano Inteligente ativo',
+    className:
+      'border-emerald-200 bg-emerald-50 text-emerald-700',
+  },
+
+  review: {
+    label: 'Em revisão',
+    className:
+      'border-amber-200 bg-amber-50 text-amber-700',
+  },
+
+  completed: {
+    label: 'Concluído',
+    className:
+      'border-blue-200 bg-blue-50 text-blue-700',
+  },
+};
+
 const normalizeCollection = (payload) => {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.items)) return payload.items;
@@ -958,6 +989,44 @@ export default function DevelopmentPID() {
     PID_STATUS_CONFIG[pid?.status || 'active'] ||
     PID_STATUS_CONFIG.active;
 
+  const intelligentPlan =
+    pid?.intelligent_plan &&
+    typeof pid.intelligent_plan === 'object'
+      ? pid.intelligent_plan
+      : null;
+  
+  const intelligentPlanStatus =
+    pid?.intelligent_plan_status ||
+    intelligentPlan?.planStatus ||
+    null;
+  
+  const intelligentPlanStatusConfig =
+    INTELLIGENT_PLAN_STATUS_CONFIG[
+      intelligentPlanStatus
+    ] ||
+    INTELLIGENT_PLAN_STATUS_CONFIG.active;
+  
+  const intelligentPlanPhases =
+    Array.isArray(
+      intelligentPlan?.phases
+    )
+      ? intelligentPlan.phases
+      : [];
+  
+  const intelligentPlanFocus =
+    Array.isArray(
+      intelligentPlan?.trainingFocus
+    )
+      ? intelligentPlan.trainingFocus
+      : [];
+  
+  const intelligentPlanSuccessCriteria =
+    Array.isArray(
+      intelligentPlan?.successCriteria
+    )
+      ? intelligentPlan.successCriteria
+      : [];
+  
   if (!isAthleteMode && !canManage) {
     return (
       <Card className="border-amber-200 bg-amber-50">
@@ -995,11 +1064,18 @@ export default function DevelopmentPID() {
                   <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                   Sistema de desenvolvimento
                 </Badge>
-
+              
                 {pid && (
                   <Badge className="border border-white/10 bg-white/10 text-slate-200">
                     <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
                     Versão {pid.current_version || 1}
+                  </Badge>
+                )}
+              
+                {intelligentPlan && (
+                  <Badge className="border border-emerald-300/20 bg-emerald-400/15 text-emerald-100">
+                    <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                    PID Inteligente
                   </Badge>
                 )}
               </div>
@@ -1327,6 +1403,409 @@ export default function DevelopmentPID() {
               </CardContent>
             </Card>
           </section>
+
+          {intelligentPlan && (
+            <section>
+              <Card className="overflow-hidden border-cyan-100 bg-white shadow-xl shadow-cyan-100/40">
+                <CardHeader className="border-b border-cyan-100 bg-gradient-to-r from-cyan-50 via-white to-indigo-50">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="outline"
+                          className={
+                            intelligentPlanStatusConfig
+                              .className
+                          }
+                        >
+                          <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+          
+                          {
+                            intelligentPlanStatusConfig
+                              .label
+                          }
+                        </Badge>
+          
+                        {intelligentPlan
+                          .generatedAutomatically && (
+                          <Badge
+                            variant="outline"
+                            className="border-purple-200 bg-purple-50 text-purple-700"
+                          >
+                            Gerado automaticamente
+                          </Badge>
+                        )}
+                      </div>
+          
+                      <CardTitle className="mt-3 font-heading text-2xl text-slate-950">
+                        Plano Inteligente de Desenvolvimento
+                      </CardTitle>
+          
+                      <CardDescription className="mt-1 max-w-3xl">
+                        Plano operacional associado à prioridade de desenvolvimento
+                        identificada para este atleta.
+                      </CardDescription>
+                    </div>
+          
+                    <div className="lg:text-right">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                        Competência
+                      </p>
+          
+                      <p className="mt-1 font-semibold text-slate-900">
+                        {
+                          intelligentPlan
+                            .criterionName ||
+                          'Competência de desenvolvimento'
+                        }
+                      </p>
+          
+                      <p className="mt-1 text-xs text-slate-500">
+                        {[
+                          intelligentPlan
+                            .domainLabel,
+                          intelligentPlan
+                            .subdomainLabel,
+                        ]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </p>
+                    </div>
+                  </div>
+                </CardHeader>
+          
+                <CardContent className="space-y-5 p-5">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    <div className="rounded-2xl border border-purple-100 bg-purple-50/70 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-purple-700">
+                        IDI inicial
+                      </p>
+          
+                      <p className="mt-2 font-heading text-2xl text-slate-950">
+                        {Number.isFinite(
+                          Number(
+                            intelligentPlan.idiScore
+                          )
+                        )
+                          ? Number(
+                              intelligentPlan.idiScore
+                            ).toFixed(1)
+                          : '—'}
+                      </p>
+          
+                      <p className="text-xs text-slate-500">
+                        /100
+                      </p>
+                    </div>
+          
+                    <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-700">
+                        Duração
+                      </p>
+          
+                      <p className="mt-2 font-heading text-2xl text-slate-950">
+                        {
+                          intelligentPlan
+                            .totalWeeks ??
+                          '—'
+                        }
+                      </p>
+          
+                      <p className="text-xs text-slate-500">
+                        semanas
+                      </p>
+                    </div>
+          
+                    <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-blue-700">
+                        Frequência
+                      </p>
+          
+                      <p className="mt-2 font-heading text-2xl text-slate-950">
+                        {
+                          intelligentPlan
+                            .sessionsPerWeek ??
+                          '—'
+                        }
+                      </p>
+          
+                      <p className="text-xs text-slate-500">
+                        sessões/semana
+                      </p>
+                    </div>
+          
+                    <div className="rounded-2xl border border-indigo-100 bg-indigo-50/70 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-indigo-700">
+                        Volume
+                      </p>
+          
+                      <p className="mt-2 font-heading text-2xl text-slate-950">
+                        {
+                          intelligentPlan
+                            .estimatedSessions ??
+                          '—'
+                        }
+                      </p>
+          
+                      <p className="text-xs text-slate-500">
+                        sessões
+                      </p>
+                    </div>
+          
+                    <div className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                        Reavaliação
+                      </p>
+          
+                      <p className="mt-2 font-heading text-lg leading-tight text-slate-950">
+                        {formatDate(
+                          intelligentPlan
+                            ?.review
+                            ?.recommendedDate ||
+                          pid.next_review,
+                          'Por definir'
+                        )}
+                      </p>
+                    </div>
+                  </div>
+          
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                      Objetivo principal
+                    </p>
+          
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {
+                        intelligentPlan
+                          .objective ||
+                        'Sem objetivo definido.'
+                      }
+                    </p>
+                  </div>
+          
+                  <div>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="font-heading text-xl text-slate-950">
+                          Fases do plano
+                        </p>
+          
+                        <p className="mt-1 text-sm text-slate-500">
+                          Progressão prevista para a intervenção.
+                        </p>
+                      </div>
+          
+                      <Badge
+                        variant="outline"
+                        className="w-fit rounded-full border-slate-200 bg-slate-50 text-slate-600"
+                      >
+                        {
+                          intelligentPlanPhases.length
+                        }{' '}
+                        {
+                          intelligentPlanPhases.length ===
+                          1
+                            ? 'fase'
+                            : 'fases'
+                        }
+                      </Badge>
+                    </div>
+          
+                    {intelligentPlanPhases.length ===
+                    0 ? (
+                      <p className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-5 text-sm text-slate-500">
+                        Ainda não existem fases definidas neste plano.
+                      </p>
+                    ) : (
+                      <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                        {intelligentPlanPhases.map(
+                          (
+                            phase,
+                            index
+                          ) => (
+                            <div
+                              key={
+                                phase.id ||
+                                index
+                              }
+                              className="rounded-2xl border border-slate-200 bg-white p-4"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-950 text-xs font-bold text-white">
+                                  {index + 1}
+                                </div>
+          
+                                <div>
+                                  <p className="font-semibold text-slate-900">
+                                    {
+                                      phase.label ||
+                                      `Fase ${
+                                        index + 1
+                                      }`
+                                    }
+                                  </p>
+          
+                                  <p className="text-xs text-slate-500">
+                                    Semanas{' '}
+                                    {
+                                      phase.startWeek ??
+                                      '—'
+                                    }
+                                    –
+                                    {
+                                      phase.endWeek ??
+                                      '—'
+                                    }
+                                  </p>
+                                </div>
+                              </div>
+          
+                              <p className="mt-3 text-sm leading-6 text-slate-600">
+                                {
+                                  phase.objective ||
+                                  phase.description ||
+                                  'Sem descrição.'
+                                }
+                              </p>
+          
+                              <div className="mt-3 rounded-xl bg-slate-50 p-3">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                                  Volume previsto
+                                </p>
+          
+                                <p className="mt-1 text-sm font-semibold text-slate-800">
+                                  {
+                                    phase
+                                      .estimatedSessions ??
+                                    '—'
+                                  }{' '}
+                                  sessões
+                                </p>
+                              </div>
+                            </div>
+                          )
+                        )}
+                      </div>
+                    )}
+                  </div>
+          
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="rounded-2xl border border-cyan-100 bg-cyan-50/50 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-cyan-700">
+                        Focos de treino
+                      </p>
+          
+                      {intelligentPlanFocus.length ===
+                      0 ? (
+                        <p className="mt-3 text-sm text-slate-500">
+                          Sem focos de treino registados.
+                        </p>
+                      ) : (
+                        <div className="mt-3 space-y-2">
+                          {intelligentPlanFocus
+                            .slice(0, 5)
+                            .map(
+                              (
+                                focus,
+                                index
+                              ) => (
+                                <div
+                                  key={`pid-focus-${index}`}
+                                  className="flex items-start gap-2 rounded-xl bg-white/80 p-3"
+                                >
+                                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-cyan-600" />
+          
+                                  <p className="text-sm leading-5 text-slate-600">
+                                    {focus}
+                                  </p>
+                                </div>
+                              )
+                            )}
+                        </div>
+                      )}
+                    </div>
+          
+                    <div className="rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-emerald-700">
+                        Critérios de sucesso
+                      </p>
+          
+                      {intelligentPlanSuccessCriteria.length ===
+                      0 ? (
+                        <p className="mt-3 text-sm text-slate-500">
+                          Sem critérios de sucesso registados.
+                        </p>
+                      ) : (
+                        <div className="mt-3 space-y-2">
+                          {intelligentPlanSuccessCriteria.map(
+                            (
+                              criterion,
+                              index
+                            ) => (
+                              <div
+                                key={`pid-success-${index}`}
+                                className="flex items-start gap-2"
+                              >
+                                <CheckCircle2 className="mt-1 h-4 w-4 shrink-0 text-emerald-600" />
+          
+                                <p className="text-sm leading-6 text-slate-600">
+                                  {criterion}
+                                </p>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+          
+                  {intelligentPlan
+                    ?.review
+                    ?.reason && (
+                    <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
+                      <div className="flex items-start gap-3">
+                        <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+          
+                        <div>
+                          <p className="font-semibold text-slate-900">
+                            Reavaliação inteligente
+                          </p>
+          
+                          <p className="mt-1 text-sm leading-6 text-slate-600">
+                            {
+                              intelligentPlan
+                                .review
+                                .reason
+                            }
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </section>
+          )}
+
+          {!intelligentPlan && canManage && (
+            <section>
+              <Card className="border-dashed border-cyan-200 bg-cyan-50/30">
+                <CardContent className="flex flex-col items-center justify-center p-7 text-center sm:p-9">
+                  <Sparkles className="h-11 w-11 text-cyan-300" />
+          
+                  <h3 className="mt-4 font-heading text-xl text-slate-900">
+                    Ainda não existe um Plano Inteligente ativo
+                  </h3>
+          
+                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                    O Plano Inteligente é gerado a partir das avaliações, do IDI e
+                    das recomendações automáticas do atleta e pode ser ativado pela
+                    equipa técnica.
+                  </p>
+                </CardContent>
+              </Card>
+            </section>
+          )}
           
           <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
             <Card className="border-slate-200 bg-white shadow-sm">
