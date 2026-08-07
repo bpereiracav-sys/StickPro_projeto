@@ -18179,6 +18179,30 @@ async def activate_intelligent_pid_plan(
     )
 
     # --------------------------------------------------------
+    # Objetivo oficial automático
+    # Sprint C3.6.6B
+    # --------------------------------------------------------
+    
+    automatic_objective = (
+        await sync_intelligent_pid_objective(
+            pid=pid,
+            plan=persisted_plan,
+            current_user=current_user,
+        )
+    )
+    
+    if automatic_objective:
+        persisted_plan[
+            "objectiveId"
+        ] = automatic_objective.get(
+            "id"
+        )
+    
+        persisted_plan[
+            "objectiveCreatedAutomatically"
+        ] = True
+    
+    # --------------------------------------------------------
     # Atualização oficial do PID
     # --------------------------------------------------------
 
@@ -19697,6 +19721,454 @@ def validate_objective_target(
             ),
         )
 
+# ============================================================
+# Intelligent PID → Automatic Objective
+# Sprint C3.6.6B
+# ============================================================
+
+async def sync_intelligent_pid_objective(
+    *,
+    pid: dict,
+    plan: dict,
+    current_user: dict,
+) -> Optional[dict]:
+    """
+    Cria ou atualiza o objetivo oficial associado ao
+    Plano Inteligente ativo.
+
+    Regra:
+    - 1 Plano Inteligente / critério
+      corresponde a 1 objetivo oficial ativo;
+    - reativar o mesmo plano não cria duplicados;
+    - o objetivo fica formalmente associado ao PID;
+    - baseline e meta utilizam a escala real do critério.
+    """
+
+    if (
+        not isinstance(plan, dict)
+        or not plan
+    ):
+        return None
+
+    player_id = pid.get(
+        "player_id"
+    )
+
+    criterion_id = (
+        plan.get(
+            "criterionId"
+        )
+        or plan.get(
+            "criterion_id"
+        )
+    )
+
+    if (
+        not player_id
+        or not criterion_id
+    ):
+        return None
+
+    criterion = (
+        await get_objective_criterion_or_404(
+            criterion_id
+        )
+    )
+
+    scale_min = float(
+        criterion.get(
+            "scale_min",
+            1,
+        )
+    )
+
+    scale_max = float(
+        criterion.get(
+            "scale_max",
+            5,
+        )
+    )
+
+    # --------------------------------------------------------
+    # Equipa
+    # --------------------------------------------------------
+
+    team_id = pid.get(
+        "team_id"
+    )
+
+    if not team_id:
+        player = await db.users.find_one(
+            {
+                "id":
+                    player_id,
+            },
+            {
+                "_id": 0,
+                "team_ids": 1,
+            },
+        )
+
+        player_team_ids = (
+            player.get(
+                "team_ids"
+            )
+            if player
+            else []
+        ) or []
+
+        if player_team_ids:
+            team_id = (
+                player_team_ids[0]
+            )
+
+    if not team_id:
+        logger.warning(
+            "Automatic PID objective skipped: "
+            "player %s has no team_id",
+            player_id,
+        )
+
+        return None
+
+    # --------------------------------------------------------
+    # Baseline
+    # --------------------------------------------------------
+
+    latest_score = plan.get(
+        "latestScore"
+    )
+
+    try:
+        baseline_value = float(
+            latest_score
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        baseline_value = (
+            scale_min
+        )
+
+    baseline_value = max(
+        scale_min,
+        min(
+            scale_max,
+            baseline_value,
+        ),
+    )
+
+    # --------------------------------------------------------
+    # Meta
+    #
+    # Mantém a mesma filosofia usada pelo motor PID:
+    # evolução de aproximadamente +1 ponto na escala,
+    # sem ultrapassar o máximo do critério.
+    # --------------------------------------------------------
+
+    target_value = min(
+        scale_max,
+        baseline_value + 1.0,
+    )
+
+    # Se já estiver no máximo, a meta é manutenção.
+    if (
+        target_value <
+        scale_min
+    ):
+        target_value = (
+            scale_min
+        )
+
+    validate_objective_target(
+        target_value,
+        criterion,
+    )
+
+    # --------------------------------------------------------
+    # Prazo
+    # --------------------------------------------------------
+
+    review = (
+        plan.get(
+            "review"
+        )
+        if isinstance(
+            plan.get(
+                "review"
+            ),
+            dict,
+        )
+        else {}
+    )
+
+    target_date = (
+        review.get(
+            "recommendedDate"
+        )
+        or pid.get(
+            "next_review"
+        )
+    )
+
+    if isinstance(
+        target_date,
+        datetime,
+    ):
+        target_date = (
+            target_date.isoformat()
+        )
+
+    # --------------------------------------------------------
+    # Texto
+    # --------------------------------------------------------
+
+    criterion_name = (
+        criterion.get(
+            "name"
+        )
+        or plan.get(
+            "criterionName"
+        )
+        or "Competência"
+    )
+
+    title = (
+        f"Desenvolver "
+        f"{criterion_name}"
+    )
+
+    objective_text = (
+        str(
+            plan.get(
+                "objective"
+            )
+            or ""
+        ).strip()
+    )
+
+    training_focus = [
+        str(item).strip()
+        for item in (
+            plan.get(
+                "trainingFocus"
+            )
+            or []
+        )
+        if str(item).strip()
+    ]
+
+    success_criteria = [
+        str(item).strip()
+        for item in (
+            plan.get(
+                "successCriteria"
+            )
+            or []
+        )
+        if str(item).strip()
+    ]
+
+    description_parts = []
+
+    if objective_text:
+        description_parts.append(
+            objective_text
+        )
+
+    if training_focus:
+        description_parts.append(
+            "Focos de treino: "
+            + " | ".join(
+                training_focus[:5]
+            )
+        )
+
+    if success_criteria:
+        description_parts.append(
+            "Critérios de sucesso: "
+            + " | ".join(
+                success_criteria[:5]
+            )
+        )
+
+    description = (
+        "\n\n".join(
+            description_parts
+        )
+        or None
+    )
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    pid_version = int(
+        pid.get(
+            "current_version",
+            1,
+        )
+        or 1
+    )
+
+    # A ativação vai incrementar a versão.
+    objective_pid_version = (
+        pid_version + 1
+    )
+
+    plan_id = (
+        plan.get(
+            "id"
+        )
+        or plan.get(
+            "sourceRecommendationId"
+        )
+        or None
+    )
+
+    # --------------------------------------------------------
+    # Idempotência:
+    # se já existe objetivo ativo para este critério + PID,
+    # atualizamos em vez de criar outro.
+    # --------------------------------------------------------
+
+    existing = (
+        await db.evaluation_objectives.find_one(
+            {
+                "player_id":
+                    player_id,
+
+                "pid_id":
+                    pid["id"],
+
+                "criterion_id":
+                    criterion_id,
+
+                "status": {
+                    "$in": [
+                        "active",
+                        "paused",
+                    ]
+                },
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    objective_data = {
+        "player_id":
+            player_id,
+
+        "team_id":
+            team_id,
+
+        "criterion_id":
+            criterion_id,
+
+        "title":
+            title,
+
+        "description":
+            description,
+
+        "target_value":
+            target_value,
+
+        "baseline_value":
+            baseline_value,
+
+        "target_date":
+            target_date,
+
+        "status":
+            "active",
+
+        "pid_id":
+            pid["id"],
+
+        "pid_version":
+            objective_pid_version,
+
+        # Origem automática.
+        "source":
+            "intelligent_pid",
+
+        "automatic":
+            True,
+
+        "intelligent_plan_id":
+            plan_id,
+
+        "updated_by":
+            current_user.get(
+                "id"
+            ),
+
+        "updated_at":
+            now,
+
+        "completed_at":
+            None,
+    }
+
+    if existing:
+        await db.evaluation_objectives.update_one(
+            {
+                "id":
+                    existing["id"],
+            },
+            {
+                "$set":
+                    objective_data,
+            },
+        )
+
+        updated = (
+            await db.evaluation_objectives.find_one(
+                {
+                    "id":
+                        existing["id"],
+                },
+                {
+                    "_id": 0,
+                },
+            )
+        )
+
+        return updated
+
+    objective = {
+        "id":
+            str(
+                uuid.uuid4()
+            ),
+
+        **objective_data,
+
+        "created_by":
+            current_user.get(
+                "id"
+            ),
+
+        "created_at":
+            now,
+    }
+
+    await db.evaluation_objectives.insert_one(
+        dict(
+            objective
+        )
+    )
+
+    objective.pop(
+        "_id",
+        None,
+    )
+
+    return objective
 
 @api_router.get(
     "/evaluations/objectives/player/{player_id}"
