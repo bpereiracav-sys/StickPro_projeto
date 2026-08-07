@@ -11,30 +11,74 @@ const DEFAULT_SCALE_MIN = 1;
 const DEFAULT_SCALE_MAX = 5;
 
 /*************************************************************************
+ * DISPLAY LABEL NORMALIZATION
+ * Sprint C3.5.2A
+ *
+ * Evita usar /\b\w/g porque os limites de palavra do JavaScript
+ * não tratam corretamente caracteres portugueses acentuados.
+ *************************************************************************/
+
+const formatDevelopmentLabel = (
+  value
+) => {
+  if (
+    value === undefined ||
+    value === null
+  ) {
+    return '';
+  }
+
+  const text =
+    String(value)
+      .trim()
+      .replace(
+        /_/g,
+        ' '
+      )
+      .replace(
+        /\s+/g,
+        ' '
+      );
+
+  if (!text) {
+    return '';
+  }
+
+  return (
+    text
+      .charAt(0)
+      .toLocaleUpperCase(
+        'pt-PT'
+      ) +
+    text.slice(1)
+  );
+};
+
+/*************************************************************************
  * DOMAIN NORMALIZATION
  * Sprint C3.5.1
  *************************************************************************/
 
 const DOMAIN_LABELS = {
-  technical: 'Tecnica Individual',
+  technical: 'Técnica Individual',
   tactical: 'Tática',
   physical: 'Físico',
   psychological: 'Psicológico',
   attitude: 'Atitude',
 
   skating: 'Patinagem',
-  technique: 'Tecnica Individual',
+  technique: 'Técnica Individual',
   goalkeeper: 'Guarda-Redes',
 
-  general: 'Competencias Gerais',
-  other: 'Competencias Gerais',
-  default: 'Competencias Gerais',
-  misc: 'Competencias Gerais',
+  general: 'Competências Gerais',
+  other: 'Competências Gerais',
+  default: 'Competências Gerais',
+  misc: 'Competências Gerais',
 };
 
 export function normalizeDomainLabel(domain) {
   if (!domain) {
-    return 'Competencias Gerais';
+    return 'Competências Gerais';
   }
 
   const key = String(domain)
@@ -43,10 +87,9 @@ export function normalizeDomainLabel(domain) {
 
   return (
     DOMAIN_LABELS[key] ||
-    String(domain)
-      .trim()
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase())
+    formatDevelopmentLabel(
+      domain
+    )
   );
 }
 
@@ -77,13 +120,9 @@ export function normalizeCompetencyLabel(
 
   return (
     COMPETENCY_LABELS[key] ||
-    value
-      .replace(/_/g, ' ')
-      .replace(
-        /\b\w/g,
-        (character) =>
-          character.toUpperCase()
-      )
+    formatDevelopmentLabel(
+      value
+    )
   );
 }
 const PRIORITY_ORDER = {
