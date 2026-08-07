@@ -415,16 +415,16 @@ function SummaryMetric({
       }
     >
       <CardContent className="p-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold uppercase tracking-wide">
               {label}
             </p>
 
-            <p className="mt-2 whitespace-normal break-words font-heading text-2xl leading-tight text-slate-950 xl:text-3xl">
+            <p className="mt-2 whitespace-normal break-normal font-heading text-xl leading-tight text-slate-950 xl:text-2xl">
               {value}
             </p>
-
+            
             {helper && (
               <p className="mt-1 text-xs leading-5 text-slate-500">
                 {helper}
@@ -1838,8 +1838,8 @@ export default function DevelopmentRecommendations() {
                   </div>
                 </div>
             
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  <div className="rounded-2xl border border-cyan-100 bg-white/80 p-3 text-center">
+                <div className="mt-4 grid grid-cols-3 gap-1.5">
+                  <div className="min-w-0 rounded-2xl border border-cyan-100 bg-white/80 px-2 py-3 text-center">
                     <p className="font-heading text-2xl leading-none text-slate-950 xl:text-3xl">
                       {
                         developmentDashboard
@@ -1847,12 +1847,12 @@ export default function DevelopmentRecommendations() {
                       }
                     </p>
             
-                    <p className="mt-2 text-[10px] font-semibold uppercase leading-tight tracking-wide text-slate-500">
+                    <p className="mt-2 whitespace-normal text-[9px] font-semibold uppercase leading-tight tracking-normal text-slate-500 xl:text-[10px]">
                       Domínios
                     </p>
                   </div>
             
-                  <div className="rounded-2xl border border-cyan-100 bg-white/80 p-3 text-center">
+                  <div className="min-w-0 rounded-2xl border border-cyan-100 bg-white/80 px-2 py-3 text-center">
                     <p className="font-heading text-2xl leading-none text-slate-950 xl:text-3xl">
                       {
                         developmentDashboard
@@ -1860,12 +1860,12 @@ export default function DevelopmentRecommendations() {
                       }
                     </p>
             
-                    <p className="mt-2 text-[10px] font-semibold uppercase leading-tight tracking-wide text-slate-500">
+                    <p className="mt-2 whitespace-normal text-[9px] font-semibold uppercase leading-tight tracking-normal text-slate-500 xl:text-[10px]">
                       Competências
                     </p>
                   </div>
             
-                  <div className="rounded-2xl border border-cyan-100 bg-white/80 p-3 text-center">
+                  <div className="min-w-0 rounded-2xl border border-cyan-100 bg-white/80 px-2 py-3 text-center">
                     <p className="font-heading text-2xl leading-none text-slate-950 xl:text-3xl">
                       {
                         developmentDashboard
@@ -1873,7 +1873,7 @@ export default function DevelopmentRecommendations() {
                       }
                     </p>
             
-                    <p className="mt-2 text-[10px] font-semibold uppercase leading-tight tracking-wide text-slate-500">
+                    <p className="mt-2 whitespace-normal text-[9px] font-semibold uppercase leading-tight tracking-normal text-slate-500 xl:text-[10px]">
                       Critérios
                     </p>
                   </div>
