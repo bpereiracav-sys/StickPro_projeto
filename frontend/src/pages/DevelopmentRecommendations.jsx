@@ -849,9 +849,18 @@ function RecommendationCard({
 
 function CompactRecommendationCard({
   recommendation,
+  playerId,
 }) {
-  const [expanded, setExpanded] =
-    useState(false);
+  
+  const [
+    activatingPlan,
+    setActivatingPlan,
+  ] = useState(false);
+  
+  const [
+    activatedPlan,
+    setActivatedPlan,
+  ] = useState(false);
 
   const developmentPlan =
     useMemo(
@@ -861,6 +870,78 @@ function CompactRecommendationCard({
         ),
       [recommendation]
     );  
+
+  const activatePlan =
+    async () => {
+      if (
+        !playerId ||
+        !developmentPlan
+      ) {
+        toast.error(
+          'Não foi possível identificar o atleta ou o plano.'
+        );
+  
+        return;
+      }
+  
+      setActivatingPlan(true);
+  
+      try {
+        const pidResponse =
+          await evaluationsApi
+            .getPlayerPID(
+              playerId
+            );
+  
+        const pid =
+          pidResponse?.data;
+  
+        if (!pid?.id) {
+          throw new Error(
+            'PID do atleta não encontrado.'
+          );
+        }
+  
+        await evaluationsApi
+          .activateIntelligentPIDPlan(
+            pid.id,
+            {
+              plan:
+                developmentPlan,
+  
+              source:
+                'automatic_recommendation',
+  
+              next_review:
+                developmentPlan
+                  ?.review
+                  ?.recommendedDate ||
+                null,
+            }
+          );
+  
+        setActivatedPlan(true);
+  
+        toast.success(
+          'Plano Inteligente de Desenvolvimento ativado.'
+        );
+      } catch (error) {
+        console.error(
+          'Error activating intelligent PID:',
+          error
+        );
+  
+        toast.error(
+          error?.response
+            ?.data?.detail ||
+          error?.message ||
+          'Não foi possível ativar o PID.'
+        );
+      } finally {
+        setActivatingPlan(false);
+      }
+    };
+  
   const priorityConfig =
     getDevelopmentPriorityConfig(
       recommendation.priority
@@ -1336,6 +1417,44 @@ function CompactRecommendationCard({
                 </p>
               )}
             </div>
+            <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-semibold text-slate-900">
+                Ativar este plano
+              </p>
+          
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Ao ativar, este plano passa a integrar o PID oficial do atleta.
+              </p>
+            </div>
+          
+            <Button
+              type="button"
+              onClick={activatePlan}
+              disabled={
+                activatingPlan ||
+                activatedPlan
+              }
+              className="shrink-0 rounded-full bg-cyan-600 text-white hover:bg-cyan-700"
+            >
+              {activatingPlan ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  A ativar...
+                </>
+              ) : activatedPlan ? (
+                <>
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  PID ativo
+                </>
+              ) : (
+                <>
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Ativar PID
+                </>
+              )}
+            </Button>
+          </div>
           </div>
         )}
       </div>
@@ -3797,6 +3916,9 @@ export default function DevelopmentRecommendations() {
                             }
                             recommendation={
                               recommendation
+                            }
+                            playerId={
+                              selectedPlayerId
                             }
                           />
                         )
