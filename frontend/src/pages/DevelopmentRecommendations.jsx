@@ -851,12 +851,17 @@ function CompactRecommendationCard({
   recommendation,
   playerId,
 }) {
-  
+
+  const [
+    expanded,
+    setExpanded,
+  ] = useState(false);
+
   const [
     activatingPlan,
     setActivatingPlan,
   ] = useState(false);
-  
+
   const [
     activatedPlan,
     setActivatedPlan,
