@@ -525,6 +525,15 @@ export const evaluationsApi = {
   updatePID: (pidId, data) =>
     api.put(`/evaluations/pids/${pidId}`, data),
 
+  activateIntelligentPIDPlan: (
+    pidId,
+    data
+  ) =>
+    api.post(
+      `/evaluations/pids/${pidId}/activate-intelligent-plan`,
+      data
+    ),
+  
   archivePID: (pidId) =>
     api.patch(`/evaluations/pids/${pidId}/archive`),
 };
