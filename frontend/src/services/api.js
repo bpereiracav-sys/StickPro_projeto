@@ -542,6 +542,16 @@ export const evaluationsApi = {
     api.post(
       `/evaluations/pids/${pidId}/intelligent-plan/sync-calendar`
     ),
+
+  getPIDReviewTasks: (
+    params = {}
+  ) =>
+    api.get(
+      '/evaluations/pid-review-tasks',
+      {
+        params,
+      }
+    ),
   
   activateIntelligentPIDPlan: (
     pidId,
