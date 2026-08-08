@@ -710,6 +710,33 @@ export default function DevelopmentPID() {
       ];
     }
 
+  const flattenedProfiles = useMemo(() => {
+    if (Array.isArray(availableProfiles)) {
+      return availableProfiles;
+    }
+  
+    if (
+      availableProfiles &&
+      typeof availableProfiles === 'object'
+    ) {
+      return [
+        ...(Array.isArray(
+          availableProfiles.self
+        )
+          ? availableProfiles.self
+          : []),
+  
+        ...(Array.isArray(
+          availableProfiles.associated
+        )
+          ? availableProfiles.associated
+          : []),
+      ];
+    }
+  
+    return [];
+  }, [availableProfiles]);
+
   const handleRegisterSession =
     async () => {
       if (
@@ -765,9 +792,6 @@ export default function DevelopmentPID() {
         setRegisteringSession(false);
       }
     };
-    
-    return [];
-  }, [availableProfiles]);
 
   const matchedAthleteProfile = useMemo(() => {
     const targetId = selectedPlayerId || effectivePlayerId;
