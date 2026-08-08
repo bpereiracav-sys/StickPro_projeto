@@ -19621,18 +19621,63 @@ async def get_pid_review_tasks(
     }
     
     
+    # --------------------------------------------------------
+    # IMPORTANTE:
+    # A permissão é determinada pelo PERFIL ATIVO,
+    # não pelo papel da conta autenticada.
+    #
+    # Assim, um administrador que esteja a visualizar
+    # um perfil de atleta não recebe tarefas PID.
+    # --------------------------------------------------------
+    
     if (
-        not checker.is_admin
-        and current_role
+        current_role
         not in allowed_pid_calendar_roles
     ):
         return []
+    
+    
+    visible_pids = []
     
     
     for pid in pids:
         pid_team_id = pid.get(
             "team_id"
         )
+    
+        # ----------------------------------------------------
+        # Administração / Coordenação
+        # ----------------------------------------------------
+    
+        if current_role in {
+            "admin",
+            "gestor_desportivo",
+        }:
+            visible_pids.append(
+                pid
+            )
+    
+            continue
+    
+        # ----------------------------------------------------
+        # Treinador / Treinador Adjunto
+        # ----------------------------------------------------
+    
+        if current_role in {
+            "treinador",
+            "treinador_adjunto",
+        }:
+            if (
+                not pid_team_id
+                or checker.can_access_team(
+                    pid_team_id
+                )
+            ):
+                visible_pids.append(
+                    pid
+                )
+    
+            continue
     
         # Administração vê todos os PIDs
         # dentro do âmbito da consulta.
