@@ -792,22 +792,21 @@ export default function PlayerObjectives() {
     ) {
       return;
     }
-
+  
     if (!teamId) {
       setPlayers([]);
       setCriteria([]);
       setPlayerId('');
       return;
     }
-
+  
     let cancelled = false;
-
+  
     const loadTeamContext = async () => {
       setLoadingPlayers(true);
       setPlayers([]);
       setCriteria([]);
-      setPlayerId('');
-
+  
       try {
         const [
           playersResponse,
@@ -816,46 +815,42 @@ export default function PlayerObjectives() {
           evaluationsApi.getTeamPlayers(
             teamId
           ),
+  
           evaluationsApi.getCriteria({
             team_id: teamId,
           }),
         ]);
-
+  
         if (cancelled) {
           return;
         }
-
-        const loadedPlayers = collection(
-          playersResponse?.data
+  
+        const loadedPlayers =
+          collection(
+            playersResponse?.data
+          );
+  
+        const loadedCriteria =
+          collection(
+            criteriaResponse?.data
+          ).filter(
+            (criterion) =>
+              criterion?.is_active !==
+              false
+          );
+  
+        setPlayers(
+          loadedPlayers
         );
-
-        const loadedCriteria = collection(
-          criteriaResponse?.data
-        ).filter(
-          (criterion) =>
-            criterion?.is_active !== false
+  
+        setCriteria(
+          loadedCriteria
         );
-
-        setPlayers(loadedPlayers);
-        setCriteria(loadedCriteria);
-
-        const requestedPlayerId =
-          searchParams.get('player_id');
-
-        if (
-          requestedPlayerId &&
-          loadedPlayers.some(
-            (player) =>
-              String(player?.id) ===
-              String(requestedPlayerId)
-          )
-        ) {
-          setPlayerId(requestedPlayerId);
-        }
       } catch (error) {
         if (!cancelled) {
           toast.error(
-            error.response?.data?.detail ||
+            error.response
+              ?.data?.detail ||
               'Erro ao carregar atletas e critérios'
           );
         }
@@ -865,9 +860,9 @@ export default function PlayerObjectives() {
         }
       }
     };
-
+  
     loadTeamContext();
-
+  
     return () => {
       cancelled = true;
     };
@@ -875,7 +870,6 @@ export default function PlayerObjectives() {
     teamId,
     isAthleteMode,
     canManageObjectives,
-    searchParams,
   ]);
 
   const loadPlayer =
