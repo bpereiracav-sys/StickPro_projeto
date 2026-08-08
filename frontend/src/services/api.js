@@ -535,6 +535,13 @@ export const evaluationsApi = {
         sessions,
       }
     ),
+
+  syncIntelligentPIDCalendar: (
+    pidId
+  ) =>
+    api.post(
+      `/evaluations/pids/${pidId}/intelligent-plan/sync-calendar`
+    ),
   
   activateIntelligentPIDPlan: (
     pidId,
