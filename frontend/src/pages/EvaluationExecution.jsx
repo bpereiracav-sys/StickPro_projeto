@@ -297,10 +297,188 @@ export default function EvaluationExecution() {
   useEffect(() => {
     if (
       loading ||
-      !isPIDReviewFlow
+      !isPIDReviewFlow ||
+      !requestedTeamId ||
+      !requestedCriterionId
     ) {
       return;
     }
+  
+    let cancelled = false;
+  
+    const preparePIDReview = async () => {
+      // =====================================================
+      // 1. Pré-selecionar equipa
+      // =====================================================
+  
+      const teamExists =
+        teams.some(
+          (team) =>
+            String(team?.id) ===
+            String(requestedTeamId)
+        );
+  
+      if (
+        teamExists &&
+        String(selectedTeamId) !==
+          String(requestedTeamId)
+      ) {
+        setSelectedTeamId(
+          requestedTeamId
+        );
+      }
+  
+      // =====================================================
+      // 2. Ver se já existe um plano carregado
+      //    que contém o critério PID
+      // =====================================================
+  
+      const matchingPlan =
+        plans.find((plan) => {
+          const teamCompatible =
+            !plan?.team_id ||
+            String(plan.team_id) ===
+              String(
+                requestedTeamId
+              );
+  
+          const containsCriterion =
+            (
+              plan?.criteria ||
+              []
+            ).some(
+              (item) =>
+                String(
+                  item?.criterion_id ||
+                    item?.criterion?.id ||
+                    ''
+                ) ===
+                String(
+                  requestedCriterionId
+                )
+            );
+  
+          return (
+            teamCompatible &&
+            containsCriterion
+          );
+        });
+  
+      if (
+        matchingPlan?.id
+      ) {
+        if (!cancelled) {
+          setSelectedPlanId(
+            matchingPlan.id
+          );
+  
+          setSelectedEventId(
+            'none'
+          );
+  
+          setPeriodLabel(
+            'Reavaliação PID'
+          );
+        }
+  
+        return;
+      }
+  
+      // =====================================================
+      // 3. Não existe plano compatível:
+      //    pedir ao backend para garantir/criar um
+      // =====================================================
+  
+      try {
+        const response =
+          await evaluationsApi
+            .ensurePIDReviewPlan({
+              team_id:
+                requestedTeamId,
+  
+              criterion_id:
+                requestedCriterionId,
+            });
+  
+        const reviewPlan =
+          response?.data;
+  
+        if (
+          !reviewPlan?.id
+        ) {
+          throw new Error(
+            'O backend não devolveu um plano de reavaliação válido.'
+          );
+        }
+  
+        if (cancelled) {
+          return;
+        }
+  
+        // Acrescenta o plano à lista local,
+        // evitando duplicações.
+        setPlans((current) => {
+          const exists =
+            current.some(
+              (plan) =>
+                String(plan?.id) ===
+                String(
+                  reviewPlan.id
+                )
+            );
+  
+          if (exists) {
+            return current;
+          }
+  
+          return [
+            ...current,
+            reviewPlan,
+          ];
+        });
+  
+        setSelectedPlanId(
+          reviewPlan.id
+        );
+  
+        setSelectedEventId(
+          'none'
+        );
+  
+        setPeriodLabel(
+          'Reavaliação PID'
+        );
+      } catch (error) {
+        console.error(
+          'Error preparing PID review plan:',
+          error
+        );
+  
+        if (!cancelled) {
+          toast.error(
+            error?.response
+              ?.data?.detail ||
+              error?.message ||
+              'Não foi possível preparar o plano de reavaliação PID.'
+          );
+        }
+      }
+    };
+  
+    preparePIDReview();
+  
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    loading,
+    isPIDReviewFlow,
+    requestedTeamId,
+    requestedCriterionId,
+    teams,
+    plans,
+    selectedTeamId,
+  ]);
   
     // ------------------------------------------
     // Equipa proveniente do PID
