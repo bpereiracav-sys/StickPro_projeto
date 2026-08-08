@@ -103,6 +103,7 @@ import {
   Repeat,
   CalendarOff,
   Target,
+  FlaskConical,
   AlertTriangle
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
@@ -144,6 +145,13 @@ const EVENT_TYPES = {
     textColor: 'text-violet-600',
   },
 
+  pid_review: {
+    label: 'PID',
+    icon: FlaskConical,
+    color: 'bg-violet-500',
+    textColor: 'text-violet-600',
+  },
+  
   birthday: {
     label: 'Aniversário',
     icon: BirthdayIcon,
@@ -375,6 +383,7 @@ export default function CalendarPage() {
     'jogo_amigavel',
     'torneio',
     'evento_administrativo',
+    'pid_review',
     'birthday',
     'outro'
   ]);
@@ -631,9 +640,92 @@ export default function CalendarPage() {
           ),
       ]);
 
+      const loadedPIDReviewTasks =
+        Array.isArray(
+          pidReviewsRes?.data
+        )
+          ? pidReviewsRes.data
+          : [];
+      
+      const pidVirtualEvents =
+        loadedPIDReviewTasks
+          .filter(
+            (task) =>
+              Boolean(
+                task?.due_date
+              )
+          )
+          .map(
+            (task) => ({
+              id:
+                task.id ||
+                `pid-review-${task.pid_id}`,
+      
+              event_type:
+                'pid_review',
+      
+              title:
+                `PID · ${
+                  task.criterion_name ||
+                  'Reavaliação'
+                }`,
+      
+              description:
+                (
+                  task.criterion_name
+                    ? `Reavaliação do PID: ${task.criterion_name}`
+                    : 'Reavaliação do Plano Individual de Desenvolvimento'
+                ),
+      
+              start_time:
+                task.due_date,
+      
+              end_time:
+                task.due_date,
+      
+              status:
+                'scheduled',
+      
+              team_id:
+                task.team_id ||
+                null,
+      
+              player_id:
+                task.player_id,
+      
+              pid_id:
+                task.pid_id,
+      
+              criterion_id:
+                task.criterion_id,
+      
+              criterion_name:
+                task.criterion_name,
+      
+              days_remaining:
+                task.days_remaining,
+      
+              urgency:
+                task.urgency,
+      
+              pid_version:
+                task.pid_version,
+      
+              is_virtual:
+                true,
+      
+              is_pid_review:
+                true,
+      
+              all_day:
+                true,
+            })
+          );
+      
       let filteredEvents = [
         ...(eventsRes.data || []),
         ...(birthdaysRes.data || []),
+        ...pidVirtualEvents,
       ];
 
       filteredEvents = filteredEvents.filter((event) => {
@@ -681,11 +773,7 @@ export default function CalendarPage() {
       setUnavailabilities(unavailRes.data || []);
 
       setPidReviewTasks(
-        Array.isArray(
-          pidReviewsRes?.data
-        )
-          ? pidReviewsRes.data
-          : []
+        loadedPIDReviewTasks
       );
 
       // Set default team for form
@@ -1818,12 +1906,15 @@ export default function CalendarPage() {
                   {eventType.label}
                 </Badge>
 
-                {!isBirthday && (
-                  <Badge variant="outline" className={`${convocationStatus.className} text-[10px]`}>
-                    <ConvocationStatusIcon className="mr-1 h-3 w-3" />
-                    {convocationStatus.label}
-                  </Badge>
-                )}
+                {!isBirthday &&
+                  event.event_type !== 'pid_review' && (
+                    <Badge
+                      variant="outline"
+                      className={`${convocationStatus.className} text-[10px]`}
+                    >
+                      {convocationStatus.label}
+                    </Badge>
+                  )}
 
                 {isGame && competitionName && (
                   <Badge variant="outline" className="border-amber-200 bg-amber-50 text-[10px] text-amber-700">
@@ -2288,14 +2379,21 @@ export default function CalendarPage() {
                       event.team ||
                       null;
 
-                    const eventTime = event.start_time
-                      ? format(
-                          typeof event.start_time === 'string'
-                            ? parseISO(event.start_time)
-                            : event.start_time,
-                          'HH:mm'
-                        )
-                      : '';
+                    const eventTime =
+                      event.event_type ===
+                        'pid_review'
+                        ? ''
+                        : event.start_time
+                          ? format(
+                              typeof event.start_time ===
+                                'string'
+                                ? parseISO(
+                                    event.start_time
+                                  )
+                                : event.start_time,
+                              'HH:mm'
+                            )
+                          : '';
 
                     const eventCard = (
                       <div
