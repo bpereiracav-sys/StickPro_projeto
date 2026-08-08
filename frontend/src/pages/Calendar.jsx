@@ -2237,39 +2237,158 @@ export default function CalendarPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {orderedDayEvents.map((event) => (
-              <div
-                key={event.id}
-                ref={(node) => {
-                  if (node) {
-                    dayEventRefs.current[event.id] = node;
-                  } else {
-                    delete dayEventRefs.current[event.id];
+            {orderedDayEvents.map((event) => {
+              const isPIDReview =
+                event.event_type === 'pid_review';
+            
+              return (
+                <div
+                  key={event.id}
+                  ref={(node) => {
+                    if (node) {
+                      dayEventRefs.current[event.id] = node;
+                    } else {
+                      delete dayEventRefs.current[event.id];
+                    }
+                  }}
+                  className={
+                    event.id === highlightedEventId
+                      ? 'scroll-mt-24 rounded-[2rem] ring-4 ring-cyan-200/70'
+                      : 'scroll-mt-24'
                   }
-                }}
-                className={event.id === highlightedEventId ? 'scroll-mt-24 rounded-[2rem] ring-4 ring-cyan-200/70' : 'scroll-mt-24'}
-              >
-                <EventCard
-                  event={event}
-                  t={t}
-                  teams={teams}
-                  eventTypes={EVENT_TYPES}
-                  canManageEvents={canManageEvents}
-                  canCreateConvocations={canCreateConvocations}
-                  isAdmin={isAdmin}
-                  canAccessTeam={canAccessTeam}
-                  openEditDialog={openEditDialog}
-                  openConvocationDialog={openConvocationDialog}
-                  openConvocationStatusDialog={openConvocationStatusDialog}
-                  openPostponeDialog={openPostponeDialog}
-                  handleCancelEvent={handleCancelEvent}
-                  handleRestoreEvent={handleRestoreEvent}
-                  setSelectedEvent={setSelectedEvent}
-                  setDeleteDialogOpen={setDeleteDialogOpen}
-                  onConvocationStatusUpdated={() => fetchData({ silent: true })}
-                />
-              </div>
-            ))}
+                >
+                  {isPIDReview ? (
+                    <Card className="overflow-hidden border-violet-200 bg-gradient-to-br from-white via-violet-50/60 to-cyan-50/50 shadow-lg shadow-slate-200/60">
+                      <CardContent className="p-5 sm:p-6">
+                        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+                          <div className="flex min-w-0 items-start gap-4">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-violet-100 text-violet-700">
+                              <FlaskConical className="h-6 w-6" />
+                            </div>
+            
+                            <div className="min-w-0">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <Badge className="border-0 bg-violet-600 text-white">
+                                  PID
+                                </Badge>
+            
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    getPIDReviewPresentation(
+                                      event
+                                    ).badge
+                                  }
+                                >
+                                  {
+                                    getPIDReviewPresentation(
+                                      event
+                                    ).label
+                                  }
+                                </Badge>
+                              </div>
+            
+                              <h3 className="mt-3 font-heading text-xl text-slate-950">
+                                Reavaliação do Plano Individual de Desenvolvimento
+                              </h3>
+            
+                              <p className="mt-2 text-sm text-slate-600">
+                                Competência:{' '}
+                                <strong className="text-slate-900">
+                                  {
+                                    event.criterion_name ||
+                                    'Por identificar'
+                                  }
+                                </strong>
+                              </p>
+            
+                              <p className="mt-1 text-sm text-slate-500">
+                                Prazo:{' '}
+                                {event.start_time
+                                  ? format(
+                                      parseISO(
+                                        event.start_time
+                                      ),
+                                      'dd/MM/yyyy'
+                                    )
+                                  : '—'}
+                              </p>
+                            </div>
+                          </div>
+            
+                          <div className="flex flex-wrap gap-2 lg:justify-end">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              className="rounded-full bg-white"
+                              onClick={() =>
+                                navigate(
+                                  `/evaluations/pid?player_id=${event.player_id}${
+                                    event.team_id
+                                      ? `&team_id=${event.team_id}`
+                                      : ''
+                                  }`
+                                )
+                              }
+                            >
+                              Ver PID
+                            </Button>
+            
+                            {canManageEvents && (
+                              <Button
+                                type="button"
+                                className="rounded-full bg-violet-600 text-white hover:bg-violet-700"
+                                onClick={() =>
+                                  navigate(
+                                    `/evaluations/new?player_id=${event.player_id}${
+                                      event.team_id
+                                        ? `&team_id=${event.team_id}`
+                                        : ''
+                                    }${
+                                      event.criterion_id
+                                        ? `&criterion_id=${event.criterion_id}`
+                                        : ''
+                                    }&pid_id=${event.pid_id}`
+                                  )
+                                }
+                              >
+                                <ClipboardCheck className="mr-2 h-4 w-4" />
+            
+                                Realizar avaliação
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <EventCard
+                      event={event}
+                      t={t}
+                      teams={teams}
+                      eventTypes={EVENT_TYPES}
+                      canManageEvents={canManageEvents}
+                      canCreateConvocations={canCreateConvocations}
+                      isAdmin={isAdmin}
+                      canAccessTeam={canAccessTeam}
+                      openEditDialog={openEditDialog}
+                      openConvocationDialog={openConvocationDialog}
+                      openConvocationStatusDialog={openConvocationStatusDialog}
+                      openPostponeDialog={openPostponeDialog}
+                      handleCancelEvent={handleCancelEvent}
+                      handleRestoreEvent={handleRestoreEvent}
+                      setSelectedEvent={setSelectedEvent}
+                      setDeleteDialogOpen={setDeleteDialogOpen}
+                      onConvocationStatusUpdated={() =>
+                        fetchData({
+                          silent: true,
+                        })
+                      }
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
