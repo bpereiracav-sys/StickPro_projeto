@@ -552,6 +552,12 @@ export const evaluationsApi = {
         params,
       }
     ),
+
+  ensurePIDReviewPlan: (data) =>
+    api.post(
+      '/evaluations/pid-review-plan',
+      data
+    ),
   
   activateIntelligentPIDPlan: (
     pidId,
