@@ -19279,23 +19279,6 @@ async def register_intelligent_pid_session(
             total_sessions,
         )
 
-    sessions_to_add = max(
-        1,
-        int(
-            update.sessions
-            or 1
-        ),
-    )
-
-    completed_sessions = min(
-        total_sessions,
-        completed_sessions
-        + sessions_to_add,
-    ) if total_sessions > 0 else (
-        completed_sessions
-        + sessions_to_add
-    )
-
     percentage = (
         round(
             (
@@ -19528,6 +19511,265 @@ async def sync_intelligent_pid_calendar(
     )
 
     return updated_pid
+
+# ============================================================
+# PID Review Tasks for Calendar
+# Sprint C3.6.6D.4B
+# ============================================================
+
+@api_router.get(
+    "/evaluations/pid-review-tasks"
+)
+async def get_pid_review_tasks(
+    team_id: Optional[str] = None,
+    days_ahead: int = 30,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    checker = (
+        get_permission_checker(
+            current_user
+        )
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    try:
+        safe_days_ahead = max(
+            1,
+            min(
+                int(days_ahead),
+                120,
+            ),
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        safe_days_ahead = 30
+
+    query = {
+        "archived": False,
+
+        "status": "active",
+
+        "next_review": {
+            "$ne": None,
+        },
+
+        "intelligent_plan": {
+            "$ne": None,
+        },
+
+        "intelligent_plan_status": {
+            "$in": [
+                "active",
+                "review",
+            ]
+        },
+    }
+
+    if team_id:
+        query[
+            "team_id"
+        ] = team_id
+
+    pids = (
+        await db.evaluation_pids.find(
+            query,
+            {
+                "_id": 0,
+            },
+        ).to_list(
+            1000
+        )
+    )
+
+    visible_pids = []
+
+    for pid in pids:
+        player_id = pid.get(
+            "player_id"
+        )
+
+        pid_team_id = pid.get(
+            "team_id"
+        )
+
+        if checker.is_admin:
+            visible_pids.append(
+                pid
+            )
+
+            continue
+
+        if checker.is_staff:
+            if (
+                not pid_team_id
+                or checker.can_access_team(
+                    pid_team_id
+                )
+            ):
+                visible_pids.append(
+                    pid
+                )
+
+            continue
+
+        if (
+            player_id
+            and checker.can_access_player(
+                player_id
+            )
+        ):
+            visible_pids.append(
+                pid
+            )
+
+    tasks = []
+
+    for pid in visible_pids:
+        raw_review = pid.get(
+            "next_review"
+        )
+
+        if not raw_review:
+            continue
+
+        if isinstance(
+            raw_review,
+            datetime,
+        ):
+            review_dt = raw_review
+        else:
+            try:
+                review_dt = (
+                    datetime.fromisoformat(
+                        str(
+                            raw_review
+                        ).replace(
+                            "Z",
+                            "+00:00",
+                        )
+                    )
+                )
+            except (
+                ValueError,
+                TypeError,
+            ):
+                continue
+
+        if (
+            review_dt.tzinfo
+            is None
+        ):
+            review_dt = (
+                review_dt.replace(
+                    tzinfo=timezone.utc
+                )
+            )
+
+        days_remaining = (
+            review_dt.date()
+            -
+            now.date()
+        ).days
+
+        # Reavaliações futuras demasiado
+        # distantes ainda não aparecem.
+        # Reavaliações atrasadas permanecem visíveis.
+        if (
+            days_remaining
+            > safe_days_ahead
+        ):
+            continue
+
+        if days_remaining < 0:
+            urgency = "overdue"
+
+        elif days_remaining == 0:
+            urgency = "today"
+
+        elif days_remaining <= 7:
+            urgency = "urgent"
+
+        elif days_remaining <= 14:
+            urgency = "soon"
+
+        else:
+            urgency = "upcoming"
+
+        plan = (
+            pid.get(
+                "intelligent_plan"
+            )
+            or {}
+        )
+
+        tasks.append({
+            "id":
+                (
+                    "pid-review-"
+                    f"{pid.get('id')}"
+                ),
+
+            "pid_id":
+                pid.get(
+                    "id"
+                ),
+
+            "player_id":
+                pid.get(
+                    "player_id"
+                ),
+
+            "team_id":
+                pid.get(
+                    "team_id"
+                ),
+
+            "criterion_id":
+                plan.get(
+                    "criterionId"
+                ),
+
+            "criterion_name":
+                (
+                    plan.get(
+                        "criterionName"
+                    )
+                    or
+                    "Competência de desenvolvimento"
+                ),
+
+            "due_date":
+                review_dt.isoformat(),
+
+            "days_remaining":
+                days_remaining,
+
+            "urgency":
+                urgency,
+
+            "pid_version":
+                pid.get(
+                    "current_version",
+                    1,
+                ),
+        })
+
+    tasks.sort(
+        key=lambda item:
+            item.get(
+                "due_date"
+            )
+            or ""
+    )
+
+    return tasks
 
 @api_router.patch("/evaluations/pids/{pid_id}/archive")
 async def archive_pid(
