@@ -2894,6 +2894,347 @@ async def create_default_pid(
 
     return document
 
+# ============================================================
+# Intelligent PID — Operational Phase Progress
+# Sprint C3.6.6D.2
+# ============================================================
+
+def recalculate_intelligent_plan_phases(
+    plan: dict,
+    now: datetime,
+) -> dict:
+    """
+    Atualiza automaticamente:
+    - sessões concluídas por fase;
+    - estado de cada fase;
+    - fase atual;
+    - conclusão operacional do plano.
+
+    A distribuição utiliza estimatedSessions de cada fase.
+    """
+
+    if not isinstance(
+        plan,
+        dict,
+    ):
+        return plan
+
+    phases = (
+        plan.get("phases")
+        if isinstance(
+            plan.get("phases"),
+            list,
+        )
+        else []
+    )
+
+    progress = dict(
+        plan.get(
+            "operationalProgress"
+        )
+        or {}
+    )
+
+    try:
+        completed_sessions = max(
+            0,
+            int(
+                progress.get(
+                    "completedSessions",
+                    0,
+                )
+                or 0
+            ),
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        completed_sessions = 0
+
+    try:
+        total_sessions = max(
+            0,
+            int(
+                progress.get(
+                    "totalSessions",
+                    0,
+                )
+                or plan.get(
+                    "estimatedSessions",
+                    0,
+                )
+                or 0
+            ),
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        total_sessions = 0
+
+    remaining_completed_sessions = (
+        completed_sessions
+    )
+
+    normalized_phases = []
+
+    current_phase_id = None
+
+    previous_phase_completed_at = None
+
+    for index, phase in enumerate(
+        phases
+    ):
+        if not isinstance(
+            phase,
+            dict,
+        ):
+            continue
+
+        normalized_phase = dict(
+            phase
+        )
+
+        try:
+            phase_total = max(
+                0,
+                int(
+                    normalized_phase.get(
+                        "estimatedSessions",
+                        0,
+                    )
+                    or 0
+                ),
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            phase_total = 0
+
+        # Quantas das sessões globais pertencem já a esta fase.
+        phase_completed = min(
+            phase_total,
+            remaining_completed_sessions,
+        )
+
+        remaining_completed_sessions = max(
+            0,
+            remaining_completed_sessions
+            - phase_total,
+        )
+
+        normalized_phase[
+            "completedSessions"
+        ] = phase_completed
+
+        normalized_phase[
+            "progressPercentage"
+        ] = (
+            round(
+                (
+                    phase_completed
+                    / phase_total
+                )
+                * 100,
+                1,
+            )
+            if phase_total > 0
+            else 0
+        )
+
+        old_status = (
+            normalized_phase.get(
+                "status"
+            )
+        )
+
+        # ----------------------------------------------
+        # Fase concluída
+        # ----------------------------------------------
+
+        if (
+            phase_total > 0
+            and phase_completed >= phase_total
+        ):
+            normalized_phase[
+                "status"
+            ] = "completed"
+
+            if not normalized_phase.get(
+                "startedAt"
+            ):
+                normalized_phase[
+                    "startedAt"
+                ] = (
+                    previous_phase_completed_at
+                    or progress.get(
+                        "startedAt"
+                    )
+                    or now.isoformat()
+                )
+
+            if not normalized_phase.get(
+                "completedAt"
+            ):
+                normalized_phase[
+                    "completedAt"
+                ] = now.isoformat()
+
+            previous_phase_completed_at = (
+                normalized_phase[
+                    "completedAt"
+                ]
+            )
+
+        # ----------------------------------------------
+        # Fase atual
+        # ----------------------------------------------
+
+        elif current_phase_id is None:
+            normalized_phase[
+                "status"
+            ] = "active"
+
+            current_phase_id = (
+                normalized_phase.get(
+                    "id"
+                )
+            )
+
+            if not normalized_phase.get(
+                "startedAt"
+            ):
+                normalized_phase[
+                    "startedAt"
+                ] = (
+                    previous_phase_completed_at
+                    or now.isoformat()
+                )
+
+            normalized_phase[
+                "completedAt"
+            ] = None
+
+        # ----------------------------------------------
+        # Fase futura
+        # ----------------------------------------------
+
+        else:
+            normalized_phase[
+                "status"
+            ] = "pending"
+
+            normalized_phase[
+                "completedAt"
+            ] = None
+
+            # Não queremos apagar startedAt de uma fase
+            # que possa ter histórico anterior.
+            if (
+                old_status == "pending"
+            ):
+                normalized_phase[
+                    "startedAt"
+                ] = None
+
+        normalized_phases.append(
+            normalized_phase
+        )
+
+    # ========================================================
+    # Progresso global
+    # ========================================================
+
+    overall_percentage = (
+        round(
+            (
+                completed_sessions
+                / total_sessions
+            )
+            * 100,
+            1,
+        )
+        if total_sessions > 0
+        else 0
+    )
+
+    plan_completed = (
+        total_sessions > 0
+        and completed_sessions >= total_sessions
+    )
+
+    progress[
+        "completedSessions"
+    ] = completed_sessions
+
+    progress[
+        "totalSessions"
+    ] = total_sessions
+
+    progress[
+        "progressPercentage"
+    ] = overall_percentage
+
+    progress[
+        "currentPhaseId"
+    ] = (
+        None
+        if plan_completed
+        else current_phase_id
+    )
+
+    progress[
+        "lastActivityAt"
+    ] = now.isoformat()
+
+    plan[
+        "operationalProgress"
+    ] = progress
+
+    plan[
+        "phases"
+    ] = normalized_phases
+
+    plan[
+        "progress"
+    ] = overall_percentage
+
+    plan[
+        "started"
+    ] = (
+        completed_sessions > 0
+    )
+
+    if plan_completed:
+        plan[
+            "completed"
+        ] = True
+
+        plan[
+            "planStatus"
+        ] = "completed"
+
+        plan[
+            "completedAt"
+        ] = (
+            plan.get(
+                "completedAt"
+            )
+            or now.isoformat()
+        )
+    else:
+        plan[
+            "completed"
+        ] = False
+
+        plan[
+            "planStatus"
+        ] = "active"
+
+    return plan
+    
 @api_router.get("/family-invitations/{token}")
 async def get_family_invitation(token: str):
     """Get public family invitation details for the accept page."""
@@ -18549,39 +18890,66 @@ async def register_intelligent_pid_session(
     progress[
         "completedSessions"
     ] = completed_sessions
-
+    
+    progress[
+        "totalSessions"
+    ] = total_sessions
+    
     progress[
         "progressPercentage"
     ] = percentage
-
+    
     progress[
         "lastActivityAt"
     ] = now.isoformat()
-
+    
     plan[
         "operationalProgress"
     ] = progress
-
-    plan[
-        "progress"
-    ] = percentage
-
+    
     plan[
         "started"
     ] = True
-
+    
+    # ========================================================
+    # Atualizar automaticamente a fase atual
+    # Sprint C3.6.6D.2
+    # ========================================================
+    
+    plan = (
+        recalculate_intelligent_plan_phases(
+            plan=plan,
+            now=now,
+        )
+    )
+    
+    plan_is_completed = (
+        plan.get(
+            "planStatus"
+        )
+        == "completed"
+    )    
+    
     await db.evaluation_pids.update_one(
         {
             "id": pid_id,
+            "archived": False,
         },
         {
             "$set": {
                 "intelligent_plan":
                     plan,
-
+    
+                "intelligent_plan_status":
+                    (
+                        "completed"
+                        if plan_is_completed
+                        else "active"
+                    ),
+    
                 "intelligent_plan_updated_at":
                     now,
-
+    
                 "updated_at":
                     now,
             }
