@@ -2895,6 +2895,383 @@ async def create_default_pid(
     return document
 
 # ============================================================
+# Intelligent PID — Calendar Training Sync
+# Sprint C3.6.6D.4A
+# ============================================================
+
+async def sync_intelligent_pid_calendar_sessions(
+    *,
+    pid: dict,
+    plan: dict,
+    now: datetime,
+) -> dict:
+    """
+    Sincroniza com o PID os treinos do Calendário
+    efetivamente realizados pelo atleta.
+
+    Regras:
+    - apenas training;
+    - apenas eventos já terminados;
+    - presença confirmada/presente;
+    - cada evento só é contabilizado uma vez.
+    """
+
+    if (
+        not isinstance(pid, dict)
+        or not isinstance(plan, dict)
+    ):
+        return plan
+
+    player_id = pid.get(
+        "player_id"
+    )
+
+    team_id = pid.get(
+        "team_id"
+    )
+
+    if not player_id:
+        return plan
+
+    progress = dict(
+        plan.get(
+            "operationalProgress"
+        )
+        or {}
+    )
+
+    calendar_sync = dict(
+        progress.get(
+            "calendarSync"
+        )
+        or {}
+    )
+
+    counted_event_ids = set(
+        str(event_id)
+        for event_id in (
+            calendar_sync.get(
+                "countedEventIds"
+            )
+            or []
+        )
+        if event_id
+    )
+
+    # ========================================================
+    # Presenças do atleta em treinos
+    # ========================================================
+
+    attendance_query = {
+        "player_id": player_id,
+        "event_type": "training",
+        "status": {
+            "$in": [
+                "confirmado",
+                "confirmed",
+                "presente",
+                "present",
+            ]
+        },
+    }
+
+    if team_id:
+        attendance_query[
+            "team_id"
+        ] = team_id
+
+    attendance_records = (
+        await db.attendance.find(
+            attendance_query,
+            {
+                "_id": 0,
+                "event_id": 1,
+            },
+        ).to_list(
+            1000
+        )
+    )
+
+    event_ids = [
+        str(
+            attendance.get(
+                "event_id"
+            )
+        )
+        for attendance in attendance_records
+        if attendance.get(
+            "event_id"
+        )
+    ]
+
+    if not event_ids:
+        calendar_sync[
+            "lastSyncedAt"
+        ] = now.isoformat()
+
+        calendar_sync[
+            "countedEventIds"
+        ] = list(
+            counted_event_ids
+        )
+
+        progress[
+            "calendarSync"
+        ] = calendar_sync
+
+        plan[
+            "operationalProgress"
+        ] = progress
+
+        return plan
+
+    # ========================================================
+    # Carregar apenas treinos correspondentes
+    # ========================================================
+
+    event_query = {
+        "id": {
+            "$in":
+                event_ids,
+        },
+
+        "event_type":
+            "training",
+    }
+
+    if team_id:
+        event_query[
+            "team_id"
+        ] = team_id
+
+    events = (
+        await db.events.find(
+            event_query,
+            {
+                "_id": 0,
+            },
+        ).to_list(
+            1000
+        )
+    )
+
+    newly_counted_ids = []
+
+    for event in events:
+        event_id = str(
+            event.get(
+                "id"
+            )
+            or ""
+        )
+
+        if (
+            not event_id
+            or event_id
+            in counted_event_ids
+        ):
+            continue
+
+        # ----------------------------------------------
+        # Determinar quando o treino terminou
+        # ----------------------------------------------
+
+        event_end = (
+            event.get(
+                "end_time"
+            )
+            or event.get(
+                "endTime"
+            )
+            or event.get(
+                "start_time"
+            )
+            or event.get(
+                "startTime"
+            )
+        )
+
+        if not event_end:
+            continue
+
+        if isinstance(
+            event_end,
+            datetime,
+        ):
+            event_end_dt = (
+                event_end
+            )
+        else:
+            try:
+                event_end_dt = (
+                    datetime.fromisoformat(
+                        str(
+                            event_end
+                        ).replace(
+                            "Z",
+                            "+00:00",
+                        )
+                    )
+                )
+            except (
+                ValueError,
+                TypeError,
+            ):
+                continue
+
+        if (
+            event_end_dt.tzinfo
+            is None
+        ):
+            event_end_dt = (
+                event_end_dt.replace(
+                    tzinfo=timezone.utc
+                )
+            )
+
+        # Treinos futuros não contam.
+        if event_end_dt > now:
+            continue
+
+        counted_event_ids.add(
+            event_id
+        )
+
+        newly_counted_ids.append(
+            event_id
+        )
+
+    # ========================================================
+    # Sessões provenientes do calendário
+    # ========================================================
+
+    calendar_sessions = len(
+        counted_event_ids
+    )
+
+    # Sessões manuais já existentes antes desta integração.
+    try:
+        manual_sessions = int(
+            progress.get(
+                "manualSessions",
+                progress.get(
+                    "completedSessions",
+                    0,
+                ),
+            )
+            or 0
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        manual_sessions = 0
+
+    completed_sessions = (
+        manual_sessions
+        + calendar_sessions
+    )
+
+    try:
+        total_sessions = int(
+            progress.get(
+                "totalSessions"
+            )
+            or plan.get(
+                "estimatedSessions"
+            )
+            or 0
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        total_sessions = 0
+
+    if total_sessions > 0:
+        completed_sessions = min(
+            completed_sessions,
+            total_sessions,
+        )
+
+    percentage = (
+        round(
+            (
+                completed_sessions
+                / total_sessions
+            )
+            * 100,
+            1,
+        )
+        if total_sessions > 0
+        else 0
+    )
+
+    calendar_sync[
+        "countedEventIds"
+    ] = sorted(
+        counted_event_ids
+    )
+
+    calendar_sync[
+        "calendarSessions"
+    ] = calendar_sessions
+
+    calendar_sync[
+        "lastSyncedAt"
+    ] = now.isoformat()
+
+    calendar_sync[
+        "newSessionsLastSync"
+    ] = len(
+        newly_counted_ids
+    )
+
+    progress[
+        "manualSessions"
+    ] = manual_sessions
+
+    progress[
+        "calendarSessions"
+    ] = calendar_sessions
+
+    progress[
+        "completedSessions"
+    ] = completed_sessions
+
+    progress[
+        "totalSessions"
+    ] = total_sessions
+
+    progress[
+        "progressPercentage"
+    ] = percentage
+
+    progress[
+        "calendarSync"
+    ] = calendar_sync
+
+    if newly_counted_ids:
+        progress[
+            "lastActivityAt"
+        ] = now.isoformat()
+
+    plan[
+        "operationalProgress"
+    ] = progress
+
+    # Recalcula automaticamente
+    # Fundamentação → Desenvolvimento → Consolidação.
+    plan = (
+        recalculate_intelligent_plan_phases(
+            plan=plan,
+            now=now,
+        )
+    )
+
+    return plan
+
+# ============================================================
 # Intelligent PID — Operational Phase Progress
 # Sprint C3.6.6D.2
 # ============================================================
@@ -18846,12 +19223,61 @@ async def register_intelligent_pid_session(
         or 0
     )
 
-    completed_sessions = int(
-        progress.get(
-            "completedSessions"
+    try:
+        manual_sessions = int(
+            progress.get(
+                "manualSessions",
+                0,
+            )
+            or 0
         )
-        or 0
+    except (
+        TypeError,
+        ValueError,
+    ):
+        manual_sessions = 0
+    
+    
+    try:
+        calendar_sessions = int(
+            progress.get(
+                "calendarSessions",
+                0,
+            )
+            or 0
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        calendar_sessions = 0
+    
+    
+    sessions_to_add = max(
+        1,
+        int(
+            update.sessions
+            or 1
+        ),
     )
+    
+    
+    manual_sessions += (
+        sessions_to_add
+    )
+    
+    
+    completed_sessions = (
+        manual_sessions
+        + calendar_sessions
+    )
+    
+    
+    if total_sessions > 0:
+        completed_sessions = min(
+            completed_sessions,
+            total_sessions,
+        )
 
     sessions_to_add = max(
         1,
@@ -18886,7 +19312,15 @@ async def register_intelligent_pid_session(
     now = datetime.now(
         timezone.utc
     )
-
+    
+    progress[
+        "manualSessions"
+    ] = manual_sessions
+    
+    progress[
+        "calendarSessions"
+    ] = calendar_sessions
+    
     progress[
         "completedSessions"
     ] = completed_sessions
@@ -18901,7 +19335,7 @@ async def register_intelligent_pid_session(
     
     progress[
         "lastActivityAt"
-    ] = now.isoformat()
+    ] = now.isoformat()"
     
     plan[
         "operationalProgress"
@@ -18968,7 +19402,133 @@ async def register_intelligent_pid_session(
     )
 
     return updated_pid
-    
+
+@api_router.post(
+    "/evaluations/pids/{pid_id}/intelligent-plan/sync-calendar"
+)
+async def sync_intelligent_pid_calendar(
+    pid_id: str,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    checker = (
+        get_permission_checker(
+            current_user
+        )
+    )
+
+    if (
+        not checker.is_admin
+        and not checker.is_staff
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para "
+                "sincronizar este PID"
+            ),
+        )
+
+    pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id":
+                    pid_id,
+
+                "archived":
+                    False,
+            }
+        )
+    )
+
+    if not pid:
+        raise HTTPException(
+            status_code=404,
+            detail="PID não encontrado",
+        )
+
+    plan = pid.get(
+        "intelligent_plan"
+    )
+
+    if (
+        not isinstance(
+            plan,
+            dict,
+        )
+        or not plan
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O PID não possui "
+                "Plano Inteligente ativo"
+            ),
+        )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    plan = (
+        await sync_intelligent_pid_calendar_sessions(
+            pid=pid,
+            plan=plan,
+            now=now,
+        )
+    )
+
+    plan_is_completed = (
+        plan.get(
+            "planStatus"
+        )
+        == "completed"
+    )
+
+    await db.evaluation_pids.update_one(
+        {
+            "id":
+                pid_id,
+
+            "archived":
+                False,
+        },
+        {
+            "$set": {
+                "intelligent_plan":
+                    plan,
+
+                "intelligent_plan_status":
+                    (
+                        "completed"
+                        if plan_is_completed
+                        else "active"
+                    ),
+
+                "intelligent_plan_updated_at":
+                    now,
+
+                "updated_at":
+                    now,
+            }
+        },
+    )
+
+    updated_pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id":
+                    pid_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    return updated_pid
+
 @api_router.patch("/evaluations/pids/{pid_id}/archive")
 async def archive_pid(
     pid_id: str,
