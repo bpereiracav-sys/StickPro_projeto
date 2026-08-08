@@ -697,20 +697,6 @@ export default function DevelopmentPID() {
     permissions?.isCoach === true;
 
   const flattenedProfiles = useMemo(() => {
-    if (Array.isArray(availableProfiles)) return availableProfiles;
-
-    if (availableProfiles && typeof availableProfiles === 'object') {
-      return [
-        ...(Array.isArray(availableProfiles.self)
-          ? availableProfiles.self
-          : []),
-        ...(Array.isArray(availableProfiles.associated)
-          ? availableProfiles.associated
-          : []),
-      ];
-    }
-
-  const flattenedProfiles = useMemo(() => {
     if (Array.isArray(availableProfiles)) {
       return availableProfiles;
     }
