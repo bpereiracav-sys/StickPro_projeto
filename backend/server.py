@@ -1790,6 +1790,10 @@ class EvaluationPlanUpdate(BaseModel):
     estimated_minutes: Optional[int] = None
     is_active: Optional[bool] = None
 
+class PIDReviewPlanRequest(BaseModel):
+    team_id: str
+    criterion_id: str
+    
 # ============================================================
 # Individual Development Plan (PID)
 # Sprint C3.5A.1
@@ -20639,6 +20643,237 @@ async def get_evaluation_plans(
         for plan in plans
     ]
 
+# ============================================================
+# PID Review Evaluation Plan
+# Sprint C3.6.6D.4B.2A
+# ============================================================
+
+@api_router.post(
+    "/evaluations/pid-review-plan"
+)
+async def ensure_pid_review_plan(
+    payload: PIDReviewPlanRequest,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    checker = await validate_evaluation_plan_access(
+        current_user,
+        payload.team_id,
+        write=True,
+    )
+
+    criterion = (
+        await db.evaluation_criteria.find_one(
+            {
+                "id":
+                    payload.criterion_id,
+
+                "is_active": {
+                    "$ne": False,
+                },
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    if not criterion:
+        raise HTTPException(
+            status_code=404,
+            detail="Critério de avaliação não encontrado",
+        )
+
+    criterion_team_id = (
+        criterion.get(
+            "team_id"
+        )
+    )
+
+    if (
+        criterion_team_id
+        and criterion_team_id
+        != payload.team_id
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O critério pertence a outra equipa"
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Reutilizar primeiro um plano ativo que já contenha
+    # exatamente este critério e seja compatível com a equipa.
+    # --------------------------------------------------------
+
+    existing_plan = (
+        await db.evaluation_plans.find_one(
+            {
+                "is_active": {
+                    "$ne": False,
+                },
+
+                "criteria": {
+                    "$elemMatch": {
+                        "criterion_id":
+                            payload.criterion_id,
+                    }
+                },
+
+                "$or": [
+                    {
+                        "team_id":
+                            payload.team_id,
+                    },
+                    {
+                        "team_id":
+                            None,
+                    },
+                    {
+                        "team_id": {
+                            "$exists":
+                                False,
+                        }
+                    },
+                ],
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    if existing_plan:
+        return (
+            await enrich_evaluation_plan(
+                existing_plan
+            )
+        )
+
+    # --------------------------------------------------------
+    # Não existe plano compatível:
+    # criar um plano técnico específico para a reavaliação PID.
+    # --------------------------------------------------------
+
+    criterion_name = (
+        criterion.get(
+            "name"
+        )
+        or "Competência"
+    )
+
+    criteria_dicts = (
+        await validate_evaluation_plan_criteria(
+            [
+                EvaluationPlanCriterion(
+                    criterion_id=
+                        payload.criterion_id,
+
+                    weight=1.0,
+
+                    required=True,
+
+                    order=0,
+                )
+            ],
+            payload.team_id,
+            checker,
+        )
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    plan = EvaluationPlan(
+        name=(
+            "Reavaliação PID · "
+            f"{criterion_name}"
+        ),
+
+        description=(
+            "Plano técnico criado automaticamente "
+            "para reavaliação de uma competência "
+            "do Plano Individual de Desenvolvimento."
+        ),
+
+        category="technical",
+
+        team_id=
+            payload.team_id,
+
+        club_id=
+            current_user.get(
+                "club_id"
+            ),
+
+        criteria=
+            criteria_dicts,
+
+        estimated_minutes=
+            5,
+
+        is_active=
+            True,
+
+        created_by=
+            current_user["id"],
+
+        created_at=
+            now,
+
+        updated_at=
+            now,
+    )
+
+    plan_dict = (
+        plan.model_dump()
+    )
+
+    plan_dict[
+        "created_at"
+    ] = (
+        plan_dict[
+            "created_at"
+        ].isoformat()
+    )
+
+    plan_dict[
+        "updated_at"
+    ] = (
+        plan_dict[
+            "updated_at"
+        ].isoformat()
+    )
+
+    # Marcadores internos para conseguirmos
+    # reconhecer estes planos no futuro.
+    plan_dict[
+        "source"
+    ] = "pid_review"
+
+    plan_dict[
+        "pid_review_criterion_id"
+    ] = payload.criterion_id
+
+    await db.evaluation_plans.insert_one(
+        dict(
+            plan_dict
+        )
+    )
+
+    plan_dict.pop(
+        "_id",
+        None,
+    )
+
+    return (
+        await enrich_evaluation_plan(
+            plan_dict
+        )
+    )
 
 @api_router.get(
     "/evaluations/plans/{plan_id}"
