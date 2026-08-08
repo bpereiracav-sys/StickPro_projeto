@@ -4,7 +4,13 @@ import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { usePermissions } from '../context/PermissionsContext';
 import { useLanguage } from '../context/LanguageContext';
-import { eventsApi, teamsApi, usersApi, unavailabilitiesApi } from '../services/api';
+import {
+  eventsApi,
+  teamsApi,
+  usersApi,
+  unavailabilitiesApi,
+  evaluationsApi,
+} from '../services/api';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
@@ -223,6 +229,10 @@ export default function CalendarPage() {
   const dayEventRefs = useRef({});
   const fetchDataRequestId = useRef(0);
   const [events, setEvents] = useState([]);
+  const [
+    pidReviewTasks,
+    setPidReviewTasks,
+  ] = useState([]);
   const [teams, setTeams] = useState([]);
   const [selectedTeamFilter, setSelectedTeamFilter] = useState('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('all');
@@ -456,7 +466,13 @@ export default function CalendarPage() {
         ...((activeProfile?.teams || []).map((team) => team.id)),
       ].filter(Boolean);
 
-      const [eventsRes, birthdaysRes, teamsRes, unavailRes] = await Promise.all([
+      const [
+        eventsRes,
+        birthdaysRes,
+        teamsRes,
+        unavailRes,
+        pidReviewsRes,
+      ] = await Promise.all([
         eventsApi.getAll({
           team_id: teamFilter,
           profile_type: activeProfile?.type,
@@ -473,6 +489,19 @@ export default function CalendarPage() {
         }).catch(() => ({ data: [] })),
         teamsApi.getAll(),
         unavailabilitiesApi.getMy().catch(() => ({ data: [] })),
+        evaluationsApi
+          .getPIDReviewTasks({
+            team_id:
+              teamFilter || undefined,
+        
+            days_ahead:
+              30,
+          })
+          .catch(
+            () => ({
+              data: [],
+            })
+          ),
       ]);
 
       let filteredEvents = [
@@ -523,6 +552,14 @@ export default function CalendarPage() {
       if (requestId !== fetchDataRequestId.current) return;
 
       setUnavailabilities(unavailRes.data || []);
+
+      setPidReviewTasks(
+        Array.isArray(
+          pidReviewsRes?.data
+        )
+          ? pidReviewsRes.data
+          : []
+      );
 
       // Set default team for form
         if (selectedTeamFilter && selectedTeamFilter !== 'all') {
