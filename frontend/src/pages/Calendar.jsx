@@ -2622,18 +2622,35 @@ export default function CalendarPage() {
             </CardContent>
           </Card>
         </PageSection>
-      )}
-      
-      <PageSection
-        compact
-        testId="calendar-view-controls-section"
-      >
-        
-      <PageSection
-        compact
-        testId="calendar-view-controls-section"
-      >
-        <CalendarViewControls
+            )}
+
+            <PageSection
+              compact
+              testId="calendar-view-controls-section"
+            >
+              <CalendarViewControls
+                t={t}
+                viewMode={viewMode}
+                viewTitle={getViewTitle()}
+                isMobile={isMobile}
+                viewModes={
+                  isMobile
+                    ? VIEW_MODES
+                    : {
+                        day: VIEW_MODES.day,
+                        week: VIEW_MODES.week,
+                        month: VIEW_MODES.month,
+                      }
+                }
+                onPrevious={navigatePrevious}
+                onToday={navigateToday}
+                onNext={navigateNext}
+                onChangeView={(key) => {
+                  setSelectedDate(new Date());
+                  setViewMode(key);
+                }}
+              />
+            </PageSection>
           t={t}
           viewMode={viewMode}
           viewTitle={getViewTitle()}
