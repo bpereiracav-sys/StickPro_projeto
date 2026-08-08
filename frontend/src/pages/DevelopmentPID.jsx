@@ -669,6 +669,11 @@ export default function DevelopmentPID() {
     next_review: '',
   });
 
+  const [
+    registeringSession,
+    setRegisteringSession,
+  ] = useState(false);
+  
   const tr = (key, fallback) => {
     const translated = t(key);
     return translated && translated !== key ? translated : fallback;
@@ -705,6 +710,62 @@ export default function DevelopmentPID() {
       ];
     }
 
+  const handleRegisterSession =
+    async () => {
+      if (
+        !pid?.id ||
+        !intelligentPlan
+      ) {
+        toast.error(
+          'Não foi possível identificar o PID ativo.'
+        );
+  
+        return;
+      }
+  
+      setRegisteringSession(true);
+  
+      try {
+        const response =
+          await evaluationsApi
+            .registerIntelligentPIDSession(
+              pid.id,
+              1
+            );
+  
+        const updatedPID =
+          response?.data;
+  
+        if (!updatedPID?.id) {
+          throw new Error(
+            'O backend não devolveu o PID atualizado.'
+          );
+        }
+  
+        setPid(
+          updatedPID
+        );
+  
+        toast.success(
+          'Sessão registada no Plano Inteligente.'
+        );
+      } catch (error) {
+        console.error(
+          'Error registering PID session:',
+          error
+        );
+  
+        toast.error(
+          error?.response
+            ?.data?.detail ||
+          error?.message ||
+          'Não foi possível registar a sessão.'
+        );
+      } finally {
+        setRegisteringSession(false);
+      }
+    };
+    
     return [];
   }, [availableProfiles]);
 
@@ -1012,6 +1073,71 @@ export default function DevelopmentPID() {
     )
       ? intelligentPlan.phases
       : [];
+
+  const operationalProgress =
+    intelligentPlan
+      ?.operationalProgress &&
+    typeof intelligentPlan
+      .operationalProgress === 'object'
+      ? intelligentPlan.operationalProgress
+      : {};
+  
+  const completedSessions =
+    Number(
+      operationalProgress
+        .completedSessions
+    ) || 0;
+  
+  const totalSessions =
+    Number(
+      operationalProgress
+        .totalSessions
+    ) ||
+    Number(
+      intelligentPlan
+        ?.estimatedSessions
+    ) ||
+    0;
+  
+  const operationalProgressPercentage =
+    Number.isFinite(
+      Number(
+        operationalProgress
+          .progressPercentage
+      )
+    )
+      ? Number(
+          operationalProgress
+            .progressPercentage
+        )
+      : (
+          totalSessions > 0
+            ? Math.round(
+                (
+                  completedSessions /
+                  totalSessions
+                ) *
+                1000
+              ) / 10
+            : 0
+        );
+  
+  const currentPhaseId =
+    operationalProgress
+      .currentPhaseId ||
+    null;
+  
+  const currentPhase =
+    intelligentPlanPhases.find(
+      (phase) =>
+        phase?.id ===
+        currentPhaseId
+    ) ||
+    intelligentPlanPhases.find(
+      (phase) =>
+        phase?.status === 'active'
+    ) ||
+    null;  
   
   const intelligentPlanFocus =
     Array.isArray(
@@ -1568,7 +1694,108 @@ export default function DevelopmentPID() {
                       </p>
                     </div>
                   </div>
-          
+
+                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                      <div>
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                          Execução do plano
+                        </p>
+                  
+                        <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                          <p className="font-heading text-3xl text-slate-950">
+                            {completedSessions}
+                            <span className="ml-1 text-base font-normal text-slate-400">
+                              / {totalSessions}
+                            </span>
+                          </p>
+                  
+                          <p className="text-sm text-slate-500">
+                            sessões realizadas
+                          </p>
+                        </div>
+                      </div>
+                  
+                      <div className="text-left lg:text-right">
+                        <p className="font-heading text-3xl text-slate-950">
+                          {operationalProgressPercentage.toFixed(
+                            1
+                          )}
+                          %
+                        </p>
+                  
+                        <p className="text-xs text-slate-500">
+                          progresso operacional
+                        </p>
+                      </div>
+                    </div>
+                  
+                    <div className="mt-4">
+                      <div className="h-2.5 overflow-hidden rounded-full bg-white">
+                        <div
+                          className="h-full rounded-full bg-cyan-500 transition-all duration-500"
+                          style={{
+                            width: `${Math.max(
+                              0,
+                              Math.min(
+                                100,
+                                operationalProgressPercentage
+                              )
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  
+                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                          Fase atual
+                        </p>
+                  
+                        <p className="mt-1 font-semibold text-slate-900">
+                          {currentPhase
+                            ?.label ||
+                            (
+                              intelligentPlan
+                                ?.planStatus ===
+                              'completed'
+                                ? 'Plano concluído'
+                                : 'Por iniciar'
+                            )}
+                        </p>
+                      </div>
+                  
+                      {canManage &&
+                        intelligentPlan
+                          ?.planStatus !==
+                          'completed' && (
+                          <Button
+                            type="button"
+                            onClick={
+                              handleRegisterSession
+                            }
+                            disabled={
+                              registeringSession
+                            }
+                            className="rounded-full bg-cyan-600 text-white hover:bg-cyan-700"
+                          >
+                            {registeringSession ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                A registar...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle2 className="mr-2 h-4 w-4" />
+                                Registar sessão realizada
+                              </>
+                            )}
+                          </Button>
+                        )}
+                    </div>
+                  </div>
+                  
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
                       Objetivo principal
@@ -1667,7 +1894,66 @@ export default function DevelopmentPID() {
                                   'Sem descrição.'
                                 }
                               </p>
-          
+
+                              <div className="mt-3 flex items-center justify-between gap-3">
+                                <Badge
+                                  variant="outline"
+                                  className={
+                                    phase.status ===
+                                    'completed'
+                                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                      : phase.status ===
+                                        'active'
+                                      ? 'border-cyan-200 bg-cyan-50 text-cyan-700'
+                                      : 'border-slate-200 bg-slate-50 text-slate-500'
+                                  }
+                                >
+                                  {phase.status ===
+                                  'completed'
+                                    ? 'Concluída'
+                                    : phase.status ===
+                                      'active'
+                                    ? 'Em curso'
+                                    : 'Por iniciar'}
+                                </Badge>
+                              
+                                <span className="text-xs text-slate-500">
+                                  {Number(
+                                    phase.completedSessions
+                                  ) || 0}
+                                  {' / '}
+                                  {Number(
+                                    phase.estimatedSessions
+                                  ) || 0}
+                                  {' sessões'}
+                                </span>
+                              </div>
+                              
+                              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                                <div
+                                  className={
+                                    phase.status ===
+                                    'completed'
+                                      ? 'h-full rounded-full bg-emerald-500'
+                                      : phase.status ===
+                                        'active'
+                                      ? 'h-full rounded-full bg-cyan-500'
+                                      : 'h-full rounded-full bg-slate-300'
+                                  }
+                                  style={{
+                                    width: `${Math.max(
+                                      0,
+                                      Math.min(
+                                        100,
+                                        Number(
+                                          phase.progressPercentage
+                                        ) || 0
+                                      )
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
+                              
                               <div className="mt-3 rounded-xl bg-slate-50 p-3">
                                 <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
                                   Volume previsto
