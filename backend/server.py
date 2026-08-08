@@ -19333,13 +19333,9 @@ async def register_intelligent_pid_session(
         "progressPercentage"
     ] = percentage
     
-    calendar_sync[
-        "lastSyncedAt"
-    ] = now.isoformat()
-    
     progress[
-        "calendarSync"
-    ] = calendar_sync
+        "lastActivityAt"
+    ] = now.isoformat()
     
     plan[
         "operationalProgress"
@@ -19347,7 +19343,7 @@ async def register_intelligent_pid_session(
     
     plan[
         "started"
-    ] = True
+    ] = True    
     
     # ========================================================
     # Atualizar automaticamente a fase atual
