@@ -19589,24 +19589,67 @@ async def get_pid_review_tasks(
     )
 
     visible_pids = []
-
+    
+    current_role = (
+        current_user.get("role")
+        or current_user.get("effective_role")
+        or current_user.get("profile_role")
+        or ""
+    )
+    
+    current_role = str(
+        current_role
+    ).strip().lower()
+    
+    
+    # --------------------------------------------------------
+    # Reavaliações PID no calendário
+    # Apenas administração e equipa técnica.
+    #
+    # Delegado e atleta não visualizam estas marcações.
+    # --------------------------------------------------------
+    
+    allowed_pid_calendar_roles = {
+        "admin",
+        "gestor_desportivo",
+        "treinador",
+        "treinador_adjunto",
+    }
+    
+    
+    if (
+        not checker.is_admin
+        and current_role
+        not in allowed_pid_calendar_roles
+    ):
+        return []
+    
+    
     for pid in pids:
-        player_id = pid.get(
-            "player_id"
-        )
-
         pid_team_id = pid.get(
             "team_id"
         )
-
+    
+        # Administração vê todos os PIDs
+        # dentro do âmbito da consulta.
         if checker.is_admin:
             visible_pids.append(
                 pid
             )
-
+    
             continue
-
-        if checker.is_staff:
+    
+        # Treinadores / treinadores adjuntos
+        # veem apenas PIDs de equipas
+        # a que têm acesso.
+        if (
+            current_role
+            in {
+                "treinador",
+                "treinador_adjunto",
+                "gestor_desportivo",
+            }
+        ):
             if (
                 not pid_team_id
                 or checker.can_access_team(
@@ -19616,19 +19659,6 @@ async def get_pid_review_tasks(
                 visible_pids.append(
                     pid
                 )
-
-            continue
-
-        if (
-            player_id
-            and checker.can_access_player(
-                player_id
-            )
-        ):
-            visible_pids.append(
-                pid
-            )
-
     tasks = []
 
     for pid in visible_pids:
