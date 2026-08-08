@@ -20597,35 +20597,63 @@ async def create_player_objective(
     Cria um objetivo individual para um atleta.
     Apenas a equipa técnica ou administração pode criar.
     """
-    checker = get_permission_checker(current_user)
+    checker = get_permission_checker(
+        current_user
+    )
 
-    if not checker.is_admin and not checker.is_staff:
+    if (
+        not checker.is_admin
+        and not checker.is_staff
+    ):
         raise HTTPException(
             status_code=403,
             detail="Sem permissão para criar objetivos",
         )
 
-        data = validate_objective_payload(payload)
+    # ========================================================
+    # Validar dados
+    # ========================================================
 
-        player = await get_objective_player_and_check_access(
+    data = validate_objective_payload(
+        payload
+    )
+
+    player = (
+        await get_objective_player_and_check_access(
             data["player_id"],
             current_user,
         )
-    
-        pid = await ensure_objective_pid(
-            player=player,
-            team_id=data["team_id"],
-            current_user=current_user,
+    )
+
+    # ========================================================
+    # Garantir PID ativo
+    # ========================================================
+
+    pid = await ensure_objective_pid(
+        player=player,
+        team_id=data["team_id"],
+        current_user=current_user,
+    )
+
+    player_team_ids = (
+        player.get(
+            "team_ids"
         )
-    
-        player_team_ids = player.get("team_ids") or []
-    
-        if data["team_id"] not in player_team_ids:
-            raise HTTPException(
-                status_code=400,
-                detail="O atleta não pertence à equipa selecionada",
-            )
-        
+        or []
+    )
+
+    if (
+        data["team_id"]
+        not in player_team_ids
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O atleta não pertence "
+                "à equipa selecionada"
+            ),
+        )
+
     if (
         not checker.is_admin
         and not checker.can_access_team(
@@ -20636,6 +20664,10 @@ async def create_player_objective(
             status_code=403,
             detail="Sem acesso a esta equipa",
         )
+
+    # ========================================================
+    # Validar critério
+    # ========================================================
 
     criterion = (
         await get_objective_criterion_or_404(
@@ -20648,35 +20680,53 @@ async def create_player_objective(
         criterion,
     )
 
-    criterion_team_id = criterion.get("team_id")
+    criterion_team_id = (
+        criterion.get(
+            "team_id"
+        )
+    )
 
     if (
         criterion_team_id
-        and criterion_team_id != data["team_id"]
+        and criterion_team_id
+        != data["team_id"]
     ):
         raise HTTPException(
             status_code=400,
             detail=(
-                "O critério não pertence à equipa selecionada"
+                "O critério não pertence "
+                "à equipa selecionada"
             ),
         )
 
-    duplicate = await db.evaluation_objectives.find_one(
-        {
-            "player_id": data["player_id"],
-            "pid_id": pid["id"],
-            "criterion_id": data["criterion_id"],
-            "status": {
-                "$in": [
-                    "active",
-                    "paused",
-                ]
+    # ========================================================
+    # Evitar duplicação
+    # ========================================================
+
+    duplicate = (
+        await db.evaluation_objectives.find_one(
+            {
+                "player_id":
+                    data["player_id"],
+
+                "pid_id":
+                    pid["id"],
+
+                "criterion_id":
+                    data["criterion_id"],
+
+                "status": {
+                    "$in": [
+                        "active",
+                        "paused",
+                    ]
+                },
             },
-        },
-        {
-            "_id": 0,
-            "id": 1,
-        },
+            {
+                "_id": 0,
+                "id": 1,
+            },
+        )
     )
 
     if duplicate:
@@ -20687,47 +20737,85 @@ async def create_player_objective(
                 "para este critério"
             ),
         )
-    
+
+    # ========================================================
+    # Criar objetivo
+    # ========================================================
+
     now = datetime.now(
         timezone.utc
     ).isoformat()
 
     objective = {
-        "id": str(uuid.uuid4()),
+        "id":
+            str(
+                uuid.uuid4()
+            ),
+
         **data,
 
-        # Associação formal ao Plano Individual de Desenvolvimento.
-        "pid_id": pid["id"],
-        "pid_version": pid.get(
-            "current_version",
-            1,
-        ),
+        # Associação formal ao PID.
+        "pid_id":
+            pid["id"],
 
-        "status": data.get(
-            "status",
-            "active",
-        ),
+        "pid_version":
+            pid.get(
+                "current_version",
+                1,
+            ),
 
-        "created_by": current_user.get("id"),
-        "updated_by": current_user.get("id"),
-        "created_at": now,
-        "updated_at": now,
+        "status":
+            data.get(
+                "status",
+                "active",
+            ),
 
-        "completed_at": (
-            now
-            if data.get("status") == "completed"
-            else None
-        ),
+        "created_by":
+            current_user.get(
+                "id"
+            ),
+
+        "updated_by":
+            current_user.get(
+                "id"
+            ),
+
+        "created_at":
+            now,
+
+        "updated_at":
+            now,
+
+        "completed_at":
+            (
+                now
+                if data.get(
+                    "status"
+                ) == "completed"
+                else None
+            ),
     }
-    
+
     await db.evaluation_objectives.insert_one(
-        dict(objective)
+        dict(
+            objective
+        )
     )
 
-    objective.pop("_id", None)
+    objective.pop(
+        "_id",
+        None,
+    )
+
+    # ========================================================
+    # Enriquecer resposta
+    # ========================================================
 
     objective["criterion"] = {
-        key: criterion.get(key)
+        key:
+            criterion.get(
+                key
+            )
         for key in [
             "id",
             "name",
@@ -20745,16 +20833,22 @@ async def create_player_objective(
         if key in criterion
     }
 
-    objective["criterion_name"] = criterion.get(
+    objective[
+        "criterion_name"
+    ] = criterion.get(
         "name"
     )
 
-    objective["scale_min"] = criterion.get(
+    objective[
+        "scale_min"
+    ] = criterion.get(
         "scale_min",
         1,
     )
 
-    objective["scale_max"] = criterion.get(
+    objective[
+        "scale_max"
+    ] = criterion.get(
         "scale_max",
         5,
     )
