@@ -19523,6 +19523,9 @@ async def sync_intelligent_pid_calendar(
 async def get_pid_review_tasks(
     team_id: Optional[str] = None,
     days_ahead: int = 30,
+    profile_type: Optional[str] = None,
+    profile_user_id: Optional[str] = None,
+    profile_role: Optional[str] = None,
     current_user: dict = Depends(
         get_current_user
     ),
@@ -19591,9 +19594,10 @@ async def get_pid_review_tasks(
     visible_pids = []
     
     current_role = (
-        current_user.get("role")
+        profile_role
         or current_user.get("effective_role")
         or current_user.get("profile_role")
+        or current_user.get("role")
         or ""
     )
     
