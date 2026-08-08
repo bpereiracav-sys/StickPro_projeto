@@ -525,6 +525,17 @@ export const evaluationsApi = {
   updatePID: (pidId, data) =>
     api.put(`/evaluations/pids/${pidId}`, data),
 
+  registerIntelligentPIDSession: (
+    pidId,
+    sessions = 1
+  ) =>
+    api.post(
+      `/evaluations/pids/${pidId}/intelligent-plan/session`,
+      {
+        sessions,
+      }
+    ),
+  
   activateIntelligentPIDPlan: (
     pidId,
     data
