@@ -1883,6 +1883,16 @@ class IntelligentPIDActivation(BaseModel):
 
     next_review: Optional[datetime] = None
 
+# ============================================================
+# Intelligent PID Operational Progress
+# Sprint C3.6.6D
+# ============================================================
+
+class IntelligentPIDSessionUpdate(
+    BaseModel
+):
+    sessions: int = 1
+
 # Evaluation Execution Models — Sprint 4.2.4.1
 class EvaluationFromPlanScore(BaseModel):
     criterion_id: str
@@ -18169,6 +18179,128 @@ async def activate_intelligent_pid_plan(
         "id"
     ]
 
+    # --------------------------------------------------------
+    # Progresso operacional do plano
+    # Sprint C3.6.6D
+    # --------------------------------------------------------
+    
+    estimated_sessions = (
+        persisted_plan.get(
+            "estimatedSessions"
+        )
+        or 0
+    )
+    
+    try:
+        estimated_sessions = int(
+            estimated_sessions
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        estimated_sessions = 0
+    
+    
+    phases = (
+        persisted_plan.get(
+            "phases"
+        )
+        if isinstance(
+            persisted_plan.get(
+                "phases"
+            ),
+            list,
+        )
+        else []
+    )
+    
+    
+    first_phase_id = (
+        phases[0].get(
+            "id"
+        )
+        if (
+            phases
+            and isinstance(
+                phases[0],
+                dict,
+            )
+        )
+        else None
+    )
+    
+    
+    persisted_plan[
+        "operationalProgress"
+    ] = {
+        "completedSessions":
+            0,
+    
+        "totalSessions":
+            estimated_sessions,
+    
+        "progressPercentage":
+            0,
+    
+        "currentPhaseId":
+            first_phase_id,
+    
+        "startedAt":
+            now.isoformat(),
+    
+        "lastActivityAt":
+            None,
+    }    
+
+    normalized_phases = []
+
+    for index, phase in enumerate(
+        phases
+    ):
+        if not isinstance(
+            phase,
+            dict,
+        ):
+            continue
+    
+        normalized_phase = dict(
+            phase
+        )
+    
+        normalized_phase[
+            "status"
+        ] = (
+            "active"
+            if index == 0
+            else "pending"
+        )
+    
+        normalized_phase[
+            "completedSessions"
+        ] = 0
+    
+        normalized_phase[
+            "startedAt"
+        ] = (
+            now.isoformat()
+            if index == 0
+            else None
+        )
+    
+        normalized_phase[
+            "completedAt"
+        ] = None
+    
+        normalized_phases.append(
+            normalized_phase
+        )
+    
+    
+    persisted_plan[
+        "phases"
+    ] = normalized_phases
+
     persisted_plan[
         "engineVersion"
     ] = (
@@ -18294,6 +18426,181 @@ async def activate_intelligent_pid_plan(
 
     return updated_pid
 
+@api_router.post(
+    "/evaluations/pids/{pid_id}/intelligent-plan/session"
+)
+async def register_intelligent_pid_session(
+    pid_id: str,
+    update: IntelligentPIDSessionUpdate,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    checker = (
+        get_permission_checker(
+            current_user
+        )
+    )
+
+    if (
+        not checker.is_admin
+        and not checker.is_staff
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para "
+                "atualizar este PID"
+            ),
+        )
+
+    pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id": pid_id,
+                "archived": False,
+            }
+        )
+    )
+
+    if not pid:
+        raise HTTPException(
+            status_code=404,
+            detail="PID não encontrado",
+        )
+
+    plan = pid.get(
+        "intelligent_plan"
+    )
+
+    if (
+        not isinstance(
+            plan,
+            dict,
+        )
+        or not plan
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O PID não possui "
+                "Plano Inteligente ativo"
+            ),
+        )
+
+    progress = dict(
+        plan.get(
+            "operationalProgress"
+        )
+        or {}
+    )
+
+    total_sessions = int(
+        progress.get(
+            "totalSessions"
+        )
+        or plan.get(
+            "estimatedSessions"
+        )
+        or 0
+    )
+
+    completed_sessions = int(
+        progress.get(
+            "completedSessions"
+        )
+        or 0
+    )
+
+    sessions_to_add = max(
+        1,
+        int(
+            update.sessions
+            or 1
+        ),
+    )
+
+    completed_sessions = min(
+        total_sessions,
+        completed_sessions
+        + sessions_to_add,
+    ) if total_sessions > 0 else (
+        completed_sessions
+        + sessions_to_add
+    )
+
+    percentage = (
+        round(
+            (
+                completed_sessions
+                / total_sessions
+            )
+            * 100,
+            1,
+        )
+        if total_sessions > 0
+        else 0
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    progress[
+        "completedSessions"
+    ] = completed_sessions
+
+    progress[
+        "progressPercentage"
+    ] = percentage
+
+    progress[
+        "lastActivityAt"
+    ] = now.isoformat()
+
+    plan[
+        "operationalProgress"
+    ] = progress
+
+    plan[
+        "progress"
+    ] = percentage
+
+    plan[
+        "started"
+    ] = True
+
+    await db.evaluation_pids.update_one(
+        {
+            "id": pid_id,
+        },
+        {
+            "$set": {
+                "intelligent_plan":
+                    plan,
+
+                "intelligent_plan_updated_at":
+                    now,
+
+                "updated_at":
+                    now,
+            }
+        },
+    )
+
+    updated_pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id": pid_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    return updated_pid
+    
 @api_router.patch("/evaluations/pids/{pid_id}/archive")
 async def archive_pid(
     pid_id: str,
