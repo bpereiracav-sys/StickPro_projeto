@@ -632,6 +632,15 @@ export default function CalendarPage() {
         
             days_ahead:
               30,
+        
+            profile_type:
+              activeProfile?.type,
+        
+            profile_user_id:
+              activeProfile?.user_id,
+        
+            profile_role:
+              activeProfile?.role,
           })
           .catch(
             () => ({
