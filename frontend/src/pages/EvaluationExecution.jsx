@@ -221,16 +221,6 @@ export default function EvaluationExecution() {
     }
   }, [selectedTeamId]);
 
-  useEffect(() => {
-    setSelectedPlayerIds((current) =>
-      current.filter((id) =>
-        eligiblePlayers.some(
-          (player) => player.id === id
-        )
-      )
-    );
-  }, [eligiblePlayers]);
-
   const fetchInitialData = async () => {
     setLoading(true);
   
@@ -386,14 +376,26 @@ export default function EvaluationExecution() {
   }, [
     players,
     selectedPlan,
-  ]);  
+  ]);
+  
+  useEffect(() => {
+    setSelectedPlayerIds((current) =>
+      current.filter((id) =>
+        eligiblePlayers.some(
+          (player) => player.id === id
+        )
+      )
+    );
+  }, [eligiblePlayers]);
   
   const planCriteria = useMemo(() => {
     return [...(selectedPlan?.criteria || [])].sort(
-      (a, b) => (a.order ?? 0) - (b.order ?? 0)
+      (a, b) =>
+        (a.order ?? 0) -
+        (b.order ?? 0)
     );
   }, [selectedPlan]);
-
+  
   const activePlayer = selectedPlayers[activePlayerIndex] || null;
   const totalCriteria = planCriteria.length;
   const totalExpectedScores = selectedPlayers.length * totalCriteria;
