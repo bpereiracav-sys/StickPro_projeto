@@ -19333,9 +19333,13 @@ async def register_intelligent_pid_session(
         "progressPercentage"
     ] = percentage
     
+    calendar_sync[
+        "lastSyncedAt"
+    ] = now.isoformat()
+    
     progress[
-        "lastActivityAt"
-    ] = now.isoformat()"
+        "calendarSync"
+    ] = calendar_sync
     
     plan[
         "operationalProgress"
