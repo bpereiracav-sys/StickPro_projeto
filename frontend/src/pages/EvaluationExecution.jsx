@@ -1,5 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import {
+  Link,
+  useSearchParams,
+} from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
 import { usePermissions } from '../context/PermissionsContext';
 import {
@@ -174,6 +177,31 @@ function getInitials(name = '') {
 export default function EvaluationExecution() {
   const { t } = useLanguage();
   const permissions = usePermissions();
+  const [searchParams] =
+    useSearchParams();
+  
+  const requestedPlayerId =
+    searchParams.get('player_id') ||
+    '';
+  
+  const requestedTeamId =
+    searchParams.get('team_id') ||
+    '';
+  
+  const requestedCriterionId =
+    searchParams.get('criterion_id') ||
+    '';
+  
+  const requestedPIDId =
+    searchParams.get('pid_id') ||
+    '';
+  
+  const isPIDReviewFlow =
+    Boolean(
+      requestedPIDId &&
+      requestedPlayerId
+    );
+  
 
   const [loading, setLoading] = useState(true);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
@@ -266,6 +294,99 @@ export default function EvaluationExecution() {
     }
   };
 
+  useEffect(() => {
+    if (
+      loading ||
+      !isPIDReviewFlow
+    ) {
+      return;
+    }
+  
+    // ------------------------------------------
+    // Equipa proveniente do PID
+    // ------------------------------------------
+  
+    if (
+      requestedTeamId &&
+      teams.some(
+        (team) =>
+          String(team?.id) ===
+          String(requestedTeamId)
+      )
+    ) {
+      setSelectedTeamId(
+        requestedTeamId
+      );
+    }
+  
+    // ------------------------------------------
+    // Encontrar plano que contém
+    // o critério da reavaliação PID
+    // ------------------------------------------
+  
+    if (
+      requestedCriterionId &&
+      plans.length > 0
+    ) {
+      const matchingPlan =
+        plans.find((plan) => {
+          const teamCompatible =
+            !requestedTeamId ||
+            !plan?.team_id ||
+            String(
+              plan.team_id
+            ) ===
+              String(
+                requestedTeamId
+              );
+  
+          const containsCriterion =
+            (
+              plan?.criteria ||
+              []
+            ).some(
+              (item) =>
+                String(
+                  item?.criterion_id ||
+                  item?.criterion?.id ||
+                  ''
+                ) ===
+                String(
+                  requestedCriterionId
+                )
+            );
+  
+          return (
+            teamCompatible &&
+            containsCriterion
+          );
+        });
+  
+      if (
+        matchingPlan?.id
+      ) {
+        setSelectedPlanId(
+          matchingPlan.id
+        );
+      }
+    }
+  
+    setSelectedEventId(
+      'none'
+    );
+  
+    setPeriodLabel(
+      'Reavaliação PID'
+    );
+  }, [
+    loading,
+    isPIDReviewFlow,
+    requestedTeamId,
+    requestedCriterionId,
+    teams,
+    plans,
+  ]);
+  
   const fetchPlayersAndEvents = async (teamId) => {
     if (!teamId) {
       setPlayers([]);
@@ -387,14 +508,82 @@ export default function EvaluationExecution() {
       )
     );
   }, [eligiblePlayers]);
+
+  useEffect(() => {
+    if (
+      !isPIDReviewFlow ||
+      !requestedPlayerId ||
+      !selectedPlanId ||
+      players.length === 0
+    ) {
+      return;
+    }
+  
+    const playerExists =
+      eligiblePlayers.some(
+        (player) =>
+          String(player?.id) ===
+          String(
+            requestedPlayerId
+          )
+      );
+  
+    if (!playerExists) {
+      return;
+    }
+  
+    setSelectedPlayerIds([
+      requestedPlayerId,
+    ]);
+  
+    // Vai diretamente para
+    // o passo Atletas.
+    // O treinador continua a confirmar
+    // antes de iniciar a avaliação.
+    setStepIndex(3);
+  }, [
+    isPIDReviewFlow,
+    requestedPlayerId,
+    selectedPlanId,
+    players,
+    eligiblePlayers,
+  ]);
   
   const planCriteria = useMemo(() => {
-    return [...(selectedPlan?.criteria || [])].sort(
+    const criteria = [
+      ...(
+        selectedPlan?.criteria ||
+        []
+      ),
+    ].sort(
       (a, b) =>
         (a.order ?? 0) -
         (b.order ?? 0)
     );
-  }, [selectedPlan]);
+  
+    if (
+      !isPIDReviewFlow ||
+      !requestedCriterionId
+    ) {
+      return criteria;
+    }
+  
+    return criteria.filter(
+      (item) =>
+        String(
+          item?.criterion_id ||
+          item?.criterion?.id ||
+          ''
+        ) ===
+        String(
+          requestedCriterionId
+        )
+    );
+  }, [
+    selectedPlan,
+    isPIDReviewFlow,
+    requestedCriterionId,
+  ]);
   
   const activePlayer = selectedPlayers[activePlayerIndex] || null;
   const totalCriteria = planCriteria.length;
