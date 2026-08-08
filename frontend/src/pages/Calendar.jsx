@@ -339,7 +339,12 @@ const getPIDReviewPresentation = (
 
 export default function CalendarPage() {
   const navigate =
-    useNavigate();  const { user, activeProfile } = useAuth();
+    useNavigate();
+  
+  const {
+    user,
+    activeProfile,
+  } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const { canManageEvents, canCreateConvocations, canAccessTeam, isAdmin, isCoach } = usePermissions();
   const { t } = useLanguage();
@@ -2651,35 +2656,13 @@ export default function CalendarPage() {
                 }}
               />
             </PageSection>
-          t={t}
-          viewMode={viewMode}
-          viewTitle={getViewTitle()}
-          isMobile={isMobile}
-          viewModes={
-            isMobile
-              ? VIEW_MODES
-              : {
-                  day: VIEW_MODES.day,
-                  week: VIEW_MODES.week,
-                  month: VIEW_MODES.month,
-                }
-          }
-          onPrevious={navigatePrevious}
-          onToday={navigateToday}
-          onNext={navigateNext}
-          onChangeView={(key) => {
-            setSelectedDate(new Date());
-            setViewMode(key);
-          }}
-        />
-      </PageSection>
-
-      {isRefreshing && (
-        <div className="flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 md:w-fit">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          {t('common.refreshing', 'A atualizar...')}
-        </div>
-      )}
+            
+            {isRefreshing && (
+              <div className="flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50 px-3 py-1 text-xs font-medium text-cyan-700 md:w-fit">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                {t('common.refreshing', 'A atualizar...')}
+              </div>
+            )}
 
       {/* Calendar View */}
       <PageSection
