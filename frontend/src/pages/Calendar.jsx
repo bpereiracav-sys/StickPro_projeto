@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import {
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTeam } from '../context/TeamContext';
 import { usePermissions } from '../context/PermissionsContext';
@@ -99,6 +102,7 @@ import {
   AlertCircle,
   Repeat,
   CalendarOff,
+  Target,
   AlertTriangle
 } from 'lucide-react';
 import { getInitials } from '../lib/utils';
@@ -216,8 +220,126 @@ function PlayerStatusRow({ player, canEdit, onUpdateStatus, updating, t }) {
   );
 }
 
+const getPIDReviewPresentation = (
+  task
+) => {
+  const days =
+    Number(
+      task?.days_remaining
+    );
+
+  if (
+    task?.urgency ===
+      'overdue' ||
+    days < 0
+  ) {
+    return {
+      label:
+        `Em atraso há ${Math.abs(
+          days
+        )} ${
+          Math.abs(days) === 1
+            ? 'dia'
+            : 'dias'
+        }`,
+
+      card:
+        'border-red-200 bg-red-50',
+
+      icon:
+        'bg-red-100 text-red-700',
+
+      badge:
+        'border-red-200 bg-red-100 text-red-700',
+    };
+  }
+
+  if (
+    task?.urgency ===
+      'today' ||
+    days === 0
+  ) {
+    return {
+      label:
+        'Reavaliação prevista para hoje',
+
+      card:
+        'border-red-200 bg-red-50',
+
+      icon:
+        'bg-red-100 text-red-700',
+
+      badge:
+        'border-red-200 bg-red-100 text-red-700',
+    };
+  }
+
+  if (days === 1) {
+    return {
+      label:
+        'Reavaliação amanhã',
+
+      card:
+        'border-amber-200 bg-amber-50',
+
+      icon:
+        'bg-amber-100 text-amber-700',
+
+      badge:
+        'border-amber-200 bg-amber-100 text-amber-700',
+    };
+  }
+
+  if (days <= 7) {
+    return {
+      label:
+        `Reavaliação dentro de ${days} dias`,
+
+      card:
+        'border-amber-200 bg-amber-50',
+
+      icon:
+        'bg-amber-100 text-amber-700',
+
+      badge:
+        'border-amber-200 bg-amber-100 text-amber-700',
+    };
+  }
+
+  if (days <= 14) {
+    return {
+      label:
+        `Reavaliação em ${days} dias`,
+
+      card:
+        'border-cyan-200 bg-cyan-50',
+
+      icon:
+        'bg-cyan-100 text-cyan-700',
+
+      badge:
+        'border-cyan-200 bg-cyan-100 text-cyan-700',
+    };
+  }
+
+  return {
+    label:
+      `Prazo em ${days} dias`,
+
+    card:
+      'border-slate-200 bg-slate-50',
+
+    icon:
+      'bg-slate-100 text-slate-600',
+
+    badge:
+      'border-slate-200 bg-white text-slate-600',
+  };
+};
+
 export default function CalendarPage() {
-  const { user, activeProfile } = useAuth();
+  const navigate =
+    useNavigate();  const { user, activeProfile } = useAuth();
   const { selectedTeam, teams: contextTeams, isAllTeamsSelected } = useTeam();
   const { canManageEvents, canCreateConvocations, canAccessTeam, isAdmin, isCoach } = usePermissions();
   const { t } = useLanguage();
@@ -2351,6 +2473,162 @@ export default function CalendarPage() {
         onCreateEvent={() => setCreateDialogOpen(true)}
       />
 
+      {pidReviewTasks.length > 0 && (
+        <PageSection
+          compact
+          testId="pid-review-tasks-section"
+        >
+          <Card className="overflow-hidden border-cyan-100 bg-gradient-to-br from-white via-cyan-50/60 to-amber-50/40 shadow-sm">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <ClipboardCheck className="h-5 w-5 text-cyan-600" />
+      
+                    Reavaliações do desenvolvimento
+                  </CardTitle>
+      
+                  <p className="mt-1 text-sm text-slate-500">
+                    Prazos de reavaliação definidos nos Planos
+                    Individuais de Desenvolvimento.
+                  </p>
+                </div>
+      
+                <Badge
+                  variant="outline"
+                  className="w-fit rounded-full border-cyan-200 bg-white text-cyan-700"
+                >
+                  {pidReviewTasks.length}{' '}
+                  {pidReviewTasks.length === 1
+                    ? 'reavaliação'
+                    : 'reavaliações'}
+                </Badge>
+              </div>
+            </CardHeader>
+      
+            <CardContent className="space-y-2">
+              {pidReviewTasks
+                .slice(0, 4)
+                .map(
+                  (task) => {
+                    const presentation =
+                      getPIDReviewPresentation(
+                        task
+                      );
+      
+                    return (
+                      <div
+                        key={task.id}
+                        className={`flex flex-col gap-3 rounded-2xl border p-4 lg:flex-row lg:items-center lg:justify-between ${presentation.card}`}
+                      >
+                        <div className="flex min-w-0 items-start gap-3">
+                          <div
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${presentation.icon}`}
+                          >
+                            <Target className="h-5 w-5" />
+                          </div>
+      
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold text-slate-900">
+                                Reavaliação PID
+                              </p>
+      
+                              <Badge
+                                variant="outline"
+                                className={
+                                  presentation.badge
+                                }
+                              >
+                                {
+                                  presentation.label
+                                }
+                              </Badge>
+                            </div>
+      
+                            <p className="mt-1 text-sm text-slate-700">
+                              Reavaliar{' '}
+                              <strong>
+                                {
+                                  task.criterion_name
+                                }
+                              </strong>
+                            </p>
+      
+                            <p className="mt-1 text-xs text-slate-500">
+                              Prazo:{' '}
+                              {new Date(
+                                task.due_date
+                              ).toLocaleDateString(
+                                'pt-PT',
+                                {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                }
+                              )}
+                            </p>
+                          </div>
+                        </div>
+      
+                        <div className="flex flex-wrap gap-2 lg:justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="rounded-full bg-white"
+                            onClick={() =>
+                              navigate(
+                                `/evaluations/pid?player_id=${task.player_id}${
+                                  task.team_id
+                                    ? `&team_id=${task.team_id}`
+                                    : ''
+                                }`
+                              )
+                            }
+                          >
+                            Ver PID
+                          </Button>
+      
+                          {canManageEvents && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="rounded-full bg-cyan-600 text-white hover:bg-cyan-700"
+                              onClick={() =>
+                                navigate(
+                                  `/evaluations/new?player_id=${task.player_id}${
+                                    task.team_id
+                                      ? `&team_id=${task.team_id}`
+                                      : ''
+                                  }${
+                                    task.criterion_id
+                                      ? `&criterion_id=${task.criterion_id}`
+                                      : ''
+                                  }&pid_id=${task.pid_id}`
+                                )
+                              }
+                            >
+                              <ClipboardCheck className="mr-2 h-4 w-4" />
+      
+                              Realizar avaliação
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+                )}
+            </CardContent>
+          </Card>
+        </PageSection>
+      )}
+      
+      <PageSection
+        compact
+        testId="calendar-view-controls-section"
+      >
+        
       <PageSection
         compact
         testId="calendar-view-controls-section"
