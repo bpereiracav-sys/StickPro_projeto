@@ -831,6 +831,20 @@ export default function EvaluationExecution() {
     event_id: selectedEventId === 'none' ? null : selectedEventId,
     period_label: periodLabel || null,
     visibility: 'coach_only',
+    pid_id:
+      isPIDReviewFlow
+        ? requestedPIDId
+        : null,
+  
+    pid_criterion_id:
+      isPIDReviewFlow
+        ? requestedCriterionId
+        : null,
+  
+    evaluation_source:
+      isPIDReviewFlow
+        ? 'pid_review'
+        : 'standard',
     evaluations: selectedPlayers.map((player) => ({
       player_id: player.id,
       share_with_player: shareWithPlayer,
