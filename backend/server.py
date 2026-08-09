@@ -21737,6 +21737,237 @@ async def sync_pid_objective_from_latest_review(
     ] = review_data
 
     # --------------------------------------------------------
+    # Proposta de renovação inteligente
+    # Sprint C3.6.6D.4B.3B.2
+    #
+    # IMPORTANTE:
+    # A proposta não cria um novo objetivo.
+    # Fica pendente de validação pela equipa técnica.
+    # --------------------------------------------------------
+    
+    if objective_completed:
+        criterion = (
+            await db.evaluation_criteria.find_one(
+                {
+                    "id":
+                        criterion_id
+                },
+                {
+                    "_id": 0,
+                },
+            )
+        )
+    
+        try:
+            scale_max = float(
+                (
+                    criterion
+                    or {}
+                ).get(
+                    "scale_max",
+                    5,
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            scale_max = 5.0
+    
+        try:
+            baseline_value = float(
+                objective.get(
+                    "baseline_value"
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            baseline_value = None
+    
+        criterion_name = (
+            (
+                criterion
+                or {}
+            ).get(
+                "name"
+            )
+            or objective.get(
+                "criterion_name"
+            )
+            or intelligent_plan.get(
+                "criterionName"
+            )
+            or "Competência de desenvolvimento"
+        )
+    
+        renewal_type = None
+        suggested_target = None
+        renewal_title = None
+        renewal_reason = None
+    
+        # ----------------------------------------------------
+        # CASO A
+        # A meta foi atingida exatamente ou com margem
+        # reduzida.
+        #
+        # Antes de aumentar exigência, recomenda-se
+        # consolidação da competência.
+        # ----------------------------------------------------
+    
+        if (
+            reviewed_score
+            < scale_max
+            and target_value
+            is not None
+            and reviewed_score
+            < (
+                target_value
+                + 1
+            )
+        ):
+            renewal_type = (
+                "consolidate"
+            )
+    
+            suggested_target = (
+                target_value
+            )
+    
+            renewal_title = (
+                f"Consolidar {criterion_name}"
+            )
+    
+            renewal_reason = (
+                "A meta do ciclo foi atingida. "
+                "Recomenda-se consolidar a competência "
+                "antes de aumentar o nível de exigência."
+            )
+    
+        # ----------------------------------------------------
+        # CASO B
+        # O resultado ultrapassou claramente a meta e ainda
+        # existe margem na escala.
+        # ----------------------------------------------------
+    
+        elif (
+            reviewed_score
+            < scale_max
+        ):
+            renewal_type = (
+                "raise_target"
+            )
+    
+            suggested_target = min(
+                scale_max,
+                max(
+                    reviewed_score,
+                    (
+                        target_value
+                        or reviewed_score
+                    )
+                    + 1,
+                ),
+            )
+    
+            renewal_title = (
+                f"Elevar exigência em {criterion_name}"
+            )
+    
+            renewal_reason = (
+                "O atleta superou a meta prevista. "
+                "Existe margem para aumentar progressivamente "
+                "o nível de exigência nesta competência."
+            )
+    
+        # ----------------------------------------------------
+        # CASO C
+        # A competência atingiu o máximo da escala.
+        # O motor não deve continuar a aumentar a mesma meta.
+        # ----------------------------------------------------
+    
+        else:
+            renewal_type = (
+                "new_priority"
+            )
+    
+            suggested_target = None
+    
+            renewal_title = (
+                "Selecionar nova prioridade de desenvolvimento"
+            )
+    
+            renewal_reason = (
+                "A competência atingiu o nível máximo "
+                "previsto na escala. Recomenda-se selecionar "
+                "uma nova prioridade de desenvolvimento."
+            )
+    
+        renewal_proposal = {
+            "status":
+                "pending",
+    
+            "type":
+                renewal_type,
+    
+            "title":
+                renewal_title,
+    
+            "reason":
+                renewal_reason,
+    
+            "source":
+                "pid_review",
+    
+            "sourcePIDId":
+                pid_id,
+    
+            "sourceObjectiveId":
+                objective.get(
+                    "id"
+                ),
+    
+            "sourceCriterionId":
+                criterion_id,
+    
+            "sourceCriterionName":
+                criterion_name,
+    
+            "baselineValue":
+                baseline_value,
+    
+            "previousTarget":
+                target_value,
+    
+            "reviewScore":
+                reviewed_score,
+    
+            "suggestedTarget":
+                suggested_target,
+    
+            "scaleMax":
+                scale_max,
+    
+            "generatedAt":
+                now.isoformat(),
+    
+            "generatedBy":
+                "development_engine",
+    
+            "requiresApproval":
+                True,
+        }
+    
+        intelligent_plan[
+            "renewalProposal"
+        ] = renewal_proposal
+    
+        intelligent_plan[
+            "renewalStatus"
+        ] = "proposal_pending"
+    
+    # --------------------------------------------------------
     # Atualizar PID
     # --------------------------------------------------------
 
