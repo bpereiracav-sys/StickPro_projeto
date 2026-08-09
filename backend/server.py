@@ -23287,7 +23287,228 @@ async def create_bulk_evaluations_from_plan(
             )
             or 1
         )
+
+        # ========================================================
+        # Aplicar resultado da reavaliação ao objetivo do PID
+        # Sprint C3.6.6D.4B.3A
+        # ========================================================
     
+        reviewed_score = None
+    
+        reviewed_evaluation = (
+            created[0]
+            if created
+            else None
+        )
+    
+        if reviewed_evaluation:
+            for score_item in (
+                reviewed_evaluation.get(
+                    "scores"
+                )
+                or []
+            ):
+                if (
+                    str(
+                        score_item.get(
+                            "criterion_id"
+                        )
+                    )
+                    ==
+                    str(
+                        payload.pid_criterion_id
+                    )
+                ):
+                    try:
+                        reviewed_score = float(
+                            score_item.get(
+                                "score"
+                            )
+                        )
+                    except (
+                        TypeError,
+                        ValueError,
+                    ):
+                        reviewed_score = None
+    
+                    break
+    
+        intelligent_plan = (
+            pid_review.get(
+                "intelligent_plan"
+            )
+            or {}
+        )
+    
+        objective_id = (
+            intelligent_plan.get(
+                "objectiveId"
+            )
+        )
+    
+        objective = None
+    
+        if objective_id:
+            objective = (
+                await db.evaluation_objectives.find_one(
+                    {
+                        "id":
+                            objective_id,
+                    },
+                    {
+                        "_id": 0,
+                    },
+                )
+            )
+    
+        if (
+            not objective
+            and payload.pid_criterion_id
+        ):
+            objective = (
+                await db.evaluation_objectives.find_one(
+                    {
+                        "player_id":
+                            pid_review.get(
+                                "player_id"
+                            ),
+    
+                        "pid_id":
+                            pid_review.get(
+                                "id"
+                            ),
+    
+                        "criterion_id":
+                            payload.pid_criterion_id,
+    
+                        "status": {
+                            "$in": [
+                                "active",
+                                "paused",
+                            ]
+                        },
+                    },
+                    {
+                        "_id": 0,
+                    },
+                )
+            )
+    
+        objective_completed = False
+    
+        if (
+            objective
+            and reviewed_score
+            is not None
+        ):
+            target_value = (
+                objective.get(
+                    "target_value"
+                )
+            )
+    
+            try:
+                target_value = float(
+                    target_value
+                )
+            except (
+                TypeError,
+                ValueError,
+            ):
+                target_value = None
+    
+            objective_update = {
+                "current_value":
+                    reviewed_score,
+    
+                "current_score":
+                    reviewed_score,
+    
+                "last_evaluation_id":
+                    reviewed_evaluation.get(
+                        "id"
+                    ),
+    
+                "last_evaluation_at":
+                    review_completed_at.isoformat(),
+    
+                "updated_at":
+                    review_completed_at.isoformat(),
+    
+                "updated_by":
+                    current_user.get(
+                        "id"
+                    ),
+            }
+    
+            if (
+                target_value
+                is not None
+                and reviewed_score
+                >= target_value
+            ):
+                objective_completed = True
+    
+                objective_update[
+                    "status"
+                ] = "completed"
+    
+                objective_update[
+                    "completed_at"
+                ] = (
+                    review_completed_at.isoformat()
+                )
+    
+            await db.evaluation_objectives.update_one(
+                {
+                    "id":
+                        objective.get(
+                            "id"
+                        )
+                },
+                {
+                    "$set":
+                        objective_update
+                },
+            )
+
+        persisted_intelligent_plan = dict(
+            intelligent_plan
+        )
+    
+        persisted_intelligent_plan[
+            "lastReviewScore"
+        ] = reviewed_score
+    
+        persisted_intelligent_plan[
+            "lastReviewAt"
+        ] = (
+            review_completed_at.isoformat()
+        )
+    
+        persisted_intelligent_plan[
+            "lastReviewEvaluationId"
+        ] = (
+            reviewed_evaluation.get(
+                "id"
+            )
+            if reviewed_evaluation
+            else None
+        )
+    
+        persisted_intelligent_plan[
+            "reviewStatus"
+        ] = (
+            "completed"
+            if objective_completed
+            else "reviewed"
+        )
+    
+        if objective_completed:
+            persisted_intelligent_plan[
+                "planStatus"
+            ] = "completed"
+        
         pid_update = {
             "last_review":
                 review_completed_at,
