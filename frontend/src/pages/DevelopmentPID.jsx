@@ -868,57 +868,136 @@ export default function DevelopmentPID() {
       setEvaluations([]);
       return;
     }
-
+  
     setLoadingData(true);
-
+  
     try {
-      const [pidResult, objectivesResult, evaluationsResult] =
-        await Promise.allSettled([
-          evaluationsApi.getPlayerPID(targetPlayerId),
-          evaluationsApi.getPlayerObjectives(targetPlayerId),
-          evaluationsApi.getPlayerEvaluations(targetPlayerId),
-        ]);
-
-      const nextPID =
-        pidResult.status === 'fulfilled'
-          ? pidResult.value?.data || null
-          : null;
-
-      setPid(nextPID);
-
+      /*
+       * IMPORTANTE:
+       *
+       * Os objetivos são carregados primeiro porque o endpoint
+       * getPlayerObjectives executa a reconciliação do PID com
+       * a última reavaliação.
+       *
+       * Só depois voltamos a pedir o PID, garantindo que
+       * intelligent_plan_status, fases e estado operacional
+       * já vêm sincronizados.
+       */
+  
+      const [
+        objectivesResult,
+        evaluationsResult,
+      ] = await Promise.allSettled([
+        evaluationsApi.getPlayerObjectives(
+          targetPlayerId
+        ),
+  
+        evaluationsApi.getPlayerEvaluations(
+          targetPlayerId
+        ),
+      ]);
+  
+      const nextObjectives =
+        objectivesResult.status ===
+        'fulfilled'
+          ? normalizeCollection(
+              objectivesResult.value?.data
+            )
+          : [];
+  
+      const nextEvaluations =
+        evaluationsResult.status ===
+        'fulfilled'
+          ? normalizeCollection(
+              evaluationsResult.value?.data
+            )
+          : [];
+  
       setObjectives(
-        objectivesResult.status === 'fulfilled'
-          ? normalizeCollection(objectivesResult.value?.data)
-          : []
+        nextObjectives
       );
-
+  
       setEvaluations(
-        evaluationsResult.status === 'fulfilled'
-          ? normalizeCollection(evaluationsResult.value?.data)
-          : []
+        nextEvaluations
       );
-
+  
+      /*
+       * A reconciliação backend já terminou.
+       * Agora carregamos novamente o PID atualizado.
+       */
+  
+      let nextPID = null;
+  
+      try {
+        const pidResponse =
+          await evaluationsApi.getPlayerPID(
+            targetPlayerId
+          );
+  
+        nextPID =
+          pidResponse?.data ||
+          null;
+      } catch (error) {
+        console.error(
+          'Error loading PID:',
+          error
+        );
+  
+        toast.error(
+          error?.response
+            ?.data?.detail ||
+            'Não foi possível carregar o PID.'
+        );
+      }
+  
+      setPid(
+        nextPID
+      );
+  
       setForm({
         title:
           nextPID?.title ||
           'Plano Individual de Desenvolvimento',
-        notes: nextPID?.notes || '',
-        next_review: toDateInputValue(nextPID?.next_review),
+  
+        notes:
+          nextPID?.notes ||
+          '',
+  
+        next_review:
+          toDateInputValue(
+            nextPID?.next_review
+          ),
       });
-
-      if (pidResult.status === 'rejected') {
-        console.error('Error loading PID:', pidResult.reason);
-
-        toast.error(
-          pidResult.reason?.response?.data?.detail ||
-            'Não foi possível carregar o PID.'
+  
+      if (
+        objectivesResult.status ===
+        'rejected'
+      ) {
+        console.error(
+          'Error loading PID objectives:',
+          objectivesResult.reason
+        );
+      }
+  
+      if (
+        evaluationsResult.status ===
+        'rejected'
+      ) {
+        console.error(
+          'Error loading PID evaluations:',
+          evaluationsResult.reason
         );
       }
     } catch (error) {
-      console.error('Error loading PID page:', error);
+      console.error(
+        'Error loading PID page:',
+        error
+      );
+  
       setPid(null);
       setObjectives([]);
       setEvaluations([]);
+  
       toast.error(
         'Não foi possível carregar o Plano Individual de Desenvolvimento.'
       );
@@ -2055,9 +2134,11 @@ export default function DevelopmentPID() {
                     </div>
                   </div>
           
-                  {intelligentPlan
-                    ?.review
-                    ?.reason && (
+                  {intelligentPlanStatus !==
+                    'completed' &&
+                    intelligentPlan
+                      ?.review
+                      ?.reason && (
                     <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
                       <div className="flex items-start gap-3">
                         <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
@@ -2136,28 +2217,101 @@ export default function DevelopmentPID() {
               </CardHeader>
 
               <CardContent>
-                {summary.activeObjectives.length === 0 ? (
+                {summary.activeObjectives.length === 0 &&
+                summary.completedObjectives.length === 0 ? (
                   <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
                     <Target className="mx-auto h-10 w-10 text-slate-300" />
+              
                     <p className="mt-3 font-semibold text-slate-700">
-                      Ainda não existem objetivos ativos
+                      Ainda não existem objetivos
                     </p>
+              
                     <p className="mt-1 text-sm text-slate-500">
                       Os objetivos definidos pela equipa técnica aparecerão aqui.
                     </p>
                   </div>
                 ) : (
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {summary.activeObjectives.slice(0, 4).map((objective) => (
-                      <ObjectiveCard
-                        key={
-                          objective.id ||
-                          objective._id ||
-                          objective.title
-                        }
-                        objective={objective}
-                      />
-                    ))}
+                  <div className="space-y-5">
+                    {summary.activeObjectives.length > 0 && (
+                      <div>
+                        <div className="mb-3 flex items-center justify-between">
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                            Em desenvolvimento
+                          </p>
+              
+                          <Badge
+                            variant="outline"
+                            className="border-amber-200 bg-amber-50 text-amber-700"
+                          >
+                            {
+                              summary
+                                .activeObjectives
+                                .length
+                            }
+                          </Badge>
+                        </div>
+              
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {summary.activeObjectives
+                            .slice(0, 4)
+                            .map(
+                              (objective) => (
+                                <ObjectiveCard
+                                  key={
+                                    objective.id ||
+                                    objective._id ||
+                                    objective.title
+                                  }
+                                  objective={
+                                    objective
+                                  }
+                                />
+                              )
+                            )}
+                        </div>
+                      </div>
+                    )}
+              
+                    {summary.completedObjectives.length >
+                      0 && (
+                      <div>
+                        <div className="mb-3 flex items-center justify-between">
+                          <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">
+                            Concluídos
+                          </p>
+              
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                          >
+                            {
+                              summary
+                                .completedObjectives
+                                .length
+                            }
+                          </Badge>
+                        </div>
+              
+                        <div className="grid gap-3 md:grid-cols-2">
+                          {summary.completedObjectives
+                            .slice(0, 4)
+                            .map(
+                              (objective) => (
+                                <ObjectiveCard
+                                  key={
+                                    objective.id ||
+                                    objective._id ||
+                                    objective.title
+                                  }
+                                  objective={
+                                    objective
+                                  }
+                                />
+                              )
+                            )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
