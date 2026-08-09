@@ -23139,13 +23139,14 @@ async def create_bulk_evaluations_from_plan(
         )
     
         share_with_development_circle = bool(
-            item.share_with_player or
-            item.share_with_guardian or
-            payload.visibility in ["player", "guardian", "all"]
-        )
-    
-        evaluation = PlayerEvaluation(
-            ...
+            item.share_with_player
+            or item.share_with_guardian
+            or payload.visibility
+            in [
+                "player",
+                "guardian",
+                "all",
+            ]
         )
     
         evaluation = PlayerEvaluation(
@@ -23165,13 +23166,13 @@ async def create_bulk_evaluations_from_plan(
             overall_score=overall_score,
             created_by=current_user["id"]
         )
-
+    
         evaluation_dict = evaluation.model_dump()
-
+    
         evaluation_dict[
             "plan_id"
         ] = payload.plan_id
-        
+    
         evaluation_dict[
             "created_at"
         ] = (
@@ -23179,7 +23180,7 @@ async def create_bulk_evaluations_from_plan(
                 "created_at"
             ].isoformat()
         )
-        
+    
         evaluation_dict[
             "updated_at"
         ] = (
@@ -23187,7 +23188,7 @@ async def create_bulk_evaluations_from_plan(
                 "updated_at"
             ].isoformat()
         )
-        
+    
         evaluation_dict[
             "source"
         ] = (
@@ -23196,32 +23197,31 @@ async def create_bulk_evaluations_from_plan(
             == "pid_review"
             else "plan"
         )
-        
+    
         evaluation_dict[
             "created_batch_at"
         ] = now_iso
-        
-        
+    
         # ============================================================
         # Contexto da reavaliação PID
         # Sprint C3.6.6D.4B.3
         # ============================================================
-        
+    
         if pid_review:
             evaluation_dict[
                 "pid_id"
             ] = payload.pid_id
-        
+    
             evaluation_dict[
                 "pid_criterion_id"
             ] = (
                 payload.pid_criterion_id
             )
-        
+    
             evaluation_dict[
                 "evaluation_source"
             ] = "pid_review"
-        
+    
             evaluation_dict[
                 "pid_review_due_date"
             ] = (
@@ -23229,7 +23229,7 @@ async def create_bulk_evaluations_from_plan(
                     "next_review"
                 )
             )
-        
+    
             evaluation_dict[
                 "pid_version_at_evaluation"
             ] = (
@@ -23238,126 +23238,125 @@ async def create_bulk_evaluations_from_plan(
                     1,
                 )
             )
-        
-        
+    
         # ============================================================
         # Gravar avaliação
         # ============================================================
-        
+    
         await db.player_evaluations.insert_one(
             dict(
                 evaluation_dict
             )
         )
-        
+    
         evaluation_dict.pop(
             "_id",
             None
         )
-        
+    
         created.append(
             evaluation_dict
         )
-        
-        
-        # ============================================================
-        # FIM DO for item in payload.evaluations
-        # A PARTIR DAQUI O CÓDIGO TEM DE FICAR FORA DO FOR
-        # ============================================================
-        
-        
-        # ============================================================
-        # Fecho da reavaliação PID
-        # Sprint C3.6.6D.4B.3
-        # ============================================================
-        
-        if (
-            pid_review
-            and created
-        ):
-            review_completed_at = (
-                datetime.now(
-                    timezone.utc
-                )
+    
+    
+    # ============================================================
+    # FIM DO for item in payload.evaluations
+    # A PARTIR DAQUI O CÓDIGO FICA FORA DO FOR
+    # ============================================================
+    
+    
+    # ============================================================
+    # Fecho da reavaliação PID
+    # Sprint C3.6.6D.4B.3
+    # ============================================================
+    
+    if (
+        pid_review
+        and created
+    ):
+        review_completed_at = (
+            datetime.now(
+                timezone.utc
             )
-        
-            current_pid_version = int(
-                pid_review.get(
-                    "current_version",
-                    1,
-                )
-                or 1
+        )
+    
+        current_pid_version = int(
+            pid_review.get(
+                "current_version",
+                1,
             )
-        
-            pid_update = {
-                "last_review":
-                    review_completed_at,
-        
-                "next_review":
-                    None,
-        
-                "updated_at":
-                    review_completed_at,
-        
-                "current_version":
-                    current_pid_version + 1,
-        
-                "last_review_evaluation_id":
-                    created[0].get(
-                        "id"
-                    ),
-        
-                "last_review_criterion_id":
-                    payload.pid_criterion_id,
-        
-                "last_review_completed_by":
-                    current_user.get(
-                        "id"
-                    ),
-        
-                "last_review_source":
-                    "pid_review",
-            }
-        
-            result = (
-                await db.evaluation_pids.update_one(
-                    {
-                        "id":
-                            payload.pid_id,
-        
-                        "archived":
-                            False,
-                    },
-                    {
-                        "$set":
-                            pid_update,
-                    },
-                )
-            )
-        
-            if (
-                result.matched_count == 0
-            ):
-                raise HTTPException(
-                    status_code=404,
-                    detail=(
-                        "A avaliação foi criada, "
-                        "mas não foi possível atualizar o PID"
-                    ),
-                )
-        
-        
-        return {
-            "message":
-                "Avaliações criadas",
-        
-            "created_count":
-                len(created),
-        
-            "evaluations":
-                created,
+            or 1
+        )
+    
+        pid_update = {
+            "last_review":
+                review_completed_at,
+    
+            "next_review":
+                None,
+    
+            "updated_at":
+                review_completed_at,
+    
+            "current_version":
+                current_pid_version + 1,
+    
+            "last_review_evaluation_id":
+                created[0].get(
+                    "id"
+                ),
+    
+            "last_review_criterion_id":
+                payload.pid_criterion_id,
+    
+            "last_review_completed_by":
+                current_user.get(
+                    "id"
+                ),
+    
+            "last_review_source":
+                "pid_review",
         }
-        
+    
+        result = (
+            await db.evaluation_pids.update_one(
+                {
+                    "id":
+                        payload.pid_id,
+    
+                    "archived":
+                        False,
+                },
+                {
+                    "$set":
+                        pid_update,
+                },
+            )
+        )
+    
+        if (
+            result.matched_count == 0
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail=(
+                    "A avaliação foi criada, "
+                    "mas não foi possível atualizar o PID"
+                ),
+            )
+    
+    
+    return {
+        "message":
+            "Avaliações criadas",
+    
+        "created_count":
+            len(created),
+    
+        "evaluations":
+            created,
+    }
+
 @api_router.get("/evaluations/team/{team_id}/summary")
 async def get_team_evaluation_summary(
     team_id: str,
