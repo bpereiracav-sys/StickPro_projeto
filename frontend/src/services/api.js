@@ -554,23 +554,31 @@ export const evaluationsApi = {
     ),
 
   ensurePIDReviewPlan: (data) =>
-    api.post(
-      '/evaluations/pid-review-plan',
-      data
-    ),
+  api.post(
+    '/evaluations/pid-review-plan',
+    data
+  ),
   
   activateIntelligentPIDPlan: (
     pidId,
     data
   ) =>
-    api.post(
-      `/evaluations/pids/${pidId}/activate-intelligent-plan`,
-      data
-    ),
+  api.post(
+    `/evaluations/pids/${pidId}/activate-intelligent-plan`,
+    data
+  ),
+  
+  decidePIDRenewal: (
+    pidId,
+    data
+  ) =>
+  api.post(
+    `/evaluations/pids/${pidId}/renewal-decision`,
+    data
+  ),
   
   archivePID: (pidId) =>
-    api.patch(`/evaluations/pids/${pidId}/archive`),
-};
+  api.patch(`/evaluations/pids/${pidId}/archive`),
 
 // Dashboard API
 export const dashboardApi = {
