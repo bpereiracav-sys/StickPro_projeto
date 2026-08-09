@@ -1922,6 +1922,16 @@ class BulkEvaluationFromPlanCreate(BaseModel):
     event_id: Optional[str] = None
     period_label: Optional[str] = None
     visibility: EvaluationVisibility = "coach_only"
+
+    # ========================================================
+    # PID Review Context
+    # Sprint C3.6.6D.4B.3
+    # ========================================================
+
+    pid_id: Optional[str] = None
+    pid_criterion_id: Optional[str] = None
+    evaluation_source: Optional[str] = None
+
     evaluations: List[PlayerEvaluationFromPlanItem] = []
 
 
