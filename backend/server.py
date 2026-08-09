@@ -21550,14 +21550,91 @@ async def sync_pid_objective_from_latest_review(
     }
 
     if objective_completed:
-        objective_update[
+        intelligent_plan[
+            "planStatus"
+        ] = "completed"
+    
+        intelligent_plan[
+            "completedAt"
+        ] = review_date
+    
+        intelligent_plan[
+            "completionReason"
+        ] = "target_achieved"
+    
+        intelligent_plan[
+            "completionScore"
+        ] = reviewed_score
+    
+        intelligent_plan[
+            "completionTarget"
+        ] = target_value
+    
+        operational_progress = dict(
+            intelligent_plan.get(
+                "operationalProgress"
+            )
+            or {}
+        )
+    
+        operational_progress[
             "status"
         ] = "completed"
-
-        objective_update[
-            "completed_at"
+    
+        operational_progress[
+            "completedAt"
         ] = review_date
+    
+        operational_progress[
+            "completionReason"
+        ] = "target_achieved"
+    
+        operational_progress[
+            "currentPhaseId"
+        ] = None
+    
+        intelligent_plan[
+            "operationalProgress"
+        ] = operational_progress
 
+        phases = []
+    
+        for phase in (
+            intelligent_plan.get(
+                "phases"
+            )
+            or []
+        ):
+            phase_copy = dict(
+                phase
+            )
+    
+            if (
+                phase_copy.get(
+                    "status"
+                )
+                == "active"
+            ):
+                phase_copy[
+                    "status"
+                ] = "completed"
+    
+                phase_copy[
+                    "completedAt"
+                ] = review_date
+    
+                phase_copy[
+                    "completionReason"
+                ] = "target_achieved"
+    
+            phases.append(
+                phase_copy
+            )
+    
+        intelligent_plan[
+            "phases"
+        ] = phases
+    
     await db.evaluation_objectives.update_one(
         {
             "id":
@@ -21650,6 +21727,13 @@ async def sync_pid_objective_from_latest_review(
                 "intelligent_plan":
                     intelligent_plan,
 
+                "intelligent_plan_status":
+                    (
+                        "completed"
+                        if objective_completed
+                        else "review"
+                    ),
+                
                 "intelligent_plan_updated_at":
                     now,
 
@@ -21678,7 +21762,15 @@ async def sync_pid_objective_from_latest_review(
     pid[
         "intelligent_plan"
     ] = intelligent_plan
-
+    
+    pid[
+        "intelligent_plan_status"
+    ] = (
+        "completed"
+        if objective_completed
+        else "review"
+    )
+    
     pid[
         "next_review"
     ] = None
