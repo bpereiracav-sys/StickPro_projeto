@@ -21359,6 +21359,339 @@ async def attach_legacy_objectives_to_pid(
         },
     )
 
+async def sync_pid_objective_from_latest_review(
+    *,
+    pid: dict,
+) -> dict:
+    """
+    Reconcilia o PID com a reavaliação PID mais recente.
+
+    Permite aplicar retroativamente avaliações já realizadas
+    antes da introdução da sincronização automática do objetivo.
+    """
+
+    if not pid:
+        return pid
+
+    pid_id = pid.get(
+        "id"
+    )
+
+    player_id = pid.get(
+        "player_id"
+    )
+
+    if (
+        not pid_id
+        or not player_id
+    ):
+        return pid
+
+    # --------------------------------------------------------
+    # Procurar a reavaliação PID mais recente
+    # --------------------------------------------------------
+
+    latest_review = (
+        await db.player_evaluations.find_one(
+            {
+                "pid_id":
+                    pid_id,
+
+                "$or": [
+                    {
+                        "evaluation_source":
+                            "pid_review"
+                    },
+                    {
+                        "source":
+                            "pid_review"
+                    },
+                ],
+            },
+            {
+                "_id": 0,
+            },
+            sort=[
+                (
+                    "created_at",
+                    -1,
+                )
+            ],
+        )
+    )
+
+    if not latest_review:
+        return pid
+
+    criterion_id = (
+        latest_review.get(
+            "pid_criterion_id"
+        )
+    )
+
+    if not criterion_id:
+        return pid
+
+    # --------------------------------------------------------
+    # Extrair a pontuação do critério reavaliado
+    # --------------------------------------------------------
+
+    reviewed_score = None
+
+    for score_item in (
+        latest_review.get(
+            "scores"
+        )
+        or []
+    ):
+        if (
+            str(
+                score_item.get(
+                    "criterion_id"
+                )
+            )
+            ==
+            str(
+                criterion_id
+            )
+        ):
+            try:
+                reviewed_score = float(
+                    score_item.get(
+                        "score"
+                    )
+                )
+            except (
+                TypeError,
+                ValueError,
+            ):
+                reviewed_score = None
+
+            break
+
+    if reviewed_score is None:
+        return pid
+
+    # --------------------------------------------------------
+    # Localizar o objetivo correspondente
+    # --------------------------------------------------------
+
+    objective = (
+        await db.evaluation_objectives.find_one(
+            {
+                "player_id":
+                    player_id,
+
+                "pid_id":
+                    pid_id,
+
+                "criterion_id":
+                    criterion_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    if not objective:
+        return pid
+
+    try:
+        target_value = float(
+            objective.get(
+                "target_value"
+            )
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        target_value = None
+
+    review_date = (
+        latest_review.get(
+            "created_at"
+        )
+        or latest_review.get(
+            "evaluation_date"
+        )
+        or datetime.now(
+            timezone.utc
+        ).isoformat()
+    )
+
+    objective_completed = (
+        target_value
+        is not None
+        and reviewed_score
+        >= target_value
+    )
+
+    objective_update = {
+        "current_value":
+            reviewed_score,
+
+        "current_score":
+            reviewed_score,
+
+        "last_evaluation_id":
+            latest_review.get(
+                "id"
+            ),
+
+        "last_evaluation_at":
+            review_date,
+
+        "updated_at":
+            datetime.now(
+                timezone.utc
+            ).isoformat(),
+    }
+
+    if objective_completed:
+        objective_update[
+            "status"
+        ] = "completed"
+
+        objective_update[
+            "completed_at"
+        ] = review_date
+
+    await db.evaluation_objectives.update_one(
+        {
+            "id":
+                objective.get(
+                    "id"
+                )
+        },
+        {
+            "$set":
+                objective_update
+        },
+    )
+
+    # --------------------------------------------------------
+    # Sincronizar também o Plano Inteligente
+    # --------------------------------------------------------
+
+    intelligent_plan = dict(
+        pid.get(
+            "intelligent_plan"
+        )
+        or {}
+    )
+
+    intelligent_plan[
+        "lastReviewScore"
+    ] = reviewed_score
+
+    intelligent_plan[
+        "lastReviewAt"
+    ] = review_date
+
+    intelligent_plan[
+        "lastReviewEvaluationId"
+    ] = latest_review.get(
+        "id"
+    )
+
+    intelligent_plan[
+        "reviewStatus"
+    ] = (
+        "completed"
+        if objective_completed
+        else "reviewed"
+    )
+
+    # A antiga data deixou de ser um prazo pendente.
+    review_data = dict(
+        intelligent_plan.get(
+            "review"
+        )
+        or {}
+    )
+
+    review_data[
+        "recommendedDate"
+    ] = None
+
+    review_data[
+        "completedAt"
+    ] = review_date
+
+    review_data[
+        "completedScore"
+    ] = reviewed_score
+
+    intelligent_plan[
+        "review"
+    ] = review_data
+
+    if objective_completed:
+        intelligent_plan[
+            "planStatus"
+        ] = "completed"
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    await db.evaluation_pids.update_one(
+        {
+            "id":
+                pid_id,
+
+            "archived":
+                False,
+        },
+        {
+            "$set": {
+                "intelligent_plan":
+                    intelligent_plan,
+
+                "intelligent_plan_updated_at":
+                    now,
+
+                "last_review":
+                    (
+                        pid.get(
+                            "last_review"
+                        )
+                        or review_date
+                    ),
+
+                "next_review":
+                    None,
+
+                "updated_at":
+                    now,
+            }
+        },
+    )
+
+    # --------------------------------------------------------
+    # Atualizar também o objeto já carregado,
+    # para a resposta desta mesma chamada vir sincronizada.
+    # --------------------------------------------------------
+
+    pid[
+        "intelligent_plan"
+    ] = intelligent_plan
+
+    pid[
+        "next_review"
+    ] = None
+
+    if not pid.get(
+        "last_review"
+    ):
+        pid[
+            "last_review"
+        ] = review_date
+
+    return pid
+
 def validate_objective_payload(
     payload: dict,
     partial: bool = False,
@@ -22007,6 +22340,12 @@ async def get_player_objectives(
         pid=pid,
     )
 
+    pid = (
+        await sync_pid_objective_from_latest_review(
+            pid=pid,
+        )
+    )
+    
     objectives = await db.evaluation_objectives.find(
         {
             "player_id": player_id,
