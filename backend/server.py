@@ -21528,6 +21528,25 @@ async def sync_pid_objective_from_latest_review(
         >= target_value
     )
 
+    now = datetime.now(
+        timezone.utc
+    )
+
+    # --------------------------------------------------------
+    # Carregar Plano Inteligente ANTES de o modificar
+    # --------------------------------------------------------
+
+    intelligent_plan = dict(
+        pid.get(
+            "intelligent_plan"
+        )
+        or {}
+    )
+
+    # --------------------------------------------------------
+    # Atualizar resultado atual do objetivo
+    # --------------------------------------------------------
+
     objective_update = {
         "current_value":
             reviewed_score,
@@ -21544,61 +21563,73 @@ async def sync_pid_objective_from_latest_review(
             review_date,
 
         "updated_at":
-            datetime.now(
-                timezone.utc
-            ).isoformat(),
+            now.isoformat(),
     }
 
+    # --------------------------------------------------------
+    # Fechar objetivo e Plano Inteligente
+    # quando a meta foi atingida
+    # Sprint C3.6.6D.4B.3B
+    # --------------------------------------------------------
+
     if objective_completed:
+        objective_update[
+            "status"
+        ] = "completed"
+
+        objective_update[
+            "completed_at"
+        ] = review_date
+
         intelligent_plan[
             "planStatus"
         ] = "completed"
-    
+
         intelligent_plan[
             "completedAt"
         ] = review_date
-    
+
         intelligent_plan[
             "completionReason"
         ] = "target_achieved"
-    
+
         intelligent_plan[
             "completionScore"
         ] = reviewed_score
-    
+
         intelligent_plan[
             "completionTarget"
         ] = target_value
-    
+
         operational_progress = dict(
             intelligent_plan.get(
                 "operationalProgress"
             )
             or {}
         )
-    
+
         operational_progress[
             "status"
         ] = "completed"
-    
+
         operational_progress[
             "completedAt"
         ] = review_date
-    
+
         operational_progress[
             "completionReason"
         ] = "target_achieved"
-    
+
         operational_progress[
             "currentPhaseId"
         ] = None
-    
+
         intelligent_plan[
             "operationalProgress"
         ] = operational_progress
 
         phases = []
-    
+
         for phase in (
             intelligent_plan.get(
                 "phases"
@@ -21608,7 +21639,7 @@ async def sync_pid_objective_from_latest_review(
             phase_copy = dict(
                 phase
             )
-    
+
             if (
                 phase_copy.get(
                     "status"
@@ -21618,23 +21649,27 @@ async def sync_pid_objective_from_latest_review(
                 phase_copy[
                     "status"
                 ] = "completed"
-    
+
                 phase_copy[
                     "completedAt"
                 ] = review_date
-    
+
                 phase_copy[
                     "completionReason"
                 ] = "target_achieved"
-    
+
             phases.append(
                 phase_copy
             )
-    
+
         intelligent_plan[
             "phases"
         ] = phases
-    
+
+    # --------------------------------------------------------
+    # Guardar atualização do objetivo
+    # --------------------------------------------------------
+
     await db.evaluation_objectives.update_one(
         {
             "id":
@@ -21649,15 +21684,8 @@ async def sync_pid_objective_from_latest_review(
     )
 
     # --------------------------------------------------------
-    # Sincronizar também o Plano Inteligente
+    # Registar resultado da reavaliação no Plano Inteligente
     # --------------------------------------------------------
-
-    intelligent_plan = dict(
-        pid.get(
-            "intelligent_plan"
-        )
-        or {}
-    )
 
     intelligent_plan[
         "lastReviewScore"
@@ -21681,7 +21709,10 @@ async def sync_pid_objective_from_latest_review(
         else "reviewed"
     )
 
-    # A antiga data deixou de ser um prazo pendente.
+    # --------------------------------------------------------
+    # Fechar a revisão que originou esta reavaliação
+    # --------------------------------------------------------
+
     review_data = dict(
         intelligent_plan.get(
             "review"
@@ -21705,14 +21736,9 @@ async def sync_pid_objective_from_latest_review(
         "review"
     ] = review_data
 
-    if objective_completed:
-        intelligent_plan[
-            "planStatus"
-        ] = "completed"
-
-    now = datetime.now(
-        timezone.utc
-    )
+    # --------------------------------------------------------
+    # Atualizar PID
+    # --------------------------------------------------------
 
     await db.evaluation_pids.update_one(
         {
@@ -21733,7 +21759,7 @@ async def sync_pid_objective_from_latest_review(
                         if objective_completed
                         else "review"
                     ),
-                
+
                 "intelligent_plan_updated_at":
                     now,
 
@@ -21755,14 +21781,13 @@ async def sync_pid_objective_from_latest_review(
     )
 
     # --------------------------------------------------------
-    # Atualizar também o objeto já carregado,
-    # para a resposta desta mesma chamada vir sincronizada.
+    # Atualizar também o objeto já carregado
     # --------------------------------------------------------
 
     pid[
         "intelligent_plan"
     ] = intelligent_plan
-    
+
     pid[
         "intelligent_plan_status"
     ] = (
@@ -21770,7 +21795,7 @@ async def sync_pid_objective_from_latest_review(
         if objective_completed
         else "review"
     )
-    
+
     pid[
         "next_review"
     ] = None
@@ -21783,7 +21808,6 @@ async def sync_pid_objective_from_latest_review(
         ] = review_date
 
     return pid
-
 def validate_objective_payload(
     payload: dict,
     partial: bool = False,
