@@ -2294,8 +2294,12 @@ export default function DevelopmentPID() {
             </section>
           )}
 
-          {intelligentPlan?.renewalStatus ===
-            'proposal_pending' &&
+          {[
+            'proposal_pending',
+            'adjusted',
+          ].includes(
+            intelligentPlan?.renewalStatus
+          ) &&
             intelligentPlan?.renewalProposal && (
               <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-5">
                 <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -2337,7 +2341,16 @@ export default function DevelopmentPID() {
                     variant="outline"
                     className="w-fit border-amber-200 bg-amber-50 text-amber-700"
                   >
-                    A aguardar decisão
+                    {intelligentPlan
+                      ?.renewalProposal
+                      ?.status ===
+                    'pending_confirmation'
+                      ? 'Ajustada · aguarda confirmação'
+                      : intelligentPlan
+                          ?.renewalStatus ===
+                        'adjusted'
+                        ? 'Ajustada · aguarda confirmação'
+                        : 'A aguardar decisão'}
                   </Badge>
                 </div>
           
