@@ -2311,7 +2311,7 @@ export default function DevelopmentPID() {
                       >
                         Próximo passo sugerido
                       </Badge>
-          
+                
                       <Badge
                         variant="outline"
                         className="border-cyan-200 bg-cyan-50 text-cyan-700"
@@ -2319,7 +2319,7 @@ export default function DevelopmentPID() {
                         Development Engine
                       </Badge>
                     </div>
-          
+                
                     <h3 className="mt-3 text-lg font-bold text-slate-900">
                       {
                         intelligentPlan
@@ -2327,7 +2327,7 @@ export default function DevelopmentPID() {
                           .title
                       }
                     </h3>
-          
+                
                     <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
                       {
                         intelligentPlan
@@ -2336,7 +2336,7 @@ export default function DevelopmentPID() {
                       }
                     </p>
                   </div>
-          
+                
                   <Badge
                     variant="outline"
                     className="w-fit border-amber-200 bg-amber-50 text-amber-700"
@@ -2353,7 +2353,7 @@ export default function DevelopmentPID() {
                         : 'A aguardar decisão'}
                   </Badge>
                 </div>
-          
+                
                 <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                   <div className="rounded-xl border border-slate-100 bg-white p-3">
                     <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
