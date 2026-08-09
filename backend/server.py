@@ -23168,15 +23168,21 @@ async def create_bulk_evaluations_from_plan(
 
         evaluation_dict = evaluation.model_dump()
 
-        evaluation_dict["plan_id"] = payload.plan_id
+        evaluation_dict[
+            "plan_id"
+        ] = payload.plan_id
         
-        evaluation_dict["created_at"] = (
+        evaluation_dict[
+            "created_at"
+        ] = (
             evaluation_dict[
                 "created_at"
             ].isoformat()
         )
         
-        evaluation_dict["updated_at"] = (
+        evaluation_dict[
+            "updated_at"
+        ] = (
             evaluation_dict[
                 "updated_at"
             ].isoformat()
@@ -23194,6 +23200,12 @@ async def create_bulk_evaluations_from_plan(
         evaluation_dict[
             "created_batch_at"
         ] = now_iso
+        
+        
+        # ============================================================
+        # Contexto da reavaliação PID
+        # Sprint C3.6.6D.4B.3
+        # ============================================================
         
         if pid_review:
             evaluation_dict[
@@ -23227,6 +23239,11 @@ async def create_bulk_evaluations_from_plan(
                 )
             )
         
+        
+        # ============================================================
+        # Gravar avaliação
+        # ============================================================
+        
         await db.player_evaluations.insert_one(
             dict(
                 evaluation_dict
@@ -23241,6 +23258,94 @@ async def create_bulk_evaluations_from_plan(
         created.append(
             evaluation_dict
         )
+        
+        
+        # ============================================================
+        # FIM DO for item in payload.evaluations
+        # A PARTIR DAQUI O CÓDIGO TEM DE FICAR FORA DO FOR
+        # ============================================================
+        
+        
+        # ============================================================
+        # Fecho da reavaliação PID
+        # Sprint C3.6.6D.4B.3
+        # ============================================================
+        
+        if (
+            pid_review
+            and created
+        ):
+            review_completed_at = (
+                datetime.now(
+                    timezone.utc
+                )
+            )
+        
+            current_pid_version = int(
+                pid_review.get(
+                    "current_version",
+                    1,
+                )
+                or 1
+            )
+        
+            pid_update = {
+                "last_review":
+                    review_completed_at,
+        
+                "next_review":
+                    None,
+        
+                "updated_at":
+                    review_completed_at,
+        
+                "current_version":
+                    current_pid_version + 1,
+        
+                "last_review_evaluation_id":
+                    created[0].get(
+                        "id"
+                    ),
+        
+                "last_review_criterion_id":
+                    payload.pid_criterion_id,
+        
+                "last_review_completed_by":
+                    current_user.get(
+                        "id"
+                    ),
+        
+                "last_review_source":
+                    "pid_review",
+            }
+        
+            result = (
+                await db.evaluation_pids.update_one(
+                    {
+                        "id":
+                            payload.pid_id,
+        
+                        "archived":
+                            False,
+                    },
+                    {
+                        "$set":
+                            pid_update,
+                    },
+                )
+            )
+        
+            if (
+                result.matched_count == 0
+            ):
+                raise HTTPException(
+                    status_code=404,
+                    detail=(
+                        "A avaliação foi criada, "
+                        "mas não foi possível atualizar o PID"
+                    ),
+                )
+        
         
         return {
             "message":
