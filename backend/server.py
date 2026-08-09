@@ -23372,28 +23372,20 @@ async def create_bulk_evaluations_from_plan(
                             pid_review.get(
                                 "player_id"
                             ),
-    
+        
                         "pid_id":
                             pid_review.get(
                                 "id"
                             ),
-    
+        
                         "criterion_id":
                             payload.pid_criterion_id,
-    
-                        "status": {
-                            "$in": [
-                                "active",
-                                "paused",
-                            ]
-                        },
                     },
                     {
                         "_id": 0,
                     },
                 )
-            )
-    
+            )    
         objective_completed = False
     
         if (
