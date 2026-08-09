@@ -22917,6 +22917,54 @@ async def create_bulk_evaluations_from_plan(
         if event.get("team_id") and event.get("team_id") != payload.team_id:
             raise HTTPException(status_code=400, detail="O evento pertence a outra equipa")
 
+    # ============================================================
+    # PID Review Validation
+    # Sprint C3.6.6D.4B.3
+    # ============================================================
+    
+    pid_review = None
+    
+    if payload.evaluation_source == "pid_review":
+        if not payload.pid_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Reavaliação PID sem PID associado",
+            )
+    
+        if not payload.pid_criterion_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Reavaliação PID sem critério associado",
+            )
+    
+        pid_review = (
+            await db.evaluation_pids.find_one(
+                {
+                    "id": payload.pid_id,
+                    "archived": False,
+                },
+                {
+                    "_id": 0,
+                },
+            )
+        )
+    
+        if not pid_review:
+            raise HTTPException(
+                status_code=404,
+                detail="PID associado à reavaliação não encontrado",
+            )
+    
+        if (
+            pid_review.get("team_id")
+            and str(pid_review.get("team_id"))
+            != str(payload.team_id)
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="O PID pertence a outra equipa",
+            )
+    
     team_players = (
         await get_team_players_for_evaluation(
             payload.team_id,
@@ -22950,6 +22998,32 @@ async def create_bulk_evaluations_from_plan(
                 )
             ),
         )
+    
+    if pid_review:
+        pid_player_id = (
+            pid_review.get(
+                "player_id"
+            )
+        )
+    
+        if (
+            not pid_player_id
+            or len(
+                requested_player_ids
+            ) != 1
+            or str(
+                requested_player_ids[0]
+            ) != str(
+                pid_player_id
+            )
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "A reavaliação PID apenas pode ser "
+                    "registada para o atleta associado ao PID"
+                ),
+            )
     
     requested_players = [
         players_map[player_id]
@@ -23093,24 +23167,92 @@ async def create_bulk_evaluations_from_plan(
         )
 
         evaluation_dict = evaluation.model_dump()
+
         evaluation_dict["plan_id"] = payload.plan_id
-        evaluation_dict["created_at"] = evaluation_dict["created_at"].isoformat()
-        evaluation_dict["updated_at"] = evaluation_dict["updated_at"].isoformat()
-        evaluation_dict["source"] = "plan"
-        evaluation_dict["created_batch_at"] = now_iso
-
-        await db.player_evaluations.insert_one(dict(evaluation_dict))
-
-        evaluation_dict.pop("_id", None)
-        created.append(evaluation_dict)
-
-    return {
-        "message": "Avaliações criadas",
-        "created_count": len(created),
-        "evaluations": created,
-    }
-
-
+        
+        evaluation_dict["created_at"] = (
+            evaluation_dict[
+                "created_at"
+            ].isoformat()
+        )
+        
+        evaluation_dict["updated_at"] = (
+            evaluation_dict[
+                "updated_at"
+            ].isoformat()
+        )
+        
+        evaluation_dict[
+            "source"
+        ] = (
+            "pid_review"
+            if payload.evaluation_source
+            == "pid_review"
+            else "plan"
+        )
+        
+        evaluation_dict[
+            "created_batch_at"
+        ] = now_iso
+        
+        if pid_review:
+            evaluation_dict[
+                "pid_id"
+            ] = payload.pid_id
+        
+            evaluation_dict[
+                "pid_criterion_id"
+            ] = (
+                payload.pid_criterion_id
+            )
+        
+            evaluation_dict[
+                "evaluation_source"
+            ] = "pid_review"
+        
+            evaluation_dict[
+                "pid_review_due_date"
+            ] = (
+                pid_review.get(
+                    "next_review"
+                )
+            )
+        
+            evaluation_dict[
+                "pid_version_at_evaluation"
+            ] = (
+                pid_review.get(
+                    "current_version",
+                    1,
+                )
+            )
+        
+        await db.player_evaluations.insert_one(
+            dict(
+                evaluation_dict
+            )
+        )
+        
+        evaluation_dict.pop(
+            "_id",
+            None
+        )
+        
+        created.append(
+            evaluation_dict
+        )
+        
+        return {
+            "message":
+                "Avaliações criadas",
+        
+            "created_count":
+                len(created),
+        
+            "evaluations":
+                created,
+        }
+        
 @api_router.get("/evaluations/team/{team_id}/summary")
 async def get_team_evaluation_summary(
     team_id: str,
