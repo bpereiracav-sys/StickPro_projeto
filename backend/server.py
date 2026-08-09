@@ -1887,6 +1887,19 @@ class IntelligentPIDActivation(BaseModel):
 
     next_review: Optional[datetime] = None
 
+class PIDRenewalDecision(BaseModel):
+    action: Literal[
+        "approve",
+        "adjust",
+        "reject",
+    ]
+
+    adjusted_target: Optional[
+        float
+    ] = None
+
+    note: Optional[str] = None
+
 # ============================================================
 # Intelligent PID Operational Progress
 # Sprint C3.6.6D
@@ -19153,6 +19166,353 @@ async def activate_intelligent_pid_plan(
                 "O PID foi atualizado, "
                 "mas não foi possível recuperar "
                 "a nova versão"
+            ),
+        )
+
+    return updated_pid
+
+# ============================================================
+# PID Intelligent Renewal Decision
+# Sprint C3.6.6D.4B.3B.2
+# ============================================================
+
+@api_router.post(
+    "/evaluations/pids/{pid_id}/renewal-decision"
+)
+async def decide_pid_renewal(
+    pid_id: str,
+    decision: PIDRenewalDecision,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    checker = (
+        get_permission_checker(
+            current_user
+        )
+    )
+
+    # --------------------------------------------------------
+    # Apenas administração / equipa técnica.
+    # --------------------------------------------------------
+
+    if (
+        not checker.is_admin
+        and not checker.is_staff
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para decidir "
+                "a renovação deste PID"
+            ),
+        )
+
+    pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id":
+                    pid_id,
+
+                "archived":
+                    False,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    if not pid:
+        raise HTTPException(
+            status_code=404,
+            detail="PID não encontrado",
+        )
+
+    player_id = (
+        pid.get(
+            "player_id"
+        )
+    )
+
+    if (
+        not checker.is_admin
+        and player_id
+        and not checker.can_access_player(
+            player_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem acesso a este atleta"
+            ),
+        )
+
+    intelligent_plan = dict(
+        pid.get(
+            "intelligent_plan"
+        )
+        or {}
+    )
+
+    renewal_proposal = dict(
+        intelligent_plan.get(
+            "renewalProposal"
+        )
+        or {}
+    )
+
+    if not renewal_proposal:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Este PID não possui "
+                "uma proposta de renovação"
+            ),
+        )
+
+    current_renewal_status = (
+        intelligent_plan.get(
+            "renewalStatus"
+        )
+    )
+
+    if (
+        current_renewal_status
+        != "proposal_pending"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Esta proposta de renovação "
+                "já foi decidida"
+            ),
+        )
+
+    action = (
+        decision.action
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    # --------------------------------------------------------
+    # Ajustar proposta
+    # --------------------------------------------------------
+
+    if action == "adjust":
+        if (
+            decision.adjusted_target
+            is None
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Indica a nova meta "
+                    "para ajustar a proposta"
+                ),
+            )
+
+        try:
+            adjusted_target = float(
+                decision.adjusted_target
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Meta ajustada inválida",
+            )
+
+        scale_max = (
+            renewal_proposal.get(
+                "scaleMax"
+            )
+        )
+
+        try:
+            scale_max = float(
+                scale_max
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            scale_max = 5.0
+
+        if (
+            adjusted_target <= 0
+            or adjusted_target
+            > scale_max
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "A meta ajustada está "
+                    "fora da escala válida"
+                ),
+            )
+
+        renewal_proposal[
+            "suggestedTarget"
+        ] = adjusted_target
+
+        renewal_proposal[
+            "status"
+        ] = "adjusted"
+
+        renewal_proposal[
+            "decision"
+        ] = "adjust"
+
+        renewal_status = (
+            "adjusted"
+        )
+
+    # --------------------------------------------------------
+    # Aprovar proposta
+    # --------------------------------------------------------
+
+    elif action == "approve":
+        renewal_proposal[
+            "status"
+        ] = "approved"
+
+        renewal_proposal[
+            "decision"
+        ] = "approve"
+
+        renewal_status = (
+            "approved"
+        )
+
+    # --------------------------------------------------------
+    # Rejeitar proposta
+    # --------------------------------------------------------
+
+    elif action == "reject":
+        renewal_proposal[
+            "status"
+        ] = "rejected"
+
+        renewal_proposal[
+            "decision"
+        ] = "reject"
+
+        renewal_status = (
+            "rejected"
+        )
+
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Decisão de renovação inválida"
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Auditoria da decisão
+    # --------------------------------------------------------
+
+    renewal_proposal[
+        "decidedAt"
+    ] = now.isoformat()
+
+    renewal_proposal[
+        "decidedBy"
+    ] = current_user.get(
+        "id"
+    )
+
+    renewal_proposal[
+        "decisionNote"
+    ] = (
+        str(
+            decision.note
+        ).strip()
+        if decision.note
+        else None
+    )
+
+    intelligent_plan[
+        "renewalProposal"
+    ] = renewal_proposal
+
+    intelligent_plan[
+        "renewalStatus"
+    ] = renewal_status
+
+    intelligent_plan[
+        "renewalDecidedAt"
+    ] = now.isoformat()
+
+    intelligent_plan[
+        "renewalDecidedBy"
+    ] = current_user.get(
+        "id"
+    )
+
+    # --------------------------------------------------------
+    # Persistir decisão
+    # --------------------------------------------------------
+
+    current_version = int(
+        pid.get(
+            "current_version",
+            1,
+        )
+        or 1
+    )
+
+    await db.evaluation_pids.update_one(
+        {
+            "id":
+                pid_id,
+
+            "archived":
+                False,
+        },
+        {
+            "$set": {
+                "intelligent_plan":
+                    intelligent_plan,
+
+                "intelligent_plan_updated_at":
+                    now,
+
+                "updated_at":
+                    now,
+
+                "current_version":
+                    current_version + 1,
+            }
+        },
+    )
+
+    updated_pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id":
+                    pid_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    if not updated_pid:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "A decisão foi registada, "
+                "mas não foi possível recuperar "
+                "o PID atualizado"
             ),
         )
 
