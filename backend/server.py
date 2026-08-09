@@ -19363,14 +19363,14 @@ async def decide_pid_renewal(
 
         renewal_proposal[
             "status"
-        ] = "adjusted"
-
+        ] = "pending_confirmation"
+        
         renewal_proposal[
             "decision"
         ] = "adjust"
-
+        
         renewal_status = (
-            "adjusted"
+            "proposal_pending"
         )
 
     # --------------------------------------------------------
