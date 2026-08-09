@@ -673,6 +673,16 @@ export default function DevelopmentPID() {
     registeringSession,
     setRegisteringSession,
   ] = useState(false);
+
+  const [
+    decidingRenewal,
+    setDecidingRenewal,
+  ] = useState(false);
+  
+  const [
+    adjustedRenewalTarget,
+    setAdjustedRenewalTarget,
+  ] = useState('');
   
   const tr = (key, fallback) => {
     const translated = t(key);
@@ -1252,6 +1262,106 @@ export default function DevelopmentPID() {
     );
   }
 
+  const handleRenewalDecision =
+    async (
+      action
+    ) => {
+      if (
+        !pid?.id ||
+        !intelligentPlan
+          ?.renewalProposal
+      ) {
+        toast.error(
+          'Não foi possível identificar a proposta de renovação.'
+        );
+  
+        return;
+      }
+  
+      if (
+        action === 'adjust' &&
+        !adjustedRenewalTarget
+      ) {
+        toast.error(
+          'Indica a nova meta antes de ajustar a proposta.'
+        );
+  
+        return;
+      }
+  
+      setDecidingRenewal(true);
+  
+      try {
+        const payload = {
+          action,
+  
+          adjusted_target:
+            action === 'adjust'
+              ? Number(
+                  adjustedRenewalTarget
+                )
+              : null,
+  
+          note:
+            null,
+        };
+  
+        const response =
+          await evaluationsApi
+            .decidePIDRenewal(
+              pid.id,
+              payload
+            );
+  
+        const updatedPID =
+          response?.data;
+  
+        if (!updatedPID?.id) {
+          throw new Error(
+            'O backend não devolveu o PID atualizado.'
+          );
+        }
+  
+        setPid(
+          updatedPID
+        );
+  
+        if (
+          action ===
+          'approve'
+        ) {
+          toast.success(
+            'Proposta de renovação aprovada.'
+          );
+        } else if (
+          action ===
+          'adjust'
+        ) {
+          toast.success(
+            'Proposta de renovação ajustada.'
+          );
+        } else {
+          toast.success(
+            'Proposta de renovação rejeitada.'
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Error deciding PID renewal:',
+          error
+        );
+  
+        toast.error(
+          error?.response
+            ?.data?.detail ||
+            error?.message ||
+            'Não foi possível registar a decisão.'
+        );
+      } finally {
+        setDecidingRenewal(false);
+      }
+    };
+  
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
       <section className="relative overflow-hidden rounded-[1.75rem] border border-cyan-100 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 px-5 py-6 text-white shadow-xl shadow-slate-200/60 sm:px-7 sm:py-8 lg:px-9">
@@ -2299,6 +2409,126 @@ export default function DevelopmentPID() {
                     </p>
                   </div>
                 </div>
+          
+                {/* ======================================================
+                    Decisão técnica sobre a renovação
+                    Sprint C3.6.6D.4B.3B.2
+                    ====================================================== */}
+          
+                {canManage && (
+                  <div className="mt-5 rounded-2xl border border-slate-200 bg-white/80 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                      Decisão técnica
+                    </p>
+          
+                    {intelligentPlan
+                      ?.renewalProposal
+                      ?.type !==
+                      'new_priority' && (
+                      <div className="mt-3 max-w-xs">
+                        <label
+                          htmlFor="renewal-target"
+                          className="text-sm font-medium text-slate-700"
+                        >
+                          Nova meta
+                        </label>
+          
+                        <input
+                          id="renewal-target"
+                          type="number"
+                          step="0.1"
+                          min="1"
+                          max={
+                            intelligentPlan
+                              ?.renewalProposal
+                              ?.scaleMax ||
+                            5
+                          }
+                          value={
+                            adjustedRenewalTarget
+                          }
+                          onChange={(event) =>
+                            setAdjustedRenewalTarget(
+                              event.target.value
+                            )
+                          }
+                          placeholder={
+                            intelligentPlan
+                              ?.renewalProposal
+                              ?.suggestedTarget ??
+                            ''
+                          }
+                          className="mt-2 h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-cyan-400 focus:ring-2 focus:ring-cyan-100"
+                        />
+                      </div>
+                    )}
+          
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() =>
+                          handleRenewalDecision(
+                            'reject'
+                          )
+                        }
+                        disabled={
+                          decidingRenewal
+                        }
+                      >
+                        Rejeitar
+                      </Button>
+          
+                      {intelligentPlan
+                        ?.renewalProposal
+                        ?.type !==
+                        'new_priority' && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-full"
+                          onClick={() =>
+                            handleRenewalDecision(
+                              'adjust'
+                            )
+                          }
+                          disabled={
+                            decidingRenewal
+                          }
+                        >
+                          Ajustar
+                        </Button>
+                      )}
+          
+                      <Button
+                        type="button"
+                        className="rounded-full bg-cyan-600 text-white hover:bg-cyan-700"
+                        onClick={() =>
+                          handleRenewalDecision(
+                            'approve'
+                          )
+                        }
+                        disabled={
+                          decidingRenewal
+                        }
+                      >
+                        {decidingRenewal ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            A guardar...
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            Aprovar
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+          
               </div>
             )}
           
