@@ -2183,6 +2183,124 @@ export default function DevelopmentPID() {
               </Card>
             </section>
           )}
+
+          {intelligentPlan?.renewalStatus ===
+            'proposal_pending' &&
+            intelligentPlan?.renewalProposal && (
+              <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="border-violet-200 bg-white text-violet-700"
+                      >
+                        Próximo passo sugerido
+                      </Badge>
+          
+                      <Badge
+                        variant="outline"
+                        className="border-cyan-200 bg-cyan-50 text-cyan-700"
+                      >
+                        Development Engine
+                      </Badge>
+                    </div>
+          
+                    <h3 className="mt-3 text-lg font-bold text-slate-900">
+                      {
+                        intelligentPlan
+                          .renewalProposal
+                          .title
+                      }
+                    </h3>
+          
+                    <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+                      {
+                        intelligentPlan
+                          .renewalProposal
+                          .reason
+                      }
+                    </p>
+                  </div>
+          
+                  <Badge
+                    variant="outline"
+                    className="w-fit border-amber-200 bg-amber-50 text-amber-700"
+                  >
+                    A aguardar decisão
+                  </Badge>
+                </div>
+          
+                <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                  <div className="rounded-xl border border-slate-100 bg-white p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Competência
+                    </p>
+          
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {
+                        intelligentPlan
+                          .renewalProposal
+                          .sourceCriterionName ||
+                        '—'
+                      }
+                    </p>
+                  </div>
+          
+                  <div className="rounded-xl border border-slate-100 bg-white p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Resultado
+                    </p>
+          
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {
+                        intelligentPlan
+                          .renewalProposal
+                          .reviewScore ??
+                        '—'
+                      }
+                    </p>
+                  </div>
+          
+                  <div className="rounded-xl border border-slate-100 bg-white p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Meta anterior
+                    </p>
+          
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {
+                        intelligentPlan
+                          .renewalProposal
+                          .previousTarget ??
+                        '—'
+                      }
+                    </p>
+                  </div>
+          
+                  <div className="rounded-xl border border-slate-100 bg-white p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      Próxima orientação
+                    </p>
+          
+                    <p className="mt-1 text-sm font-semibold text-slate-800">
+                      {
+                        intelligentPlan
+                          .renewalProposal
+                          .type ===
+                        'consolidate'
+                          ? 'Consolidar'
+                          : intelligentPlan
+                              .renewalProposal
+                              .type ===
+                            'raise_target'
+                            ? 'Elevar meta'
+                            : 'Nova prioridade'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           
           <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
             <Card className="border-slate-200 bg-white shadow-sm">
