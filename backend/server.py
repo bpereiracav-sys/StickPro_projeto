@@ -22105,7 +22105,63 @@ async def sync_pid_objective_from_latest_review(
     # Fica pendente de validação pela equipa técnica.
     # --------------------------------------------------------
     
-    if objective_completed:
+    existing_renewal_proposal = (
+        intelligent_plan.get(
+            "renewalProposal"
+        )
+        or {}
+    )
+
+    existing_renewal_status = (
+        intelligent_plan.get(
+            "renewalStatus"
+        )
+    )
+
+    existing_source_evaluation_id = (
+        existing_renewal_proposal.get(
+            "sourceEvaluationId"
+        )
+    )
+
+    current_evaluation_id = (
+        latest_review.get(
+            "id"
+        )
+    )
+
+    renewal_already_decided = (
+        existing_renewal_status
+        in {
+            "approved",
+            "rejected",
+        }
+    )
+
+    renewal_waiting_confirmation = (
+        existing_renewal_status
+        in {
+            "adjusted",
+        }
+        or existing_renewal_proposal.get(
+            "status"
+        )
+        == "pending_confirmation"
+    )
+
+    same_review_proposal = (
+        existing_source_evaluation_id
+        == current_evaluation_id
+    )
+
+    should_generate_renewal = (
+        objective_completed
+        and not renewal_already_decided
+        and not renewal_waiting_confirmation
+        and not same_review_proposal
+    )
+
+    if should_generate_renewal:
         criterion = (
             await db.evaluation_criteria.find_one(
                 {
@@ -22267,6 +22323,11 @@ async def sync_pid_objective_from_latest_review(
         renewal_proposal = {
             "status":
                 "pending",
+
+            "sourceEvaluationId":
+                latest_review.get(
+                    "id"
+                ),
     
             "type":
                 renewal_type,
