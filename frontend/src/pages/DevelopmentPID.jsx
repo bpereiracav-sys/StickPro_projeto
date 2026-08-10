@@ -1058,9 +1058,12 @@ export default function DevelopmentPID() {
       (objective) => objective?.status === 'completed'
     );
 
-    const progressValues = activeObjectives
-      .map(getObjectiveProgress)
-      .filter(Number.isFinite);
+    const progressValues = [
+    ...activeObjectives,
+    ...completedObjectives,
+  ]
+    .map(getObjectiveProgress)
+    .filter(Number.isFinite);
 
     const averageProgress = progressValues.length
       ? progressValues.reduce((sum, value) => sum + value, 0) /
