@@ -1263,13 +1263,13 @@ export default function DevelopmentPID() {
   }
 
   const handleRenewalDecision =
-    async (
-      action
-    ) => {
+    async (action) => {
+      const renewalProposal =
+        intelligentPlan?.renewalProposal;
+  
       if (
         !pid?.id ||
-        !intelligentPlan
-          ?.renewalProposal
+        !renewalProposal
       ) {
         toast.error(
           'Não foi possível identificar a proposta de renovação.'
@@ -1279,17 +1279,60 @@ export default function DevelopmentPID() {
       }
   
       if (
-        action === 'adjust' &&
-        !adjustedRenewalTarget
+        action === 'adjust'
       ) {
-        toast.error(
-          'Indica a nova meta antes de ajustar a proposta.'
-        );
+        const nextTarget =
+          Number(
+            adjustedRenewalTarget
+          );
   
-        return;
+        if (
+          adjustedRenewalTarget === '' ||
+          !Number.isFinite(
+            nextTarget
+          )
+        ) {
+          toast.error(
+            'Indica uma nova meta válida antes de ajustar a proposta.'
+          );
+  
+          return;
+        }
+  
+        const scaleMax =
+          Number(
+            renewalProposal
+              ?.scaleMax
+          );
+  
+        if (
+          Number.isFinite(
+            scaleMax
+          ) &&
+          nextTarget >
+            scaleMax
+        ) {
+          toast.error(
+            `A nova meta não pode ser superior a ${scaleMax}.`
+          );
+  
+          return;
+        }
+  
+        if (
+          nextTarget <= 0
+        ) {
+          toast.error(
+            'A nova meta deve ser superior a zero.'
+          );
+  
+          return;
+        }
       }
   
-      setDecidingRenewal(true);
+      setDecidingRenewal(
+        true
+      );
   
       try {
         const payload = {
@@ -1302,8 +1345,7 @@ export default function DevelopmentPID() {
                 )
               : null,
   
-          note:
-            null,
+          note: null,
         };
   
         const response =
@@ -1316,7 +1358,9 @@ export default function DevelopmentPID() {
         const updatedPID =
           response?.data;
   
-        if (!updatedPID?.id) {
+        if (
+          !updatedPID?.id
+        ) {
           throw new Error(
             'O backend não devolveu o PID atualizado.'
           );
@@ -1326,21 +1370,51 @@ export default function DevelopmentPID() {
           updatedPID
         );
   
+        const updatedProposal =
+          updatedPID
+            ?.intelligent_plan
+            ?.renewalProposal;
+  
         if (
-          action ===
-          'approve'
-        ) {
-          toast.success(
-            'Proposta de renovação aprovada.'
-          );
-        } else if (
           action ===
           'adjust'
         ) {
+          const updatedTarget =
+            updatedProposal
+              ?.suggestedTarget;
+  
+          if (
+            updatedTarget !==
+              null &&
+            updatedTarget !==
+              undefined
+          ) {
+            setAdjustedRenewalTarget(
+              String(
+                updatedTarget
+              )
+            );
+          }
+  
           toast.success(
-            'Proposta de renovação ajustada.'
+            'Proposta ajustada. Continua a aguardar confirmação técnica.'
+          );
+        } else if (
+          action ===
+          'approve'
+        ) {
+          setAdjustedRenewalTarget(
+            ''
+          );
+  
+          toast.success(
+            'Proposta de renovação confirmada.'
           );
         } else {
+          setAdjustedRenewalTarget(
+            ''
+          );
+  
           toast.success(
             'Proposta de renovação rejeitada.'
           );
@@ -1358,7 +1432,9 @@ export default function DevelopmentPID() {
             'Não foi possível registar a decisão.'
         );
       } finally {
-        setDecidingRenewal(false);
+        setDecidingRenewal(
+          false
+        );
       }
     };
   
@@ -2534,7 +2610,16 @@ export default function DevelopmentPID() {
                         ) : (
                           <>
                             <CheckCircle2 className="mr-2 h-4 w-4" />
-                            Aprovar
+                        
+                            {intelligentPlan
+                              ?.renewalProposal
+                              ?.status ===
+                                'pending_confirmation' ||
+                            intelligentPlan
+                              ?.renewalStatus ===
+                                'adjusted'
+                              ? 'Confirmar proposta ajustada'
+                              : 'Aprovar proposta'}
                           </>
                         )}
                       </Button>
