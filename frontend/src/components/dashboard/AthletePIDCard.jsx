@@ -654,13 +654,17 @@ export default function AthletePIDCard({
           return {
             ...objective,
             currentValue,
-            progress: Math.max(
-              0,
-              Math.min(
-                100,
-                progress
-              )
-            ),
+            progress:
+              objective.status ===
+              'completed'
+                ? 100
+                : Math.max(
+                    0,
+                    Math.min(
+                      100,
+                      progress
+                    )
+                  ),
           };
         }
       );
@@ -722,9 +726,19 @@ export default function AthletePIDCard({
         objective.progress >= 100
     ).length;
 
+  const progressObjectives =
+    enriched.filter(
+      (objective) =>
+        objective.status ===
+          'active' ||
+        objective.status ===
+          'completed' ||
+        objective.progress >= 100
+    );
+  
   const averageProgress =
-    activeObjectives.length
-      ? activeObjectives.reduce(
+    progressObjectives.length
+      ? progressObjectives.reduce(
           (
             total,
             objective
@@ -733,7 +747,7 @@ export default function AthletePIDCard({
             objective.progress,
           0
         ) /
-        activeObjectives.length
+        progressObjectives.length
       : 0;
 
   const attention =
