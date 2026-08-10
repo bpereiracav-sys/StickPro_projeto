@@ -1376,18 +1376,15 @@ export default function DevelopmentPID() {
             ?.renewalProposal;
   
         if (
-          action ===
-          'adjust'
+          action === 'adjust'
         ) {
           const updatedTarget =
             updatedProposal
               ?.suggestedTarget;
   
           if (
-            updatedTarget !==
-              null &&
-            updatedTarget !==
-              undefined
+            updatedTarget !== null &&
+            updatedTarget !== undefined
           ) {
             setAdjustedRenewalTarget(
               String(
@@ -1400,50 +1397,7 @@ export default function DevelopmentPID() {
             'Proposta ajustada. Continua a aguardar confirmação técnica.'
           );
         } else if (
-          action ===
-          'approve'
-        ) {
-          setAdjustedRenewalTarget(
-            ''
-          );
-  
-          toast.success(
-            'Proposta de renovação confirmada.'
-          );
-        } else {
-          setAdjustedRenewalTarget(
-            ''
-          );
-  
-          toast.success(
-            'Proposta de renovação rejeitada.'
-          );
-        }
-      } catch (error) {
-        console.error(
-          'Error deciding PID renewal:',
-          error
-        );
-  
-        toast.error(
-          error?.response
-            ?.data?.detail ||
-            error?.message ||
-            'Não foi possível registar a decisão.'
-        );
-      } finally {
-        setDecidingRenewal(
-          false
-        );
-      }
-    };
-  
-          toast.success(
-            'Proposta ajustada. Continua a aguardar confirmação técnica.'
-          );
-        } else if (
-          action ===
-          'approve'
+          action === 'approve'
         ) {
           setAdjustedRenewalTarget(
             ''
