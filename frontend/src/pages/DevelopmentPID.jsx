@@ -1438,6 +1438,48 @@ export default function DevelopmentPID() {
       }
     };
   
+          toast.success(
+            'Proposta ajustada. Continua a aguardar confirmação técnica.'
+          );
+        } else if (
+          action ===
+          'approve'
+        ) {
+          setAdjustedRenewalTarget(
+            ''
+          );
+  
+          toast.success(
+            'Proposta de renovação confirmada.'
+          );
+        } else {
+          setAdjustedRenewalTarget(
+            ''
+          );
+  
+          toast.success(
+            'Proposta de renovação rejeitada.'
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Error deciding PID renewal:',
+          error
+        );
+  
+        toast.error(
+          error?.response
+            ?.data?.detail ||
+            error?.message ||
+            'Não foi possível registar a decisão.'
+        );
+      } finally {
+        setDecidingRenewal(
+          false
+        );
+      }
+    };
+  
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
       <section className="relative overflow-hidden rounded-[1.75rem] border border-cyan-100 bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 px-5 py-6 text-white shadow-xl shadow-slate-200/60 sm:px-7 sm:py-8 lg:px-9">
@@ -2610,7 +2652,7 @@ export default function DevelopmentPID() {
                         ) : (
                           <>
                             <CheckCircle2 className="mr-2 h-4 w-4" />
-                        
+                      
                             {intelligentPlan
                               ?.renewalProposal
                               ?.status ===
@@ -3019,3 +3061,4 @@ export default function DevelopmentPID() {
     </div>
   );
 }
+
