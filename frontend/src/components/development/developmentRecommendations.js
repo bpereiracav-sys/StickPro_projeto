@@ -3636,21 +3636,21 @@ export function getDevelopmentPriorityConfig(
 // ============================================================
 
 export function buildOfficialDevelopmentRadarData({
-  recommendationsEngine = {},
+  developmentProfile = {},
   playerType = 'field_player',
 } = {}) {
-  const domainIDI =
+  const domains =
     Array.isArray(
-      recommendationsEngine?.domainIDI
+      developmentProfile?.domains
     )
-      ? recommendationsEngine.domainIDI
+      ? developmentProfile.domains
       : [];
 
-  const competencyIDI =
+  const subdomains =
     Array.isArray(
-      recommendationsEngine?.competencyIDI
+      developmentProfile?.subdomains
     )
-      ? recommendationsEngine.competencyIDI
+      ? developmentProfile.subdomains
       : [];
 
   const normalizedPlayerType =
@@ -3675,207 +3675,256 @@ export function buildOfficialDevelopmentRadarData({
   const findDomain = (
     domainId
   ) =>
-    domainIDI.find(
+    domains.find(
       (item) =>
         String(item?.id) ===
         String(domainId)
     ) || null;
 
-  const findCompetency = (
-    competencyId
+  const findSubdomain = (
+    subdomainId
   ) =>
-    competencyIDI.find(
+    subdomains.find(
       (item) =>
         String(item?.id) ===
-        String(competencyId)
+        String(subdomainId)
     ) || null;
 
+  const buildAxis = ({
+    id,
+    label,
+    source,
+    sourceId,
+  }) => {
+    const sourceItem =
+      source === 'domain'
+        ? findDomain(sourceId)
+        : findSubdomain(sourceId);
+
+    const rawValue =
+      sourceItem?.value;
+
+    const numericValue =
+      rawValue === null ||
+      rawValue === undefined
+        ? null
+        : Number(rawValue);
+
+    const hasData =
+      numericValue !== null &&
+      Number.isFinite(
+        numericValue
+      );
+
+    return {
+      id,
+
+      key:
+        id,
+
+      label,
+
+      value:
+        hasData
+          ? numericValue
+          : null,
+
+      hasData,
+
+      source,
+
+      sourceId,
+
+      criterionCount:
+        Number(
+          sourceItem?.criterionCount
+        ) || 0,
+    };
+  };
+
   /*
-   * Guarda-redes
+   * ========================================================
+   * GUARDA-REDES
+   * ========================================================
    *
-   * Patinagem utiliza o domínio global skating.
-   * As restantes quatro dimensões correspondem
-   * aos subdomínios específicos de guarda-redes.
+   * Patinagem:
+   * último resultado conhecido dos critérios do domínio
+   * skating.
+   *
+   * Restantes dimensões:
+   * último resultado conhecido dos critérios dos quatro
+   * subdomínios específicos de guarda-redes.
    */
   if (isGoalkeeper) {
-    const goalkeeperAxes = [
-      {
-        id: 'skating',
-        label: 'Patinagem',
-        source: 'domain',
-        sourceId: 'skating',
-      },
-      {
-        id: 'goalkeeper_positioning',
-        label: 'Posicionamento',
-        source: 'competency',
+    return [
+      buildAxis({
+        id:
+          'skating',
+
+        label:
+          'Patinagem',
+
+        source:
+          'domain',
+
+        sourceId:
+          'skating',
+      }),
+
+      buildAxis({
+        id:
+          'goalkeeper_positioning',
+
+        label:
+          'Posicionamento',
+
+        source:
+          'subdomain',
+
         sourceId:
           'goalkeeper_positioning',
-      },
-      {
-        id: 'goalkeeper_saving',
-        label: 'Defesa',
-        source: 'competency',
+      }),
+
+      buildAxis({
+        id:
+          'goalkeeper_saving',
+
+        label:
+          'Defesa',
+
+        source:
+          'subdomain',
+
         sourceId:
           'goalkeeper_saving',
-      },
-      {
-        id: 'goalkeeper_movement',
-        label: 'Deslocamento',
-        source: 'competency',
+      }),
+
+      buildAxis({
+        id:
+          'goalkeeper_movement',
+
+        label:
+          'Deslocamento',
+
+        source:
+          'subdomain',
+
         sourceId:
           'goalkeeper_movement',
-      },
-      {
-        id: 'goalkeeper_distribution',
+      }),
+
+      buildAxis({
+        id:
+          'goalkeeper_distribution',
+
         label:
           'Reposição e Construção',
-        source: 'competency',
+
+        source:
+          'subdomain',
+
         sourceId:
           'goalkeeper_distribution',
-      },
+      }),
     ];
-
-    return goalkeeperAxes.map((axis) => {
-      const sourceItem =
-        axis.source === 'domain'
-          ? findDomain(axis.sourceId)
-          : findCompetency(axis.sourceId);
-    
-      const rawIdiScore =
-        sourceItem?.idiScore;
-    
-      const idiScore =
-        Number(rawIdiScore);
-    
-      const hasValue =
-        Number.isFinite(idiScore);
-    
-      return {
-        id: axis.id,
-    
-        key: axis.id,
-    
-        label:
-          axis.label,
-    
-        value:
-          hasValue
-            ? idiScore
-            : null,
-    
-        idiScore:
-          hasValue
-            ? idiScore
-            : null,
-    
-        hasData:
-          hasValue,
-    
-        source:
-          axis.source,
-    
-        sourceId:
-          axis.sourceId,
-    
-        status:
-          sourceItem?.status ||
-          null,
-    
-        statusLabel:
-          sourceItem?.statusLabel ||
-          null,
-      };
-    });
   }
 
   /*
-   * Jogador de campo
+   * ========================================================
+   * JOGADOR DE CAMPO
+   * ========================================================
    *
-   * O Radar apresenta exclusivamente as seis
-   * dimensões macro oficiais StickPro.
+   * Cada eixo representa o estado transversal atual de um
+   * domínio oficial StickPro.
+   *
+   * O valor de cada domínio resulta da média do último
+   * resultado conhecido de cada critério desse domínio.
    */
-  const fieldPlayerAxes = [
-    {
-      id: 'skating',
-      label: 'Patinagem',
-    },
-    {
-      id: 'individual_technique',
-      label:
-        'Técnica Individual',
-    },
-    {
-      id: 'perception',
-      label:
-        'Perceção de Jogo',
-    },
-    {
-      id: 'decision',
-      label:
-        'Capacidade de Decisão',
-    },
-    {
-      id: 'collective_play',
-      label:
-        'Jogo Coletivo',
-    },
-    {
-      id: 'behavior',
-      label:
-        'Comportamento',
-    },
-  ];
+  return [
+    buildAxis({
+      id:
+        'skating',
 
-  return fieldPlayerAxes.map((axis) => {
-    const sourceItem =
-      findDomain(axis.id);
-  
-    const rawIdiScore =
-      sourceItem?.idiScore;
-  
-    const idiScore =
-      Number(rawIdiScore);
-  
-    const hasValue =
-      Number.isFinite(idiScore);
-  
-    return {
-      id: axis.id,
-  
-      key: axis.id,
-  
       label:
-        axis.label,
-  
-      value:
-        hasValue
-          ? idiScore
-          : null,
-  
-      idiScore:
-        hasValue
-          ? idiScore
-          : null,
-  
-      hasData:
-        hasValue,
-  
+        'Patinagem',
+
       source:
         'domain',
-  
+
       sourceId:
-        axis.id,
-  
-      status:
-        sourceItem?.status ||
-        null,
-  
-      statusLabel:
-        sourceItem?.statusLabel ||
-        null,
-    };
-  });
+        'skating',
+    }),
+
+    buildAxis({
+      id:
+        'individual_technique',
+
+      label:
+        'Técnica Individual',
+
+      source:
+        'domain',
+
+      sourceId:
+        'individual_technique',
+    }),
+
+    buildAxis({
+      id:
+        'perception',
+
+      label:
+        'Perceção de Jogo',
+
+      source:
+        'domain',
+
+      sourceId:
+        'perception',
+    }),
+
+    buildAxis({
+      id:
+        'decision',
+
+      label:
+        'Capacidade de Decisão',
+
+      source:
+        'domain',
+
+      sourceId:
+        'decision',
+    }),
+
+    buildAxis({
+      id:
+        'collective_play',
+
+      label:
+        'Jogo Coletivo',
+
+      source:
+        'domain',
+
+      sourceId:
+        'collective_play',
+    }),
+
+    buildAxis({
+      id:
+        'behavior',
+
+      label:
+        'Comportamento',
+
+      source:
+        'domain',
+
+      sourceId:
+        'behavior',
+    }),
+  ];
 }
 
 export function formatRecommendationTrend(
