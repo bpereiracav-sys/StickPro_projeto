@@ -2103,6 +2103,396 @@ const groupRecommendationsByDomain = (
  */
 
 // ============================================================
+// Current Transversal Development Profile
+// C3.6 — Longitudinal Development Radar
+//
+// PRINCÍPIO:
+// Para cada critério utiliza o resultado mais recente
+// disponível em todo o histórico do atleta.
+//
+// Uma avaliação parcial ou uma reavaliação PID atualiza
+// apenas os critérios efetivamente reavaliados.
+// Os restantes mantêm o último resultado conhecido.
+//
+// Este perfil NÃO utiliza o IDI.
+// Representa o estado transversal atual do atleta.
+// ============================================================
+
+export function buildCurrentDevelopmentProfile({
+  evaluations = [],
+  criteria = [],
+  teamId = null,
+  ageGroup = null,
+  playerType = null,
+} = {}) {
+  const normalizedScores =
+    normalizeEvaluationScores({
+      evaluations,
+      criteria,
+      teamId,
+      ageGroup,
+      playerType,
+    });
+
+  const criterionGroups =
+    groupScoresByCriterion(
+      normalizedScores
+    );
+
+  /*
+   * Um único estado atual por critério:
+   * o resultado cronologicamente mais recente.
+   */
+  const currentCriteria =
+    criterionGroups
+      .map((group) => {
+        const orderedEntries =
+          [...group.entries].sort(
+            (first, second) => {
+              const firstTime =
+                first?.evaluationDate
+                  ? new Date(
+                      first.evaluationDate
+                    ).getTime()
+                  : 0;
+
+              const secondTime =
+                second?.evaluationDate
+                  ? new Date(
+                      second.evaluationDate
+                    ).getTime()
+                  : 0;
+
+              return (
+                secondTime -
+                firstTime
+              );
+            }
+          );
+
+        const latestEntry =
+          orderedEntries[0] ||
+          null;
+
+        if (!latestEntry) {
+          return null;
+        }
+
+        const normalizedPercentage =
+          asFiniteNumber(
+            latestEntry
+              ?.normalizedPercentage
+          );
+
+        if (
+          normalizedPercentage ===
+          null
+        ) {
+          return null;
+        }
+
+        return {
+          criterionKey:
+            group.criterionKey,
+
+          criterionId:
+            group.criterionId,
+
+          criterionCode:
+            group.criterionCode,
+
+          criterionName:
+            group.criterionName,
+
+          domainId:
+            group.domainId ||
+            latestEntry.domainId ||
+            'other',
+
+          domainLabel:
+            normalizeDomainLabel(
+              group.domainLabel ||
+              latestEntry.domainLabel ||
+              group.domainId
+            ),
+
+          subdomainId:
+            group.subdomainId ||
+            latestEntry.subdomainId ||
+            'general',
+
+          subdomainLabel:
+            normalizeCompetencyLabel(
+              group.subdomainLabel ||
+              latestEntry.subdomainLabel ||
+              group.subdomainId
+            ),
+
+          score:
+            latestEntry.score,
+
+          scaleMin:
+            latestEntry.scaleMin,
+
+          scaleMax:
+            latestEntry.scaleMax,
+
+          normalizedPercentage,
+
+          latestEvaluationDate:
+            latestEntry
+              .evaluationDate ||
+            null,
+
+          latestEvaluationId:
+            latestEntry
+              .evaluationId ||
+            null,
+
+          evaluationCount:
+            group.entries.length,
+        };
+      })
+      .filter(Boolean);
+
+  /*
+   * ----------------------------------------------------------
+   * Perfil por domínio
+   * ----------------------------------------------------------
+   *
+   * Cada domínio é calculado pela média dos últimos resultados
+   * conhecidos dos critérios que pertencem a esse domínio.
+   */
+  const domainGroups =
+    new Map();
+
+  currentCriteria.forEach(
+    (criterion) => {
+      const domainId =
+        criterion.domainId ||
+        'other';
+
+      if (
+        !domainGroups.has(
+          domainId
+        )
+      ) {
+        domainGroups.set(
+          domainId,
+          {
+            id: domainId,
+
+            label:
+              criterion.domainLabel ||
+              normalizeDomainLabel(
+                domainId
+              ),
+
+            criteria: [],
+          }
+        );
+      }
+
+      domainGroups
+        .get(domainId)
+        .criteria.push(
+          criterion
+        );
+    }
+  );
+
+  const domains =
+    Array.from(
+      domainGroups.values()
+    ).map((domain) => {
+      const values =
+        domain.criteria
+          .map(
+            (criterion) =>
+              asFiniteNumber(
+                criterion
+                  .normalizedPercentage
+              )
+          )
+          .filter(
+            (value) =>
+              value !== null
+          );
+
+      const value =
+        values.length > 0
+          ? roundValue(
+              values.reduce(
+                (sum, item) =>
+                  sum + item,
+                0
+              ) /
+                values.length,
+              1
+            )
+          : null;
+
+      return {
+        id:
+          domain.id,
+
+        key:
+          domain.id,
+
+        label:
+          domain.label,
+
+        value,
+
+        score:
+          value,
+
+        criterionCount:
+          values.length,
+
+        criteria:
+          domain.criteria,
+      };
+    });
+
+  /*
+   * ----------------------------------------------------------
+   * Perfil por subdomínio
+   * ----------------------------------------------------------
+   *
+   * Necessário sobretudo para o Radar específico
+   * dos guarda-redes.
+   */
+  const subdomainGroups =
+    new Map();
+
+  currentCriteria.forEach(
+    (criterion) => {
+      const subdomainId =
+        criterion.subdomainId ||
+        'general';
+
+      if (
+        !subdomainGroups.has(
+          subdomainId
+        )
+      ) {
+        subdomainGroups.set(
+          subdomainId,
+          {
+            id:
+              subdomainId,
+
+            label:
+              criterion
+                .subdomainLabel ||
+              normalizeCompetencyLabel(
+                subdomainId
+              ),
+
+            domainId:
+              criterion.domainId ||
+              'other',
+
+            criteria: [],
+          }
+        );
+      }
+
+      subdomainGroups
+        .get(subdomainId)
+        .criteria.push(
+          criterion
+        );
+    }
+  );
+
+  const subdomains =
+    Array.from(
+      subdomainGroups.values()
+    ).map((subdomain) => {
+      const values =
+        subdomain.criteria
+          .map(
+            (criterion) =>
+              asFiniteNumber(
+                criterion
+                  .normalizedPercentage
+              )
+          )
+          .filter(
+            (value) =>
+              value !== null
+          );
+
+      const value =
+        values.length > 0
+          ? roundValue(
+              values.reduce(
+                (sum, item) =>
+                  sum + item,
+                0
+              ) /
+                values.length,
+              1
+            )
+          : null;
+
+      return {
+        id:
+          subdomain.id,
+
+        key:
+          subdomain.id,
+
+        label:
+          subdomain.label,
+
+        domainId:
+          subdomain.domainId,
+
+        value,
+
+        score:
+          value,
+
+        criterionCount:
+          values.length,
+
+        criteria:
+          subdomain.criteria,
+      };
+    });
+
+  return {
+    hasData:
+      currentCriteria.length > 0,
+
+    criterionCount:
+      currentCriteria.length,
+
+    domainCount:
+      domains.length,
+
+    subdomainCount:
+      subdomains.length,
+
+    criteria:
+      currentCriteria,
+
+    domains,
+
+    subdomains,
+
+    source:
+      'latest_known_score_per_criterion',
+
+    generatedAt:
+      new Date().toISOString(),
+  };
+}
+
+// ============================================================
 // Intelligent Development Index by Competency
 // Sprint C3.5B.4A
 // ============================================================
