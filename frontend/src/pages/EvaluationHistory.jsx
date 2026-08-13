@@ -2209,7 +2209,7 @@ const selectedPlayer =
       () =>
         buildCurrentDevelopmentProfile({
           evaluations:
-            filteredEvaluations,
+            evaluations,
   
           criteria:
             evaluationCriteria,
@@ -2221,7 +2221,7 @@ const selectedPlayer =
             developmentPlayerType,
         }),
       [
-        filteredEvaluations,
+        evaluations,
         evaluationCriteria,
         selectedTeamId,
         developmentPlayerType,
