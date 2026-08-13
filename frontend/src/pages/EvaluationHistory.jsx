@@ -13,6 +13,7 @@ import {
 
 import {
   buildAutomaticDevelopmentRecommendations,
+  buildOfficialDevelopmentRadarData,
 } from '../components/development/developmentRecommendations';
 
 import { Badge } from '../components/ui/badge';
@@ -1598,6 +1599,49 @@ const selectedPlayer =
           String(player.id) ===
           String(selectedPlayerId)
       );
+
+  const developmentPlayerType =
+    useMemo(() => {
+      const candidates = [
+        selectedPlayer?.player_type,
+        selectedPlayer?.playerType,
+        selectedPlayer?.position,
+        selectedPlayer?.position_name,
+        selectedPlayer?.positionName,
+  
+        evaluations?.[0]?.player_type,
+        evaluations?.[0]?.playerType,
+        evaluations?.[0]?.position,
+        evaluations?.[0]?.position_name,
+      ]
+        .filter(Boolean)
+        .map((value) =>
+          String(value)
+            .trim()
+            .toLowerCase()
+        );
+  
+      const isGoalkeeper =
+        candidates.some(
+          (value) =>
+            [
+              'goalkeeper',
+              'guarda-redes',
+              'guarda redes',
+              'guarda_redes',
+              'gk',
+              'gr',
+            ].includes(value)
+        );
+  
+      return isGoalkeeper
+        ? 'goalkeeper'
+        : 'field_player';
+    }, [
+      selectedPlayer,
+      evaluations,
+    ]);
+  
   const athleteTeamNames = useMemo(() => {
     if (!isAthleteMode) {
       return [];
@@ -2141,46 +2185,16 @@ const selectedPlayer =
   const intelligentRadarData =
     useMemo(
       () =>
-        (
-          Array.isArray(
-            automaticRecommendations
-              ?.radarData
-          )
-            ? automaticRecommendations
-                .radarData
-            : []
-        )
-          .filter(
-            (item) =>
-              Number.isFinite(
-                Number(
-                  item?.idiScore ??
-                  item?.value
-                )
-              )
-          )
-          .map(
-            (item) => ({
-              ...item,
+        buildOfficialDevelopmentRadarData({
+          recommendationsEngine:
+            automaticRecommendations,
   
-              key:
-                item.competencyId ||
-                item.id,
-  
-              label:
-                item.label ||
-                item.competencyName ||
-                item.id,
-  
-              value:
-                Number(
-                  item.idiScore ??
-                  item.value
-                ),
-            })
-          ),
+          playerType:
+            developmentPlayerType,
+        }),
       [
         automaticRecommendations,
+        developmentPlayerType,
       ]
     );
   
@@ -2682,8 +2696,8 @@ const selectedPlayer =
                     </CardTitle>
             
                     <CardDescription className="mt-1">
-                      IDI atual por competência, calculado a partir do nível,
-                      tendência e consistência do atleta.
+                      Síntese inteligente das principais dimensões de desenvolvimento
+                      do atleta, calculada através do IDI.
                     </CardDescription>
                   </div>
             
@@ -2694,9 +2708,8 @@ const selectedPlayer =
                       className="w-fit shrink-0 rounded-full border-purple-200 bg-purple-50 text-purple-700"
                     >
                       {
-                        intelligentRadarData.length
-                      }{' '}
-                      competências
+                        {intelligentRadarData.length}{' '}
+                        dimensões
                     </Badge>
                   )}
                 </div>
@@ -2713,9 +2726,9 @@ const selectedPlayer =
                   3 && (
                   <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/40 p-3">
                     <p className="text-xs leading-5 text-slate-600">
-                      Cada eixo representa uma competência avaliada. O valor apresentado
-                      corresponde ao respetivo Índice Inteligente de Desenvolvimento
-                      numa escala de 0 a 100.
+                      Cada eixo representa uma dimensão principal do desenvolvimento.
+                      O valor apresentado corresponde ao respetivo Índice Inteligente
+                      de Desenvolvimento, numa escala de 0 a 100.
                     </p>
                   </div>
                 )}
