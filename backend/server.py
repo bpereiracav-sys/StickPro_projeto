@@ -21533,6 +21533,62 @@ async def archive_evaluation_plan(plan_id: str, current_user: dict = Depends(get
 
     return {"message": "Plano arquivado"}
 
+@api_router.delete("/evaluations/plans/{plan_id}/permanent")
+async def delete_evaluation_plan_permanently(
+    plan_id: str,
+    current_user: dict = Depends(get_current_user)
+):
+    checker = get_permission_checker(current_user)
+
+    plan = await db.evaluation_plans.find_one(
+        {"id": plan_id},
+        {"_id": 0}
+    )
+
+    if not plan:
+        raise HTTPException(
+            status_code=404,
+            detail="Plano não encontrado"
+        )
+
+    if not checker.is_admin:
+        if (
+            plan.get("created_by") != current_user.get("id")
+            and not checker.can_access_team(plan.get("team_id"))
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="Sem permissão para apagar este plano"
+            )
+
+    evaluations_count = await db.player_evaluations.count_documents(
+        {"plan_id": plan_id}
+    )
+
+    if evaluations_count > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Este plano não pode ser apagado porque possui "
+                f"{evaluations_count} avaliação(ões) associada(s). "
+                "Pode arquivá-lo para deixar de estar disponível."
+            )
+        )
+
+    result = await db.evaluation_plans.delete_one(
+        {"id": plan_id}
+    )
+
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Plano não encontrado"
+        )
+
+    return {
+        "message": "Plano apagado definitivamente"
+    }
+
 # ==================== PLAYER DEVELOPMENT OBJECTIVES — Sprint C3.4E ====================
 
 OBJECTIVE_STATUSES = {
