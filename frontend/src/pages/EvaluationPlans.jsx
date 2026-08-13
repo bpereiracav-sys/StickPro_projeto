@@ -28,6 +28,7 @@ import {
   DialogTitle,
 } from '../components/ui/dialog';
 import {
+  Archive,
   Award,
   ClipboardCheck,
   Copy,
@@ -1146,6 +1147,46 @@ export default function EvaluationPlans() {
     }
   };
 
+  const handleDeletePlan = async (plan) => {
+    if (!plan?.id) {
+      return;
+    }
+  
+    const confirmed = window.confirm(
+      `Apagar definitivamente o plano "${plan.name}"?\n\n` +
+      'Esta ação não pode ser anulada. ' +
+      'Planos que já tenham avaliações associadas não podem ser apagados.'
+    );
+  
+    if (!confirmed) {
+      return;
+    }
+  
+    try {
+      await evaluationsApi.deletePlan(
+        plan.id
+      );
+  
+      toast.success(
+        'Plano apagado definitivamente'
+      );
+  
+      await fetchData();
+    } catch (error) {
+      console.error(
+        'Error deleting evaluation plan:',
+        error
+      );
+  
+      toast.error(
+        error.response?.data?.detail ||
+          error.response?.data?.message ||
+          error.message ||
+          'Erro ao apagar plano'
+      );
+    }
+  };
+  
   const filteredPlans = useMemo(() => {
     return plans.filter((plan) => {
       if (categoryFilter !== 'all' && plan.category !== categoryFilter) return false;
@@ -1432,12 +1473,28 @@ export default function EvaluationPlans() {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-9 w-9 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
-                            onClick={() => handleArchivePlan(plan)}
+                            className="h-9 w-9 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                            onClick={() =>
+                              handleArchivePlan(plan)
+                            }
+                            title="Arquivar plano"
                           >
-                            <Trash2 className="h-4 w-4" />
+                            <Archive className="h-4 w-4" />
                           </Button>
                         )}
+                        
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
+                          onClick={() =>
+                            handleDeletePlan(plan)
+                          }
+                          title="Apagar plano"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
 
