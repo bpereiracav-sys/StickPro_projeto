@@ -96,17 +96,39 @@ export default function CriteriaTreeSelector({
     [selectedCriteria]
   );
 
-  const criteriaTree = useMemo(
-    () =>
-      buildCriteriaTree(
-        criteria,
-        playerType
-      ),
-    [
+  const DOMAIN_ORDER = {
+    skating: 1,
+    individual_technique: 2,
+    collective_play: 3,
+    decision: 4,
+    perception: 5,
+    behavior: 6,
+    goalkeeper: 7,
+  };
+  
+  const criteriaTree = useMemo(() => {
+    const tree = buildCriteriaTree(
       criteria,
-      playerType,
-    ]
-  );
+      playerType
+    );
+  
+    return [...tree].sort(
+      (a, b) => {
+        const orderA =
+          DOMAIN_ORDER[a?.id] ??
+          999;
+  
+        const orderB =
+          DOMAIN_ORDER[b?.id] ??
+          999;
+  
+        return orderA - orderB;
+      }
+    );
+  }, [
+    criteria,
+    playerType,
+  ]);
 
   useEffect(() => {
     setExpandedDomains(
