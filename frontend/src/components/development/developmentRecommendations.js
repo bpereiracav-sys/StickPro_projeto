@@ -756,8 +756,8 @@ const normalizeEvaluationScores = ({
             );
 
           const criterionKey =
-            criterionId ||
-            criterionCode;
+            criterionCode ||
+            criterionId;
 
           if (!criterionKey) {
             return;
