@@ -565,11 +565,12 @@ function RadarChart({
   const radius = 125;
 
   const values =
-    (
-      Array.isArray(data)
-        ? data
-        : []
-    ).filter(
+    Array.isArray(data)
+      ? data
+      : [];
+  
+  const valuesWithData =
+    values.filter(
       (item) =>
         Number.isFinite(
           Number(
@@ -632,15 +633,29 @@ function RadarChart({
 
   const normalizeValue = (
     value
-  ) =>
-    Math.max(
-      0,
-      Math.min(
-        RADAR_MAX,
-        Number(value) || 0
+  ) => {
+    const numericValue =
+      Number(value);
+  
+    if (
+      !Number.isFinite(
+        numericValue
       )
-    ) /
-    RADAR_MAX;
+    ) {
+      return 0;
+    }
+  
+    return (
+      Math.max(
+        0,
+        Math.min(
+          RADAR_MAX,
+          numericValue
+        )
+      ) /
+      RADAR_MAX
+    );
+  };
 
   const polygon =
     values
@@ -832,9 +847,15 @@ function RadarChart({
                   fontWeight="700"
                   fill="rgb(124 58 237)"
                 >
-                  {Number(
-                    item.value
-                  ).toFixed(1)}
+                  {Number.isFinite(
+                    Number(
+                      item?.value
+                    )
+                  )
+                    ? Number(
+                        item.value
+                      ).toFixed(1)
+                    : 'Sem dados'}
                 </text>
               </g>
             );
