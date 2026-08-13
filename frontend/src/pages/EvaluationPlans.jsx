@@ -1502,8 +1502,9 @@ export default function EvaluationPlans() {
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                      
-                      <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
                       <div className="rounded-2xl bg-slate-50 p-3">
                         <p className="text-slate-400">{tr('evaluations.criteria', 'Critérios')}</p>
                         <p className="font-semibold text-slate-800">
