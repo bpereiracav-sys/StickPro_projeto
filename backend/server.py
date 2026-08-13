@@ -23972,56 +23972,275 @@ async def get_team_players_for_evaluation(
 def normalize_plan_scores_for_player(
     scores: List[EvaluationFromPlanScore],
     plan: dict,
-    criteria_map: Dict[str, dict]
+    criteria_map: Dict[str, dict],
 ) -> List[dict]:
+    """
+    Valida as pontuações do plano e preserva um snapshot
+    estrutural do critério no momento da avaliação.
+
+    Isto garante que avaliações históricas continuam
+    identificáveis mesmo que o ID interno do critério
+    mude posteriormente.
+    """
+
     plan_criterion_ids = {
-        item.get("criterion_id")
-        for item in plan.get("criteria", [])
-        if item.get("criterion_id")
+        str(
+            item.get(
+                "criterion_id"
+            )
+        )
+        for item in plan.get(
+            "criteria",
+            [],
+        )
+        if item.get(
+            "criterion_id"
+        )
     }
 
     score_dicts = []
     received_ids = set()
 
     for item in scores or []:
-        if item.criterion_id not in plan_criterion_ids:
+        criterion_id = str(
+            item.criterion_id
+        )
+
+        if (
+            criterion_id
+            not in plan_criterion_ids
+        ):
             raise HTTPException(
                 status_code=400,
-                detail=f"O critério {item.criterion_id} não pertence ao plano selecionado"
+                detail=(
+                    f"O critério {criterion_id} "
+                    "não pertence ao plano selecionado"
+                ),
             )
 
-        criterion = criteria_map.get(item.criterion_id)
+        criterion = (
+            criteria_map.get(
+                item.criterion_id
+            )
+            or criteria_map.get(
+                criterion_id
+            )
+        )
+
         if not criterion:
             raise HTTPException(
                 status_code=400,
-                detail=f"Critério inválido: {item.criterion_id}"
+                detail=(
+                    f"Critério inválido: "
+                    f"{criterion_id}"
+                ),
             )
 
-        scale_min = criterion.get("scale_min", 1)
-        scale_max = criterion.get("scale_max", 5)
+        try:
+            scale_min = float(
+                criterion.get(
+                    "scale_min",
+                    1,
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            scale_min = 1.0
 
-        if item.score < scale_min or item.score > scale_max:
+        try:
+            scale_max = float(
+                criterion.get(
+                    "scale_max",
+                    5,
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            scale_max = 5.0
+
+        try:
+            score_value = float(
+                item.score
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
             raise HTTPException(
                 status_code=400,
-                detail=f"Pontuação fora da escala para {criterion.get('name', item.criterion_id)}"
+                detail=(
+                    f"Pontuação inválida para "
+                    f"{criterion.get('name', criterion_id)}"
+                ),
             )
 
-        received_ids.add(item.criterion_id)
-        score_dicts.append(item.model_dump())
+        if (
+            score_value < scale_min
+            or score_value > scale_max
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Pontuação fora da escala para "
+                    f"{criterion.get('name', criterion_id)}"
+                ),
+            )
+
+        received_ids.add(
+            criterion_id
+        )
+
+        raw_score = (
+            item.model_dump()
+        )
+
+        score_dict = {
+            **raw_score,
+
+            "criterion_id":
+                criterion_id,
+
+            "criterion_code":
+                (
+                    criterion.get(
+                        "code"
+                    )
+                    or criterion.get(
+                        "source_code"
+                    )
+                    or criterion.get(
+                        "sourceCode"
+                    )
+                ),
+
+            "criterion_name":
+                criterion.get(
+                    "name"
+                ),
+
+            "criterion_description":
+                criterion.get(
+                    "description"
+                ),
+
+            "domain":
+                (
+                    criterion.get(
+                        "domain"
+                    )
+                    or criterion.get(
+                        "domain_id"
+                    )
+                    or criterion.get(
+                        "domainId"
+                    )
+                ),
+
+            "domain_label":
+                (
+                    criterion.get(
+                        "domain_label"
+                    )
+                    or criterion.get(
+                        "domainLabel"
+                    )
+                ),
+
+            "subdomain":
+                (
+                    criterion.get(
+                        "subdomain"
+                    )
+                    or criterion.get(
+                        "subdomain_id"
+                    )
+                    or criterion.get(
+                        "subdomainId"
+                    )
+                ),
+
+            "subdomain_label":
+                (
+                    criterion.get(
+                        "subdomain_label"
+                    )
+                    or criterion.get(
+                        "subdomainLabel"
+                    )
+                ),
+
+            "player_type":
+                (
+                    criterion.get(
+                        "player_type"
+                    )
+                    or criterion.get(
+                        "playerType"
+                    )
+                ),
+
+            "scale_min":
+                scale_min,
+
+            "scale_max":
+                scale_max,
+        }
+
+        score_dicts.append(
+            score_dict
+        )
 
     required_missing = []
-    for plan_item in plan.get("criteria", []):
-        if plan_item.get("required", True) and plan_item.get("criterion_id") not in received_ids:
-            required_missing.append(plan_item.get("criterion_id"))
+
+    for plan_item in (
+        plan.get(
+            "criteria",
+            [],
+        )
+        or []
+    ):
+        plan_criterion_id = (
+            plan_item.get(
+                "criterion_id"
+            )
+        )
+
+        if not plan_criterion_id:
+            continue
+
+        if (
+            plan_item.get(
+                "required",
+                True,
+            )
+            and str(
+                plan_criterion_id
+            )
+            not in received_ids
+        ):
+            required_missing.append(
+                str(
+                    plan_criterion_id
+                )
+            )
 
     if required_missing:
         raise HTTPException(
             status_code=400,
-            detail=f"Existem critérios obrigatórios sem pontuação: {', '.join(required_missing)}"
+            detail=(
+                "Existem critérios obrigatórios "
+                "sem pontuação: "
+                + ", ".join(
+                    required_missing
+                )
+            ),
         )
 
     return score_dicts
-
 
 @api_router.get("/evaluations/teams/{team_id}/players")
 async def get_evaluation_team_players(
