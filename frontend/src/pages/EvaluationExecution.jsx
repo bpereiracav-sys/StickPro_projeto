@@ -128,6 +128,15 @@ function DevelopmentIcon({ className = '' }) {
   );
 }
 
+function getPlanCriterionId(item) {
+  return (
+    item?.criterion_id ||
+    item?.criterion?.id ||
+    item?.id ||
+    ''
+  );
+}
+
 function buildEvaluationKey(playerId, criterionId) {
   return `${playerId}::${criterionId}`;
 }
@@ -684,19 +693,38 @@ export default function EvaluationExecution() {
 
   const completedScores = useMemo(() => {
     let count = 0;
-
+  
     selectedPlayers.forEach((player) => {
       planCriteria.forEach((item) => {
-        const key = buildEvaluationKey(player.id, item.criterion_id);
-
-        if (scores[key] !== undefined && scores[key] !== null && scores[key] !== '') {
+        const criterionId =
+          getPlanCriterionId(item);
+  
+        if (!criterionId) {
+          return;
+        }
+  
+        const key =
+          buildEvaluationKey(
+            player.id,
+            criterionId
+          );
+  
+        if (
+          scores[key] !== undefined &&
+          scores[key] !== null &&
+          scores[key] !== ''
+        ) {
           count += 1;
         }
       });
     });
-
+  
     return count;
-  }, [selectedPlayers, planCriteria, scores]);
+  }, [
+    selectedPlayers,
+    planCriteria,
+    scores,
+  ]);
 
   const overallProgress =
     totalExpectedScores > 0
@@ -791,28 +819,83 @@ export default function EvaluationExecution() {
     setGeneralComments((prev) => ({ ...prev, [playerId]: value }));
   };
 
-  const getPlayerCompletedCriteria = (playerId) => {
-    return planCriteria.reduce((count, item) => {
-      const key = buildEvaluationKey(playerId, item.criterion_id);
-
-      return scores[key] !== undefined && scores[key] !== null && scores[key] !== ''
-        ? count + 1
-        : count;
-    }, 0);
+  const getPlayerCompletedCriteria = (
+    playerId
+  ) => {
+    return planCriteria.reduce(
+      (count, item) => {
+        const criterionId =
+          getPlanCriterionId(item);
+  
+        if (!criterionId) {
+          return count;
+        }
+  
+        const key =
+          buildEvaluationKey(
+            playerId,
+            criterionId
+          );
+  
+        const value =
+          scores[key];
+  
+        return (
+          value !== undefined &&
+          value !== null &&
+          value !== ''
+        )
+          ? count + 1
+          : count;
+      },
+      0
+    );
   };
 
-  const getPlayerAverage = (playerId) => {
-    const values = planCriteria
-      .map((item) => {
-        const key = buildEvaluationKey(playerId, item.criterion_id);
-        return scores[key];
-      })
-      .filter((value) => value !== undefined && value !== null && value !== '')
-      .map(Number);
-
-    if (values.length === 0) return null;
-
-    return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(1);
+  const getPlayerAverage = (
+    playerId
+  ) => {
+    const values =
+      planCriteria
+        .map((item) => {
+          const criterionId =
+            getPlanCriterionId(item);
+  
+          if (!criterionId) {
+            return null;
+          }
+  
+          const key =
+            buildEvaluationKey(
+              playerId,
+              criterionId
+            );
+  
+          return scores[key];
+        })
+        .filter(
+          (value) =>
+            value !== undefined &&
+            value !== null &&
+            value !== ''
+        )
+        .map(Number)
+        .filter(
+          (value) =>
+            Number.isFinite(value)
+        );
+  
+    if (values.length === 0) {
+      return null;
+    }
+  
+    return (
+      values.reduce(
+        (sum, value) =>
+          sum + value,
+        0
+      ) / values.length
+    ).toFixed(1);
   };
 
   const goToPreviousPlayer = () => {
@@ -826,11 +909,23 @@ export default function EvaluationExecution() {
   };
 
   const buildPayloadPreview = () => ({
-    plan_id: selectedPlanId,
-    team_id: selectedTeamId,
-    event_id: selectedEventId === 'none' ? null : selectedEventId,
-    period_label: periodLabel || null,
-    visibility: 'coach_only',
+    plan_id:
+      selectedPlanId,
+  
+    team_id:
+      selectedTeamId,
+  
+    event_id:
+      selectedEventId === 'none'
+        ? null
+        : selectedEventId,
+  
+    period_label:
+      periodLabel || null,
+  
+    visibility:
+      'coach_only',
+  
     pid_id:
       isPIDReviewFlow
         ? requestedPIDId
@@ -845,26 +940,66 @@ export default function EvaluationExecution() {
       isPIDReviewFlow
         ? 'pid_review'
         : 'standard',
-    evaluations: selectedPlayers.map((player) => ({
-      player_id: player.id,
-      share_with_player: shareWithPlayer,
-      share_with_guardian: shareWithGuardian,
-      general_comment: generalComments[player.id] || null,
-      scores: planCriteria
-        .map((item) => {
-          const key = buildEvaluationKey(player.id, item.criterion_id);
-
-          return {
-            criterion_id: item.criterion_id,
-            score: scores[key],
-            comment: criterionComments[key] || null,
-          };
+  
+    evaluations:
+      selectedPlayers.map(
+        (player) => ({
+          player_id:
+            player.id,
+  
+          share_with_player:
+            shareWithPlayer,
+  
+          share_with_guardian:
+            shareWithGuardian,
+  
+          general_comment:
+            generalComments[
+              player.id
+            ] || null,
+  
+          scores:
+            planCriteria
+              .map((item) => {
+                const criterionId =
+                  getPlanCriterionId(
+                    item
+                  );
+  
+                if (!criterionId) {
+                  return null;
+                }
+  
+                const key =
+                  buildEvaluationKey(
+                    player.id,
+                    criterionId
+                  );
+  
+                return {
+                  criterion_id:
+                    criterionId,
+  
+                  score:
+                    scores[key],
+  
+                  comment:
+                    criterionComments[
+                      key
+                    ] || null,
+                };
+              })
+              .filter(Boolean)
+              .filter(
+                (item) =>
+                  item.score !==
+                    undefined &&
+                  item.score !==
+                    null &&
+                  item.score !== ''
+              ),
         })
-        .filter(
-          (item) =>
-            item.score !== undefined && item.score !== null && item.score !== ''
-        ),
-    })),
+      ),
   });
 
   const resetEvaluationFlow = () => {
@@ -1174,9 +1309,17 @@ export default function EvaluationExecution() {
 
                 <div className="space-y-3">
                   {planCriteria.map((planItem) => {
-                    const criterion = planItem.criterion || {};
-                    const criterionId = planItem.criterion_id;
-                    const key = buildEvaluationKey(activePlayer.id, criterionId);
+                    const criterion =
+                      planItem.criterion || {};
+                    
+                    const criterionId =
+                      getPlanCriterionId(planItem);
+                    
+                    const key =
+                      buildEvaluationKey(
+                        activePlayer.id,
+                        criterionId
+                      );
                     const min = criterion.scale_min || 1;
                     const max = criterion.scale_max || 5;
 
