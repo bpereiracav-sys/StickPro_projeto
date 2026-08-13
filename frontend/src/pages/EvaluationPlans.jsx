@@ -1447,58 +1447,48 @@ export default function EvaluationPlans() {
                         )}
                       </div>
 
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-full"
-                        onClick={() => openEditDialog(plan)}
-                        title="Editar plano"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-full"
-                        onClick={() =>
-                          handleDuplicatePlan(plan)
-                        }
-                        title="Duplicar plano"
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      
-                      {plan.is_active !== false && (
+                      <div className="flex shrink-0 gap-1">
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className="h-9 w-9 rounded-full text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                          className="h-9 w-9 rounded-full"
                           onClick={() =>
-                            handleArchivePlan(plan)
+                            openEditDialog(plan)
                           }
-                          title="Arquivar plano"
+                          title="Editar plano"
                         >
-                          <Archive className="h-4 w-4" />
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                      )}
                       
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="h-9 w-9 rounded-full text-red-600 hover:bg-red-50 hover:text-red-700"
-                        onClick={() =>
-                          handleDeletePlan(plan)
-                        }
-                        title="Apagar plano definitivamente"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                        
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9 rounded-full"
+                          onClick={() =>
+                            handleDuplicatePlan(plan)
+                          }
+                          title="Duplicar plano"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                      
+                        {plan.is_active !== false && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-9 w-9 rounded-full text-amber-600 hover:bg-amber-50 hover:text-amber-700"
+                            onClick={() =>
+                              handleArchivePlan(plan)
+                            }
+                            title="Arquivar plano"
+                          >
+                            <Archive className="h-4 w-4" />
+                          </Button>
+                        )}
+                      
                         <Button
                           type="button"
                           variant="ghost"
@@ -1507,14 +1497,13 @@ export default function EvaluationPlans() {
                           onClick={() =>
                             handleDeletePlan(plan)
                           }
-                          title="Apagar plano"
+                          title="Apagar plano definitivamente"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
+                      
+                      <div className="mt-4 grid grid-cols-3 gap-2 text-xs">
                       <div className="rounded-2xl bg-slate-50 p-3">
                         <p className="text-slate-400">{tr('evaluations.criteria', 'Critérios')}</p>
                         <p className="font-semibold text-slate-800">
