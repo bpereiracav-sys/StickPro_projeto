@@ -2701,15 +2701,13 @@ const selectedPlayer =
                     </CardDescription>
                   </div>
             
-                  {intelligentRadarData.length >=
-                    3 && (
+                  {intelligentRadarData.length >= 3 && (
                     <Badge
                       variant="outline"
                       className="w-fit shrink-0 rounded-full border-purple-200 bg-purple-50 text-purple-700"
                     >
-                      {
-                        {intelligentRadarData.length}{' '}
-                        dimensões
+                      {intelligentRadarData.length}{' '}
+                      dimensões
                     </Badge>
                   )}
                 </div>
