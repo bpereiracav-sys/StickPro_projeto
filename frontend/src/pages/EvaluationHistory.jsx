@@ -13,6 +13,7 @@ import {
 
 import {
   buildAutomaticDevelopmentRecommendations,
+  buildCurrentDevelopmentProfile,
   buildOfficialDevelopmentRadarData,
 } from '../components/development/developmentRecommendations';
 
@@ -2203,6 +2204,30 @@ const selectedPlayer =
       ]
     );
 
+  const currentDevelopmentProfile =
+    useMemo(
+      () =>
+        buildCurrentDevelopmentProfile({
+          evaluations:
+            filteredEvaluations,
+  
+          criteria:
+            evaluationCriteria,
+  
+          teamId:
+            selectedTeamId || null,
+  
+          playerType:
+            developmentPlayerType,
+        }),
+      [
+        filteredEvaluations,
+        evaluationCriteria,
+        selectedTeamId,
+        developmentPlayerType,
+      ]
+    );
+  
   const intelligentRadarData =
     useMemo(
       () =>
