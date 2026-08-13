@@ -3240,6 +3240,256 @@ export function getDevelopmentPriorityConfig(
   );
 }
 
+// ============================================================
+// Official StickPro Development Radar
+// C3.6 — PID Intelligent / Radar consolidation
+// ============================================================
+
+export function buildOfficialDevelopmentRadarData({
+  recommendationsEngine = {},
+  playerType = 'field_player',
+} = {}) {
+  const domainIDI =
+    Array.isArray(
+      recommendationsEngine?.domainIDI
+    )
+      ? recommendationsEngine.domainIDI
+      : [];
+
+  const competencyIDI =
+    Array.isArray(
+      recommendationsEngine?.competencyIDI
+    )
+      ? recommendationsEngine.competencyIDI
+      : [];
+
+  const normalizedPlayerType =
+    String(
+      playerType || 'field_player'
+    )
+      .trim()
+      .toLowerCase();
+
+  const isGoalkeeper =
+    [
+      'goalkeeper',
+      'guarda-redes',
+      'guarda redes',
+      'guarda_redes',
+      'gk',
+      'gr',
+    ].includes(
+      normalizedPlayerType
+    );
+
+  const findDomain = (
+    domainId
+  ) =>
+    domainIDI.find(
+      (item) =>
+        String(item?.id) ===
+        String(domainId)
+    ) || null;
+
+  const findCompetency = (
+    competencyId
+  ) =>
+    competencyIDI.find(
+      (item) =>
+        String(item?.id) ===
+        String(competencyId)
+    ) || null;
+
+  /*
+   * Guarda-redes
+   *
+   * Patinagem utiliza o domínio global skating.
+   * As restantes quatro dimensões correspondem
+   * aos subdomínios específicos de guarda-redes.
+   */
+  if (isGoalkeeper) {
+    const goalkeeperAxes = [
+      {
+        id: 'skating',
+        label: 'Patinagem',
+        source: 'domain',
+        sourceId: 'skating',
+      },
+      {
+        id: 'goalkeeper_positioning',
+        label: 'Posicionamento',
+        source: 'competency',
+        sourceId:
+          'goalkeeper_positioning',
+      },
+      {
+        id: 'goalkeeper_saving',
+        label: 'Defesa',
+        source: 'competency',
+        sourceId:
+          'goalkeeper_saving',
+      },
+      {
+        id: 'goalkeeper_movement',
+        label: 'Deslocamento',
+        source: 'competency',
+        sourceId:
+          'goalkeeper_movement',
+      },
+      {
+        id: 'goalkeeper_distribution',
+        label:
+          'Reposição e Construção',
+        source: 'competency',
+        sourceId:
+          'goalkeeper_distribution',
+      },
+    ];
+
+    return goalkeeperAxes
+      .map((axis) => {
+        const sourceItem =
+          axis.source === 'domain'
+            ? findDomain(
+                axis.sourceId
+              )
+            : findCompetency(
+                axis.sourceId
+              );
+
+        const idiScore =
+          Number(
+            sourceItem?.idiScore
+          );
+
+        if (
+          !Number.isFinite(
+            idiScore
+          )
+        ) {
+          return null;
+        }
+
+        return {
+          id: axis.id,
+
+          key: axis.id,
+
+          label:
+            axis.label,
+
+          value:
+            idiScore,
+
+          idiScore,
+
+          source:
+            axis.source,
+
+          sourceId:
+            axis.sourceId,
+
+          status:
+            sourceItem?.status ||
+            null,
+
+          statusLabel:
+            sourceItem?.statusLabel ||
+            null,
+        };
+      })
+      .filter(Boolean);
+  }
+
+  /*
+   * Jogador de campo
+   *
+   * O Radar apresenta exclusivamente as seis
+   * dimensões macro oficiais StickPro.
+   */
+  const fieldPlayerAxes = [
+    {
+      id: 'skating',
+      label: 'Patinagem',
+    },
+    {
+      id: 'individual_technique',
+      label:
+        'Técnica Individual',
+    },
+    {
+      id: 'perception',
+      label:
+        'Perceção de Jogo',
+    },
+    {
+      id: 'decision',
+      label:
+        'Capacidade de Decisão',
+    },
+    {
+      id: 'collective_play',
+      label:
+        'Jogo Coletivo',
+    },
+    {
+      id: 'behavior',
+      label:
+        'Comportamento',
+    },
+  ];
+
+  return fieldPlayerAxes
+    .map((axis) => {
+      const sourceItem =
+        findDomain(
+          axis.id
+        );
+
+      const idiScore =
+        Number(
+          sourceItem?.idiScore
+        );
+
+      if (
+        !Number.isFinite(
+          idiScore
+        )
+      ) {
+        return null;
+      }
+
+      return {
+        id: axis.id,
+
+        key: axis.id,
+
+        label:
+          axis.label,
+
+        value:
+          idiScore,
+
+        idiScore,
+
+        source:
+          'domain',
+
+        sourceId:
+          axis.id,
+
+        status:
+          sourceItem?.status ||
+          null,
+
+        statusLabel:
+          sourceItem?.statusLabel ||
+          null,
+      };
+    })
+    .filter(Boolean);
+}
+
 export function formatRecommendationTrend(
   trend = {}
 ) {
