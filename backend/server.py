@@ -20396,8 +20396,8 @@ def is_goalkeeper_evaluation_criterion(
     """
     Identifica critérios específicos de guarda-redes.
 
-    Suporta campos atuais, catálogo StickPro,
-    critérios importados e registos históricos.
+    A classificação é estrutural e não depende
+    do texto do nome ou da descrição do critério.
     """
 
     if not isinstance(criterion, dict):
@@ -20429,19 +20429,6 @@ def is_goalkeeper_evaluation_criterion(
         or ""
     ).strip().upper()
 
-    searchable_text = " ".join(
-        str(value or "")
-        for value in [
-            criterion.get("name"),
-            criterion.get("description"),
-            criterion.get("domain_label"),
-            criterion.get("domainLabel"),
-            criterion.get("subdomain"),
-            criterion.get("subdomain_label"),
-            criterion.get("subdomainLabel"),
-        ]
-    ).lower()
-
     return (
         player_type in {
             "goalkeeper",
@@ -20459,9 +20446,6 @@ def is_goalkeeper_evaluation_criterion(
         }
         or category == "goalkeeper"
         or code.startswith("GK-")
-        or "guarda-redes" in searchable_text
-        or "guarda redes" in searchable_text
-        or "goalkeeper" in searchable_text
     )
 
 
