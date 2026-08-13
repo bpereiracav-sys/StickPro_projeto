@@ -1100,6 +1100,7 @@ export default function EvaluationHistory() {
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [evaluations, setEvaluations] = useState([]);
+  const [evaluationCriteria, setEvaluationCriteria] = useState([]);
   const [teamEvaluationRecords, setTeamEvaluationRecords] = useState([]);
   const [loadingTeams, setLoadingTeams] = useState(true);
   const [loadingPlayers, setLoadingPlayers] = useState(false);
@@ -1151,6 +1152,48 @@ export default function EvaluationHistory() {
   const canViewHistory =
     canManageHistory || isAthleteMode;
 
+  useEffect(() => {
+    if (!canViewHistory) {
+      setEvaluationCriteria([]);
+      return;
+    }
+  
+    let active = true;
+  
+    const loadEvaluationCriteria =
+      async () => {
+        try {
+          const response =
+            await evaluationsApi.getCriteria();
+  
+          if (!active) {
+            return;
+          }
+  
+          setEvaluationCriteria(
+            normalizeCollection(
+              response?.data
+            )
+          );
+        } catch (error) {
+          console.error(
+            'Error loading evaluation criteria:',
+            error
+          );
+  
+          if (active) {
+            setEvaluationCriteria([]);
+          }
+        }
+      };
+  
+    loadEvaluationCriteria();
+  
+    return () => {
+      active = false;
+    };
+  }, [canViewHistory]);
+  
   useEffect(() => {
     if (!isAthleteMode || !effectivePlayerId) {
       return;
@@ -2080,10 +2123,19 @@ const selectedPlayer =
     useMemo(
       () =>
         buildAutomaticDevelopmentRecommendations({
-          evaluations: filteredEvaluations,
-          maximumRecommendations: 8,
+          evaluations:
+            filteredEvaluations,
+  
+          criteria:
+            evaluationCriteria,
+  
+          maximumRecommendations:
+            8,
         }),
-      [filteredEvaluations]
+      [
+        filteredEvaluations,
+        evaluationCriteria,
+      ]
     );
 
   const intelligentRadarData =
