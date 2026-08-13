@@ -3346,59 +3346,57 @@ export function buildOfficialDevelopmentRadarData({
       },
     ];
 
-    return goalkeeperAxes
-      .map((axis) => {
-        const sourceItem =
-          axis.source === 'domain'
-            ? findDomain(
-                axis.sourceId
-              )
-            : findCompetency(
-                axis.sourceId
-              );
-
-        const idiScore =
-          Number(
-            sourceItem?.idiScore
-          );
-
-        if (
-          !Number.isFinite(
-            idiScore
-          )
-        ) {
-          return null;
-        }
-
-        return {
-          id: axis.id,
-
-          key: axis.id,
-
-          label:
-            axis.label,
-
-          value:
-            idiScore,
-
-          idiScore,
-
-          source:
-            axis.source,
-
-          sourceId:
-            axis.sourceId,
-
-          status:
-            sourceItem?.status ||
-            null,
-
-          statusLabel:
-            sourceItem?.statusLabel ||
-            null,
-        };
-      })
-      .filter(Boolean);
+    return goalkeeperAxes.map((axis) => {
+      const sourceItem =
+        axis.source === 'domain'
+          ? findDomain(axis.sourceId)
+          : findCompetency(axis.sourceId);
+    
+      const rawIdiScore =
+        sourceItem?.idiScore;
+    
+      const idiScore =
+        Number(rawIdiScore);
+    
+      const hasValue =
+        Number.isFinite(idiScore);
+    
+      return {
+        id: axis.id,
+    
+        key: axis.id,
+    
+        label:
+          axis.label,
+    
+        value:
+          hasValue
+            ? idiScore
+            : null,
+    
+        idiScore:
+          hasValue
+            ? idiScore
+            : null,
+    
+        hasData:
+          hasValue,
+    
+        source:
+          axis.source,
+    
+        sourceId:
+          axis.sourceId,
+    
+        status:
+          sourceItem?.status ||
+          null,
+    
+        statusLabel:
+          sourceItem?.statusLabel ||
+          null,
+      };
+    });
   }
 
   /*
@@ -3439,55 +3437,55 @@ export function buildOfficialDevelopmentRadarData({
     },
   ];
 
-  return fieldPlayerAxes
-    .map((axis) => {
-      const sourceItem =
-        findDomain(
-          axis.id
-        );
-
-      const idiScore =
-        Number(
-          sourceItem?.idiScore
-        );
-
-      if (
-        !Number.isFinite(
-          idiScore
-        )
-      ) {
-        return null;
-      }
-
-      return {
-        id: axis.id,
-
-        key: axis.id,
-
-        label:
-          axis.label,
-
-        value:
-          idiScore,
-
-        idiScore,
-
-        source:
-          'domain',
-
-        sourceId:
-          axis.id,
-
-        status:
-          sourceItem?.status ||
-          null,
-
-        statusLabel:
-          sourceItem?.statusLabel ||
-          null,
-      };
-    })
-    .filter(Boolean);
+  return fieldPlayerAxes.map((axis) => {
+    const sourceItem =
+      findDomain(axis.id);
+  
+    const rawIdiScore =
+      sourceItem?.idiScore;
+  
+    const idiScore =
+      Number(rawIdiScore);
+  
+    const hasValue =
+      Number.isFinite(idiScore);
+  
+    return {
+      id: axis.id,
+  
+      key: axis.id,
+  
+      label:
+        axis.label,
+  
+      value:
+        hasValue
+          ? idiScore
+          : null,
+  
+      idiScore:
+        hasValue
+          ? idiScore
+          : null,
+  
+      hasData:
+        hasValue,
+  
+      source:
+        'domain',
+  
+      sourceId:
+        axis.id,
+  
+      status:
+        sourceItem?.status ||
+        null,
+  
+      statusLabel:
+        sourceItem?.statusLabel ||
+        null,
+    };
+  });
 }
 
 export function formatRecommendationTrend(
