@@ -2232,14 +2232,14 @@ const selectedPlayer =
     useMemo(
       () =>
         buildOfficialDevelopmentRadarData({
-          recommendationsEngine:
-            automaticRecommendations,
+          developmentProfile:
+            currentDevelopmentProfile,
   
           playerType:
             developmentPlayerType,
         }),
       [
-        automaticRecommendations,
+        currentDevelopmentProfile,
         developmentPlayerType,
       ]
     );
@@ -2742,8 +2742,8 @@ const selectedPlayer =
                     </CardTitle>
             
                     <CardDescription className="mt-1">
-                      Síntese inteligente das principais dimensões de desenvolvimento
-                      do atleta, calculada através do IDI.
+                      Perfil transversal atual do atleta, calculado a partir do resultado
+                      mais recente disponível em cada critério de desenvolvimento.
                     </CardDescription>
                   </div>
             
@@ -2771,8 +2771,8 @@ const selectedPlayer =
                   <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/40 p-3">
                     <p className="text-xs leading-5 text-slate-600">
                       Cada eixo representa uma dimensão principal do desenvolvimento.
-                      O valor apresentado corresponde ao respetivo Índice Inteligente
-                      de Desenvolvimento, numa escala de 0 a 100.
+                      O valor resulta da agregação do resultado mais recente disponível
+                      em cada critério dessa dimensão, numa escala normalizada de 0 a 100.
                     </p>
                   </div>
                 )}
