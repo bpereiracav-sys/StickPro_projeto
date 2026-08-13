@@ -481,6 +481,11 @@ export const evaluationsApi = {
   archivePlan: (planId) =>
     api.delete(`/evaluations/plans/${planId}`),
 
+  deletePlan: (planId) =>
+    api.delete(
+      `/evaluations/plans/${planId}/permanent`
+    ),
+  
   // Evaluation execution
   getTeamPlayers: (teamId) =>
     api.get(`/evaluations/teams/${teamId}/players`),
