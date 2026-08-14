@@ -531,8 +531,8 @@ export default function PlayerObjectives() {
     useSearchParams();
   
   const pidId =
-  searchParams.get('pid_id');
-
+    searchParams.get('pid_id');
+  
   const pidVersionParam =
     searchParams.get('pid_version');
   
@@ -541,7 +541,10 @@ export default function PlayerObjectives() {
     pidVersionParam !== ''
       ? Number(pidVersionParam)
       : null;
-
+  
+  const [currentPID, setCurrentPID] =
+    useState(null);
+  
   /*
    * O administrador pode receber PID e versão pela URL.
    *
@@ -559,7 +562,7 @@ export default function PlayerObjectives() {
       : Number(
           currentPID?.current_version ??
           1
-      );
+        );
   
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -568,9 +571,6 @@ export default function PlayerObjectives() {
     useState([]);
   const [objectives, setObjectives] =
     useState([]);
-
-  const [currentPID, setCurrentPID] =
-  useState(null);
   
   const [teamId, setTeamId] = useState('');
   const [playerId, setPlayerId] =
@@ -908,6 +908,7 @@ export default function PlayerObjectives() {
       if (!id) {
         setEvaluations([]);
         setObjectives([]);
+        setCurrentPID(null);
         setEvaluationsError('');
         setObjectivesError('');
         return;
@@ -1000,15 +1001,13 @@ export default function PlayerObjectives() {
       loadPlayer(playerId);
       return;
     }
-
-    if (!id) {
-      setEvaluations([]);
-      setObjectives([]);
-      setCurrentPID(null);
-      setEvaluationsError('');
-      setObjectivesError('');
-      return;
-    }, [
+  
+    setEvaluations([]);
+    setObjectives([]);
+    setCurrentPID(null);
+    setEvaluationsError('');
+    setObjectivesError('');
+  }, [
     playerId,
     loadPlayer,
   ]);
