@@ -2922,6 +2922,298 @@ async def create_default_pid(
     return document
 
 # ============================================================
+# PID — Development Data Reconciliation
+# Sprint C3.6 — ciclo Avaliação → PID Inteligente
+# ============================================================
+
+async def reconcile_pid_with_latest_evaluation(
+    pid: dict,
+) -> dict:
+    """
+    Reconcilia o PID ativo com as avaliações STANDARD
+    atualmente existentes do atleta.
+
+    Regras:
+    - avaliações pid_review não criam uma nova prioridade base;
+    - o Plano Inteligente não é eliminado automaticamente;
+    - se a avaliação que lhe deu origem foi apagada,
+      o plano fica marcado para recálculo;
+    - se existe uma avaliação standard mais recente,
+      o PID fica marcado para recálculo;
+    - preserva o plano e respetivo histórico operacional.
+    """
+
+    if not isinstance(pid, dict):
+        return pid
+
+    pid_id = pid.get("id")
+    player_id = pid.get("player_id")
+
+    if not pid_id or not player_id:
+        return pid
+
+    intelligent_plan = (
+        dict(pid.get("intelligent_plan") or {})
+        if isinstance(
+            pid.get("intelligent_plan"),
+            dict,
+        )
+        else {}
+    )
+
+    # --------------------------------------------------------
+    # Última avaliação STANDARD válida do atleta.
+    #
+    # Excluímos expressamente avaliações de revisão PID,
+    # porque essas pertencem ao ciclo de revisão/renovação.
+    # --------------------------------------------------------
+
+    latest_evaluation = (
+        await db.player_evaluations.find_one(
+            {
+                "player_id":
+                    player_id,
+
+                "evaluation_source": {
+                    "$ne":
+                        "pid_review",
+                },
+
+                "source": {
+                    "$ne":
+                        "pid_review",
+                },
+            },
+            {
+                "_id": 0,
+            },
+            sort=[
+                (
+                    "created_at",
+                    -1,
+                )
+            ],
+        )
+    )
+
+    latest_evaluation_id = (
+        latest_evaluation.get("id")
+        if latest_evaluation
+        else None
+    )
+
+    latest_evaluation_at = (
+        latest_evaluation.get("created_at")
+        if latest_evaluation
+        else None
+    )
+
+    source_evaluation_id = (
+        intelligent_plan.get(
+            "sourceEvaluationId"
+        )
+        or intelligent_plan.get(
+            "source_evaluation_id"
+        )
+        or None
+    )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    update_data = {
+        "latest_evaluation_id":
+            latest_evaluation_id,
+
+        "latest_evaluation_at":
+            latest_evaluation_at,
+    }
+
+    needs_recalculation = False
+    recalculation_reason = None
+
+    # --------------------------------------------------------
+    # Não existem atualmente avaliações standard.
+    # --------------------------------------------------------
+
+    if not latest_evaluation:
+        if intelligent_plan:
+            needs_recalculation = True
+            recalculation_reason = (
+                "no_current_evaluation"
+            )
+
+    # --------------------------------------------------------
+    # Existe plano com avaliação de origem identificada.
+    # Confirmar que essa avaliação ainda existe.
+    # --------------------------------------------------------
+
+    elif (
+        intelligent_plan
+        and source_evaluation_id
+    ):
+        source_evaluation = (
+            await db.player_evaluations.find_one(
+                {
+                    "id":
+                        source_evaluation_id,
+
+                    "player_id":
+                        player_id,
+                },
+                {
+                    "_id": 0,
+                    "id": 1,
+                    "created_at": 1,
+                },
+            )
+        )
+
+        if not source_evaluation:
+            needs_recalculation = True
+            recalculation_reason = (
+                "source_evaluation_deleted"
+            )
+
+            intelligent_plan[
+                "sourceEvaluationDeleted"
+            ] = True
+
+            intelligent_plan[
+                "sourceEvaluationDeletedId"
+            ] = (
+                source_evaluation_id
+            )
+
+            intelligent_plan[
+                "sourceEvaluationDeletedAt"
+            ] = now.isoformat()
+
+        elif (
+            latest_evaluation_id
+            and str(
+                latest_evaluation_id
+            )
+            != str(
+                source_evaluation_id
+            )
+        ):
+            needs_recalculation = True
+            recalculation_reason = (
+                "new_evaluation"
+            )
+
+    # --------------------------------------------------------
+    # Plano antigo sem sourceEvaluationId.
+    #
+    # Não podemos assumir que corresponde à avaliação atual.
+    # Forçamos reconciliação para que o próximo ciclo passe
+    # a ter uma origem explícita.
+    # --------------------------------------------------------
+
+    elif intelligent_plan:
+        needs_recalculation = True
+        recalculation_reason = (
+            "missing_source_evaluation"
+        )
+
+    # --------------------------------------------------------
+    # Aplicar estado de reconciliação.
+    # --------------------------------------------------------
+
+    if intelligent_plan:
+        if needs_recalculation:
+            intelligent_plan[
+                "developmentDataStatus"
+            ] = "needs_recalculation"
+
+            intelligent_plan[
+                "recalculationReason"
+            ] = recalculation_reason
+
+            intelligent_plan[
+                "latestEvaluationId"
+            ] = latest_evaluation_id
+
+            intelligent_plan[
+                "latestEvaluationAt"
+            ] = latest_evaluation_at
+
+            intelligent_plan[
+                "recalculationRequestedAt"
+            ] = now.isoformat()
+
+            update_data[
+                "development_data_status"
+            ] = "needs_recalculation"
+
+            update_data[
+                "development_data_reason"
+            ] = recalculation_reason
+
+            # O plano operacional é preservado,
+            # mas o PID passa formalmente a estado de revisão.
+            update_data[
+                "intelligent_plan_status"
+            ] = "review"
+
+        else:
+            intelligent_plan[
+                "developmentDataStatus"
+            ] = "current"
+
+            update_data[
+                "development_data_status"
+            ] = "current"
+
+            update_data[
+                "development_data_reason"
+            ] = None
+
+        update_data[
+            "intelligent_plan"
+        ] = intelligent_plan
+
+    # --------------------------------------------------------
+    # Persistir apenas se existe PID real.
+    # --------------------------------------------------------
+
+    await db.evaluation_pids.update_one(
+        {
+            "id":
+                pid_id,
+
+            "archived":
+                False,
+        },
+        {
+            "$set":
+                update_data,
+        },
+    )
+
+    refreshed_pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id":
+                    pid_id,
+
+                "archived":
+                    False,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    return (
+        refreshed_pid
+        or pid
+    )
+
+# ============================================================
 # Intelligent PID — Calendar Training Sync
 # Sprint C3.6.6D.4A
 # ============================================================
@@ -18970,16 +19262,24 @@ async def get_player_evaluations(
 
     return visible
 
-@api_router.get("/evaluations/pids/player/{player_id}")
+@api_router.get(
+    "/evaluations/pids/player/{player_id}"
+)
 async def get_player_pid(
     player_id: str,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(
+        get_current_user
+    ),
 ):
-    checker = get_permission_checker(current_user)
+    checker = get_permission_checker(
+        current_user
+    )
 
     if (
         not checker.is_admin
-        and not checker.can_access_player(player_id)
+        and not checker.can_access_player(
+            player_id
+        )
     ):
         raise HTTPException(
             status_code=403,
@@ -18994,7 +19294,21 @@ async def get_player_pid(
         created_by=current_user["id"],
     )
 
-    pid.pop("_id", None)
+    # ========================================================
+    # C3.6 — garantir que o PID devolvido representa
+    # o estado atual das avaliações standard.
+    # ========================================================
+
+    pid = (
+        await reconcile_pid_with_latest_evaluation(
+            pid
+        )
+    )
+
+    pid.pop(
+        "_id",
+        None,
+    )
 
     return pid
 
@@ -19123,6 +19437,107 @@ async def activate_intelligent_pid_plan(
             detail="Plano inteligente inválido",
         )
 
+    # ============================================================
+    # C3.6 — origem oficial do Plano Inteligente
+    #
+    # Um plano aprovado deve ficar ligado à avaliação STANDARD
+    # mais recente que sustentou a decisão.
+    # ============================================================
+    
+    latest_standard_evaluation = (
+        await db.player_evaluations.find_one(
+            {
+                "player_id":
+                    player_id,
+    
+                "evaluation_source": {
+                    "$ne":
+                        "pid_review",
+                },
+    
+                "source": {
+                    "$ne":
+                        "pid_review",
+                },
+            },
+            {
+                "_id": 0,
+                "id": 1,
+                "created_at": 1,
+                "plan_id": 1,
+            },
+            sort=[
+                (
+                    "created_at",
+                    -1,
+                )
+            ],
+        )
+    )
+    
+    if latest_standard_evaluation:
+        plan[
+            "sourceEvaluationId"
+        ] = (
+            latest_standard_evaluation.get(
+                "id"
+            )
+        )
+    
+        plan[
+            "sourceEvaluationAt"
+        ] = (
+            latest_standard_evaluation.get(
+                "created_at"
+            )
+        )
+    
+        plan[
+            "sourceEvaluationPlanId"
+        ] = (
+            latest_standard_evaluation.get(
+                "plan_id"
+            )
+        )
+    
+    plan[
+        "developmentDataStatus"
+    ] = "current"
+    
+    plan[
+        "sourceEvaluationDeleted"
+    ] = False
+    
+    plan.pop(
+        "sourceEvaluationDeletedId",
+        None,
+    )
+    
+    plan.pop(
+        "sourceEvaluationDeletedAt",
+        None,
+    )
+    
+    plan.pop(
+        "recalculationReason",
+        None,
+    )
+    
+    plan.pop(
+        "recalculationRequestedAt",
+        None,
+    )
+    
+    plan.pop(
+        "latestEvaluationId",
+        None,
+    )
+    
+    plan.pop(
+        "latestEvaluationAt",
+        None,
+    )
+    
     criterion_name = (
         plan.get(
             "criterionName"
