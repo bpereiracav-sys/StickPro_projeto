@@ -533,6 +533,15 @@ export default function PlayerObjectives() {
   const pidId =
   searchParams.get('pid_id');
 
+  const pidVersionParam =
+    searchParams.get('pid_version');
+  
+  const pidVersion =
+    pidVersionParam !== null &&
+    pidVersionParam !== ''
+      ? Number(pidVersionParam)
+      : null;
+  
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
   const [criteria, setCriteria] = useState([]);
@@ -1064,10 +1073,42 @@ export default function PlayerObjectives() {
     const scopedObjectives =
       pidId
         ? objectives.filter(
-            (objective) =>
-              String(
-                objective?.pid_id || ''
-              ) === String(pidId)
+            (objective) => {
+              /*
+               * Primeiro confirma que pertence ao PID aberto.
+               */
+              if (
+                String(
+                  objective?.pid_id || ''
+                ) !== String(pidId)
+              ) {
+                return false;
+              }
+    
+              /*
+               * Quando conhecemos a versão atual do PID,
+               * mostramos apenas os objetivos desse ciclo.
+               */
+              if (
+                Number.isFinite(pidVersion)
+              ) {
+                const objectivePIDVersion =
+                  Number(
+                    objective?.pid_version ?? 1
+                  );
+    
+                return (
+                  objectivePIDVersion ===
+                  pidVersion
+                );
+              }
+    
+              /*
+               * Compatibilidade quando a página não recebeu
+               * pid_version na URL.
+               */
+              return true;
+            }
           )
         : objectives;
   
@@ -1161,6 +1202,7 @@ export default function PlayerObjectives() {
     criteriaMap,
     latest,
     pidId,
+    pidVersion,
   ]);
 
   const visible =
