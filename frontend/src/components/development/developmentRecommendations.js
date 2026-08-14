@@ -663,39 +663,53 @@ const buildCriteriaMap = (
     Array.isArray(criteria)
       ? criteria
       : []
-  ).forEach(
-    (criterion) => {
-      const criterionId =
-        criterion?.id ||
-        criterion?.criterion_id ||
-        criterion?.criterionId ||
-        null;
-
-      const criterionCode =
-        criterion?.code ||
-        criterion?.sourceCode ||
-        criterion?.source_code ||
-        null;
-
-      if (criterionId) {
-        map.set(
-          String(criterionId),
-          criterion
-        );
-      }
-
-      if (criterionCode) {
-        map.set(
-          String(criterionCode),
-          criterion
-        );
-      }
+  ).forEach((criterion) => {
+    if (!criterion) {
+      return;
     }
-  );
+
+    const criterionId =
+      criterion?.id ||
+      criterion?.criterion_id ||
+      criterion?.criterionId ||
+      null;
+
+    const criterionCode =
+      criterion?.code ||
+      criterion?.criterion_code ||
+      criterion?.criterionCode ||
+      criterion?.sourceCode ||
+      criterion?.source_code ||
+      null;
+
+    /*
+     * O código StickPro é a identidade funcional/canónica
+     * do critério.
+     *
+     * O UUID continua registado apenas para compatibilidade
+     * com avaliações e registos históricos.
+     */
+
+    if (criterionCode) {
+      map.set(
+        String(criterionCode)
+          .trim()
+          .toUpperCase(),
+        criterion
+      );
+    }
+
+    if (criterionId) {
+      map.set(
+        String(criterionId)
+          .trim(),
+        criterion
+      );
+    }
+  });
 
   return map;
 };
-
 
 const normalizeEvaluationScores = ({
   evaluations = [],
@@ -707,193 +721,280 @@ const normalizeEvaluationScores = ({
   const normalized = [];
 
   const criteriaMap =
-    buildCriteriaMap(
-      criteria
-    );
+    buildCriteriaMap(criteria);
 
-  evaluations.forEach(
-    (evaluation) => {
-      const evaluationDate =
-        evaluation?.evaluation_date ||
-        evaluation?.created_at ||
-        evaluation?.updated_at ||
-        null;
+  (
+    Array.isArray(evaluations)
+      ? evaluations
+      : []
+  ).forEach((evaluation) => {
+    const evaluationDate =
+      evaluation?.evaluation_date ||
+      evaluation?.created_at ||
+      evaluation?.updated_at ||
+      null;
 
-      const evaluationId =
-        evaluation?.id ||
-        evaluation?.evaluation_id ||
-        null;
+    const evaluationId =
+      evaluation?.id ||
+      evaluation?.evaluation_id ||
+      null;
 
-      const planId =
-        evaluation?.plan_id ||
-        null;
+    const planId =
+      evaluation?.plan_id ||
+      null;
 
-      const scores = Array.isArray(
-        evaluation?.scores
-      )
+    const scores =
+      Array.isArray(evaluation?.scores)
         ? evaluation.scores
         : [];
 
-      scores.forEach(
-        (scoreEntry) => {
-          const score =
-            getScoreValue(
-              scoreEntry
-            );
+    scores.forEach((scoreEntry) => {
+      const score =
+        getScoreValue(scoreEntry);
 
-          if (score === null) {
-            return;
-          }
+      if (score === null) {
+        return;
+      }
 
-          const criterionId =
-            getCriterionId(
-              scoreEntry
-            );
+      const rawCriterionId =
+        getCriterionId(scoreEntry);
 
-          const criterionCode =
-            getCriterionCode(
-              scoreEntry
-            );
+      const rawCriterionCode =
+        getCriterionCode(scoreEntry);
 
-          const criterionKey =
-            criterionCode ||
-            criterionId;
+      /*
+       * Primeiro tentamos localizar o critério oficial
+       * através do código StickPro.
+       *
+       * O UUID é apenas fallback para dados históricos.
+       */
 
-          if (!criterionKey) {
-            return;
-          }
+      const normalizedCode =
+        rawCriterionCode
+          ? String(rawCriterionCode)
+              .trim()
+              .toUpperCase()
+          : null;
 
-          const externalCriterion =
-            criteriaMap.get(
-              String(criterionId)
-            ) ||
-            criteriaMap.get(
-              String(criterionCode)
-            ) ||
-            null;
+      const normalizedId =
+        rawCriterionId
+          ? String(rawCriterionId)
+              .trim()
+          : null;
 
-          /*
-           * Alguns endpoints já devolvem o critério
-           * dentro de scoreEntry.criterion.
-           *
-           * Quando isso não acontece, utilizamos a
-           * lista de critérios fornecida à função principal.
-           */
-          const enrichedScoreEntry = {
-            ...(externalCriterion || {}),
-            ...scoreEntry,
+      const externalCriterion =
+        (
+          normalizedCode
+            ? criteriaMap.get(
+                normalizedCode
+              )
+            : null
+        ) ||
+        (
+          normalizedId
+            ? criteriaMap.get(
+                normalizedId
+              )
+            : null
+        ) ||
+        null;
 
-            criterion: {
-              ...(externalCriterion || {}),
-              ...(scoreEntry?.criterion || {}),
-            },
-          };
+      /*
+       * Depois de localizar o critério oficial,
+       * voltamos a resolver ID e código.
+       *
+       * Isto permite que avaliações históricas que
+       * guardaram apenas UUID sejam reconciliadas com
+       * o código oficial atual.
+       */
 
-          const scaleMin =
-            getScaleMin(
-              enrichedScoreEntry
-            );
+      const resolvedCriterionId =
+        externalCriterion?.id ||
+        externalCriterion?.criterion_id ||
+        externalCriterion?.criterionId ||
+        rawCriterionId ||
+        null;
 
-          const scaleMax =
-            getScaleMax(
-              enrichedScoreEntry
-            );
+      const resolvedCriterionCode =
+        externalCriterion?.code ||
+        externalCriterion?.criterion_code ||
+        externalCriterion?.criterionCode ||
+        externalCriterion?.sourceCode ||
+        externalCriterion?.source_code ||
+        rawCriterionCode ||
+        null;
 
-          const normalizedPercentage =
-            normalizeScorePercentage({
-              score,
-              scaleMin,
-              scaleMax,
-            });
+      const canonicalCode =
+        resolvedCriterionCode
+          ? String(resolvedCriterionCode)
+              .trim()
+              .toUpperCase()
+          : null;
 
-          const resolvedTeamId =
-            getEntryTeamId(
-              enrichedScoreEntry,
-              evaluation
-            ) ||
-            teamId ||
-            null;
+      /*
+       * REGRA CANÓNICA:
+       *
+       * 1. código StickPro
+       * 2. UUID apenas quando não existe código
+       */
 
-          const resolvedAgeGroup =
-            getEntryAgeGroup(
-              enrichedScoreEntry,
-              evaluation
-            ) ||
-            ageGroup ||
-            null;
+      const criterionKey =
+        canonicalCode ||
+        (
+          resolvedCriterionId
+            ? String(
+                resolvedCriterionId
+              ).trim()
+            : null
+        );
 
-          const resolvedPlayerType =
-            getEntryPlayerType(
-              enrichedScoreEntry,
-              evaluation
-            ) ||
-            playerType ||
-            null;
+      if (!criterionKey) {
+        return;
+      }
 
-          const expectedLevels =
-            getCriterionExpectedLevels(
-              enrichedScoreEntry
-            );
+      const enrichedScoreEntry = {
+        ...(externalCriterion || {}),
+        ...scoreEntry,
 
-          normalized.push({
-            evaluationId,
-            planId,
-            evaluationDate,
+        /*
+         * Forçamos os identificadores resolvidos para
+         * impedir que um UUID histórico volte a dominar
+         * a identidade do critério.
+         */
+        criterion_id:
+          resolvedCriterionId,
 
-            criterionKey,
-            criterionId,
-            criterionCode,
+        criterion_code:
+          canonicalCode,
 
-            criterionName:
-              getCriterionName(
-                enrichedScoreEntry
-              ),
+        code:
+          canonicalCode ||
+          externalCriterion?.code ||
+          scoreEntry?.code ||
+          null,
 
-            criterionDescription:
-              getCriterionDescription(
-                enrichedScoreEntry
-              ),
+        criterion: {
+          ...(externalCriterion || {}),
+          ...(scoreEntry?.criterion || {}),
 
-            domainId:
-              getDomainId(
-                enrichedScoreEntry
-              ),
+          id:
+            resolvedCriterionId,
 
-            domainLabel:
-              getDomainLabel(
-                enrichedScoreEntry
-              ),
+          code:
+            canonicalCode ||
+            externalCriterion?.code ||
+            scoreEntry?.criterion?.code ||
+            null,
+        },
+      };
 
-            subdomainId:
-              getSubdomainId(
-                enrichedScoreEntry
-              ),
+      const scaleMin =
+        getScaleMin(
+          enrichedScoreEntry
+        );
 
-            subdomainLabel:
-              getSubdomainLabel(
-                enrichedScoreEntry
-              ),
+      const scaleMax =
+        getScaleMax(
+          enrichedScoreEntry
+        );
 
-            expectedLevels,
+      const normalizedPercentage =
+        normalizeScorePercentage({
+          score,
+          scaleMin,
+          scaleMax,
+        });
 
-            teamId:
-              resolvedTeamId,
+      const resolvedTeamId =
+        getEntryTeamId(
+          enrichedScoreEntry,
+          evaluation
+        ) ||
+        teamId ||
+        null;
 
-            ageGroup:
-              resolvedAgeGroup,
+      const resolvedAgeGroup =
+        getEntryAgeGroup(
+          enrichedScoreEntry,
+          evaluation
+        ) ||
+        ageGroup ||
+        null;
 
-            playerType:
-              resolvedPlayerType,
+      const resolvedPlayerType =
+        getEntryPlayerType(
+          enrichedScoreEntry,
+          evaluation
+        ) ||
+        playerType ||
+        null;
 
-            score,
-            scaleMin,
-            scaleMax,
-            normalizedPercentage,
-          });
-        }
-      );
-    }
-  );
+      const expectedLevels =
+        getCriterionExpectedLevels(
+          enrichedScoreEntry
+        );
+
+      normalized.push({
+        evaluationId,
+        planId,
+        evaluationDate,
+
+        criterionKey,
+
+        criterionId:
+          resolvedCriterionId,
+
+        criterionCode:
+          canonicalCode,
+
+        criterionName:
+          getCriterionName(
+            enrichedScoreEntry
+          ),
+
+        criterionDescription:
+          getCriterionDescription(
+            enrichedScoreEntry
+          ),
+
+        domainId:
+          getDomainId(
+            enrichedScoreEntry
+          ),
+
+        domainLabel:
+          getDomainLabel(
+            enrichedScoreEntry
+          ),
+
+        subdomainId:
+          getSubdomainId(
+            enrichedScoreEntry
+          ),
+
+        subdomainLabel:
+          getSubdomainLabel(
+            enrichedScoreEntry
+          ),
+
+        expectedLevels,
+
+        teamId:
+          resolvedTeamId,
+
+        ageGroup:
+          resolvedAgeGroup,
+
+        playerType:
+          resolvedPlayerType,
+
+        score,
+        scaleMin,
+        scaleMax,
+        normalizedPercentage,
+      });
+    });
+  });
 
   return normalized;
 };
