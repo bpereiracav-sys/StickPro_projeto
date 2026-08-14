@@ -1050,13 +1050,52 @@ export default function DevelopmentPID() {
   ]);
 
   const summary = useMemo(() => {
-    const activeObjectives = objectives.filter(
-      (objective) => objective?.status === 'active'
+    /*
+     * Objetivos pertencentes ao ciclo atual do PID.
+     *
+     * Cada ativação de um novo Plano Inteligente incrementa
+     * pid.current_version e o objetivo automático recebe
+     * exatamente essa mesma pid_version.
+     *
+     * Assim, objetivos de ciclos anteriores permanecem
+     * guardados como histórico, mas deixam de aparecer
+     * em "Objetivos do plano" atual.
+     */
+    const currentPIDVersion = Number(
+      pid?.current_version ?? 1
     );
-
-    const completedObjectives = objectives.filter(
-      (objective) => objective?.status === 'completed'
+    
+    const currentCycleObjectives = objectives.filter(
+      (objective) => {
+        const objectivePIDVersion = Number(
+          objective?.pid_version ?? 1
+        );
+    
+        return (
+          String(objective?.pid_id || '') ===
+            String(pid?.id || '') &&
+          objectivePIDVersion === currentPIDVersion
+        );
+      }
     );
+    
+    const activeObjectives =
+      currentCycleObjectives.filter(
+        (objective) =>
+          objective?.status === 'active'
+      );
+    
+    const pausedObjectives =
+      currentCycleObjectives.filter(
+        (objective) =>
+          objective?.status === 'paused'
+      );
+    
+    const completedObjectives =
+      currentCycleObjectives.filter(
+        (objective) =>
+          objective?.status === 'completed'
+      );
 
     const progressValues = [
     ...activeObjectives,
