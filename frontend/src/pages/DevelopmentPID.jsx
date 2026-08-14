@@ -1070,15 +1070,6 @@ export default function DevelopmentPID() {
      * pid_version fica como fallback para registos já existentes.
      */
     
-    const currentPIDVersion = Number(
-      pid?.current_version ?? 1
-    );
-    
-    const currentIntelligentPlanId =
-      intelligentPlan?.id ||
-      intelligentPlan?.sourceRecommendationId ||
-      null;
-    
     const currentCycleObjectives = objectives.filter(
       (objective) => {
         if (
@@ -1239,6 +1230,15 @@ export default function DevelopmentPID() {
     typeof pid.intelligent_plan === 'object'
       ? pid.intelligent_plan
       : null;
+
+  const currentPIDVersion = Number(
+      pid?.current_version ?? 1
+    );
+    
+  const currentIntelligentPlanId =
+      intelligentPlan?.id ||
+      intelligentPlan?.sourceRecommendationId ||
+      null;
   
   const intelligentPlanStatus =
     pid?.intelligent_plan_status ||
