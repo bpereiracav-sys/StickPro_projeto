@@ -21153,6 +21153,66 @@ async def delete_player_evaluation(
             in source_evaluation_ids
         )
 
+        # ========================================================
+        # Objetivos derivados da avaliação eliminada
+        #
+        # Não apagamos fisicamente os objetivos, para preservar
+        # rastreabilidade histórica.
+        #
+        # Objetivos automáticos provenientes de um ciclo que deixou
+        # de ter avaliação válida passam a histórico/inativos.
+        # ========================================================
+        
+        if player_id:
+            await db.evaluation_objectives.update_many(
+                {
+                    "player_id":
+                        player_id,
+        
+                    "$or": [
+                        {
+                            "source_evaluation_id":
+                                evaluation_id,
+                        },
+                        {
+                            "last_evaluation_id":
+                                evaluation_id,
+                        },
+                    ],
+        
+                    "automatic":
+                        True,
+        
+                    "status": {
+                        "$in": [
+                            "active",
+                            "paused",
+                        ]
+                    },
+                },
+                {
+                    "$set": {
+                        "status":
+                            "cancelled",
+        
+                        "archived":
+                            True,
+        
+                        "archive_reason":
+                            "source_evaluation_deleted",
+        
+                        "source_evaluation_deleted_id":
+                            evaluation_id,
+        
+                        "archived_at":
+                            now.isoformat(),
+        
+                        "updated_at":
+                            now.isoformat(),
+                    }
+                },
+            )
+        
         pid_update = {
             "updated_at":
                 now,
@@ -23877,6 +23937,26 @@ async def sync_intelligent_pid_objective(
         or None
     )
 
+    source_evaluation_id = (
+        plan.get(
+            "sourceEvaluationId"
+        )
+        or plan.get(
+            "source_evaluation_id"
+        )
+        or None
+    )
+    
+    source_evaluation_plan_id = (
+        plan.get(
+            "sourceEvaluationPlanId"
+        )
+        or plan.get(
+            "source_evaluation_plan_id"
+        )
+        or None
+    )
+    
     # --------------------------------------------------------
     # Idempotência:
     # se já existe objetivo ativo para este critério + PID,
@@ -23951,6 +24031,14 @@ async def sync_intelligent_pid_objective(
 
         "intelligent_plan_id":
             plan_id,
+        
+        # Avaliação standard que originou
+        # o Plano Inteligente e este objetivo.
+        "source_evaluation_id":
+            source_evaluation_id,
+        
+        "source_evaluation_plan_id":
+            source_evaluation_plan_id,
 
         "updated_by":
             current_user.get(
@@ -24064,8 +24152,15 @@ async def get_player_objectives(
     
     objectives = await db.evaluation_objectives.find(
         {
-            "player_id": player_id,
-            "pid_id": pid["id"],
+            "player_id":
+                player_id,
+    
+            "pid_id":
+                pid["id"],
+    
+            "archived": {
+                "$ne": True,
+            },
         },
         {
             "_id": 0,
