@@ -1073,61 +1073,135 @@ export default function PlayerObjectives() {
     [criteria]
   );
 
-  const latest = useMemo(() => {
-    const scoresMap = new Map();
-
-    [...evaluations]
-      .sort(
-        (evaluationA, evaluationB) =>
-          new Date(
-            evaluationDate(
-              evaluationB
-            ) || 0
-          ) -
-          new Date(
-            evaluationDate(
-              evaluationA
-            ) || 0
-          )
-      )
-      .forEach((evaluation) => {
-        criterionScores(
-          evaluation
-        ).forEach((score) => {
-          if (
-            Number.isFinite(score.score) &&
-            !scoresMap.has(score.id)
-          ) {
-            scoresMap.set(
-              score.id,
-              score.score
+  const evaluationHistoryByCriterion = useMemo(() => {
+    const historyMap = new Map();
+  
+    evaluations.forEach((evaluation) => {
+      const rawDate =
+        evaluationDate(evaluation);
+  
+      const timestamp =
+        rawDate
+          ? new Date(rawDate).getTime()
+          : NaN;
+  
+      criterionScores(
+        evaluation
+      ).forEach((score) => {
+        if (
+          !score?.id ||
+          !Number.isFinite(score.score)
+        ) {
+          return;
+        }
+  
+        const entry = {
+          evaluationId:
+            evaluation?.id ||
+            null,
+  
+          score:
+            score.score,
+  
+          date:
+            rawDate,
+  
+          timestamp,
+        };
+  
+        if (
+          !historyMap.has(score.id)
+        ) {
+          historyMap.set(
+            score.id,
+            []
+          );
+        }
+  
+        historyMap
+          .get(score.id)
+          .push(entry);
+      });
+    });
+  
+    historyMap.forEach(
+      (entries) => {
+        entries.sort(
+          (first, second) => {
+            const firstTime =
+              Number.isFinite(
+                first.timestamp
+              )
+                ? first.timestamp
+                : 0;
+  
+            const secondTime =
+              Number.isFinite(
+                second.timestamp
+              )
+                ? second.timestamp
+                : 0;
+  
+            return (
+              firstTime -
+              secondTime
             );
           }
-        });
-      });
-
-    return scoresMap;
+        );
+      }
+    );
+  
+    return historyMap;
   }, [evaluations]);
+  
+  /*
+   * Mantemos também a avaliação mais recente global
+   * por critério para a criação MANUAL de novos objetivos.
+   *
+   * O progresso dos objetivos existentes NÃO utiliza este
+   * mapa; utiliza apenas avaliações posteriores ao baseline.
+   */
+  const latest = useMemo(() => {
+    const scoresMap = new Map();
+  
+    evaluationHistoryByCriterion.forEach(
+      (entries, criterionId) => {
+        const latestEntry =
+          [...entries]
+            .reverse()
+            .find(
+              (entry) =>
+                Number.isFinite(
+                  entry.score
+                )
+            );
+  
+        if (latestEntry) {
+          scoresMap.set(
+            criterionId,
+            latestEntry.score
+          );
+        }
+      }
+    );
+  
+    return scoresMap;
+  }, [
+    evaluationHistoryByCriterion,
+  ]);
 
   const enriched = useMemo(() => {
     /*
-     * Quando esta página é aberta a partir de um PID,
-     * apresenta apenas os objetivos pertencentes a esse PID.
-     *
-     * Os restantes objetivos continuam preservados na base
-     * de dados e podem continuar a ser usados no histórico.
+     * Apenas objetivos pertencentes ao ciclo atual do PID.
      */
     const scopedObjectives =
       effectivePIDId
         ? objectives.filter(
             (objective) => {
-              /*
-               * Apenas objetivos pertencentes
-               * ao PID atualmente ativo.
-               */
               if (
                 String(
-                  objective?.pid_id || ''
+                  objective?.pid_id ||
+                    ''
                 ) !==
                 String(
                   effectivePIDId
@@ -1135,24 +1209,20 @@ export default function PlayerObjectives() {
               ) {
                 return false;
               }
-    
-              /*
-               * Apenas objetivos da versão atual
-               * do PID.
-               */
+  
               const objectivePIDVersion =
                 Number(
                   objective?.pid_version ??
-                  1
+                    1
                 );
-    
+  
               return (
                 objectivePIDVersion ===
                 effectivePIDVersion
               );
             }
           )
-    : [];
+        : [];
   
     return scopedObjectives.map(
       (objective) => {
@@ -1168,19 +1238,17 @@ export default function PlayerObjectives() {
           {
             id:
               objective.criterion_id,
+  
             name:
               objective.criterion_name ||
               'Critério',
+  
             scale_min:
               objective.scale_min ?? 1,
+  
             scale_max:
               objective.scale_max ?? 5,
           };
-  
-        const latestValue =
-          latest.get(
-            objective.criterion_id
-          );
   
         const baseline = Number(
           objective.baseline_value ??
@@ -1188,60 +1256,221 @@ export default function PlayerObjectives() {
             1
         );
   
-        /*
-         * Se ainda não existir uma avaliação posterior
-         * à criação deste objetivo, o valor atual deve
-         * corresponder ao baseline que originou o objetivo.
-         *
-         * Isto evita apresentar "—" imediatamente após
-         * ativar um Plano Inteligente.
-         */
-        const currentValue =
-          Number.isFinite(latestValue)
-            ? latestValue
-            : baseline;
-  
         const target = Number(
           objective.target_value
         );
   
+        const criterionHistory =
+          evaluationHistoryByCriterion.get(
+            objective.criterion_id
+          ) || [];
+  
+        /*
+         * A avaliação que originou o objetivo representa
+         * o BASELINE e nunca deve ser interpretada como
+         * progresso posterior.
+         *
+         * Para objetivos novos, source_evaluation_id é
+         * a associação preferencial.
+         */
+        const sourceEvaluationId =
+          objective?.source_evaluation_id ||
+          objective?.sourceEvaluationId ||
+          null;
+  
+        /*
+         * Fallback temporal para objetivos antigos.
+         *
+         * created_at representa o momento em que o objetivo
+         * passou a existir. Só avaliações posteriores podem
+         * alterar o valor atual.
+         */
+        const objectiveStartRaw =
+          objective?.activated_at ||
+          objective?.created_at ||
+          null;
+  
+        const objectiveStartTimestamp =
+          objectiveStartRaw
+            ? new Date(
+                objectiveStartRaw
+              ).getTime()
+            : NaN;
+  
+        let sourceEvaluationIndex = -1;
+  
+        if (sourceEvaluationId) {
+          sourceEvaluationIndex =
+            criterionHistory.findIndex(
+              (entry) =>
+                String(
+                  entry.evaluationId ||
+                    ''
+                ) ===
+                String(
+                  sourceEvaluationId
+                )
+            );
+        }
+  
+        let subsequentEvaluations = [];
+  
+        /*
+         * REGRA 1:
+         * Se conhecemos exatamente a avaliação que criou
+         * o baseline, só contam as avaliações seguintes
+         * desse critério.
+         */
+        if (
+          sourceEvaluationIndex >= 0
+        ) {
+          subsequentEvaluations =
+            criterionHistory.slice(
+              sourceEvaluationIndex + 1
+            );
+        } else if (
+          Number.isFinite(
+            objectiveStartTimestamp
+          )
+        ) {
+          /*
+           * REGRA 2:
+           * Compatibilidade com objetivos históricos que
+           * ainda não possuem source_evaluation_id.
+           */
+          subsequentEvaluations =
+            criterionHistory.filter(
+              (entry) =>
+                Number.isFinite(
+                  entry.timestamp
+                ) &&
+                entry.timestamp >
+                  objectiveStartTimestamp
+            );
+        }
+  
+        /*
+         * A última reavaliação válida posterior ao baseline
+         * representa o estado atual.
+         *
+         * Sem reavaliação posterior:
+         * Atual = baseline
+         * Progresso = 0%
+         */
+        const latestSubsequentEvaluation =
+          subsequentEvaluations.length
+            ? subsequentEvaluations[
+                subsequentEvaluations.length -
+                  1
+              ]
+            : null;
+  
+        const currentValue =
+          latestSubsequentEvaluation &&
+          Number.isFinite(
+            latestSubsequentEvaluation.score
+          )
+            ? latestSubsequentEvaluation.score
+            : baseline;
+  
         let progress = 0;
   
         if (
-          Number.isFinite(currentValue) &&
+          Number.isFinite(
+            currentValue
+          ) &&
           Number.isFinite(target) &&
           Number.isFinite(baseline)
         ) {
-          if (target <= baseline) {
+          /*
+           * Caso normal:
+           *
+           * baseline 2
+           * target   3
+           *
+           * atual 2   =>   0%
+           * atual 2.5 =>  50%
+           * atual 3   => 100%
+           */
+          if (target > baseline) {
+            progress =
+              ((currentValue -
+                baseline) /
+                (target -
+                  baseline)) *
+              100;
+          } else {
+            /*
+             * Meta igual ou inferior ao baseline.
+             * Pode ocorrer em objetivos de manutenção
+             * ou em dados históricos.
+             */
             progress =
               currentValue >= target
                 ? 100
                 : 0;
-          } else {
-            progress =
-              ((currentValue - baseline) /
-                (target - baseline)) *
-              100;
           }
         }
-        return {
-          ...objective,
-          criterion,
-          currentValue,
-          progress: Math.max(
+  
+        const normalizedProgress =
+          Math.max(
             0,
             Math.min(
               100,
               progress
             )
-          ),
+          );
+  
+        /*
+         * Delta é mantido separadamente.
+         *
+         * Assim uma regressão não produz uma barra negativa,
+         * mas pode posteriormente alimentar Insights/PID.
+         */
+        const evolutionDelta =
+          Number.isFinite(
+            currentValue
+          ) &&
+          Number.isFinite(
+            baseline
+          )
+            ? currentValue -
+              baseline
+            : 0;
+  
+        return {
+          ...objective,
+  
+          criterion,
+  
+          currentValue,
+  
+          progress:
+            normalizedProgress,
+  
+          evolutionDelta,
+  
+          hasLongitudinalEvaluation:
+            Boolean(
+              latestSubsequentEvaluation
+            ),
+  
+          latestProgressEvaluationId:
+            latestSubsequentEvaluation
+              ?.evaluationId ||
+            null,
+  
+          latestProgressEvaluationDate:
+            latestSubsequentEvaluation
+              ?.date ||
+            null,
         };
       }
     );
   }, [
     objectives,
     criteriaMap,
-    latest,
+    evaluationHistoryByCriterion,
     effectivePIDId,
     effectivePIDVersion,
   ]);
