@@ -1197,30 +1197,14 @@ export default function PlayerObjectives() {
     const scopedObjectives =
       effectivePIDId
         ? objectives.filter(
-            (objective) => {
-              if (
-                String(
-                  objective?.pid_id ||
-                    ''
-                ) !==
+            (objective) =>
+              String(
+                objective?.pid_id || ''
+              ) ===
                 String(
                   effectivePIDId
-                )
-              ) {
-                return false;
-              }
-  
-              const objectivePIDVersion =
-                Number(
-                  objective?.pid_version ??
-                    1
-                );
-  
-              return (
-                objectivePIDVersion ===
-                effectivePIDVersion
-              );
-            }
+                ) &&
+              objective?.archived !== true
           )
         : [];
   
@@ -1472,7 +1456,6 @@ export default function PlayerObjectives() {
     criteriaMap,
     evaluationHistoryByCriterion,
     effectivePIDId,
-    effectivePIDVersion,
   ]);
 
   const visible =
