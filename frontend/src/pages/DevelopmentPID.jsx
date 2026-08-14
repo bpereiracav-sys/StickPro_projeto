@@ -1049,119 +1049,6 @@ export default function DevelopmentPID() {
     setSearchParams,
   ]);
 
-  const summary = useMemo(() => {
-    /*
-     * Objetivos pertencentes ao ciclo atual do PID.
-     *
-     * Cada ativação de um novo Plano Inteligente incrementa
-     * pid.current_version e o objetivo automático recebe
-     * exatamente essa mesma pid_version.
-     *
-     * Assim, objetivos de ciclos anteriores permanecem
-     * guardados como histórico, mas deixam de aparecer
-     * em "Objetivos do plano" atual.
-     */
-    /*
-     * Objetivos do ciclo inteligente atualmente ativo.
-     *
-     * Preferimos intelligent_plan_id porque é a associação
-     * mais específica entre o objetivo e o Plano Inteligente.
-     *
-     * pid_version fica como fallback para registos já existentes.
-     */
-    
-    const currentCycleObjectives = objectives.filter(
-      (objective) => {
-        if (
-          String(objective?.pid_id || '') !==
-          String(pid?.id || '')
-        ) {
-          return false;
-        }
-    
-        const objectivePlanId =
-          objective?.intelligent_plan_id ||
-          null;
-    
-        /*
-         * Quando existe associação explícita ao Plano Inteligente,
-         * esta é a fonte de verdade.
-         */
-        if (
-          currentIntelligentPlanId &&
-          objectivePlanId
-        ) {
-          return (
-            String(objectivePlanId) ===
-            String(currentIntelligentPlanId)
-          );
-        }
-    
-        /*
-         * Fallback para objetivos antigos que ainda não possuem
-         * intelligent_plan_id.
-         */
-        const objectivePIDVersion =
-          Number(
-            objective?.pid_version ?? 1
-          );
-    
-        return (
-          objectivePIDVersion ===
-          currentPIDVersion
-        );
-      }
-    );
-    
-    const activeObjectives =
-      currentCycleObjectives.filter(
-        (objective) =>
-          objective?.status === 'active'
-      );
-    
-    const pausedObjectives =
-      currentCycleObjectives.filter(
-        (objective) =>
-          objective?.status === 'paused'
-      );
-    
-    const completedObjectives =
-      currentCycleObjectives.filter(
-        (objective) =>
-          objective?.status === 'completed'
-      );
-
-    const progressValues = [
-    ...activeObjectives,
-    ...completedObjectives,
-  ]
-    .map(getObjectiveProgress)
-    .filter(Number.isFinite);
-
-    const averageProgress = progressValues.length
-      ? progressValues.reduce((sum, value) => sum + value, 0) /
-        progressValues.length
-      : 0;
-
-    const orderedEvaluations = [...evaluations].sort(
-      (first, second) =>
-        new Date(getEvaluationDate(second) || 0) -
-        new Date(getEvaluationDate(first) || 0)
-    );
-
-    const latestEvaluation = orderedEvaluations[0] || null;
-
-    return {
-      activeObjectives,
-      completedObjectives,
-      averageProgress,
-      latestEvaluation,
-      latestAverage: latestEvaluation
-        ? getEvaluationAverage(latestEvaluation)
-        : null,
-    };
-  }, [objectives, evaluations]);
-
   const pidRecommendations =
     useMemo(
       () =>
@@ -1240,6 +1127,133 @@ export default function DevelopmentPID() {
       intelligentPlan?.sourceRecommendationId ||
       null;
   
+  const summary = useMemo(() => {
+    /*
+     * Objetivos do ciclo inteligente atualmente ativo.
+     *
+     * intelligent_plan_id é a associação preferencial entre
+     * o objetivo e o Plano Inteligente.
+     *
+     * pid_version funciona como fallback para objetivos antigos.
+     */
+  
+    const currentCycleObjectives = objectives.filter(
+      (objective) => {
+        /*
+         * O objetivo tem de pertencer ao PID atualmente aberto.
+         */
+        if (
+          String(objective?.pid_id || '') !==
+          String(pid?.id || '')
+        ) {
+          return false;
+        }
+  
+        const objectivePlanId =
+          objective?.intelligent_plan_id ||
+          null;
+  
+        /*
+         * Quando ambos possuem intelligent_plan_id,
+         * essa associação é a fonte de verdade.
+         */
+        if (
+          currentIntelligentPlanId &&
+          objectivePlanId
+        ) {
+          return (
+            String(objectivePlanId) ===
+            String(currentIntelligentPlanId)
+          );
+        }
+  
+        /*
+         * Compatibilidade com objetivos antigos que ainda
+         * não possuem intelligent_plan_id.
+         */
+        const objectivePIDVersion =
+          Number(
+            objective?.pid_version ?? 1
+          );
+  
+        return (
+          objectivePIDVersion ===
+          currentPIDVersion
+        );
+      }
+    );
+  
+    const activeObjectives =
+      currentCycleObjectives.filter(
+        (objective) =>
+          objective?.status === 'active'
+      );
+  
+    const pausedObjectives =
+      currentCycleObjectives.filter(
+        (objective) =>
+          objective?.status === 'paused'
+      );
+  
+    const completedObjectives =
+      currentCycleObjectives.filter(
+        (objective) =>
+          objective?.status === 'completed'
+      );
+  
+    const progressValues = [
+      ...activeObjectives,
+      ...completedObjectives,
+    ]
+      .map(getObjectiveProgress)
+      .filter(Number.isFinite);
+  
+    const averageProgress =
+      progressValues.length
+        ? progressValues.reduce(
+            (sum, value) =>
+              sum + value,
+            0
+          ) / progressValues.length
+        : 0;
+  
+    const orderedEvaluations = [
+      ...evaluations,
+    ].sort(
+      (first, second) =>
+        new Date(
+          getEvaluationDate(second) || 0
+        ) -
+        new Date(
+          getEvaluationDate(first) || 0
+        )
+    );
+  
+    const latestEvaluation =
+      orderedEvaluations[0] ||
+      null;
+  
+    return {
+      activeObjectives,
+      pausedObjectives,
+      completedObjectives,
+      averageProgress,
+      latestEvaluation,
+  
+      latestAverage:
+        latestEvaluation
+          ? getEvaluationAverage(
+              latestEvaluation
+            )
+          : null,
+    };
+  }, [
+    objectives,
+    evaluations,
+    pid?.id,
+    currentPIDVersion,
+    currentIntelligentPlanId,
+  ]);
   const intelligentPlanStatus =
     pid?.intelligent_plan_status ||
     intelligentPlan?.planStatus ||
