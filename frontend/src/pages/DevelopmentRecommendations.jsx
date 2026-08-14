@@ -3964,12 +3964,15 @@ export default function DevelopmentRecommendations() {
                           recommendation={
                             recommendation
                           }
+                          playerId={
+                            selectedPlayerId
+                          }
                         />
                       )
                     )}
                   </div>
                 </TabsContent>
-
+                
                 <TabsContent
                   value="consolidation"
                   className="mt-0"
@@ -3986,12 +3989,15 @@ export default function DevelopmentRecommendations() {
                           recommendation={
                             recommendation
                           }
+                          playerId={
+                            selectedPlayerId
+                          }
                         />
                       )
                     )}
                   </div>
                 </TabsContent>
-
+                
                 <TabsContent
                   value="strengths"
                   className="mt-0"
@@ -4007,6 +4013,9 @@ export default function DevelopmentRecommendations() {
                           }
                           recommendation={
                             recommendation
+                          }
+                          playerId={
+                            selectedPlayerId
                           }
                         />
                       )
