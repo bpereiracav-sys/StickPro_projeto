@@ -18653,31 +18653,320 @@ async def create_player_evaluation(
 async def get_player_evaluations(
     player_id: str,
     team_id: Optional[str] = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(
+        get_current_user
+    ),
 ):
-    await get_evaluation_player_or_404(player_id)
+    await get_evaluation_player_or_404(
+        player_id
+    )
 
-    query: Dict[str, Any] = {"player_id": player_id}
+    query: Dict[str, Any] = {
+        "player_id":
+            player_id
+    }
+
     if team_id:
-        query["team_id"] = team_id
+        query[
+            "team_id"
+        ] = team_id
 
-    evaluations = await db.player_evaluations.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    evaluations = (
+        await db.player_evaluations.find(
+            query,
+            {
+                "_id": 0,
+            },
+        )
+        .sort(
+            "created_at",
+            -1,
+        )
+        .to_list(
+            500
+        )
+    )
+
+    # ========================================================
+    # Recolher todos os IDs de critérios usados no histórico.
+    #
+    # Fazemos uma única consulta à coleção de critérios,
+    # evitando uma query por avaliação.
+    # ========================================================
+
+    criterion_ids = {
+        str(
+            score.get(
+                "criterion_id"
+            )
+        )
+        for evaluation in evaluations
+        for score in (
+            evaluation.get(
+                "scores",
+                [],
+            )
+            or []
+        )
+        if score.get(
+            "criterion_id"
+        )
+    }
+
+    criteria = []
+
+    if criterion_ids:
+        criteria = (
+            await db.evaluation_criteria.find(
+                {
+                    "id": {
+                        "$in":
+                            list(
+                                criterion_ids
+                            )
+                    }
+                },
+                {
+                    "_id": 0,
+                },
+            )
+            .to_list(
+                1000
+            )
+        )
+
+    criteria_map = {
+        str(
+            criterion.get(
+                "id"
+            )
+        ):
+            criterion
+
+        for criterion in criteria
+        if criterion.get(
+            "id"
+        )
+    }
 
     visible = []
+
     for evaluation in evaluations:
-        if can_view_player_evaluations(
+        if not can_view_player_evaluations(
             current_user,
             player_id,
-            evaluation.get("team_id"),
-            evaluation
+            evaluation.get(
+                "team_id"
+            ),
+            evaluation,
         ):
-            if is_development_circle_viewer(current_user, player_id):
-                public_evaluation = await build_public_player_evaluation_view(
-                    evaluation
+            continue
+
+        enriched_evaluation = dict(
+            evaluation
+        )
+
+        enriched_scores = []
+
+        for score in (
+            evaluation.get(
+                "scores",
+                [],
+            )
+            or []
+        ):
+            score_dict = dict(
+                score
+            )
+
+            criterion_id = (
+                score_dict.get(
+                    "criterion_id"
                 )
-                visible.append(public_evaluation)
-            else:
-                visible.append(evaluation)
+            )
+
+            criterion = (
+                criteria_map.get(
+                    str(
+                        criterion_id
+                    )
+                )
+                if criterion_id
+                else None
+            )
+
+            # ------------------------------------------------
+            # Preservar os dados já gravados no score.
+            #
+            # Quando existe critério correspondente na coleção,
+            # acrescentamos também a identidade oficial StickPro.
+            # ------------------------------------------------
+
+            if criterion:
+                criterion_code = (
+                    criterion.get(
+                        "code"
+                    )
+                    or criterion.get(
+                        "sourceCode"
+                    )
+                    or criterion.get(
+                        "source_code"
+                    )
+                )
+
+                score_dict[
+                    "criterion_code"
+                ] = (
+                    score_dict.get(
+                        "criterion_code"
+                    )
+                    or criterion_code
+                )
+
+                score_dict[
+                    "criterion_name"
+                ] = (
+                    score_dict.get(
+                        "criterion_name"
+                    )
+                    or criterion.get(
+                        "name"
+                    )
+                    or criterion.get(
+                        "observableAction"
+                    )
+                )
+
+                score_dict[
+                    "domain"
+                ] = (
+                    score_dict.get(
+                        "domain"
+                    )
+                    or criterion.get(
+                        "domain"
+                    )
+                )
+
+                score_dict[
+                    "domain_label"
+                ] = (
+                    score_dict.get(
+                        "domain_label"
+                    )
+                    or criterion.get(
+                        "domainLabel"
+                    )
+                    or criterion.get(
+                        "domain_label"
+                    )
+                )
+
+                score_dict[
+                    "subdomain"
+                ] = (
+                    score_dict.get(
+                        "subdomain"
+                    )
+                    or criterion.get(
+                        "subdomain"
+                    )
+                )
+
+                score_dict[
+                    "subdomain_label"
+                ] = (
+                    score_dict.get(
+                        "subdomain_label"
+                    )
+                    or criterion.get(
+                        "subdomainLabel"
+                    )
+                    or criterion.get(
+                        "subdomain_label"
+                    )
+                )
+
+                score_dict[
+                    "player_type"
+                ] = (
+                    score_dict.get(
+                        "player_type"
+                    )
+                    or criterion.get(
+                        "playerType"
+                    )
+                    or criterion.get(
+                        "player_type"
+                    )
+                )
+
+                score_dict[
+                    "scale_min"
+                ] = (
+                    score_dict.get(
+                        "scale_min"
+                    )
+                    if score_dict.get(
+                        "scale_min"
+                    )
+                    is not None
+                    else criterion.get(
+                        "scale_min",
+                        1,
+                    )
+                )
+
+                score_dict[
+                    "scale_max"
+                ] = (
+                    score_dict.get(
+                        "scale_max"
+                    )
+                    if score_dict.get(
+                        "scale_max"
+                    )
+                    is not None
+                    else criterion.get(
+                        "scale_max",
+                        5,
+                    )
+                )
+
+                # Também mantemos o documento completo
+                # para componentes que trabalham com
+                # score.criterion.
+                score_dict[
+                    "criterion"
+                ] = criterion
+
+            enriched_scores.append(
+                score_dict
+            )
+
+        enriched_evaluation[
+            "scores"
+        ] = enriched_scores
+
+        if is_development_circle_viewer(
+            current_user,
+            player_id,
+        ):
+            public_evaluation = (
+                await build_public_player_evaluation_view(
+                    enriched_evaluation
+                )
+            )
+
+            visible.append(
+                public_evaluation
+            )
+
+        else:
+            visible.append(
+                enriched_evaluation
+            )
 
     return visible
 
