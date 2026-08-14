@@ -1061,20 +1061,63 @@ export default function DevelopmentPID() {
      * guardados como histórico, mas deixam de aparecer
      * em "Objetivos do plano" atual.
      */
+    /*
+     * Objetivos do ciclo inteligente atualmente ativo.
+     *
+     * Preferimos intelligent_plan_id porque é a associação
+     * mais específica entre o objetivo e o Plano Inteligente.
+     *
+     * pid_version fica como fallback para registos já existentes.
+     */
+    
     const currentPIDVersion = Number(
       pid?.current_version ?? 1
     );
     
+    const currentIntelligentPlanId =
+      intelligentPlan?.id ||
+      intelligentPlan?.sourceRecommendationId ||
+      null;
+    
     const currentCycleObjectives = objectives.filter(
       (objective) => {
-        const objectivePIDVersion = Number(
-          objective?.pid_version ?? 1
-        );
+        if (
+          String(objective?.pid_id || '') !==
+          String(pid?.id || '')
+        ) {
+          return false;
+        }
+    
+        const objectivePlanId =
+          objective?.intelligent_plan_id ||
+          null;
+    
+        /*
+         * Quando existe associação explícita ao Plano Inteligente,
+         * esta é a fonte de verdade.
+         */
+        if (
+          currentIntelligentPlanId &&
+          objectivePlanId
+        ) {
+          return (
+            String(objectivePlanId) ===
+            String(currentIntelligentPlanId)
+          );
+        }
+    
+        /*
+         * Fallback para objetivos antigos que ainda não possuem
+         * intelligent_plan_id.
+         */
+        const objectivePIDVersion =
+          Number(
+            objective?.pid_version ?? 1
+          );
     
         return (
-          String(objective?.pid_id || '') ===
-            String(pid?.id || '') &&
-          objectivePIDVersion === currentPIDVersion
+          objectivePIDVersion ===
+          currentPIDVersion
         );
       }
     );
