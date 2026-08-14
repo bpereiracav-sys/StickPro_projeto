@@ -1718,25 +1718,16 @@ function CriterionRow({ criterion, onOpenTrend }) {
             </p>
           </div>
 
-          <div className="mt-2 flex flex-wrap gap-2 pl-5">
-            {criterion?.code && (
-              <Badge
-                variant="outline"
-                className="border-slate-200 bg-slate-50 text-slate-600"
-              >
-                {criterion.code}
-              </Badge>
-            )}
-
-            {criterion?.competencyLabel && (
+          {criterion?.competencyLabel && (
+            <div className="mt-2 flex flex-wrap gap-2 pl-5">
               <Badge
                 variant="outline"
                 className="border-blue-200 bg-blue-50 text-blue-700"
               >
                 {criterion.competencyLabel}
               </Badge>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center justify-end gap-2">
