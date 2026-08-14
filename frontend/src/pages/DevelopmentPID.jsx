@@ -1881,6 +1881,7 @@ export default function DevelopmentPID() {
                                           teamId ? `&team_id=${teamId}` : ''
                                         }&pid_id=${pid.id}&pid_version=${pid.current_version || 1}`
                                       )
+                                    }
                                   >
                                     <Target className="mr-2 h-4 w-4" />
                                     Criar objetivo
@@ -3074,7 +3075,7 @@ export default function DevelopmentPID() {
                     navigate(
                       `/evaluations/objectives?player_id=${playerId}${
                         teamId ? `&team_id=${teamId}` : ''
-                      }`
+                      }&pid_id=${pid.id}&pid_version=${pid.current_version || 1}`
                     )
                   }
                 >
