@@ -1053,13 +1053,30 @@ export default function PlayerObjectives() {
     return scoresMap;
   }, [evaluations]);
 
-  const enriched = useMemo(
-    () =>
-      objectives.map((objective) => {
+  const enriched = useMemo(() => {
+    /*
+     * Quando esta página é aberta a partir de um PID,
+     * apresenta apenas os objetivos pertencentes a esse PID.
+     *
+     * Os restantes objetivos continuam preservados na base
+     * de dados e podem continuar a ser usados no histórico.
+     */
+    const scopedObjectives =
+      pidId
+        ? objectives.filter(
+            (objective) =>
+              String(
+                objective?.pid_id || ''
+              ) === String(pidId)
+          )
+        : objectives;
+  
+    return scopedObjectives.map(
+      (objective) => {
         const embeddedCriterion =
           objective?.criterion ||
           null;
-
+  
         const criterion =
           criteriaMap.get(
             objective.criterion_id
@@ -1076,29 +1093,41 @@ export default function PlayerObjectives() {
             scale_max:
               objective.scale_max ?? 5,
           };
-
-        const currentValue =
+  
+        const latestValue =
           latest.get(
             objective.criterion_id
           );
-
-        const target = Number(
-          objective.target_value
-        );
-
+  
         const baseline = Number(
           objective.baseline_value ??
             criterion?.scale_min ??
             1
         );
-
+  
+        /*
+         * Se ainda não existir uma avaliação posterior
+         * à criação deste objetivo, o valor atual deve
+         * corresponder ao baseline que originou o objetivo.
+         *
+         * Isto evita apresentar "—" imediatamente após
+         * ativar um Plano Inteligente.
+         */
+        const currentValue =
+          Number.isFinite(latestValue)
+            ? latestValue
+            : baseline;
+  
+        const target = Number(
+          objective.target_value
+        );
+  
         let progress = 0;
-
+  
         if (
-          Number.isFinite(
-            currentValue
-          ) &&
-          Number.isFinite(target)
+          Number.isFinite(currentValue) &&
+          Number.isFinite(target) &&
+          Number.isFinite(baseline)
         ) {
           if (target <= baseline) {
             progress =
@@ -1107,14 +1136,12 @@ export default function PlayerObjectives() {
                 : 0;
           } else {
             progress =
-              ((currentValue -
-                baseline) /
-                (target -
-                  baseline)) *
+              ((currentValue - baseline) /
+                (target - baseline)) *
               100;
           }
         }
-
+  
         return {
           ...objective,
           criterion,
@@ -1127,13 +1154,14 @@ export default function PlayerObjectives() {
             )
           ),
         };
-      }),
-    [
-      objectives,
-      criteriaMap,
-      latest,
-    ]
-  );
+      }
+    );
+  }, [
+    objectives,
+    criteriaMap,
+    latest,
+    pidId,
+  ]);
 
   const visible =
     statusFilter === 'all'
