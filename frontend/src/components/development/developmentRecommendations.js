@@ -1854,15 +1854,83 @@ const buildCriterionRecommendation = (
         group.entries,
     });
 
-  const priority =
-    resolvePriority({
-      idiScore:
-        intelligentDevelopmentIndex.score,
-
-      expectedComparison,
-
-      recommendationIndex,
-    });
+  /*
+   * CLASSIFICAÇÃO DO CRITÉRIO
+   *
+   * 1 avaliação:
+   *   utiliza diretamente o nível atual como baseline.
+   *
+   * 2+ avaliações:
+   *   utiliza IDI, incorporando nível, tendência
+   *   e consistência.
+   */
+  const hasLongitudinalEvidence =
+    group.entries.length >= 2;
+  
+  let priority = null;
+  
+  if (!hasLongitudinalEvidence) {
+    const latestScore =
+      Number(
+        latestEntry?.score
+      );
+  
+    const scaleMin =
+      Number(
+        latestEntry?.scaleMin ??
+        DEFAULT_SCALE_MIN
+      );
+  
+    const scaleMax =
+      Number(
+        latestEntry?.scaleMax ??
+        DEFAULT_SCALE_MAX
+      );
+  
+    const normalizedBaseline =
+      normalizeScorePercentage({
+        score:
+          latestScore,
+  
+        scaleMin,
+  
+        scaleMax,
+      });
+  
+    if (
+      normalizedBaseline === null
+    ) {
+      priority = null;
+    } else if (
+      normalizedBaseline < 25
+    ) {
+      priority = 'critical';
+    } else if (
+      normalizedBaseline < 50
+    ) {
+      priority = 'high';
+    } else if (
+      normalizedBaseline < 75
+    ) {
+      priority = 'moderate';
+    } else if (
+      normalizedBaseline < 100
+    ) {
+      priority = 'consolidation';
+    } else {
+      priority = 'strength';
+    }
+  } else {
+    priority =
+      resolvePriority({
+        idiScore:
+          intelligentDevelopmentIndex.score,
+  
+        expectedComparison,
+  
+        recommendationIndex,
+      });
+  }
 
   const priorityConfig =
     DEVELOPMENT_PRIORITY_CONFIG[
