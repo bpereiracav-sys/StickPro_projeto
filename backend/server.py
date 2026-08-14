@@ -20316,30 +20316,234 @@ async def update_player_evaluation(
 @api_router.delete("/evaluations/{evaluation_id}")
 async def delete_player_evaluation(
     evaluation_id: str,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(
+        get_current_user
+    ),
 ):
-    checker = get_permission_checker(current_user)
-
-    evaluation = await db.player_evaluations.find_one({"id": evaluation_id}, {"_id": 0})
-    if not evaluation:
-        raise HTTPException(status_code=404, detail="Avaliação não encontrada")
-
-    can_delete_evaluation = (
-        checker.is_admin
-        or evaluation.get("created_by") == current_user.get("id")
-        or checker.can_access_team(evaluation.get("team_id"))
+    checker = get_permission_checker(
+        current_user
     )
-    
-    if not can_delete_evaluation:
+
+    evaluation = (
+        await db.player_evaluations.find_one(
+            {
+                "id":
+                    evaluation_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    if not evaluation:
         raise HTTPException(
-            status_code=403,
-            detail="Sem permissão para eliminar esta avaliação",
+            status_code=404,
+            detail="Avaliação não encontrada",
         )
 
-    await db.player_evaluations.delete_one({"id": evaluation_id})
+    player_id = (
+        evaluation.get(
+            "player_id"
+        )
+    )
 
-    return {"message": "Avaliação eliminada"}
+    team_id = (
+        evaluation.get(
+            "team_id"
+        )
+    )
 
+    if (
+        not checker.is_admin
+        and not checker.is_staff
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para "
+                "eliminar avaliações"
+            ),
+        )
+
+    if (
+        not checker.is_admin
+        and team_id
+        and not checker.can_access_team(
+            team_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem acesso a esta equipa"
+            ),
+        )
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    # ========================================================
+    # PID — verificar se esta avaliação alimentava
+    # algum estado inteligente do atleta
+    # ========================================================
+
+    pid = None
+
+    if player_id:
+        pid = (
+            await db.evaluation_pids.find_one(
+                {
+                    "player_id":
+                        player_id,
+
+                    "archived":
+                        False,
+                },
+                {
+                    "_id": 0,
+                },
+                sort=[
+                    (
+                        "updated_at",
+                        -1,
+                    )
+                ],
+            )
+        )
+
+    if pid:
+        intelligent_plan = dict(
+            pid.get(
+                "intelligent_plan"
+            )
+            or {}
+        )
+
+        source_evaluation_ids = {
+            str(
+                value
+            )
+            for value in [
+                intelligent_plan.get(
+                    "sourceEvaluationId"
+                ),
+                intelligent_plan.get(
+                    "lastReviewEvaluationId"
+                ),
+                pid.get(
+                    "latest_evaluation_id"
+                ),
+                pid.get(
+                    "last_review_evaluation_id"
+                ),
+            ]
+            if value
+        }
+
+        evaluation_was_pid_source = (
+            str(
+                evaluation_id
+            )
+            in source_evaluation_ids
+        )
+
+        pid_update = {
+            "updated_at":
+                now,
+
+            "current_version":
+                int(
+                    pid.get(
+                        "current_version",
+                        1,
+                    )
+                    or 1
+                )
+                + 1,
+        }
+
+        if evaluation_was_pid_source:
+            # O plano não é apagado.
+            # Fica preservado como histórico,
+            # mas deixa de ser considerado atual.
+            intelligent_plan[
+                "developmentDataStatus"
+            ] = "needs_recalculation"
+
+            intelligent_plan[
+                "sourceEvaluationDeleted"
+            ] = True
+
+            intelligent_plan[
+                "sourceEvaluationDeletedAt"
+            ] = now.isoformat()
+
+            intelligent_plan[
+                "sourceEvaluationDeletedId"
+            ] = evaluation_id
+
+            pid_update[
+                "intelligent_plan"
+            ] = intelligent_plan
+
+            pid_update[
+                "development_data_status"
+            ] = "needs_recalculation"
+
+            pid_update[
+                "development_data_reason"
+            ] = "source_evaluation_deleted"
+
+    result = (
+        await db.player_evaluations.delete_one(
+            {
+                "id":
+                    evaluation_id,
+            }
+        )
+    )
+
+    if result.deleted_count == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Avaliação não encontrada",
+        )
+
+    if (
+        pid
+        and len(pid_update) > 2
+    ):
+        await db.evaluation_pids.update_one(
+            {
+                "id":
+                    pid.get(
+                        "id"
+                    ),
+
+                "archived":
+                    False,
+            },
+            {
+                "$set":
+                    pid_update,
+            },
+        )
+
+    return {
+        "message":
+            "Avaliação eliminada com sucesso",
+
+        "evaluation_id":
+            evaluation_id,
+
+        "pid_marked_for_recalculation":
+            bool(
+                pid
+                and len(pid_update) > 2
+            ),
+    }
 
 
 
@@ -24614,16 +24818,171 @@ async def create_bulk_evaluations_from_plan(
                 evaluation_dict
             )
         )
-    
+        
         evaluation_dict.pop(
             "_id",
             None
         )
-    
+        
         created.append(
             evaluation_dict
         )
-    
+        
+        # ============================================================
+        # PID — nova avaliação disponível
+        # Sprint C3.6 — ciclo de vida dos dados
+        #
+        # Uma avaliação STANDARD não substitui automaticamente
+        # um PID ativo.
+        #
+        # Apenas informa o PID de que existem dados mais recentes
+        # e que o Development Engine deve recalcular uma proposta.
+        # ============================================================
+        
+        if (
+            not pid_review
+            and pid
+        ):
+            evaluation_id = (
+                evaluation_dict.get(
+                    "id"
+                )
+            )
+        
+            evaluation_created_at = (
+                evaluation_dict.get(
+                    "created_at"
+                )
+            )
+        
+            intelligent_plan = dict(
+                pid.get(
+                    "intelligent_plan"
+                )
+                or {}
+            )
+        
+            current_source_evaluation_id = (
+                intelligent_plan.get(
+                    "sourceEvaluationId"
+                )
+            )
+        
+            # --------------------------------------------------------
+            # Registar sempre qual é a avaliação mais recente
+            # conhecida pelo PID.
+            # --------------------------------------------------------
+        
+            pid_update = {
+                "latest_evaluation_id":
+                    evaluation_id,
+        
+                "latest_evaluation_at":
+                    evaluation_created_at,
+        
+                "updated_at":
+                    datetime.now(
+                        timezone.utc
+                    ),
+        
+                "current_version":
+                    int(
+                        pid.get(
+                            "current_version",
+                            1,
+                        )
+                        or 1
+                    )
+                    + 1,
+            }
+        
+            # --------------------------------------------------------
+            # Se já existe Plano Inteligente, a nova avaliação
+            # não o substitui automaticamente.
+            #
+            # Marca apenas os dados como desatualizados.
+            # --------------------------------------------------------
+        
+            if intelligent_plan:
+                intelligent_plan[
+                    "developmentDataStatus"
+                ] = "needs_recalculation"
+        
+                intelligent_plan[
+                    "latestEvaluationId"
+                ] = evaluation_id
+        
+                intelligent_plan[
+                    "latestEvaluationAt"
+                ] = evaluation_created_at
+        
+                intelligent_plan[
+                    "previousSourceEvaluationId"
+                ] = (
+                    current_source_evaluation_id
+                )
+        
+                intelligent_plan[
+                    "recalculationReason"
+                ] = "new_evaluation"
+        
+                intelligent_plan[
+                    "recalculationRequestedAt"
+                ] = (
+                    datetime.now(
+                        timezone.utc
+                    ).isoformat()
+                )
+        
+                pid_update[
+                    "intelligent_plan"
+                ] = intelligent_plan
+        
+                pid_update[
+                    "development_data_status"
+                ] = "needs_recalculation"
+        
+                pid_update[
+                    "development_data_reason"
+                ] = "new_evaluation"
+        
+            # --------------------------------------------------------
+            # Se ainda não existe Plano Inteligente,
+            # a avaliação passa apenas a ser a fonte disponível
+            # para criação de nova proposta.
+            # --------------------------------------------------------
+        
+            else:
+                pid_update[
+                    "development_data_status"
+                ] = "evaluation_available"
+        
+                pid_update[
+                    "development_data_reason"
+                ] = "new_evaluation"
+        
+            await db.evaluation_pids.update_one(
+                {
+                    "id":
+                        pid.get(
+                            "id"
+                        ),
+        
+                    "archived":
+                        False,
+                },
+                {
+                    "$set":
+                        pid_update,
+                },
+            )
+        
+            # Manter a variável local sincronizada,
+            # porque o mesmo endpoint ainda pode usar o PID
+            # posteriormente.
+            pid.update(
+                pid_update
+            )
     
     # ============================================================
     # FIM DO for item in payload.evaluations
