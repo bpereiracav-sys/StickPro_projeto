@@ -541,6 +541,25 @@ export default function PlayerObjectives() {
     pidVersionParam !== ''
       ? Number(pidVersionParam)
       : null;
+
+  /*
+   * O administrador pode receber PID e versão pela URL.
+   *
+   * No modo atleta, ou quando a página é aberta diretamente,
+   * utilizamos o PID atual devolvido pelo backend.
+   */
+  const effectivePIDId =
+    pidId ||
+    currentPID?.id ||
+    null;
+  
+  const effectivePIDVersion =
+    Number.isFinite(pidVersion)
+      ? pidVersion
+      : Number(
+          currentPID?.current_version ??
+          1
+      );
   
   const [teams, setTeams] = useState([]);
   const [players, setPlayers] = useState([]);
@@ -550,6 +569,9 @@ export default function PlayerObjectives() {
   const [objectives, setObjectives] =
     useState([]);
 
+  const [currentPID, setCurrentPID] =
+  useState(null);
+  
   const [teamId, setTeamId] = useState('');
   const [playerId, setPlayerId] =
     useState('');
@@ -899,11 +921,17 @@ export default function PlayerObjectives() {
         const [
           evaluationsResult,
           objectivesResult,
+          pidResult,
         ] = await Promise.allSettled([
           evaluationsApi.getPlayerEvaluations(
             id
           ),
+        
           evaluationsApi.getPlayerObjectives(
+            id
+          ),
+        
+          evaluationsApi.getPlayerPID(
             id
           ),
         ]);
@@ -945,6 +973,23 @@ export default function PlayerObjectives() {
               'Não foi possível carregar os objetivos.'
           );
         }
+        if (
+          pidResult.status ===
+          'fulfilled'
+        ) {
+          setCurrentPID(
+            pidResult.value?.data ||
+            null
+          );
+        } else {
+          setCurrentPID(null);
+        
+          console.error(
+            'Error loading current PID:',
+            pidResult.reason
+          );
+        }
+        
       } finally {
         setLoadingData(false);
       }
@@ -956,11 +1001,14 @@ export default function PlayerObjectives() {
       return;
     }
 
-    setEvaluations([]);
-    setObjectives([]);
-    setEvaluationsError('');
-    setObjectivesError('');
-  }, [
+    if (!id) {
+      setEvaluations([]);
+      setObjectives([]);
+      setCurrentPID(null);
+      setEvaluationsError('');
+      setObjectivesError('');
+      return;
+    }, [
     playerId,
     loadPlayer,
   ]);
@@ -1071,46 +1119,41 @@ export default function PlayerObjectives() {
      * de dados e podem continuar a ser usados no histórico.
      */
     const scopedObjectives =
-      pidId
+      effectivePIDId
         ? objectives.filter(
             (objective) => {
               /*
-               * Primeiro confirma que pertence ao PID aberto.
+               * Apenas objetivos pertencentes
+               * ao PID atualmente ativo.
                */
               if (
                 String(
                   objective?.pid_id || ''
-                ) !== String(pidId)
+                ) !==
+                String(
+                  effectivePIDId
+                )
               ) {
                 return false;
               }
     
               /*
-               * Quando conhecemos a versão atual do PID,
-               * mostramos apenas os objetivos desse ciclo.
+               * Apenas objetivos da versão atual
+               * do PID.
                */
-              if (
-                Number.isFinite(pidVersion)
-              ) {
-                const objectivePIDVersion =
-                  Number(
-                    objective?.pid_version ?? 1
-                  );
-    
-                return (
-                  objectivePIDVersion ===
-                  pidVersion
+              const objectivePIDVersion =
+                Number(
+                  objective?.pid_version ??
+                  1
                 );
-              }
     
-              /*
-               * Compatibilidade quando a página não recebeu
-               * pid_version na URL.
-               */
-              return true;
+              return (
+                objectivePIDVersion ===
+                effectivePIDVersion
+              );
             }
           )
-        : objectives;
+    : [];
   
     return scopedObjectives.map(
       (objective) => {
@@ -1182,7 +1225,6 @@ export default function PlayerObjectives() {
               100;
           }
         }
-  
         return {
           ...objective,
           criterion,
@@ -1201,8 +1243,8 @@ export default function PlayerObjectives() {
     objectives,
     criteriaMap,
     latest,
-    pidId,
-    pidVersion,
+    effectivePIDId,
+    effectivePIDVersion,
   ]);
 
   const visible =
