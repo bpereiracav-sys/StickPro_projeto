@@ -2772,14 +2772,15 @@ export default function DevelopmentPID() {
               </div>
             )}
           
-          <Card className="border-slate-200 bg-white shadow-sm">
-            <CardHeader>
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Target className="h-5 w-5 text-amber-600" />
-                    Objetivos do plano
-                  </CardTitle>
+          <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
+            <Card className="border-slate-200 bg-white shadow-sm">
+              <CardHeader>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Target className="h-5 w-5 text-amber-600" />
+                      Objetivos do plano
+                    </CardTitle>
           
                   <CardDescription>
                     Metas ativas, metas atingidas e objetivos concluídos
