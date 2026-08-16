@@ -1861,6 +1861,7 @@ class DevelopmentPID(BaseModel):
             "suggested",
             "active",
             "review",
+            "decision_pending",
             "completed",
         ]
     ] = None
@@ -1897,6 +1898,21 @@ class PIDRenewalDecision(BaseModel):
     adjusted_target: Optional[
         float
     ] = None
+
+    note: Optional[str] = None
+
+# ============================================================
+# Objective Completion Technical Validation
+# Sprint C3.6.6D.4B.3B.3
+# ============================================================
+
+class ObjectiveCompletionDecision(
+    BaseModel
+):
+    action: Literal[
+        "complete",
+        "continue",
+    ]
 
     note: Optional[str] = None
 
@@ -23361,6 +23377,21 @@ async def sync_pid_objectives_longitudinal_progress(
                         "status"
                     )
                     == "active"
+                    and (
+                        not latest_entry
+                        or str(
+                            objective.get(
+                                "completion_validation_evaluation_id"
+                            )
+                            or ""
+                        )
+                        != str(
+                            latest_entry.get(
+                                "id"
+                            )
+                            or ""
+                        )
+                    )
                 ),
         
             "longitudinal_updated_at":
@@ -25267,6 +25298,433 @@ async def create_player_objective(
 
     return objective
 
+# ============================================================
+# Objective Completion Technical Validation
+# Sprint C3.6.6D.4B.3B.3
+# ============================================================
+
+@api_router.post(
+    "/evaluations/objectives/{objective_id}/completion-decision"
+)
+async def decide_objective_completion(
+    objective_id: str,
+    decision: ObjectiveCompletionDecision,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    """
+    Validação técnica da conclusão de um objetivo.
+
+    Regras:
+    - atingir a meta não conclui automaticamente o objetivo;
+    - apenas administração/equipa técnica decide;
+    - complete = conclusão formal;
+    - continue = manter em desenvolvimento;
+    - a decisão fica auditada no próprio objetivo;
+    - um Plano Inteligente associado nunca é encerrado
+      automaticamente por esta decisão.
+    """
+
+    checker = get_permission_checker(
+        current_user
+    )
+
+    if (
+        not checker.is_admin
+        and not checker.is_staff
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para validar "
+                "a conclusão deste objetivo"
+            ),
+        )
+
+    objective = (
+        await db.evaluation_objectives.find_one(
+            {
+                "id":
+                    objective_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    if not objective:
+        raise HTTPException(
+            status_code=404,
+            detail="Objetivo não encontrado",
+        )
+
+    await get_objective_player_and_check_access(
+        objective.get(
+            "player_id"
+        ),
+        current_user,
+    )
+
+    objective_team_id = (
+        objective.get(
+            "team_id"
+        )
+    )
+
+    if (
+        not checker.is_admin
+        and objective_team_id
+        and not checker.can_access_team(
+            objective_team_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a esta equipa",
+        )
+
+    # --------------------------------------------------------
+    # A decisão técnica só faz sentido quando existe
+    # indicação objetiva de que a meta foi atingida.
+    # --------------------------------------------------------
+
+    if not objective.get(
+        "target_reached"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Este objetivo ainda não atingiu "
+                "a meta definida"
+            ),
+        )
+
+    if (
+        objective.get(
+            "status"
+        )
+        == "completed"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Este objetivo já se encontra concluído"
+            ),
+        )
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    evaluation_id = (
+        objective.get(
+            "last_evaluation_id"
+        )
+        or None
+    )
+
+    update_data = {
+        "completion_validation_required":
+            False,
+
+        "completion_validation_status":
+            (
+                "completed"
+                if decision.action
+                == "complete"
+                else "continued"
+            ),
+
+        "completion_validation_evaluation_id":
+            evaluation_id,
+
+        "completion_validation_at":
+            now,
+
+        "completion_validation_by":
+            current_user.get(
+                "id"
+            ),
+
+        "completion_validation_note":
+            (
+                decision.note.strip()
+                if decision.note
+                else None
+            ),
+
+        "updated_at":
+            now,
+
+        "updated_by":
+            current_user.get(
+                "id"
+            ),
+    }
+
+    # ========================================================
+    # DECISÃO 1 — concluir formalmente
+    # ========================================================
+
+    if (
+        decision.action
+        == "complete"
+    ):
+        update_data[
+            "status"
+        ] = "completed"
+
+        update_data[
+            "completed_at"
+        ] = now
+
+        update_data[
+            "completion_reason"
+        ] = "technical_validation"
+
+    # ========================================================
+    # DECISÃO 2 — manter em desenvolvimento
+    # ========================================================
+
+    else:
+        update_data[
+            "status"
+        ] = "active"
+
+        update_data[
+            "completed_at"
+        ] = None
+
+        update_data[
+            "completion_reason"
+        ] = None
+
+    await db.evaluation_objectives.update_one(
+        {
+            "id":
+                objective_id,
+        },
+        {
+            "$set":
+                update_data,
+        },
+    )
+
+    # --------------------------------------------------------
+    # Se o objetivo pertence a um Plano Inteligente:
+    #
+    # concluir o objetivo NÃO conclui automaticamente o plano.
+    #
+    # O plano passa para decisão técnica própria.
+    # --------------------------------------------------------
+
+    pid_id = (
+        objective.get(
+            "pid_id"
+        )
+    )
+
+    if pid_id:
+        pid = (
+            await db.evaluation_pids.find_one(
+                {
+                    "id":
+                        pid_id,
+
+                    "archived":
+                        False,
+                },
+                {
+                    "_id": 0,
+                },
+            )
+        )
+
+        if pid:
+            intelligent_plan = dict(
+                pid.get(
+                    "intelligent_plan"
+                )
+                or {}
+            )
+
+            plan_objective_id = (
+                intelligent_plan.get(
+                    "objectiveId"
+                )
+            )
+
+            same_plan_objective = (
+                (
+                    plan_objective_id
+                    and str(
+                        plan_objective_id
+                    )
+                    == str(
+                        objective_id
+                    )
+                )
+                or (
+                    objective.get(
+                        "source"
+                    )
+                    == "intelligent_pid"
+                )
+            )
+
+            if same_plan_objective:
+                intelligent_plan[
+                    "objectiveCompletionDecision"
+                ] = {
+                    "status":
+                        (
+                            "completed"
+                            if decision.action
+                            == "complete"
+                            else "continued"
+                        ),
+
+                    "objectiveId":
+                        objective_id,
+
+                    "evaluationId":
+                        evaluation_id,
+
+                    "decidedAt":
+                        now,
+
+                    "decidedBy":
+                        current_user.get(
+                            "id"
+                        ),
+
+                    "note":
+                        (
+                            decision.note.strip()
+                            if decision.note
+                            else None
+                        ),
+                }
+
+                if (
+                    decision.action
+                    == "complete"
+                ):
+                    # O objetivo acabou,
+                    # mas o Plano Inteligente ainda exige
+                    # decisão sobre o que fazer a seguir.
+                    intelligent_plan[
+                        "planStatus"
+                    ] = "decision_pending"
+
+                    intelligent_plan[
+                        "decisionPendingReason"
+                    ] = (
+                        "objective_completed"
+                    )
+
+                    intelligent_plan[
+                        "decisionPendingAt"
+                    ] = now
+
+                    intelligent_plan[
+                        "decisionPendingObjectiveId"
+                    ] = objective_id
+
+                    intelligent_plan[
+                        "decisionPendingEvaluationId"
+                    ] = evaluation_id
+
+                    pid_plan_status = (
+                        "decision_pending"
+                    )
+
+                else:
+                    # A equipa técnica decidiu continuar
+                    # o desenvolvimento da competência.
+                    intelligent_plan[
+                        "planStatus"
+                    ] = "active"
+
+                    intelligent_plan.pop(
+                        "decisionPendingReason",
+                        None,
+                    )
+
+                    intelligent_plan.pop(
+                        "decisionPendingAt",
+                        None,
+                    )
+
+                    intelligent_plan.pop(
+                        "decisionPendingObjectiveId",
+                        None,
+                    )
+
+                    intelligent_plan.pop(
+                        "decisionPendingEvaluationId",
+                        None,
+                    )
+
+                    pid_plan_status = "active"
+
+                await db.evaluation_pids.update_one(
+                    {
+                        "id":
+                            pid_id,
+
+                        "archived":
+                            False,
+                    },
+                    {
+                        "$set": {
+                            "intelligent_plan":
+                                intelligent_plan,
+
+                            "intelligent_plan_status":
+                                pid_plan_status,
+
+                            "intelligent_plan_updated_at":
+                                now,
+
+                            "updated_at":
+                                now,
+                        },
+                    },
+                )
+
+    updated = (
+        await db.evaluation_objectives.find_one(
+            {
+                "id":
+                    objective_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    return {
+        "message":
+            (
+                "Objetivo concluído após validação técnica"
+                if decision.action
+                == "complete"
+                else (
+                    "Objetivo mantido em desenvolvimento "
+                    "após validação técnica"
+                )
+            ),
+
+        "decision":
+            decision.action,
+
+        "objective":
+            updated,
+    }
 
 @api_router.put(
     "/evaluations/objectives/{objective_id}"
