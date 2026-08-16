@@ -26794,6 +26794,50 @@ async def create_bulk_evaluations_from_plan(
             ] = "completed"
         
         pid_update = {
+            "intelligent_plan":
+                persisted_intelligent_plan,
+        
+            "intelligent_plan_status":
+                (
+                    "completed"
+                    if objective_completed
+                    else persisted_intelligent_plan.get(
+                        "planStatus",
+                        "review",
+                    )
+                ),
+        
+            "intelligent_plan_updated_at":
+                review_completed_at,
+        
+            "last_review":
+                review_completed_at,
+        
+            "next_review":
+                None,
+        
+            "updated_at":
+                review_completed_at,
+        
+            "current_version":
+                current_pid_version + 1,
+        
+            "last_review_evaluation_id":
+                created[0].get(
+                    "id"
+                ),
+        
+            "last_review_criterion_id":
+                payload.pid_criterion_id,
+        
+            "last_review_completed_by":
+                current_user.get(
+                    "id"
+                ),
+        
+            "last_review_source":
+                "pid_review",
+        }
             "last_review":
                 review_completed_at,
     
