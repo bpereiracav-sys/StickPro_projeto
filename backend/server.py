@@ -23695,137 +23695,51 @@ async def sync_pid_objective_from_latest_review(
     }
 
     # --------------------------------------------------------
-    # Fechar objetivo e Plano Inteligente
-    # quando a meta foi atingida
-    # Sprint C3.6.6D.4B.3B
+    # Meta atingida ≠ conclusão automática
+    # Sprint C3.6.6D.4B.3B.3
+    #
+    # A reavaliação apenas identifica se a meta foi atingida.
+    # A conclusão formal depende sempre de validação técnica.
     # --------------------------------------------------------
-
-    if objective_completed:
-        objective_update[
+    
+    objective_update[
+        "target_reached"
+    ] = objective_completed
+    
+    objective_update[
+        "target_reached_at"
+    ] = (
+        review_date
+        if objective_completed
+        else None
+    )
+    
+    if (
+        objective.get(
             "status"
-        ] = "completed"
-
-        objective_update[
-            "completed_at"
-        ] = review_date
-
-        objective_update[
-            "target_reached"
-        ] = True
-        
-        objective_update[
-            "target_reached_at"
-        ] = review_date
-        
+        )
+        == "completed"
+    ):
+        # Objetivos já formalmente concluídos
+        # não voltam ao estado ativo.
         objective_update[
             "completion_validation_required"
         ] = False
-        
-        objective_update[
-            "completion_validated_at"
-        ] = review_date
-        
-        objective_update[
-            "completion_validation_source"
-        ] = "pid_review"
-
-        intelligent_plan[
-            "planStatus"
-        ] = "completed"
-
-        intelligent_plan[
-            "completedAt"
-        ] = review_date
-
-        intelligent_plan[
-            "completionReason"
-        ] = "target_achieved"
-
-        intelligent_plan[
-            "completionScore"
-        ] = reviewed_score
-
-        intelligent_plan[
-            "completionTarget"
-        ] = target_value
-
-        operational_progress = dict(
-            intelligent_plan.get(
-                "operationalProgress"
-            )
-            or {}
-        )
-
-        operational_progress[
-            "status"
-        ] = "completed"
-
-        operational_progress[
-            "completedAt"
-        ] = review_date
-
-        operational_progress[
-            "completionReason"
-        ] = "target_achieved"
-
-        operational_progress[
-            "currentPhaseId"
-        ] = None
-
-        intelligent_plan[
-            "operationalProgress"
-        ] = operational_progress
-
-        phases = []
-
-        for phase in (
-            intelligent_plan.get(
-                "phases"
-            )
-            or []
-        ):
-            phase_copy = dict(
-                phase
-            )
-
-            if (
-                phase_copy.get(
-                    "status"
-                )
-                == "active"
-            ):
-                phase_copy[
-                    "status"
-                ] = "completed"
-
-                phase_copy[
-                    "completedAt"
-                ] = review_date
-
-                phase_copy[
-                    "completionReason"
-                ] = "target_achieved"
-
-            phases.append(
-                phase_copy
-            )
-
-            intelligent_plan[
-                "phases"
-            ] = phases
-
+    
     else:
         objective_update[
-            "target_reached"
-        ] = False
-
+            "status"
+        ] = "active"
+    
         objective_update[
-            "target_reached_at"
+            "completed_at"
         ] = None
-
+    
         objective_update[
             "completion_validation_required"
-        ] = False
+        ] = (
+            objective_completed
+        )
 
     # --------------------------------------------------------
     # Guardar atualização do objetivo
@@ -23865,10 +23779,44 @@ async def sync_pid_objective_from_latest_review(
     intelligent_plan[
         "reviewStatus"
     ] = (
-        "completed"
+        "target_reached"
         if objective_completed
         else "reviewed"
     )
+
+    if objective_completed:
+        intelligent_plan[
+            "objectiveValidationStatus"
+        ] = "pending"
+    
+        intelligent_plan[
+            "objectiveValidationRequired"
+        ] = True
+    
+        intelligent_plan[
+            "objectiveValidationObjectiveId"
+        ] = objective.get(
+            "id"
+        )
+    
+        intelligent_plan[
+            "objectiveValidationEvaluationId"
+        ] = latest_review.get(
+            "id"
+        )
+    
+        intelligent_plan[
+            "objectiveValidationRequestedAt"
+        ] = review_date
+    
+    else:
+        intelligent_plan[
+            "objectiveValidationStatus"
+        ] = "not_required"
+    
+        intelligent_plan[
+            "objectiveValidationRequired"
+        ] = False
 
     # --------------------------------------------------------
     # Fechar a revisão que originou esta reavaliação
