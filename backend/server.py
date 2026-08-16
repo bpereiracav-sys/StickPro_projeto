@@ -22727,6 +22727,644 @@ async def attach_legacy_objectives_to_pid(
         },
     )
 
+# ============================================================
+# PID — Longitudinal Objective Progress
+# Sprint C3.6 — progresso longitudinal real
+# ============================================================
+
+def parse_pid_progress_datetime(
+    value: Any,
+) -> Optional[datetime]:
+    """
+    Converte datetime / ISO string para datetime UTC comparável.
+
+    É tolerante a dados históricos que possam estar armazenados
+    como strings ISO ou datetime nativo do MongoDB.
+    """
+
+    if not value:
+        return None
+
+    if isinstance(
+        value,
+        datetime,
+    ):
+        parsed = value
+    else:
+        try:
+            parsed = datetime.fromisoformat(
+                str(value).replace(
+                    "Z",
+                    "+00:00",
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            return None
+
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(
+            tzinfo=timezone.utc
+        )
+
+    return parsed.astimezone(
+        timezone.utc
+    )
+
+
+def get_pid_evaluation_datetime(
+    evaluation: dict,
+) -> Optional[datetime]:
+    """
+    Data funcional da avaliação.
+
+    Preferimos evaluation_date quando existir;
+    created_at funciona como fallback histórico.
+    """
+
+    if not isinstance(
+        evaluation,
+        dict,
+    ):
+        return None
+
+    for value in [
+        evaluation.get(
+            "evaluation_date"
+        ),
+        evaluation.get(
+            "created_at"
+        ),
+        evaluation.get(
+            "date"
+        ),
+        evaluation.get(
+            "updated_at"
+        ),
+    ]:
+        parsed = (
+            parse_pid_progress_datetime(
+                value
+            )
+        )
+
+        if parsed:
+            return parsed
+
+    return None
+
+
+def get_evaluation_criterion_score(
+    evaluation: dict,
+    criterion_id: str,
+) -> Optional[float]:
+    """
+    Extrai a pontuação de um critério específico
+    de uma avaliação.
+    """
+
+    if (
+        not isinstance(
+            evaluation,
+            dict,
+        )
+        or not criterion_id
+    ):
+        return None
+
+    scores = (
+        evaluation.get(
+            "scores"
+        )
+        or evaluation.get(
+            "criteria_scores"
+        )
+        or evaluation.get(
+            "results"
+        )
+        or []
+    )
+
+    if not isinstance(
+        scores,
+        list,
+    ):
+        return None
+
+    for score_item in scores:
+        if not isinstance(
+            score_item,
+            dict,
+        ):
+            continue
+
+        score_criterion_id = (
+            score_item.get(
+                "criterion_id"
+            )
+            or score_item.get(
+                "id"
+            )
+        )
+
+        if (
+            str(
+                score_criterion_id
+                or ""
+            )
+            != str(
+                criterion_id
+            )
+        ):
+            continue
+
+        raw_score = (
+            score_item.get(
+                "score"
+            )
+        )
+
+        if raw_score is None:
+            raw_score = (
+                score_item.get(
+                    "value"
+                )
+            )
+
+        try:
+            score = float(
+                raw_score
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            return None
+
+        return score
+
+    return None
+
+
+def calculate_pid_objective_progress(
+    *,
+    baseline_value: float,
+    current_value: float,
+    target_value: float,
+) -> float:
+    """
+    Calcula progresso REAL entre baseline e meta.
+
+    Exemplos:
+    baseline 3.0 / atual 3.0 / meta 4.0 -> 0%
+    baseline 3.0 / atual 3.5 / meta 4.0 -> 50%
+    baseline 3.0 / atual 4.0 / meta 4.0 -> 100%
+
+    Regressões nunca produzem percentagem negativa.
+    Valores acima da meta ficam limitados a 100%.
+    """
+
+    if (
+        not NumberLike(
+            baseline_value
+        )
+        or not NumberLike(
+            current_value
+        )
+        or not NumberLike(
+            target_value
+        )
+    ):
+        return 0.0
+
+    baseline = float(
+        baseline_value
+    )
+
+    current = float(
+        current_value
+    )
+
+    target = float(
+        target_value
+    )
+
+    # Objetivo de manutenção ou dados históricos
+    # em que a meta não está acima do baseline.
+    if target <= baseline:
+        return (
+            100.0
+            if current >= target
+            else 0.0
+        )
+
+    progress = (
+        (
+            current
+            - baseline
+        )
+        /
+        (
+            target
+            - baseline
+        )
+    ) * 100.0
+
+    return round(
+        max(
+            0.0,
+            min(
+                100.0,
+                progress,
+            ),
+        ),
+        1,
+    )
+
+
+def NumberLike(
+    value: Any,
+) -> bool:
+    """
+    Confirma se um valor pode ser tratado
+    como número finito.
+    """
+
+    try:
+        number = float(
+            value
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        return False
+
+    return (
+        number == number
+        and number not in {
+            float("inf"),
+            float("-inf"),
+        }
+    )
+
+
+async def sync_pid_objectives_longitudinal_progress(
+    *,
+    player_id: str,
+    pid_id: str,
+) -> None:
+    """
+    C3.6 — fonte de verdade do progresso longitudinal.
+
+    Para cada objetivo do PID:
+
+    1. baseline_value é o ponto zero;
+    2. a avaliação source_evaluation_id estabelece o baseline
+       e NÃO conta como progresso;
+    3. apenas avaliações posteriores do MESMO criterion_id
+       podem alterar current_value;
+    4. para objetivos históricos sem source_evaluation_id,
+       created_at do objetivo funciona como fronteira;
+    5. sem avaliação posterior:
+       current_value = baseline
+       progress = 0%;
+    6. progresso é calculado entre baseline e target.
+
+    Nesta fase NÃO altera automaticamente o status do objetivo.
+    A conclusão formal e a renovação continuam entregues ao
+    workflow específico de revisão PID já existente.
+    """
+
+    if (
+        not player_id
+        or not pid_id
+    ):
+        return
+
+    objectives = (
+        await db.evaluation_objectives.find(
+            {
+                "player_id":
+                    player_id,
+
+                "pid_id":
+                    pid_id,
+
+                "archived": {
+                    "$ne":
+                        True,
+                },
+            },
+            {
+                "_id": 0,
+            },
+        ).to_list(
+            500
+        )
+    )
+
+    if not objectives:
+        return
+
+    criterion_ids = list({
+        str(
+            objective.get(
+                "criterion_id"
+            )
+        )
+        for objective in objectives
+        if objective.get(
+            "criterion_id"
+        )
+    })
+
+    if not criterion_ids:
+        return
+    
+    # --------------------------------------------------------
+    # Todas as avaliações que possuem pelo menos
+    # um dos critérios dos objetivos atuais.
+    # --------------------------------------------------------
+    
+    evaluations = (
+        await db.player_evaluations.find(
+            {
+                "player_id":
+                    player_id,
+    
+                "scores.criterion_id": {
+                    "$in":
+                        criterion_ids,
+                },
+            },
+            {
+                "_id": 0,
+            },
+        ).to_list(
+            2000
+        )
+    )
+    
+    evaluation_entries = []
+    
+    for evaluation in evaluations:
+        evaluation_datetime = (
+            get_pid_evaluation_datetime(
+                evaluation
+            )
+        )
+    
+        if not evaluation_datetime:
+            continue
+    
+        evaluation_entries.append(
+            {
+                "evaluation":
+                    evaluation,
+    
+                "id":
+                    evaluation.get(
+                        "id"
+                    ),
+    
+                "datetime":
+                    evaluation_datetime,
+            }
+        )
+    
+    evaluation_entries.sort(
+        key=lambda entry:
+            entry["datetime"]
+    )
+    
+    now_iso = datetime.now(
+        timezone.utc
+    ).isoformat()
+    
+    for objective in objectives:
+        criterion_id = (
+            objective.get(
+                "criterion_id"
+            )
+        )
+    
+        if not criterion_id:
+            continue
+    
+        try:
+            baseline_value = float(
+                objective.get(
+                    "baseline_value"
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            baseline_value = None
+    
+        try:
+            target_value = float(
+                objective.get(
+                    "target_value"
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            target_value = None
+    
+        if (
+            baseline_value is None
+            or target_value is None
+        ):
+            continue
+    
+        source_evaluation_id = (
+            objective.get(
+                "source_evaluation_id"
+            )
+            or objective.get(
+                "sourceEvaluationId"
+            )
+            or None
+        )
+    
+        objective_created_at = (
+            parse_pid_progress_datetime(
+                objective.get(
+                    "activated_at"
+                )
+                or objective.get(
+                    "created_at"
+                )
+            )
+        )
+    
+        criterion_entries = []
+    
+        for entry in evaluation_entries:
+            score = (
+                get_evaluation_criterion_score(
+                    entry[
+                        "evaluation"
+                    ],
+                    criterion_id,
+                )
+            )
+    
+            if score is None:
+                continue
+    
+            criterion_entries.append(
+                {
+                    **entry,
+                    "score":
+                        score,
+                }
+            )
+    
+        source_index = None
+    
+        if source_evaluation_id:
+            for index, entry in enumerate(
+                criterion_entries
+            ):
+                if (
+                    str(
+                        entry.get(
+                            "id"
+                        )
+                        or ""
+                    )
+                    ==
+                    str(
+                        source_evaluation_id
+                    )
+                ):
+                    source_index = index
+                    break
+    
+        eligible_entries = []
+    
+        if source_index is not None:
+            eligible_entries = (
+                criterion_entries[
+                    source_index + 1:
+                ]
+            )
+    
+        elif objective_created_at:
+            eligible_entries = [
+                entry
+                for entry
+                in criterion_entries
+                if entry[
+                    "datetime"
+                ] > objective_created_at
+            ]
+    
+        latest_entry = (
+            eligible_entries[-1]
+            if eligible_entries
+            else None
+        )
+    
+        current_value = (
+            float(
+                latest_entry[
+                    "score"
+                ]
+            )
+            if latest_entry
+            else baseline_value
+        )
+    
+        progress_percentage = (
+            calculate_pid_objective_progress(
+                baseline_value=
+                    baseline_value,
+    
+                current_value=
+                    current_value,
+    
+                target_value=
+                    target_value,
+            )
+        )
+    
+        evolution_delta = round(
+            current_value
+            - baseline_value,
+            2,
+        )
+    
+        update_data = {
+            "current_value":
+                current_value,
+    
+            "current_score":
+                current_value,
+    
+            "progress":
+                progress_percentage,
+    
+            "progress_percentage":
+                progress_percentage,
+    
+            "evolution_delta":
+                evolution_delta,
+    
+            "has_longitudinal_evaluation":
+                bool(
+                    latest_entry
+                ),
+    
+            "longitudinal_updated_at":
+                now_iso,
+    
+            "updated_at":
+                now_iso,
+        }
+    
+        if latest_entry:
+            update_data[
+                "last_evaluation_id"
+            ] = latest_entry.get(
+                "id"
+            )
+    
+            update_data[
+                "last_evaluation_at"
+            ] = (
+                latest_entry[
+                    "datetime"
+                ].isoformat()
+            )
+        else:
+            update_data[
+                "last_evaluation_id"
+            ] = None
+    
+            update_data[
+                "last_evaluation_at"
+            ] = None
+    
+        await db.evaluation_objectives.update_one(
+            {
+                "id":
+                    objective["id"],
+            },
+            {
+                "$set":
+                    update_data,
+            },
+        )
+        
 async def sync_pid_objective_from_latest_review(
     *,
     pid: dict,
@@ -22915,21 +23553,73 @@ async def sync_pid_objective_from_latest_review(
     # Atualizar resultado atual do objetivo
     # --------------------------------------------------------
 
+    try:
+        baseline_value_for_progress = float(
+            objective.get(
+                "baseline_value"
+            )
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        baseline_value_for_progress = (
+            reviewed_score
+        )
+    
+    progress_percentage = (
+        calculate_pid_objective_progress(
+            baseline_value=
+                baseline_value_for_progress,
+    
+            current_value=
+                reviewed_score,
+    
+            target_value=
+                (
+                    target_value
+                    if target_value is not None
+                    else reviewed_score
+                ),
+        )
+    )
+    
+    evolution_delta = round(
+        reviewed_score
+        - baseline_value_for_progress,
+        2,
+    )
+    
     objective_update = {
         "current_value":
             reviewed_score,
-
+    
         "current_score":
             reviewed_score,
-
+    
+        "progress":
+            progress_percentage,
+    
+        "progress_percentage":
+            progress_percentage,
+    
+        "evolution_delta":
+            evolution_delta,
+    
+        "has_longitudinal_evaluation":
+            True,
+    
         "last_evaluation_id":
             latest_review.get(
                 "id"
             ),
-
+    
         "last_evaluation_at":
             review_date,
-
+    
+        "longitudinal_updated_at":
+            now.isoformat(),
+    
         "updated_at":
             now.isoformat(),
     }
@@ -23424,12 +24114,7 @@ async def sync_pid_objective_from_latest_review(
                     now,
 
                 "last_review":
-                    (
-                        pid.get(
-                            "last_review"
-                        )
-                        or review_date
-                    ),
+                    review_date,
 
                 "next_review":
                     None,
@@ -24149,15 +24834,28 @@ async def get_player_objectives(
             pid=pid,
         )
     )
-    
+
+    # ========================================================
+    # C3.6 — progresso longitudinal real
+    #
+    # Atualiza current_value, progress e evolution_delta
+    # de todos os objetivos do PID com base apenas em
+    # avaliações posteriores ao respetivo baseline.
+    # ========================================================
+
+    await sync_pid_objectives_longitudinal_progress(
+        player_id=player_id,
+        pid_id=pid["id"],
+    )
+
     objectives = await db.evaluation_objectives.find(
         {
             "player_id":
                 player_id,
-    
+
             "pid_id":
                 pid["id"],
-    
+
             "archived": {
                 "$ne": True,
             },
@@ -24228,8 +24926,6 @@ async def get_player_objectives(
             )
 
     return objectives
-
-
 @api_router.post(
     "/evaluations/objectives"
 )
