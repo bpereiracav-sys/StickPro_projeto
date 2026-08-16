@@ -147,15 +147,33 @@ const getEvaluationTitle = (
 const getObjectiveState = (
   objective
 ) => {
-  if (
-    objective.status === 'completed' ||
-    objective.progress >= 100
-  ) {
+  const completed =
+    objective?.status ===
+    'completed';
+
+  const awaitingValidation =
+    objective?.status ===
+      'active' &&
+    objective
+      ?.completion_validation_required ===
+      true;
+
+  if (completed) {
     return {
-      label: 'Objetivo atingido',
+      label: 'Objetivo concluído',
       className:
         'border-emerald-200 bg-emerald-50 text-emerald-700',
       Icon: Award,
+    };
+  }
+
+  if (awaitingValidation) {
+    return {
+      label:
+        'Meta atingida · aguarda validação',
+      className:
+        'border-emerald-200 bg-emerald-50 text-emerald-700',
+      Icon: CheckCircle2,
     };
   }
 
@@ -680,7 +698,10 @@ export default function AthletePIDCard({
           .filter(
             (objective) =>
               objective.status ===
-              'active'
+                'active' &&
+              objective
+                .completion_validation_required !==
+                true
           )
           .sort(
             (
@@ -694,7 +715,7 @@ export default function AthletePIDCard({
                 ) < new Date()
                   ? 1
                   : 0;
-
+  
               const riskB =
                 objectiveB.target_date &&
                 new Date(
@@ -702,13 +723,13 @@ export default function AthletePIDCard({
                 ) < new Date()
                   ? 1
                   : 0;
-
+  
               if (
                 riskA !== riskB
               ) {
                 return riskB - riskA;
               }
-
+  
               return (
                 objectiveB.progress -
                 objectiveA.progress
@@ -718,12 +739,34 @@ export default function AthletePIDCard({
       [enriched]
     );
 
+  const validationObjectives =
+    useMemo(
+      () =>
+        enriched
+          .filter(
+            (objective) =>
+              objective.status ===
+                'active' &&
+              objective
+                .completion_validation_required ===
+                true
+          )
+          .sort(
+            (
+              objectiveA,
+              objectiveB
+            ) =>
+              objectiveB.progress -
+              objectiveA.progress
+          ),
+      [enriched]
+    );
+  
   const completed =
     enriched.filter(
       (objective) =>
         objective.status ===
-          'completed' ||
-        objective.progress >= 100
+        'completed'
     ).length;
 
   const progressObjectives =
@@ -732,8 +775,7 @@ export default function AthletePIDCard({
         objective.status ===
           'active' ||
         objective.status ===
-          'completed' ||
-        objective.progress >= 100
+          'completed'
     );
   
   const averageProgress =
@@ -760,6 +802,12 @@ export default function AthletePIDCard({
         objective.progress < 100
     ).length;
 
+  const previewObjectives =
+    [
+      ...validationObjectives,
+      ...activeObjectives,
+    ].slice(0, 2);
+        
   const objectivesPath =
     playerId
       ? `/evaluations/objectives?player_id=${encodeURIComponent(
@@ -862,7 +910,7 @@ export default function AthletePIDCard({
 
             {enriched.length > 0 ? (
               <>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
                   <div className="rounded-2xl border border-white bg-white/80 p-3">
                     <p className="text-xs text-slate-500">
                       {tr(
@@ -894,6 +942,26 @@ export default function AthletePIDCard({
                     </p>
                   </div>
 
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/80 p-3">
+                    <p className="text-xs text-emerald-700">
+                      {tr(
+                        'objectives.awaitingValidation',
+                        'Meta atingida'
+                      )}
+                    </p>
+                  
+                    <p className="font-heading text-2xl text-emerald-700">
+                      {validationObjectives.length}
+                    </p>
+                  
+                    <p className="mt-1 text-[11px] text-emerald-600">
+                      {tr(
+                        'objectives.awaitingTechnicalValidation',
+                        'Aguarda validação'
+                      )}
+                    </p>
+                  </div>
+                  
                   <div className="rounded-2xl border border-white bg-white/80 p-3">
                     <p className="text-xs text-slate-500">
                       {tr(
@@ -921,12 +989,10 @@ export default function AthletePIDCard({
                   </div>
                 </div>
 
-                {activeObjectives.length >
+                {previewObjectives.length >
                 0 ? (
                   <div className="grid gap-3 lg:grid-cols-2">
-                    {activeObjectives
-                      .slice(0, 2)
-                      .map(
+                    {previewObjectives.map(
                         (objective) => (
                           <ObjectivePreview
                             key={
