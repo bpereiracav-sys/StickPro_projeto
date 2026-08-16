@@ -833,6 +833,11 @@ export default function DevelopmentPID() {
     setDecidingObjectiveId,
   ] = useState(null);
   
+  const [
+    decidingIntelligentPlan,
+    setDecidingIntelligentPlan,
+  ] = useState(false);
+  
   const tr = (key, fallback) => {
     const translated = t(key);
     return translated && translated !== key ? translated : fallback;
@@ -1596,6 +1601,118 @@ export default function DevelopmentPID() {
         );
       }
     };
+
+    // ============================================================
+    // Intelligent Plan Technical Decision
+    // Sprint C3.6.6D.4B.3B.4
+    // ============================================================
+  
+    const handleIntelligentPlanDecision =
+      async (action) => {
+        if (!pid?.id) {
+          toast.error(
+            'Não foi possível identificar o PID.'
+          );
+  
+          return;
+        }
+  
+        if (
+          ![
+            'complete',
+            'continue',
+          ].includes(action)
+        ) {
+          return;
+        }
+  
+        const confirmationMessage =
+          action === 'complete'
+            ? (
+                'Confirmar a conclusão formal deste Plano Inteligente? O histórico do plano será preservado.'
+              )
+            : (
+                'Confirmar a continuação do desenvolvimento? O objetivo atual continuará concluído e o plano ficará em revisão para definição do próximo ciclo.'
+              );
+  
+        if (
+          !window.confirm(
+            confirmationMessage
+          )
+        ) {
+          return;
+        }
+  
+        setDecidingIntelligentPlan(
+          true
+        );
+  
+        try {
+          const response =
+            await evaluationsApi
+              .decideIntelligentPlan(
+                pid.id,
+                {
+                  action,
+                  note: null,
+                }
+              );
+  
+          const updatedPID =
+            response?.data ||
+            null;
+  
+          if (updatedPID?.id) {
+            setPid(
+              updatedPID
+            );
+          }
+  
+          if (
+            action === 'complete'
+          ) {
+            toast.success(
+              'Plano Inteligente concluído pela equipa técnica.'
+            );
+          } else {
+            toast.success(
+              'O desenvolvimento continuará. O plano ficou em revisão para definição do próximo ciclo.'
+            );
+          }
+  
+          /*
+           * Recarregar todo o estado.
+           *
+           * Isto garante que:
+           * - intelligent_plan_status;
+           * - planStatus;
+           * - objetivos;
+           * - versão do PID;
+           * - estado operacional;
+           *
+           * ficam novamente sincronizados com o backend.
+           */
+          await loadPIDData(
+            playerId
+          );
+        } catch (error) {
+          console.error(
+            'Error deciding Intelligent Plan:',
+            error
+          );
+  
+          toast.error(
+            error?.response
+              ?.data?.detail ||
+            error?.message ||
+            'Não foi possível registar a decisão sobre o Plano Inteligente.'
+          );
+        } finally {
+          setDecidingIntelligentPlan(
+            false
+          );
+        }
+      };
   
   return (
     <div className="space-y-6 pb-20 lg:pb-0">
@@ -2129,29 +2246,104 @@ export default function DevelopmentPID() {
 
                   {intelligentPlanStatus ===
                     'decision_pending' && (
-                    <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-4">
+                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-4 sm:p-5">
                       <div className="flex items-start gap-3">
-                        <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
-                  
-                        <div>
-                          <p className="font-semibold text-violet-900">
-                            Plano aguarda decisão técnica
-                          </p>
-                  
-                          <p className="mt-1 text-sm leading-6 text-violet-700">
-                            O objetivo associado a este Plano Inteligente
-                            foi formalmente concluído após validação técnica.
-                            O histórico operacional e as sessões realizadas
-                            permanecem preservados enquanto é decidido o
-                            próximo passo do plano.
-                          </p>
-                  
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                          <CircleAlert className="h-5 w-5" />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                              <p className="font-semibold text-violet-950">
+                                Plano aguarda decisão técnica
+                              </p>
+
+                              <p className="mt-1 max-w-3xl text-sm leading-6 text-violet-700">
+                                O objetivo principal deste Plano Inteligente
+                                foi formalmente concluído. A equipa técnica
+                                deve agora decidir se o plano termina ou se
+                                o desenvolvimento do atleta deve continuar
+                                num novo ciclo.
+                              </p>
+                            </div>
+
+                            <Badge
+                              variant="outline"
+                              className="w-fit shrink-0 border-violet-200 bg-white text-violet-700"
+                            >
+                              Decisão pendente
+                            </Badge>
+                          </div>
+
                           {intelligentPlan
                             ?.decisionPendingReason ===
                             'objective_completed' && (
-                            <p className="mt-2 text-xs font-medium text-violet-600">
-                              Motivo: objetivo principal concluído.
-                            </p>
+                            <div className="mt-3 rounded-xl border border-violet-100 bg-white/70 px-3 py-2">
+                              <p className="text-xs font-medium text-violet-700">
+                                <CheckCircle2 className="mr-1.5 inline h-3.5 w-3.5" />
+                                Objetivo principal concluído e validado pela equipa técnica.
+                              </p>
+                            </div>
+                          )}
+
+                          {canManage && (
+                            <div className="mt-5 border-t border-violet-100 pt-4">
+                              <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                                Decisão sobre o plano
+                              </p>
+
+                              <p className="mt-1 text-xs leading-5 text-slate-500">
+                                Esta decisão não altera o objetivo já concluído.
+                                Se optar por continuar, o plano ficará em revisão
+                                para definição do próximo ciclo de desenvolvimento.
+                              </p>
+
+                              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="w-full rounded-full border-violet-200 bg-white text-violet-700 hover:bg-violet-50 sm:w-auto"
+                                  disabled={
+                                    decidingIntelligentPlan
+                                  }
+                                  onClick={() =>
+                                    handleIntelligentPlanDecision(
+                                      'continue'
+                                    )
+                                  }
+                                >
+                                  {decidingIntelligentPlan ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <RefreshCw className="mr-2 h-4 w-4" />
+                                  )}
+
+                                  Continuar desenvolvimento
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  className="w-full rounded-full bg-violet-600 text-white hover:bg-violet-700 sm:w-auto"
+                                  disabled={
+                                    decidingIntelligentPlan
+                                  }
+                                  onClick={() =>
+                                    handleIntelligentPlanDecision(
+                                      'complete'
+                                    )
+                                  }
+                                >
+                                  {decidingIntelligentPlan ? (
+                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  )}
+
+                                  Concluir Plano
+                                </Button>
+                              </div>
+                            </div>
                           )}
                         </div>
                       </div>
