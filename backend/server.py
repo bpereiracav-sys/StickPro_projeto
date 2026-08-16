@@ -23401,10 +23401,18 @@ def get_pid_evaluation_datetime(
     evaluation: dict,
 ) -> Optional[datetime]:
     """
-    Data funcional da avaliação.
+    Data cronológica efetiva da avaliação.
 
-    Preferimos evaluation_date quando existir;
-    created_at funciona como fallback histórico.
+    Para progresso longitudinal preferimos created_at,
+    porque contém normalmente data + hora real de criação.
+
+    evaluation_date é usado apenas como fallback para
+    avaliações históricas sem created_at.
+
+    Isto evita que avaliações realizadas no mesmo dia
+    de criação de um objetivo sejam interpretadas como
+    anteriores ao objetivo por evaluation_date ser
+    frequentemente armazenado sem hora.
     """
 
     if not isinstance(
@@ -23415,10 +23423,10 @@ def get_pid_evaluation_datetime(
 
     for value in [
         evaluation.get(
-            "evaluation_date"
+            "created_at"
         ),
         evaluation.get(
-            "created_at"
+            "evaluation_date"
         ),
         evaluation.get(
             "date"
