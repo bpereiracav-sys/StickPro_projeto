@@ -1916,6 +1916,38 @@ class ObjectiveCompletionDecision(
 
     note: Optional[str] = None
 
+
+# ============================================================
+# Intelligent Plan Technical Decision
+# Sprint C3.6.6D.4B.3B.4
+# ============================================================
+
+class IntelligentPlanTechnicalDecision(
+    BaseModel
+):
+    """
+    Decisão técnica depois da conclusão formal
+    do objetivo principal do Plano Inteligente.
+
+    complete:
+        encerra formalmente o Plano Inteligente.
+
+    continue:
+        mantém o PID aberto e coloca o Plano
+        em revisão para definição do passo seguinte.
+
+    Nesta fase nenhuma das decisões cria
+    automaticamente um novo objetivo ou ciclo.
+    """
+
+    action: Literal[
+        "complete",
+        "continue",
+    ]
+
+    note: Optional[str] = None
+
+
 # ============================================================
 # Intelligent PID Operational Progress
 # Sprint C3.6.6D
@@ -19886,6 +19918,581 @@ async def activate_intelligent_pid_plan(
                 "O PID foi atualizado, "
                 "mas não foi possível recuperar "
                 "a nova versão"
+            ),
+        )
+
+    return updated_pid
+
+# ============================================================
+# Intelligent Plan Technical Decision
+# Sprint C3.6.6D.4B.3B.4
+# ============================================================
+
+@api_router.post(
+    "/evaluations/pids/{pid_id}/intelligent-plan/technical-decision"
+)
+async def decide_intelligent_plan_after_objective_completion(
+    pid_id: str,
+    decision: IntelligentPlanTechnicalDecision,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    """
+    Regista a decisão técnica sobre o Plano Inteligente
+    depois de o seu objetivo principal ter sido
+    formalmente concluído.
+
+    Regras:
+    - apenas administração/equipa técnica pode decidir;
+    - o Plano tem de estar em decision_pending;
+    - complete encerra formalmente o Plano Inteligente;
+    - continue mantém o PID aberto e coloca o Plano
+      em revisão para decisão sobre o próximo ciclo;
+    - nenhuma decisão cria automaticamente um novo
+      objetivo ou um novo Plano Inteligente;
+    - toda a decisão fica auditada.
+    """
+
+    checker = (
+        get_permission_checker(
+            current_user
+        )
+    )
+
+    # --------------------------------------------------------
+    # Apenas administração / equipa técnica
+    # --------------------------------------------------------
+
+    if (
+        not checker.is_admin
+        and not checker.is_staff
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Sem permissão para decidir "
+                "o destino deste Plano Inteligente"
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Carregar PID
+    # --------------------------------------------------------
+
+    pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id":
+                    pid_id,
+
+                "archived":
+                    False,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    if not pid:
+        raise HTTPException(
+            status_code=404,
+            detail="PID não encontrado",
+        )
+
+    player_id = (
+        pid.get(
+            "player_id"
+        )
+    )
+
+    # --------------------------------------------------------
+    # Validar acesso ao atleta
+    # --------------------------------------------------------
+
+    if (
+        not checker.is_admin
+        and player_id
+        and not checker.can_access_player(
+            player_id
+        )
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem acesso a este atleta",
+        )
+
+    # --------------------------------------------------------
+    # Carregar Plano Inteligente
+    # --------------------------------------------------------
+
+    intelligent_plan = dict(
+        pid.get(
+            "intelligent_plan"
+        )
+        or {}
+    )
+
+    if not intelligent_plan:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Este PID não possui "
+                "um Plano Inteligente"
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Confirmar que existe decisão pendente
+    # --------------------------------------------------------
+
+    pid_plan_status = (
+        pid.get(
+            "intelligent_plan_status"
+        )
+    )
+
+    plan_status = (
+        intelligent_plan.get(
+            "planStatus"
+        )
+    )
+
+    decision_pending = (
+        pid_plan_status
+        == "decision_pending"
+        or plan_status
+        == "decision_pending"
+    )
+
+    if not decision_pending:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Este Plano Inteligente "
+                "não aguarda decisão técnica"
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Confirmar origem da decisão pendente
+    # --------------------------------------------------------
+
+    decision_pending_reason = (
+        intelligent_plan.get(
+            "decisionPendingReason"
+        )
+    )
+
+    if (
+        decision_pending_reason
+        and decision_pending_reason
+        != "objective_completed"
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "A decisão pendente deste plano "
+                "não resulta da conclusão "
+                "do objetivo principal"
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Confirmar que o objetivo associado está concluído
+    # --------------------------------------------------------
+
+    objective_id = (
+        intelligent_plan.get(
+            "decisionPendingObjectiveId"
+        )
+        or intelligent_plan.get(
+            "objectiveId"
+        )
+    )
+
+    objective = None
+
+    if objective_id:
+        objective = (
+            await db.evaluation_objectives.find_one(
+                {
+                    "id":
+                        objective_id,
+
+                    "pid_id":
+                        pid_id,
+                },
+                {
+                    "_id": 0,
+                },
+            )
+        )
+
+    if (
+        objective_id
+        and (
+            not objective
+            or objective.get(
+                "status"
+            )
+            != "completed"
+        )
+    ):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "O objetivo principal ainda "
+                "não está formalmente concluído"
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Preparar decisão
+    # --------------------------------------------------------
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    now_iso = now.isoformat()
+
+    action = (
+        decision.action
+    )
+
+    decision_note = (
+        str(
+            decision.note
+        ).strip()
+        if decision.note
+        else None
+    )
+
+    # --------------------------------------------------------
+    # Auditoria comum
+    # --------------------------------------------------------
+
+    technical_decision = {
+        "action":
+            action,
+
+        "objectiveId":
+            objective_id,
+
+        "evaluationId":
+            intelligent_plan.get(
+                "decisionPendingEvaluationId"
+            ),
+
+        "decidedAt":
+            now_iso,
+
+        "decidedBy":
+            current_user.get(
+                "id"
+            ),
+
+        "note":
+            decision_note,
+    }
+
+    intelligent_plan[
+        "technicalDecision"
+    ] = technical_decision
+
+    intelligent_plan[
+        "technicalDecisionStatus"
+    ] = "decided"
+
+    intelligent_plan[
+        "technicalDecisionAt"
+    ] = now_iso
+
+    intelligent_plan[
+        "technicalDecisionBy"
+    ] = current_user.get(
+        "id"
+    )
+
+    intelligent_plan[
+        "technicalDecisionNote"
+    ] = decision_note
+
+    # ========================================================
+    # DECISÃO 1
+    # Encerrar formalmente o Plano Inteligente
+    # ========================================================
+
+    if action == "complete":
+        intelligent_plan[
+            "planStatus"
+        ] = "completed"
+
+        intelligent_plan[
+            "completed"
+        ] = True
+
+        intelligent_plan[
+            "completedAt"
+        ] = now_iso
+
+        intelligent_plan[
+            "completionReason"
+        ] = (
+            "technical_decision_after_objective_completion"
+        )
+
+        intelligent_plan[
+            "completionObjectiveId"
+        ] = objective_id
+
+        intelligent_plan[
+            "completionDecidedBy"
+        ] = current_user.get(
+            "id"
+        )
+
+        intelligent_plan[
+            "completionDecisionNote"
+        ] = decision_note
+
+        new_plan_status = (
+            "completed"
+        )
+
+    # ========================================================
+    # DECISÃO 2
+    # Manter desenvolvimento aberto
+    # ========================================================
+
+    elif action == "continue":
+        # ----------------------------------------------------
+        # O antigo objetivo continua formalmente concluído.
+        #
+        # Não o reabrimos e não criamos outro objetivo.
+        # O Plano passa para revisão para que uma etapa
+        # posterior possa definir o próximo ciclo.
+        # ----------------------------------------------------
+
+        intelligent_plan[
+            "planStatus"
+        ] = "review"
+
+        intelligent_plan[
+            "completed"
+        ] = False
+
+        intelligent_plan[
+            "completedAt"
+        ] = None
+
+        intelligent_plan[
+            "completionReason"
+        ] = None
+
+        intelligent_plan[
+            "reviewReason"
+        ] = (
+            "continue_after_objective_completion"
+        )
+
+        intelligent_plan[
+            "reviewRequestedAt"
+        ] = now_iso
+
+        intelligent_plan[
+            "reviewRequestedBy"
+        ] = current_user.get(
+            "id"
+        )
+
+        intelligent_plan[
+            "reviewNote"
+        ] = decision_note
+
+        new_plan_status = (
+            "review"
+        )
+
+    else:
+        # Defesa adicional.
+        # O Pydantic já impede outro valor,
+        # mas mantemos validação explícita.
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Decisão técnica inválida"
+            ),
+        )
+
+    # --------------------------------------------------------
+    # Resolver estado decision_pending
+    # --------------------------------------------------------
+
+    intelligent_plan[
+        "decisionPendingResolvedAt"
+    ] = now_iso
+
+    intelligent_plan[
+        "decisionPendingResolvedBy"
+    ] = current_user.get(
+        "id"
+    )
+
+    intelligent_plan[
+        "decisionPendingResolution"
+    ] = action
+
+    # Preservamos:
+    #
+    # decisionPendingReason
+    # decisionPendingAt
+    # decisionPendingObjectiveId
+    # decisionPendingEvaluationId
+    #
+    # porque fazem parte do histórico/auditoria.
+
+    # --------------------------------------------------------
+    # Versão do PID
+    # --------------------------------------------------------
+
+    try:
+        current_version = int(
+            pid.get(
+                "current_version",
+                1,
+            )
+            or 1
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        current_version = 1
+
+    # --------------------------------------------------------
+    # Persistir decisão
+    # --------------------------------------------------------
+
+    result = (
+        await db.evaluation_pids.update_one(
+            {
+                "id":
+                    pid_id,
+
+                "archived":
+                    False,
+
+                # Evita duas decisões concorrentes
+                # sobre o mesmo estado pendente.
+                "intelligent_plan_status":
+                    "decision_pending",
+            },
+            {
+                "$set": {
+                    "intelligent_plan":
+                        intelligent_plan,
+
+                    "intelligent_plan_status":
+                        new_plan_status,
+
+                    "intelligent_plan_updated_at":
+                        now,
+
+                    "updated_at":
+                        now,
+
+                    "current_version":
+                        current_version + 1,
+                },
+            },
+        )
+    )
+
+    if (
+        result.matched_count
+        == 0
+    ):
+        # ----------------------------------------------------
+        # Compatibilidade defensiva:
+        # alguns dados antigos podem ter planStatus
+        # decision_pending apenas dentro de intelligent_plan.
+        # ----------------------------------------------------
+
+        fallback_result = (
+            await db.evaluation_pids.update_one(
+                {
+                    "id":
+                        pid_id,
+
+                    "archived":
+                        False,
+
+                    "intelligent_plan.planStatus":
+                        "decision_pending",
+                },
+                {
+                    "$set": {
+                        "intelligent_plan":
+                            intelligent_plan,
+
+                        "intelligent_plan_status":
+                            new_plan_status,
+
+                        "intelligent_plan_updated_at":
+                            now,
+
+                        "updated_at":
+                            now,
+
+                        "current_version":
+                            current_version + 1,
+                    },
+                },
+            )
+        )
+
+        if (
+            fallback_result.matched_count
+            == 0
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "O Plano Inteligente já não "
+                    "se encontra pendente de decisão. "
+                    "Atualiza os dados e tenta novamente."
+                ),
+            )
+
+    # --------------------------------------------------------
+    # Recuperar PID atualizado
+    # --------------------------------------------------------
+
+    updated_pid = (
+        await db.evaluation_pids.find_one(
+            {
+                "id":
+                    pid_id,
+
+                "archived":
+                    False,
+            },
+            {
+                "_id": 0,
+            },
+        )
+    )
+
+    if not updated_pid:
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "A decisão foi registada, "
+                "mas não foi possível recuperar "
+                "o PID atualizado"
             ),
         )
 
