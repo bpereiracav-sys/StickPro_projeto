@@ -1129,74 +1129,42 @@ export default function DevelopmentPID() {
   
   const summary = useMemo(() => {
     /*
-     * Objetivos do ciclo inteligente atualmente ativo.
+     * C3.6 — Objetivos pertencentes ao PID atual.
      *
-     * intelligent_plan_id é a associação preferencial entre
-     * o objetivo e o Plano Inteligente.
+     * Um objetivo continua a fazer parte do PID enquanto:
+     * - estiver associado ao mesmo pid_id;
+     * - não estiver arquivado.
      *
-     * pid_version funciona como fallback para objetivos antigos.
+     * pid_version e intelligent_plan_id identificam a origem
+     * histórica do objetivo, mas não determinam se ele continua
+     * visível no PID atual.
      */
   
-    const currentCycleObjectives = objectives.filter(
-      (objective) => {
-        /*
-         * O objetivo tem de pertencer ao PID atualmente aberto.
-         */
-        if (
-          String(objective?.pid_id || '') !==
-          String(pid?.id || '')
-        ) {
-          return false;
-        }
-  
-        const objectivePlanId =
-          objective?.intelligent_plan_id ||
-          null;
-  
-        /*
-         * Quando ambos possuem intelligent_plan_id,
-         * essa associação é a fonte de verdade.
-         */
-        if (
-          currentIntelligentPlanId &&
-          objectivePlanId
-        ) {
-          return (
-            String(objectivePlanId) ===
-            String(currentIntelligentPlanId)
-          );
-        }
-  
-        /*
-         * Compatibilidade com objetivos antigos que ainda
-         * não possuem intelligent_plan_id.
-         */
-        const objectivePIDVersion =
-          Number(
-            objective?.pid_version ?? 1
-          );
-  
-        return (
-          objectivePIDVersion ===
-          currentPIDVersion
-        );
-      }
+    const pidObjectives = objectives.filter(
+      (objective) =>
+        String(
+          objective?.pid_id || ''
+        ) ===
+          String(
+            pid?.id || ''
+          ) &&
+        objective?.archived !== true
     );
   
     const activeObjectives =
-      currentCycleObjectives.filter(
+      pidObjectives.filter(
         (objective) =>
           objective?.status === 'active'
       );
   
     const pausedObjectives =
-      currentCycleObjectives.filter(
+      pidObjectives.filter(
         (objective) =>
           objective?.status === 'paused'
       );
   
     const completedObjectives =
-      currentCycleObjectives.filter(
+      pidObjectives.filter(
         (objective) =>
           objective?.status === 'completed'
       );
@@ -1214,7 +1182,8 @@ export default function DevelopmentPID() {
             (sum, value) =>
               sum + value,
             0
-          ) / progressValues.length
+          ) /
+          progressValues.length
         : 0;
   
     const orderedEvaluations = [
@@ -1251,8 +1220,6 @@ export default function DevelopmentPID() {
     objectives,
     evaluations,
     pid?.id,
-    currentPIDVersion,
-    currentIntelligentPlanId,
   ]);
   const intelligentPlanStatus =
     pid?.intelligent_plan_status ||
