@@ -165,7 +165,20 @@ function criterionScores(evaluation) {
   }));
 }
 
-function statusInfo(status) {
+function statusInfo(
+  status,
+  completionValidationRequired = false
+) {
+  if (
+    status === 'active' &&
+    completionValidationRequired
+  ) {
+    return [
+      'Meta atingida — validar',
+      'border-emerald-200 bg-emerald-50 text-emerald-700',
+    ];
+  }
+
   return (
     {
       completed: [
@@ -302,8 +315,13 @@ function ObjectiveCard({
   onDelete,
   onComplete,
 }) {
-  const [statusLabel, statusClass] =
-    statusInfo(item.status);
+  const [
+    statusLabel,
+    statusClass,
+  ] = statusInfo(
+    item.status,
+    item.completion_validation_required === true
+  );
 
   const timing = getObjectiveTiming(item);
   const TimingIcon = timing.Icon;
@@ -498,16 +516,33 @@ function ObjectiveCard({
 
         {canManage &&
           item.status === 'active' &&
-          item.progress >= 100 && (
-            <Button
-              type="button"
-              variant="outline"
-              className="mt-4 rounded-full border-emerald-200 bg-emerald-50 text-emerald-700"
-              onClick={() => onComplete(item)}
-            >
-              <CheckCircle2 className="mr-2 h-4 w-4" />
-              Marcar como concluído
-            </Button>
+          item.completion_validation_required === true && (
+            <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="font-semibold text-emerald-800">
+                    Meta atingida
+                  </p>
+        
+                  <p className="mt-1 text-sm text-emerald-700">
+                    A avaliação indica que a meta foi alcançada.
+                    Confirma a conclusão deste objetivo após validação técnica.
+                  </p>
+                </div>
+        
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="shrink-0 rounded-full border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                  onClick={() =>
+                    onComplete(item)
+                  }
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                  Validar conclusão
+                </Button>
+              </div>
+            </div>
           )}
       </CardContent>
     </Card>
