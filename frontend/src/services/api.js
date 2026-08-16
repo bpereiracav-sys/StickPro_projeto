@@ -598,6 +598,20 @@ export const evaluationsApi = {
         `/evaluations/pids/${pidId}/activate-intelligent-plan`,
         data
       ),
+
+    // =====================================================
+    // Intelligent Plan Technical Decision
+    // C3.6.6D.4B.3B.4
+    // =====================================================
+    
+    decideIntelligentPlan: (
+      pidId,
+      data
+    ) =>
+      api.post(
+        `/evaluations/pids/${pidId}/intelligent-plan/technical-decision`,
+        data
+      ),
   
     decidePIDRenewal: (
       pidId,
