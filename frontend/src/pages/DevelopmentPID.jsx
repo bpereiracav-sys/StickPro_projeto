@@ -550,7 +550,10 @@ function MetricCard({ icon: Icon, label, value, description, tone }) {
 }
 
 function ObjectiveCard({ objective }) {
-  const progress = getObjectiveProgress(objective);
+  const progress =
+    getObjectiveProgress(
+      objective
+    );
 
   const title =
     objective?.title ||
@@ -558,13 +561,45 @@ function ObjectiveCard({ objective }) {
     objective?.name ||
     'Objetivo de desenvolvimento';
 
-  const completed = objective?.status === 'completed';
+  const completed =
+    objective?.status ===
+    'completed';
+
+  const awaitingValidation =
+    objective?.status ===
+      'active' &&
+    objective
+      ?.completion_validation_required ===
+      true;
+
+  const badgeLabel =
+    completed
+      ? 'Concluído'
+      : awaitingValidation
+        ? 'Meta atingida — validar'
+        : 'Em desenvolvimento';
+
+  const badgeClassName =
+    completed
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : awaitingValidation
+        ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+        : 'border-amber-200 bg-amber-50 text-amber-700';
+
+  const BadgeIcon =
+    completed ||
+    awaitingValidation
+      ? CheckCircle2
+      : Target;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          <p className="font-semibold text-slate-900">{title}</p>
+          <p className="font-semibold text-slate-900">
+            {title}
+          </p>
+
           <p className="mt-1 text-xs text-slate-500">
             {objective?.domain_name ||
               objective?.domain ||
@@ -576,40 +611,50 @@ function ObjectiveCard({ objective }) {
         <Badge
           variant="outline"
           className={
-            completed
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-amber-200 bg-amber-50 text-amber-700'
+            badgeClassName
           }
         >
-          {completed ? (
-            <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-          ) : (
-            <Target className="mr-1 h-3.5 w-3.5" />
-          )}
+          <BadgeIcon className="mr-1 h-3.5 w-3.5" />
 
-          {completed ? 'Concluído' : 'Em desenvolvimento'}
+          {badgeLabel}
         </Badge>
       </div>
 
       <div className="mt-4">
         <div className="mb-2 flex items-center justify-between text-xs">
-          <span className="font-medium text-slate-500">Progresso</span>
+          <span className="font-medium text-slate-500">
+            Progresso
+          </span>
+
           <span className="font-bold text-slate-700">
-            {Math.round(progress)}%
+            {Math.round(
+              progress
+            )}
+            %
           </span>
         </div>
 
         <div className="h-2.5 overflow-hidden rounded-full bg-slate-100">
           <div
-            className="h-full rounded-full bg-cyan-500 transition-all"
-            style={{ width: `${progress}%` }}
+            className={
+              completed ||
+              awaitingValidation
+                ? 'h-full rounded-full bg-emerald-500 transition-all'
+                : 'h-full rounded-full bg-cyan-500 transition-all'
+            }
+            style={{
+              width: `${progress}%`,
+            }}
           />
         </div>
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
         <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs text-slate-400">Atual</p>
+          <p className="text-xs text-slate-400">
+            Atual
+          </p>
+
           <p className="mt-1 font-bold text-slate-800">
             {objective?.current_score ??
               objective?.current_value ??
@@ -618,7 +663,10 @@ function ObjectiveCard({ objective }) {
         </div>
 
         <div className="rounded-xl bg-slate-50 p-3">
-          <p className="text-xs text-slate-400">Meta</p>
+          <p className="text-xs text-slate-400">
+            Meta
+          </p>
+
           <p className="mt-1 font-bold text-slate-800">
             {objective?.target_score ??
               objective?.target_value ??
@@ -627,10 +675,26 @@ function ObjectiveCard({ objective }) {
         </div>
       </div>
 
+      {awaitingValidation && (
+        <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+          <p className="text-xs font-semibold text-emerald-800">
+            Meta alcançada
+          </p>
+
+          <p className="mt-1 text-xs leading-5 text-emerald-700">
+            O resultado atual atingiu ou ultrapassou a meta.
+            A conclusão formal aguarda validação técnica.
+          </p>
+        </div>
+      )}
+
       {objective?.deadline && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
           <CalendarDays className="h-3.5 w-3.5" />
-          Prazo: {formatDate(objective.deadline)}
+          Prazo:{' '}
+          {formatDate(
+            objective.deadline
+          )}
         </p>
       )}
     </div>
@@ -1154,23 +1218,40 @@ export default function DevelopmentPID() {
     const activeObjectives =
       pidObjectives.filter(
         (objective) =>
-          objective?.status === 'active'
+          objective?.status ===
+            'active' &&
+          objective
+            ?.completion_validation_required !==
+            true
       );
-  
+    
+    const validationObjectives =
+      pidObjectives.filter(
+        (objective) =>
+          objective?.status ===
+            'active' &&
+          objective
+            ?.completion_validation_required ===
+            true
+      );
+    
     const pausedObjectives =
       pidObjectives.filter(
         (objective) =>
-          objective?.status === 'paused'
+          objective?.status ===
+          'paused'
       );
-  
+    
     const completedObjectives =
       pidObjectives.filter(
         (objective) =>
-          objective?.status === 'completed'
+          objective?.status ===
+          'completed'
       );
   
     const progressValues = [
       ...activeObjectives,
+      ...validationObjectives,
       ...completedObjectives,
     ]
       .map(getObjectiveProgress)
@@ -1204,6 +1285,7 @@ export default function DevelopmentPID() {
   
     return {
       activeObjectives,
+      validationObjectives,
       pausedObjectives,
       completedObjectives,
       averageProgress,
@@ -2690,138 +2772,220 @@ export default function DevelopmentPID() {
               </div>
             )}
           
-          <section className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(320px,0.8fr)]">
-            <Card className="border-slate-200 bg-white shadow-sm">
-              <CardHeader>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <CardTitle className="flex items-center gap-2">
-                      <Target className="h-5 w-5 text-amber-600" />
-                      Objetivos do plano
-                    </CardTitle>
-                    <CardDescription>
-                      Metas ativas e concluídas associadas ao percurso do atleta.
-                    </CardDescription>
-                  </div>
-
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="rounded-full"
-                    onClick={() =>
-                      navigate(
-                        `/evaluations/objectives?player_id=${playerId}${
-                          teamId ? `&team_id=${teamId}` : ''
-                        }&pid_id=${pid.id}&pid_version=${pid.current_version || 1}`
-                      )
-                    }
-                  >
-                    Gerir objetivos
-                    <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+          <Card className="border-slate-200 bg-white shadow-sm">
+            <CardHeader>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Target className="h-5 w-5 text-amber-600" />
+                    Objetivos do plano
+                  </CardTitle>
+          
+                  <CardDescription>
+                    Metas ativas, metas atingidas e objetivos concluídos
+                    associados ao percurso do atleta.
+                  </CardDescription>
                 </div>
-              </CardHeader>
-
-              <CardContent>
-                {summary.activeObjectives.length === 0 &&
-                summary.completedObjectives.length === 0 ? (
-                  <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-                    <Target className="mx-auto h-10 w-10 text-slate-300" />
-              
-                    <p className="mt-3 font-semibold text-slate-700">
-                      Ainda não existem objetivos
-                    </p>
-              
-                    <p className="mt-1 text-sm text-slate-500">
-                      Os objetivos definidos pela equipa técnica aparecerão aqui.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-5">
-                    {summary.activeObjectives.length > 0 && (
-                      <div>
-                        <div className="mb-3 flex items-center justify-between">
-                          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                            Em desenvolvimento
-                          </p>
-              
-                          <Badge
-                            variant="outline"
-                            className="border-amber-200 bg-amber-50 text-amber-700"
-                          >
-                            {
-                              summary
-                                .activeObjectives
-                                .length
-                            }
-                          </Badge>
-                        </div>
-              
-                        <div className="grid gap-3 md:grid-cols-2">
-                          {summary.activeObjectives
-                            .slice(0, 4)
-                            .map(
-                              (objective) => (
-                                <ObjectiveCard
-                                  key={
-                                    objective.id ||
-                                    objective._id ||
-                                    objective.title
-                                  }
-                                  objective={
-                                    objective
-                                  }
-                                />
-                              )
-                            )}
-                        </div>
-                      </div>
-                    )}
-              
-                    {summary.completedObjectives.length >
-                      0 && (
-                      <div>
-                        <div className="mb-3 flex items-center justify-between">
+          
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() =>
+                    navigate(
+                      `/evaluations/objectives?player_id=${playerId}${
+                        teamId
+                          ? `&team_id=${teamId}`
+                          : ''
+                      }&pid_id=${pid.id}&pid_version=${
+                        pid.current_version || 1
+                      }`
+                    )
+                  }
+                >
+                  Gerir objetivos
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </CardHeader>
+          
+            <CardContent>
+              {summary.activeObjectives.length ===
+                0 &&
+              summary.validationObjectives.length ===
+                0 &&
+              summary.completedObjectives.length ===
+                0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
+                  <Target className="mx-auto h-10 w-10 text-slate-300" />
+          
+                  <p className="mt-3 font-semibold text-slate-700">
+                    Ainda não existem objetivos
+                  </p>
+          
+                  <p className="mt-1 text-sm text-slate-500">
+                    Os objetivos definidos pela equipa técnica aparecerão aqui.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {summary.validationObjectives.length >
+                    0 && (
+                    <div>
+                      <div className="mb-3 flex items-center justify-between">
+                        <div>
                           <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">
-                            Concluídos
+                            Meta atingida · aguarda validação
                           </p>
-              
-                          <Badge
-                            variant="outline"
-                            className="border-emerald-200 bg-emerald-50 text-emerald-700"
-                          >
-                            {
-                              summary
-                                .completedObjectives
-                                .length
-                            }
-                          </Badge>
+          
+                          <p className="mt-1 text-xs text-slate-500">
+                            A avaliação atingiu a meta, mas a conclusão
+                            ainda necessita de validação técnica.
+                          </p>
                         </div>
-              
-                        <div className="grid gap-3 md:grid-cols-2">
-                          {summary.completedObjectives
-                            .slice(0, 4)
-                            .map(
-                              (objective) => (
-                                <ObjectiveCard
-                                  key={
-                                    objective.id ||
-                                    objective._id ||
-                                    objective.title
-                                  }
-                                  objective={
-                                    objective
-                                  }
-                                />
-                              )
-                            )}
-                        </div>
+          
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                        >
+                          {
+                            summary
+                              .validationObjectives
+                              .length
+                          }
+                        </Badge>
                       </div>
-                    )}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {summary.validationObjectives
+                          .slice(0, 4)
+                          .map(
+                            (objective) => (
+                              <ObjectiveCard
+                                key={
+                                  objective.id ||
+                                  objective._id ||
+                                  objective.title
+                                }
+                                objective={
+                                  objective
+                                }
+                              />
+                            )
+                          )}
+                      </div>
+          
+                      {canManage && (
+                        <div className="mt-3 flex justify-end">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="rounded-full border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+                            onClick={() =>
+                              navigate(
+                                `/evaluations/objectives?player_id=${playerId}${
+                                  teamId
+                                    ? `&team_id=${teamId}`
+                                    : ''
+                                }&pid_id=${pid.id}&pid_version=${
+                                  pid.current_version || 1
+                                }`
+                              )
+                            }
+                          >
+                            <CheckCircle2 className="mr-2 h-4 w-4" />
+                            Validar objetivos
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+          
+                  {summary.activeObjectives.length >
+                    0 && (
+                    <div>
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                          Em desenvolvimento
+                        </p>
+          
+                        <Badge
+                          variant="outline"
+                          className="border-amber-200 bg-amber-50 text-amber-700"
+                        >
+                          {
+                            summary
+                              .activeObjectives
+                              .length
+                          }
+                        </Badge>
+                      </div>
+          
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {summary.activeObjectives
+                          .slice(0, 4)
+                          .map(
+                            (objective) => (
+                              <ObjectiveCard
+                                key={
+                                  objective.id ||
+                                  objective._id ||
+                                  objective.title
+                                }
+                                objective={
+                                  objective
+                                }
+                              />
+                            )
+                          )}
+                      </div>
+                    </div>
+                  )}
+          
+                  {summary.completedObjectives.length >
+                    0 && (
+                    <div>
+                      <div className="mb-3 flex items-center justify-between">
+                        <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">
+                          Concluídos
+                        </p>
+          
+                        <Badge
+                          variant="outline"
+                          className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                        >
+                          {
+                            summary
+                              .completedObjectives
+                              .length
+                          }
+                        </Badge>
+                      </div>
+          
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {summary.completedObjectives
+                          .slice(0, 4)
+                          .map(
+                            (objective) => (
+                              <ObjectiveCard
+                                key={
+                                  objective.id ||
+                                  objective._id ||
+                                  objective.title
+                                }
+                                objective={
+                                  objective
+                                }
+                              />
+                            )
+                          )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
             <Card className="border-slate-200 bg-white shadow-sm">
               <CardHeader>
