@@ -27136,8 +27136,8 @@ async def create_bulk_evaluations_from_plan(
                     },
                 )
             )    
-        objective_completed = False
-    
+        objective_target_reached = False
+        
         if (
             objective
             and reviewed_score
@@ -27148,7 +27148,7 @@ async def create_bulk_evaluations_from_plan(
                     "target_value"
                 )
             )
-    
+        
             try:
                 target_value = float(
                     target_value
@@ -27158,49 +27158,77 @@ async def create_bulk_evaluations_from_plan(
                 ValueError,
             ):
                 target_value = None
-    
+        
+            objective_target_reached = (
+                target_value
+                is not None
+                and reviewed_score
+                >= target_value
+            )
+        
             objective_update = {
                 "current_value":
                     reviewed_score,
-    
+        
                 "current_score":
                     reviewed_score,
-    
+        
                 "last_evaluation_id":
-                    reviewed_evaluation.get(
-                        "id"
+                    (
+                        reviewed_evaluation.get(
+                            "id"
+                        )
+                        if reviewed_evaluation
+                        else None
                     ),
-    
+        
                 "last_evaluation_at":
                     review_completed_at.isoformat(),
-    
+        
+                "target_reached":
+                    objective_target_reached,
+        
+                "target_reached_at":
+                    (
+                        review_completed_at.isoformat()
+                        if objective_target_reached
+                        else None
+                    ),
+        
+                "completion_validation_required":
+                    (
+                        objective_target_reached
+                        and objective.get(
+                            "status"
+                        )
+                        == "active"
+                    ),
+        
                 "updated_at":
                     review_completed_at.isoformat(),
-    
+        
                 "updated_by":
                     current_user.get(
                         "id"
                     ),
             }
-    
+        
+            # A reavaliação apenas determina se a meta foi atingida.
+            # A conclusão formal depende sempre de validação técnica.
             if (
-                target_value
-                is not None
-                and reviewed_score
-                >= target_value
+                objective.get(
+                    "status"
+                )
+                != "completed"
             ):
-                objective_completed = True
-    
                 objective_update[
                     "status"
-                ] = "completed"
-    
+                ] = "active"
+        
                 objective_update[
                     "completed_at"
-                ] = (
-                    review_completed_at.isoformat()
-                )
-    
+                ] = None
+        
             await db.evaluation_objectives.update_one(
                 {
                     "id":
@@ -27241,15 +27269,54 @@ async def create_bulk_evaluations_from_plan(
         persisted_intelligent_plan[
             "reviewStatus"
         ] = (
-            "completed"
-            if objective_completed
+            "target_reached"
+            if objective_target_reached
             else "reviewed"
         )
-    
-        if objective_completed:
+
+        if objective_target_reached:
             persisted_intelligent_plan[
-                "planStatus"
-            ] = "completed"
+                "objectiveValidationStatus"
+            ] = "pending"
+        
+            persisted_intelligent_plan[
+                "objectiveValidationRequired"
+            ] = True
+        
+            persisted_intelligent_plan[
+                "objectiveValidationObjectiveId"
+            ] = (
+                objective.get(
+                    "id"
+                )
+                if objective
+                else None
+            )
+        
+            persisted_intelligent_plan[
+                "objectiveValidationEvaluationId"
+            ] = (
+                reviewed_evaluation.get(
+                    "id"
+                )
+                if reviewed_evaluation
+                else None
+            )
+        
+            persisted_intelligent_plan[
+                "objectiveValidationRequestedAt"
+            ] = (
+                review_completed_at.isoformat()
+            )
+        
+        else:
+            persisted_intelligent_plan[
+                "objectiveValidationStatus"
+            ] = "not_required"
+        
+            persisted_intelligent_plan[
+                "objectiveValidationRequired"
+            ] = False
         
         pid_update = {
             "intelligent_plan":
@@ -27257,12 +27324,10 @@ async def create_bulk_evaluations_from_plan(
         
             "intelligent_plan_status":
                 (
-                    "completed"
-                    if objective_completed
-                    else persisted_intelligent_plan.get(
-                        "planStatus",
-                        "review",
+                    persisted_intelligent_plan.get(
+                        "planStatus"
                     )
+                    or "review"
                 ),
         
             "intelligent_plan_updated_at":
