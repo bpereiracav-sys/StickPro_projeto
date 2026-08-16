@@ -95,6 +95,12 @@ const INTELLIGENT_PLAN_STATUS_CONFIG = {
       'border-amber-200 bg-amber-50 text-amber-700',
   },
 
+  decision_pending: {
+    label: 'Aguarda decisão técnica',
+    className:
+      'border-violet-200 bg-violet-50 text-violet-700',
+  },
+
   completed: {
     label: 'Concluído',
     className:
@@ -549,7 +555,12 @@ function MetricCard({ icon: Icon, label, value, description, tone }) {
   );
 }
 
-function ObjectiveCard({ objective }) {
+function ObjectiveCard({
+  objective,
+  canManage = false,
+  decidingObjectiveId = null,
+  onCompletionDecision = null,
+}) {
   const progress =
     getObjectiveProgress(
       objective
@@ -571,6 +582,14 @@ function ObjectiveCard({ objective }) {
     objective
       ?.completion_validation_required ===
       true;
+
+  const isDeciding =
+    String(
+      decidingObjectiveId || ''
+    ) ===
+    String(
+      objective?.id || ''
+    );
 
   const badgeLabel =
     completed
@@ -677,14 +696,75 @@ function ObjectiveCard({ objective }) {
 
       {awaitingValidation && (
         <div className="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
-          <p className="text-xs font-semibold text-emerald-800">
-            Meta alcançada
-          </p>
+          <div className="flex items-start gap-2">
+            <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
 
-          <p className="mt-1 text-xs leading-5 text-emerald-700">
-            O resultado atual atingiu ou ultrapassou a meta.
-            A conclusão formal aguarda validação técnica.
-          </p>
+            <div>
+              <p className="text-xs font-semibold text-emerald-800">
+                Meta alcançada
+              </p>
+
+              <p className="mt-1 text-xs leading-5 text-emerald-700">
+                O resultado atual atingiu ou ultrapassou a meta.
+                A equipa técnica deve decidir se o objetivo está
+                formalmente concluído ou se deve continuar em
+                desenvolvimento.
+              </p>
+            </div>
+          </div>
+
+          {canManage &&
+            typeof onCompletionDecision ===
+              'function' && (
+              <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="rounded-full border-slate-200 bg-white"
+                  disabled={
+                    isDeciding
+                  }
+                  onClick={() =>
+                    onCompletionDecision(
+                      objective,
+                      'continue'
+                    )
+                  }
+                >
+                  {isDeciding ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                  )}
+
+                  Manter em desenvolvimento
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-full bg-emerald-600 text-white hover:bg-emerald-700"
+                  disabled={
+                    isDeciding
+                  }
+                  onClick={() =>
+                    onCompletionDecision(
+                      objective,
+                      'complete'
+                    )
+                  }
+                >
+                  {isDeciding ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  )}
+
+                  Concluir objetivo
+                </Button>
+              </div>
+            )}
         </div>
       )}
 
@@ -747,6 +827,11 @@ export default function DevelopmentPID() {
     adjustedRenewalTarget,
     setAdjustedRenewalTarget,
   ] = useState('');
+
+  const [
+    decidingObjectiveId,
+    setDecidingObjectiveId,
+  ] = useState(null);
   
   const tr = (key, fallback) => {
     const translated = t(key);
@@ -1410,174 +1495,104 @@ export default function DevelopmentPID() {
     );
   }
 
-  const handleRenewalDecision =
-    async (action) => {
-      const renewalProposal =
-        intelligentPlan?.renewalProposal;
-  
+  const handleObjectiveCompletionDecision =
+    async (
+      objective,
+      action
+    ) => {
       if (
-        !pid?.id ||
-        !renewalProposal
+        !objective?.id
       ) {
         toast.error(
-          'Não foi possível identificar a proposta de renovação.'
+          'Não foi possível identificar o objetivo.'
         );
   
         return;
       }
   
       if (
-        action === 'adjust'
+        ![
+          'complete',
+          'continue',
+        ].includes(
+          action
+        )
       ) {
-        const nextTarget =
-          Number(
-            adjustedRenewalTarget
-          );
-  
-        if (
-          adjustedRenewalTarget === '' ||
-          !Number.isFinite(
-            nextTarget
-          )
-        ) {
-          toast.error(
-            'Indica uma nova meta válida antes de ajustar a proposta.'
-          );
-  
-          return;
-        }
-  
-        const scaleMax =
-          Number(
-            renewalProposal
-              ?.scaleMax
-          );
-  
-        if (
-          Number.isFinite(
-            scaleMax
-          ) &&
-          nextTarget >
-            scaleMax
-        ) {
-          toast.error(
-            `A nova meta não pode ser superior a ${scaleMax}.`
-          );
-  
-          return;
-        }
-  
-        if (
-          nextTarget <= 0
-        ) {
-          toast.error(
-            'A nova meta deve ser superior a zero.'
-          );
-  
-          return;
-        }
+        return;
       }
   
-      setDecidingRenewal(
-        true
+      const objectiveTitle =
+        objective?.title ||
+        objective?.criterion_name ||
+        'Objetivo individual';
+  
+      const confirmationMessage =
+        action === 'complete'
+          ? (
+              `Confirmar a conclusão do objetivo “${objectiveTitle}”?`
+            )
+          : (
+              `Manter o objetivo “${objectiveTitle}” em desenvolvimento apesar de a meta ter sido atingida?`
+            );
+  
+      if (
+        !window.confirm(
+          confirmationMessage
+        )
+      ) {
+        return;
+      }
+  
+      setDecidingObjectiveId(
+        objective.id
       );
   
       try {
-        const payload = {
-          action,
-  
-          adjusted_target:
-            action === 'adjust'
-              ? Number(
-                  adjustedRenewalTarget
-                )
-              : null,
-  
-          note: null,
-        };
-  
-        const response =
-          await evaluationsApi
-            .decidePIDRenewal(
-              pid.id,
-              payload
-            );
-  
-        const updatedPID =
-          response?.data;
+        await evaluationsApi
+          .decideObjectiveCompletion(
+            objective.id,
+            {
+              action,
+              note: null,
+            }
+          );
   
         if (
-          !updatedPID?.id
+          action === 'complete'
         ) {
-          throw new Error(
-            'O backend não devolveu o PID atualizado.'
-          );
-        }
-  
-        setPid(
-          updatedPID
-        );
-  
-        const updatedProposal =
-          updatedPID
-            ?.intelligent_plan
-            ?.renewalProposal;
-  
-        if (
-          action === 'adjust'
-        ) {
-          const updatedTarget =
-            updatedProposal
-              ?.suggestedTarget;
-  
-          if (
-            updatedTarget !== null &&
-            updatedTarget !== undefined
-          ) {
-            setAdjustedRenewalTarget(
-              String(
-                updatedTarget
-              )
-            );
-          }
-  
           toast.success(
-            'Proposta ajustada. Continua a aguardar confirmação técnica.'
-          );
-        } else if (
-          action === 'approve'
-        ) {
-          setAdjustedRenewalTarget(
-            ''
-          );
-  
-          toast.success(
-            'Proposta de renovação confirmada.'
+            'Conclusão do objetivo validada pela equipa técnica.'
           );
         } else {
-          setAdjustedRenewalTarget(
-            ''
-          );
-  
           toast.success(
-            'Proposta de renovação rejeitada.'
+            'O objetivo continuará em desenvolvimento.'
           );
         }
+  
+        /*
+         * Recarregamos objetivos + PID.
+         *
+         * Isto é essencial porque uma conclusão pode também
+         * colocar o Plano Inteligente em decision_pending.
+         */
+        await loadPIDData(
+          playerId
+        );
       } catch (error) {
         console.error(
-          'Error deciding PID renewal:',
+          'Error deciding objective completion:',
           error
         );
   
         toast.error(
           error?.response
             ?.data?.detail ||
-            error?.message ||
-            'Não foi possível registar a decisão.'
+          error?.message ||
+          'Não foi possível registar a decisão técnica.'
         );
       } finally {
-        setDecidingRenewal(
-          false
+        setDecidingObjectiveId(
+          null
         );
       }
     };
@@ -2040,7 +2055,7 @@ export default function DevelopmentPID() {
                         /100
                       </p>
                     </div>
-          
+
                     <div className="rounded-2xl border border-cyan-100 bg-cyan-50/70 p-4">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-cyan-700">
                         Duração
@@ -2112,6 +2127,37 @@ export default function DevelopmentPID() {
                     </div>
                   </div>
 
+                  {intelligentPlanStatus ===
+                    'decision_pending' && (
+                    <div className="rounded-2xl border border-violet-200 bg-violet-50/70 p-4">
+                      <div className="flex items-start gap-3">
+                        <CircleAlert className="mt-0.5 h-5 w-5 shrink-0 text-violet-600" />
+                  
+                        <div>
+                          <p className="font-semibold text-violet-900">
+                            Plano aguarda decisão técnica
+                          </p>
+                  
+                          <p className="mt-1 text-sm leading-6 text-violet-700">
+                            O objetivo associado a este Plano Inteligente
+                            foi formalmente concluído após validação técnica.
+                            O histórico operacional e as sessões realizadas
+                            permanecem preservados enquanto é decidido o
+                            próximo passo do plano.
+                          </p>
+                  
+                          {intelligentPlan
+                            ?.decisionPendingReason ===
+                            'objective_completed' && (
+                            <p className="mt-2 text-xs font-medium text-violet-600">
+                              Motivo: objetivo principal concluído.
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div>
@@ -2171,22 +2217,30 @@ export default function DevelopmentPID() {
                         </p>
                   
                         <p className="mt-1 font-semibold text-slate-900">
-                          {currentPhase
-                            ?.label ||
-                            (
-                              intelligentPlan
-                                ?.planStatus ===
-                              'completed'
-                                ? 'Plano concluído'
-                                : 'Por iniciar'
-                            )}
+                          {intelligentPlan
+                            ?.planStatus ===
+                          'decision_pending'
+                            ? 'Execução suspensa para decisão'
+                            : currentPhase
+                                ?.label ||
+                              (
+                                intelligentPlan
+                                  ?.planStatus ===
+                                'completed'
+                                  ? 'Plano concluído'
+                                  : 'Por iniciar'
+                              )}
                         </p>
                       </div>
                   
                       {canManage &&
-                        intelligentPlan
-                          ?.planStatus !==
-                          'completed' && (
+                        ![
+                          'completed',
+                          'decision_pending',
+                        ].includes(
+                          intelligentPlan
+                            ?.planStatus
+                        ) && (
                           <Button
                             type="button"
                             onClick={
@@ -2871,34 +2925,19 @@ export default function DevelopmentPID() {
                                 objective={
                                   objective
                                 }
+                                canManage={
+                                  canManage
+                                }
+                                decidingObjectiveId={
+                                  decidingObjectiveId
+                                }
+                                onCompletionDecision={
+                                  handleObjectiveCompletionDecision
+                                }
                               />
                             )
                           )}
                       </div>
-          
-                      {canManage && (
-                        <div className="mt-3 flex justify-end">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="rounded-full border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
-                            onClick={() =>
-                              navigate(
-                                `/evaluations/objectives?player_id=${playerId}${
-                                  teamId
-                                    ? `&team_id=${teamId}`
-                                    : ''
-                                }&pid_id=${pid.id}&pid_version=${
-                                  pid.current_version || 1
-                                }`
-                              )
-                            }
-                          >
-                            <CheckCircle2 className="mr-2 h-4 w-4" />
-                            Validar objetivos
-                          </Button>
-                        </div>
-                      )}
                     </div>
                   )}
           
