@@ -23303,30 +23303,69 @@ async def sync_pid_objectives_longitudinal_progress(
             2,
         )
     
+        target_reached = (
+            progress_percentage >= 100.0
+        )
+        
         update_data = {
             "current_value":
                 current_value,
-    
+        
             "current_score":
                 current_value,
-    
+        
             "progress":
                 progress_percentage,
-    
+        
             "progress_percentage":
                 progress_percentage,
-    
+        
             "evolution_delta":
                 evolution_delta,
-    
+        
             "has_longitudinal_evaluation":
                 bool(
                     latest_entry
                 ),
-    
+        
+            # ----------------------------------------------------
+            # C3.6 — Meta atingida
+            #
+            # A avaliação pode demonstrar que a meta foi
+            # alcançada, mas isso não fecha automaticamente
+            # o objetivo.
+            #
+            # A conclusão formal continua dependente de
+            # validação pela equipa técnica.
+            # ----------------------------------------------------
+        
+            "target_reached":
+                target_reached,
+        
+            "target_reached_at":
+                (
+                    latest_entry[
+                        "datetime"
+                    ].isoformat()
+                    if (
+                        target_reached
+                        and latest_entry
+                    )
+                    else None
+                ),
+        
+            "completion_validation_required":
+                (
+                    target_reached
+                    and objective.get(
+                        "status"
+                    )
+                    == "active"
+                ),
+        
             "longitudinal_updated_at":
                 now_iso,
-    
+        
             "updated_at":
                 now_iso,
         }
@@ -23639,6 +23678,26 @@ async def sync_pid_objective_from_latest_review(
             "completed_at"
         ] = review_date
 
+        objective_update[
+            "target_reached"
+        ] = True
+        
+        objective_update[
+            "target_reached_at"
+        ] = review_date
+        
+        objective_update[
+            "completion_validation_required"
+        ] = False
+        
+        objective_update[
+            "completion_validated_at"
+        ] = review_date
+        
+        objective_update[
+            "completion_validation_source"
+        ] = "pid_review"
+
         intelligent_plan[
             "planStatus"
         ] = "completed"
@@ -23720,9 +23779,22 @@ async def sync_pid_objective_from_latest_review(
                 phase_copy
             )
 
-        intelligent_plan[
-            "phases"
-        ] = phases
+            intelligent_plan[
+                "phases"
+            ] = phases
+
+    else:
+        objective_update[
+            "target_reached"
+        ] = False
+
+        objective_update[
+            "target_reached_at"
+        ] = None
+
+        objective_update[
+            "completion_validation_required"
+        ] = False
 
     # --------------------------------------------------------
     # Guardar atualização do objetivo
