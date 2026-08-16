@@ -503,18 +503,44 @@ export const evaluationsApi = {
   deleteEvaluation: (evaluationId) =>
     api.delete(`/evaluations/${evaluationId}`),
 
+  // =====================================================
   // Individual development objectives
+  // C3.6.6D.4B.3B.3 — Technical Completion Validation
+  // =====================================================
+  
   getPlayerObjectives: (playerId) =>
-    api.get(`/evaluations/objectives/player/${playerId}`),
-
+    api.get(
+      `/evaluations/objectives/player/${playerId}`
+    ),
+  
   createObjective: (data) =>
-    api.post('/evaluations/objectives', data),
-
-  updateObjective: (objectiveId, data) =>
-    api.put(`/evaluations/objectives/${objectiveId}`, data),
-
+    api.post(
+      '/evaluations/objectives',
+      data
+    ),
+  
+  updateObjective: (
+    objectiveId,
+    data
+  ) =>
+    api.put(
+      `/evaluations/objectives/${objectiveId}`,
+      data
+    ),
+  
+  decideObjectiveCompletion: (
+    objectiveId,
+    data
+  ) =>
+    api.post(
+      `/evaluations/objectives/${objectiveId}/completion-decision`,
+      data
+    ),
+  
   deleteObjective: (objectiveId) =>
-    api.delete(`/evaluations/objectives/${objectiveId}`),
+    api.delete(
+      `/evaluations/objectives/${objectiveId}`
+    ),
 
   // =====================================================
   // Individual Development Plan — PID
