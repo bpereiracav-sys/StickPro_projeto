@@ -1185,6 +1185,45 @@ export default function DevelopmentPID() {
   }, [playerId, loadPIDData]);
 
   useEffect(() => {
+    if (!playerId) return;
+  
+    const runPIDCriterionDebug = async () => {
+      try {
+        const response =
+          await evaluationsApi.debugPIDObjectiveCriterion(
+            playerId
+          );
+  
+        console.log(
+          '========== PID OBJECTIVE DEBUG =========='
+        );
+  
+        console.log(
+          'PLAYER ID:',
+          playerId
+        );
+  
+        console.log(
+          'DEBUG RESULT:',
+          response?.data
+        );
+  
+        console.log(
+          '========================================='
+        );
+      } catch (error) {
+        console.error(
+          'PID OBJECTIVE DEBUG ERROR:',
+          error?.response?.data ||
+            error
+        );
+      }
+    };
+  
+    runPIDCriterionDebug();
+  }, [playerId]);
+  
+  useEffect(() => {
     const params = {};
 
     if (!isAthleteMode && teamId) {
