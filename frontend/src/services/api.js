@@ -626,6 +626,18 @@ export const evaluationsApi = {
       api.patch(
         `/evaluations/pids/${pidId}/archive`
       ),
+
+    // =====================================================
+    // PID Diagnostic
+    // Temporary endpoint for criterion/objective reconciliation
+    // =====================================================
+
+    debugPIDObjectiveCriterion: (
+      playerId
+    ) =>
+      api.get(
+        `/evaluations/debug/pid-objective-criterion/${playerId}`
+      ),
   };
 
 // Dashboard API
