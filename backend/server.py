@@ -25459,6 +25459,272 @@ async def sync_intelligent_pid_objective(
 
     return objective
 
+# ============================================================
+# DEBUG — Objective / Evaluation Criterion Identity
+# TEMPORÁRIO
+# ============================================================
+
+@api_router.get(
+    "/debug/pid-objective-criterion/{player_id}"
+)
+async def debug_pid_objective_criterion(
+    player_id: str,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    """
+    Diagnóstico temporário para verificar se um objetivo PID
+    e as avaliações do atleta usam o mesmo criterion_id.
+    """
+
+    checker = get_permission_checker(
+        current_user
+    )
+
+    if not (
+        checker.is_admin
+        or checker.is_staff
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão",
+        )
+
+    objectives = (
+        await db.evaluation_objectives.find(
+            {
+                "player_id":
+                    player_id,
+
+                "archived": {
+                    "$ne":
+                        True,
+                },
+            },
+            {
+                "_id": 0,
+            },
+        )
+        .sort(
+            "created_at",
+            -1,
+        )
+        .to_list(
+            500
+        )
+    )
+
+    evaluations = (
+        await db.player_evaluations.find(
+            {
+                "player_id":
+                    player_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+        .sort(
+            "created_at",
+            -1,
+        )
+        .to_list(
+            100
+        )
+    )
+
+    objective_rows = []
+
+    for objective in objectives:
+        criterion_id = (
+            objective.get(
+                "criterion_id"
+            )
+        )
+
+        criterion = None
+
+        if criterion_id:
+            criterion = (
+                await db.evaluation_criteria.find_one(
+                    {
+                        "id":
+                            criterion_id,
+                    },
+                    {
+                        "_id": 0,
+                    },
+                )
+            )
+
+        objective_rows.append(
+            {
+                "objective_id":
+                    objective.get(
+                        "id"
+                    ),
+
+                "title":
+                    objective.get(
+                        "title"
+                    ),
+
+                "criterion_id":
+                    criterion_id,
+
+                "criterion_name":
+                    (
+                        criterion.get(
+                            "name"
+                        )
+                        if criterion
+                        else None
+                    ),
+
+                "criterion_source_code":
+                    (
+                        criterion.get(
+                            "source_code"
+                        )
+                        or criterion.get(
+                            "sourceCode"
+                        )
+                        if criterion
+                        else None
+                    ),
+
+                "baseline_value":
+                    objective.get(
+                        "baseline_value"
+                    ),
+
+                "current_value":
+                    objective.get(
+                        "current_value"
+                    ),
+
+                "target_value":
+                    objective.get(
+                        "target_value"
+                    ),
+
+                "created_at":
+                    objective.get(
+                        "created_at"
+                    ),
+
+                "source_evaluation_id":
+                    objective.get(
+                        "source_evaluation_id"
+                    ),
+            }
+        )
+
+    evaluation_rows = []
+
+    for evaluation in evaluations:
+        score_rows = []
+
+        for score in (
+            evaluation.get(
+                "scores"
+            )
+            or []
+        ):
+            criterion_id = (
+                score.get(
+                    "criterion_id"
+                )
+            )
+
+            criterion = None
+
+            if criterion_id:
+                criterion = (
+                    await db.evaluation_criteria.find_one(
+                        {
+                            "id":
+                                criterion_id,
+                        },
+                        {
+                            "_id": 0,
+                        },
+                    )
+                )
+
+            score_rows.append(
+                {
+                    "criterion_id":
+                        criterion_id,
+
+                    "criterion_name":
+                        (
+                            criterion.get(
+                                "name"
+                            )
+                            if criterion
+                            else None
+                        ),
+
+                    "criterion_source_code":
+                        (
+                            criterion.get(
+                                "source_code"
+                            )
+                            or criterion.get(
+                                "sourceCode"
+                            )
+                            if criterion
+                            else None
+                        ),
+
+                    "score":
+                        score.get(
+                            "score"
+                        ),
+                }
+            )
+
+        evaluation_rows.append(
+            {
+                "evaluation_id":
+                    evaluation.get(
+                        "id"
+                    ),
+
+                "created_at":
+                    evaluation.get(
+                        "created_at"
+                    ),
+
+                "source":
+                    evaluation.get(
+                        "source"
+                    ),
+
+                "evaluation_source":
+                    evaluation.get(
+                        "evaluation_source"
+                    ),
+
+                "scores":
+                    score_rows,
+            }
+        )
+
+    return {
+        "player_id":
+            player_id,
+
+        "objectives":
+            objective_rows,
+
+        "evaluations":
+            evaluation_rows,
+    }
+
+
 @api_router.get(
     "/evaluations/objectives/player/{player_id}"
 )
