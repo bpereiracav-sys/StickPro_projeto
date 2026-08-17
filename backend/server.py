@@ -23937,107 +23937,169 @@ async def sync_pid_objectives_longitudinal_progress(
         target_reached = (
             progress_percentage >= 100.0
         )
-        
-        update_data = {
-            "current_value":
-                current_value,
-        
-            "current_score":
-                current_value,
-        
-            "progress":
-                progress_percentage,
-        
-            "progress_percentage":
-                progress_percentage,
-        
-            "evolution_delta":
-                evolution_delta,
-        
-            "has_longitudinal_evaluation":
-                bool(
-                    latest_entry
-                ),
-        
-            # ----------------------------------------------------
-            # C3.6 — Meta atingida
+
+        objective_is_completed = (
+            objective.get("status")
+            == "completed"
+        )
+
+        # ====================================================
+        # C3.6.6 — Proteção histórica dos objetivos concluídos
+        #
+        # Um objetivo formalmente concluído representa uma
+        # decisão técnica já tomada.
+        #
+        # Avaliações posteriores continuam a pertencer ao
+        # histórico longitudinal da competência, mas NÃO
+        # podem reescrever:
+        # - valor de conclusão;
+        # - progresso final;
+        # - avaliação de conclusão;
+        # - data de conclusão.
+        # ====================================================
+
+        if objective_is_completed:
+            update_data = {
+                "completion_validation_required":
+                    False,
+
+                "longitudinal_updated_at":
+                    now_iso,
+
+                "updated_at":
+                    now_iso,
+            }
+
+            # ------------------------------------------------
+            # Guardamos apenas a observação longitudinal mais
+            # recente em campos próprios.
             #
-            # A avaliação pode demonstrar que a meta foi
-            # alcançada, mas isso não fecha automaticamente
-            # o objetivo.
-            #
-            # A conclusão formal continua dependente de
-            # validação pela equipa técnica.
-            # ----------------------------------------------------
-        
-            "target_reached":
-                target_reached,
-        
-            "target_reached_at":
-                (
+            # Assim podemos futuramente detetar regressões sem
+            # alterar retroativamente o objetivo concluído.
+            # ------------------------------------------------
+
+            update_data[
+                "latest_longitudinal_value"
+            ] = current_value
+
+            update_data[
+                "latest_longitudinal_score"
+            ] = current_value
+
+            update_data[
+                "latest_longitudinal_progress"
+            ] = progress_percentage
+
+            update_data[
+                "latest_longitudinal_evolution_delta"
+            ] = evolution_delta
+
+            if latest_entry:
+                update_data[
+                    "latest_longitudinal_evaluation_id"
+                ] = latest_entry.get(
+                    "id"
+                )
+
+                update_data[
+                    "latest_longitudinal_evaluation_at"
+                ] = (
                     latest_entry[
                         "datetime"
                     ].isoformat()
-                    if (
-                        target_reached
-                        and latest_entry
-                    )
-                    else None
-                ),
-        
-            "completion_validation_required":
-                (
-                    target_reached
-                    and objective.get(
-                        "status"
-                    )
-                    == "active"
-                    and (
-                        not latest_entry
-                        or str(
-                            objective.get(
-                                "completion_validation_evaluation_id"
-                            )
-                            or ""
-                        )
-                        != str(
-                            latest_entry.get(
-                                "id"
-                            )
-                            or ""
-                        )
-                    )
-                ),
-        
-            "longitudinal_updated_at":
-                now_iso,
-        
-            "updated_at":
-                now_iso,
-        }
-    
-        if latest_entry:
-            update_data[
-                "last_evaluation_id"
-            ] = latest_entry.get(
-                "id"
-            )
-    
-            update_data[
-                "last_evaluation_at"
-            ] = (
-                latest_entry[
-                    "datetime"
-                ].isoformat()
-            )
+                )
+
         else:
-            update_data[
-                "last_evaluation_id"
-            ] = None
-    
-            update_data[
-                "last_evaluation_at"
-            ] = None
+            update_data = {
+                "current_value":
+                    current_value,
+
+                "current_score":
+                    current_value,
+
+                "progress":
+                    progress_percentage,
+
+                "progress_percentage":
+                    progress_percentage,
+
+                "evolution_delta":
+                    evolution_delta,
+
+                "has_longitudinal_evaluation":
+                    bool(
+                        latest_entry
+                    ),
+
+                # --------------------------------------------
+                # Meta atingida não significa conclusão.
+                # --------------------------------------------
+
+                "target_reached":
+                    target_reached,
+
+                "target_reached_at":
+                    (
+                        latest_entry[
+                            "datetime"
+                        ].isoformat()
+                        if (
+                            target_reached
+                            and latest_entry
+                        )
+                        else None
+                    ),
+
+                "completion_validation_required":
+                    (
+                        target_reached
+                        and (
+                            not latest_entry
+                            or str(
+                                objective.get(
+                                    "completion_validation_evaluation_id"
+                                )
+                                or ""
+                            )
+                            != str(
+                                latest_entry.get(
+                                    "id"
+                                )
+                                or ""
+                            )
+                        )
+                    ),
+
+                "longitudinal_updated_at":
+                    now_iso,
+
+                "updated_at":
+                    now_iso,
+            }
+
+            if latest_entry:
+                update_data[
+                    "last_evaluation_id"
+                ] = latest_entry.get(
+                    "id"
+                )
+
+                update_data[
+                    "last_evaluation_at"
+                ] = (
+                    latest_entry[
+                        "datetime"
+                    ].isoformat()
+                )
+
+            else:
+                update_data[
+                    "last_evaluation_id"
+                ] = None
+
+                update_data[
+                    "last_evaluation_at"
+                ] = None
     
         await db.evaluation_objectives.update_one(
             {
@@ -24275,39 +24337,82 @@ async def sync_pid_objective_from_latest_review(
         2,
     )
     
-    objective_update = {
-        "current_value":
-            reviewed_score,
-    
-        "current_score":
-            reviewed_score,
-    
-        "progress":
-            progress_percentage,
-    
-        "progress_percentage":
-            progress_percentage,
-    
-        "evolution_delta":
-            evolution_delta,
-    
-        "has_longitudinal_evaluation":
-            True,
-    
-        "last_evaluation_id":
-            latest_review.get(
-                "id"
-            ),
-    
-        "last_evaluation_at":
-            review_date,
-    
-        "longitudinal_updated_at":
-            now.isoformat(),
-    
-        "updated_at":
-            now.isoformat(),
-    }
+    objective_is_completed = (
+        objective.get("status")
+        == "completed"
+    )
+
+    if objective_is_completed:
+        # ====================================================
+        # Objetivo concluído:
+        # preservar o resultado formal da conclusão.
+        # ====================================================
+
+        objective_update = {
+            "latest_longitudinal_value":
+                reviewed_score,
+
+            "latest_longitudinal_score":
+                reviewed_score,
+
+            "latest_longitudinal_progress":
+                progress_percentage,
+
+            "latest_longitudinal_evolution_delta":
+                evolution_delta,
+
+            "latest_longitudinal_evaluation_id":
+                latest_review.get(
+                    "id"
+                ),
+
+            "latest_longitudinal_evaluation_at":
+                review_date,
+
+            "longitudinal_updated_at":
+                now.isoformat(),
+
+            "updated_at":
+                now.isoformat(),
+
+            "completion_validation_required":
+                False,
+        }
+
+    else:
+        objective_update = {
+            "current_value":
+                reviewed_score,
+
+            "current_score":
+                reviewed_score,
+
+            "progress":
+                progress_percentage,
+
+            "progress_percentage":
+                progress_percentage,
+
+            "evolution_delta":
+                evolution_delta,
+
+            "has_longitudinal_evaluation":
+                True,
+
+            "last_evaluation_id":
+                latest_review.get(
+                    "id"
+                ),
+
+            "last_evaluation_at":
+                review_date,
+
+            "longitudinal_updated_at":
+                now.isoformat(),
+
+            "updated_at":
+                now.isoformat(),
+        }
 
     # --------------------------------------------------------
     # Meta atingida ≠ conclusão automática
