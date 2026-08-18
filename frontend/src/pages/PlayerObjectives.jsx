@@ -1561,16 +1561,7 @@ export default function PlayerObjectives() {
                   )
                 ? legacyCurrentValue
                 : null;
-
-        const completionValue =
-          completionValueCandidates
-            .map((value) =>
-              Number(value)
-            )
-            .find((value) =>
-              Number.isFinite(value)
-            );
-
+        
         const currentValue =
           isCompleted &&
           Number.isFinite(
@@ -1578,7 +1569,6 @@ export default function PlayerObjectives() {
           )
             ? completionValue
             : longitudinalCurrentValue;
-
         let progress = 0;
 
         if (isCompleted) {
