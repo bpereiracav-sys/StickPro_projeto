@@ -23641,6 +23641,579 @@ def NumberLike(
         }
     )
 
+# ============================================================
+# C3.6.6D.4B.3C
+# OBJECTIVE STATE — FONTE ÚNICA DE VERDADE
+# ============================================================
+
+def build_objective_state_for_response(
+    *,
+    objective: dict,
+    player_evaluations: list,
+) -> dict:
+    """
+    Constrói uma representação canónica do estado de um
+    objetivo do PID.
+
+    O frontend deixa de ter de interpretar autonomamente:
+    - qual foi o valor formal da conclusão;
+    - qual é o valor longitudinal atual;
+    - qual o progresso formal;
+    - qual a avaliação que suportou a conclusão.
+
+    Existem dois estados diferentes:
+
+    1. formal_state
+       Fotografia histórica do objetivo.
+
+    2. longitudinal_state
+       Situação mais recente da competência.
+
+    Para objetivos concluídos, o formal_state nunca é
+    reescrito por avaliações posteriores.
+    """
+
+    if not isinstance(
+        objective,
+        dict,
+    ):
+        return {
+            "formal_state": {},
+            "longitudinal_state": {},
+        }
+
+    criterion_id = (
+        objective.get(
+            "criterion_id"
+        )
+    )
+
+    status = (
+        objective.get(
+            "status"
+        )
+        or "active"
+    )
+
+    is_completed = (
+        status
+        == "completed"
+    )
+
+    # --------------------------------------------------------
+    # Valores base
+    # --------------------------------------------------------
+
+    try:
+        baseline_value = float(
+            objective.get(
+                "baseline_value"
+            )
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        baseline_value = None
+
+    try:
+        target_value = float(
+            objective.get(
+                "target_value"
+            )
+        )
+    except (
+        TypeError,
+        ValueError,
+    ):
+        target_value = None
+
+    # ========================================================
+    # 1. ESTADO LONGITUDINAL
+    # ========================================================
+
+    longitudinal_value = None
+
+    for candidate in [
+        objective.get(
+            "latest_longitudinal_value"
+        ),
+        objective.get(
+            "latest_longitudinal_score"
+        ),
+    ]:
+        if NumberLike(
+            candidate
+        ):
+            longitudinal_value = float(
+                candidate
+            )
+            break
+
+    # Para objetivos ainda ativos, current_value continua
+    # a representar legitimamente o estado longitudinal.
+    if (
+        longitudinal_value is None
+        and not is_completed
+    ):
+        for candidate in [
+            objective.get(
+                "current_value"
+            ),
+            objective.get(
+                "current_score"
+            ),
+        ]:
+            if NumberLike(
+                candidate
+            ):
+                longitudinal_value = float(
+                    candidate
+                )
+                break
+
+    longitudinal_progress = None
+
+    for candidate in [
+        objective.get(
+            "latest_longitudinal_progress"
+        ),
+    ]:
+        if NumberLike(
+            candidate
+        ):
+            longitudinal_progress = float(
+                candidate
+            )
+            break
+
+    if (
+        longitudinal_progress is None
+        and
+        longitudinal_value is not None
+        and baseline_value is not None
+        and target_value is not None
+    ):
+        longitudinal_progress = (
+            calculate_pid_objective_progress(
+                baseline_value=
+                    baseline_value,
+
+                current_value=
+                    longitudinal_value,
+
+                target_value=
+                    target_value,
+            )
+        )
+
+    longitudinal_state = {
+        "value":
+            longitudinal_value,
+
+        "score":
+            longitudinal_value,
+
+        "progress":
+            longitudinal_progress,
+
+        "evaluation_id":
+            (
+                objective.get(
+                    "latest_longitudinal_evaluation_id"
+                )
+                or objective.get(
+                    "last_evaluation_id"
+                )
+            ),
+
+        "evaluation_at":
+            (
+                objective.get(
+                    "latest_longitudinal_evaluation_at"
+                )
+                or objective.get(
+                    "last_evaluation_at"
+                )
+            ),
+
+        "evolution_delta":
+            objective.get(
+                "latest_longitudinal_evolution_delta",
+                objective.get(
+                    "evolution_delta"
+                ),
+            ),
+    }
+
+    # ========================================================
+    # 2. ESTADO FORMAL
+    # ========================================================
+
+    formal_value = None
+    formal_evaluation_id = None
+    formal_evaluation_at = None
+    formal_source = None
+
+    # --------------------------------------------------------
+    # Regra A — snapshot explícito persistido.
+    # É sempre a primeira fonte.
+    # --------------------------------------------------------
+
+    for candidate in [
+        objective.get(
+            "completed_value"
+        ),
+        objective.get(
+            "completed_score"
+        ),
+        objective.get(
+            "completion_value"
+        ),
+        objective.get(
+            "completion_score"
+        ),
+    ]:
+        if NumberLike(
+            candidate
+        ):
+            formal_value = float(
+                candidate
+            )
+
+            formal_source = (
+                "persisted_snapshot"
+            )
+
+            break
+
+    formal_evaluation_id = (
+        objective.get(
+            "completed_evaluation_id"
+        )
+        or objective.get(
+            "completion_validation_evaluation_id"
+        )
+        or objective.get(
+            "completion_evaluation_id"
+        )
+    )
+
+    formal_evaluation_at = (
+        objective.get(
+            "completion_validation_at"
+        )
+        or objective.get(
+            "completed_at"
+        )
+    )
+
+    # --------------------------------------------------------
+    # Regra B — avaliação explicitamente usada na
+    # validação técnica.
+    #
+    # Para dados legacy esta evidência é preferível aos
+    # current_value/current_score antigos.
+    # --------------------------------------------------------
+
+    if (
+        is_completed
+        and criterion_id
+        and formal_evaluation_id
+    ):
+        completion_evaluation = next(
+            (
+                evaluation
+                for evaluation
+                in player_evaluations
+                if str(
+                    evaluation.get(
+                        "id"
+                    )
+                    or ""
+                )
+                == str(
+                    formal_evaluation_id
+                )
+            ),
+            None,
+        )
+
+        if completion_evaluation:
+            evaluation_score = (
+                get_evaluation_criterion_score(
+                    completion_evaluation,
+                    criterion_id,
+                )
+            )
+
+            if (
+                evaluation_score
+                is not None
+            ):
+                # Uma avaliação explicitamente associada
+                # à validação é evidência histórica mais
+                # forte do que current_value legacy.
+                if (
+                    formal_value is None
+                    or (
+                        target_value is not None
+                        and formal_value <
+                            target_value
+                        and evaluation_score >=
+                            target_value
+                    )
+                ):
+                    formal_value = float(
+                        evaluation_score
+                    )
+
+                    formal_source = (
+                        "completion_evaluation"
+                    )
+
+                evaluation_datetime = (
+                    get_pid_evaluation_datetime(
+                        completion_evaluation
+                    )
+                )
+
+                if evaluation_datetime:
+                    formal_evaluation_at = (
+                        evaluation_datetime.isoformat()
+                    )
+
+    # --------------------------------------------------------
+    # Regra C — recuperação histórica.
+    #
+    # Se não existe snapshot fiável nem avaliação explícita,
+    # procuramos a última avaliação:
+    # - do mesmo atleta;
+    # - do mesmo critério;
+    # - realizada até à conclusão;
+    # - que tenha atingido a meta.
+    # --------------------------------------------------------
+
+    needs_historical_recovery = (
+        is_completed
+        and criterion_id
+        and target_value is not None
+        and (
+            formal_value is None
+            or formal_value <
+                target_value
+        )
+    )
+
+    if needs_historical_recovery:
+        completed_at = (
+            parse_pid_progress_datetime(
+                objective.get(
+                    "completion_validation_at"
+                )
+                or objective.get(
+                    "completed_at"
+                )
+            )
+        )
+
+        historical_candidates = []
+
+        for evaluation in (
+            player_evaluations
+            or []
+        ):
+            evaluation_datetime = (
+                get_pid_evaluation_datetime(
+                    evaluation
+                )
+            )
+
+            if not evaluation_datetime:
+                continue
+
+            if (
+                completed_at
+                and evaluation_datetime >
+                    completed_at
+            ):
+                continue
+
+            evaluation_score = (
+                get_evaluation_criterion_score(
+                    evaluation,
+                    criterion_id,
+                )
+            )
+
+            if (
+                evaluation_score
+                is None
+                or evaluation_score <
+                    target_value
+            ):
+                continue
+
+            historical_candidates.append(
+                (
+                    evaluation_datetime,
+                    evaluation,
+                    float(
+                        evaluation_score
+                    ),
+                )
+            )
+
+        if historical_candidates:
+            historical_candidates.sort(
+                key=lambda item:
+                    item[0]
+            )
+
+            (
+                historical_datetime,
+                historical_evaluation,
+                historical_score,
+            ) = (
+                historical_candidates[-1]
+            )
+
+            formal_value = (
+                historical_score
+            )
+
+            formal_evaluation_id = (
+                historical_evaluation.get(
+                    "id"
+                )
+            )
+
+            formal_evaluation_at = (
+                historical_datetime.isoformat()
+            )
+
+            formal_source = (
+                "historical_recovery"
+            )
+
+    # --------------------------------------------------------
+    # Regra D — fallback legacy.
+    #
+    # Só deve ser usado quando não existe qualquer evidência
+    # histórica melhor.
+    # --------------------------------------------------------
+
+    if (
+        is_completed
+        and formal_value is None
+    ):
+        for candidate in [
+            objective.get(
+                "current_value"
+            ),
+            objective.get(
+                "current_score"
+            ),
+        ]:
+            if NumberLike(
+                candidate
+            ):
+                formal_value = float(
+                    candidate
+                )
+
+                formal_source = (
+                    "legacy_current_value"
+                )
+
+                break
+
+    # Objetivos ativos usam o estado atual.
+    if not is_completed:
+        formal_value = (
+            longitudinal_value
+        )
+
+        formal_evaluation_id = (
+            longitudinal_state.get(
+                "evaluation_id"
+            )
+        )
+
+        formal_evaluation_at = (
+            longitudinal_state.get(
+                "evaluation_at"
+            )
+        )
+
+        formal_source = (
+            "active_longitudinal"
+        )
+
+    # --------------------------------------------------------
+    # Progresso formal
+    # --------------------------------------------------------
+
+    if is_completed:
+        formal_progress = 100.0
+    elif (
+        formal_value is not None
+        and baseline_value is not None
+        and target_value is not None
+    ):
+        formal_progress = (
+            calculate_pid_objective_progress(
+                baseline_value=
+                    baseline_value,
+
+                current_value=
+                    formal_value,
+
+                target_value=
+                    target_value,
+            )
+        )
+    else:
+        formal_progress = 0.0
+
+    formal_state = {
+        "value":
+            formal_value,
+
+        "score":
+            formal_value,
+
+        "progress":
+            formal_progress,
+
+        "target_value":
+            target_value,
+
+        "baseline_value":
+            baseline_value,
+
+        "evaluation_id":
+            formal_evaluation_id,
+
+        "evaluation_at":
+            formal_evaluation_at,
+
+        "completed_at":
+            objective.get(
+                "completed_at"
+            ),
+
+        "source":
+            formal_source,
+    }
+
+    return {
+        "formal_state":
+            formal_state,
+
+        "longitudinal_state":
+            longitudinal_state,
+    }
 
 async def sync_pid_objectives_longitudinal_progress(
     *,
@@ -25907,6 +26480,34 @@ async def get_player_objectives(
         pid_id=pid["id"],
     )
 
+    # ========================================================
+    # C3.6.6D.4B.3C
+    # Carregar uma única vez o histórico de avaliações.
+    #
+    # Este histórico será usado para construir a mesma
+    # representação formal/longitudinal para todos os
+    # consumidores do objetivo.
+    # ========================================================
+
+    player_evaluations = (
+        await db.player_evaluations.find(
+            {
+                "player_id":
+                    player_id,
+            },
+            {
+                "_id": 0,
+            },
+        )
+        .sort(
+            "created_at",
+            1,
+        )
+        .to_list(
+            5000
+        )
+    )
+    
     objectives = await db.evaluation_objectives.find(
         {
             "player_id":
@@ -25984,6 +26585,85 @@ async def get_player_objectives(
                 criterion.get("scale_max", 5)
             )
 
+        # ====================================================
+        # C3.6.6D.4B.3C
+        # Estado canónico do objetivo.
+        # ====================================================
+
+        objective_state = (
+            build_objective_state_for_response(
+                objective=
+                    objective,
+
+                player_evaluations=
+                    player_evaluations,
+            )
+        )
+
+        formal_state = (
+            objective_state.get(
+                "formal_state"
+            )
+            or {}
+        )
+
+        longitudinal_state = (
+            objective_state.get(
+                "longitudinal_state"
+            )
+            or {}
+        )
+
+        objective[
+            "formal_state"
+        ] = formal_state
+
+        objective[
+            "longitudinal_state"
+        ] = longitudinal_state
+
+        # ----------------------------------------------------
+        # Compatibilidade temporária.
+        #
+        # Os frontends atuais ainda utilizam estes campos.
+        # Fazemos com que todos recebam já o mesmo snapshot
+        # formal, até os refatorarmos para formal_state.
+        # ----------------------------------------------------
+
+        if (
+            objective.get(
+                "status"
+            )
+            == "completed"
+        ):
+            formal_value = (
+                formal_state.get(
+                    "value"
+                )
+            )
+
+            if formal_value is not None:
+                objective[
+                    "completed_value"
+                ] = formal_value
+
+                objective[
+                    "completed_score"
+                ] = formal_value
+
+            objective[
+                "completed_progress"
+            ] = 100.0
+
+            if formal_state.get(
+                "evaluation_id"
+            ):
+                objective[
+                    "completed_evaluation_id"
+                ] = formal_state.get(
+                    "evaluation_id"
+                )
+    
     return objectives
 @api_router.post(
     "/evaluations/objectives"
