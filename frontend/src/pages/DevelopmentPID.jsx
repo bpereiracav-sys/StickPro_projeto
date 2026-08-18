@@ -1670,6 +1670,100 @@ export default function DevelopmentPID() {
     evaluations,
     pid?.id,
   ]);
+
+  // ============================================================
+  // C3.6.6D.4B.3G
+  // SINCRONIZAÇÃO PLANO INTELIGENTE ↔ OBJETIVO CANÓNICO
+  // ============================================================
+  
+  const intelligentPlanObjective =
+    useMemo(() => {
+      if (
+        !intelligentPlan ||
+        !Array.isArray(objectives)
+      ) {
+        return null;
+      }
+  
+      const explicitObjectiveId =
+        intelligentPlan?.objectiveId ||
+        intelligentPlan
+          ?.sourceObjectiveId ||
+        intelligentPlan
+          ?.decisionPendingObjectiveId ||
+        intelligentPlan
+          ?.renewalProposal
+          ?.sourceObjectiveId ||
+        null;
+  
+      if (explicitObjectiveId) {
+        const byId =
+          objectives.find(
+            (objective) =>
+              String(
+                objective?.id || ''
+              ) ===
+              String(
+                explicitObjectiveId
+              )
+          );
+  
+        if (byId) {
+          return byId;
+        }
+      }
+  
+      const planCriterionId =
+        intelligentPlan?.criterionId ||
+        intelligentPlan?.criterion_id ||
+        intelligentPlan
+          ?.sourceCriterionId ||
+        intelligentPlan
+          ?.renewalProposal
+          ?.sourceCriterionId ||
+        null;
+  
+      if (planCriterionId) {
+        const byCriterion =
+          objectives.find(
+            (objective) =>
+              String(
+                objective?.criterion_id ||
+                  ''
+              ) ===
+              String(
+                planCriterionId
+              )
+          );
+  
+        if (byCriterion) {
+          return byCriterion;
+        }
+      }
+  
+      return null;
+    }, [
+      intelligentPlan,
+      objectives,
+    ]);
+  
+  
+  const intelligentPlanObjectiveCompleted =
+    intelligentPlanObjective
+      ?.status === 'completed';
+  
+  
+  const intelligentPlanAwaitingNewCycle =
+    intelligentPlanObjectiveCompleted &&
+    [
+      'review',
+      'decision_pending',
+    ].includes(
+      pid?.intelligent_plan_status ||
+        intelligentPlan?.planStatus ||
+        ''
+    );
+  
   const intelligentPlanStatus =
     pid?.intelligent_plan_status ||
     intelligentPlan?.planStatus ||
@@ -1742,16 +1836,21 @@ export default function DevelopmentPID() {
     null;
   
   const currentPhase =
-    intelligentPlanPhases.find(
-      (phase) =>
-        phase?.id ===
-        currentPhaseId
-    ) ||
-    intelligentPlanPhases.find(
-      (phase) =>
-        phase?.status === 'active'
-    ) ||
-    null;  
+    intelligentPlanAwaitingNewCycle
+      ? null
+      : (
+          intelligentPlanPhases.find(
+            (phase) =>
+              phase?.id ===
+              currentPhaseId
+          ) ||
+          intelligentPlanPhases.find(
+            (phase) =>
+              phase?.status ===
+              'active'
+          ) ||
+          null
+        );  
   
   const intelligentPlanFocus =
     Array.isArray(
@@ -1766,6 +1865,27 @@ export default function DevelopmentPID() {
     )
       ? intelligentPlan.successCriteria
       : [];
+
+  const intelligentPlanOperationalState =
+    intelligentPlanAwaitingNewCycle
+      ? 'review'
+      : (
+          operationalProgress?.status ||
+          intelligentPlanStatus ||
+          'active'
+        );
+  
+  
+  const showIntelligentPlanExecution =
+    !intelligentPlanAwaitingNewCycle &&
+    intelligentPlanStatus !==
+      'completed';
+  
+  
+  const showHistoricalPlanContent =
+    intelligentPlanAwaitingNewCycle ||
+    intelligentPlanStatus ===
+      'completed';
   
   if (!isAthleteMode && !canManage) {
     return (
@@ -2439,8 +2559,44 @@ export default function DevelopmentPID() {
                     </div>
                   </div>
                 </CardHeader>
-          
+
                 <CardContent className="space-y-5 p-5">
+                  {intelligentPlanAwaitingNewCycle && (
+                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-cyan-50 p-4 sm:p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                          <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-violet-950">
+                            Ciclo anterior concluído
+                          </p>
+                
+                          <p className="mt-1 text-sm leading-6 text-violet-700">
+                            O objetivo que originou este Plano Inteligente foi
+                            formalmente concluído. O conteúdo abaixo fica preservado
+                            como histórico do ciclo anterior enquanto é definida a
+                            próxima prioridade de desenvolvimento.
+                          </p>
+                
+                          {intelligentPlanObjective && (
+                            <div className="mt-3 rounded-xl border border-violet-100 bg-white/80 px-3 py-2">
+                              <p className="text-xs font-medium text-violet-700">
+                                Objetivo concluído:{' '}
+                                <span className="font-semibold">
+                                  {intelligentPlanObjective?.title ||
+                                    intelligentPlanObjective?.criterion_name ||
+                                    'Objetivo individual'}
+                                </span>
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                     <div className="rounded-2xl border border-purple-100 bg-purple-50/70 p-4">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-purple-700">
