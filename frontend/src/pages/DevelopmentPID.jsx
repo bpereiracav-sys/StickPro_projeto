@@ -765,24 +765,32 @@ const buildPIDRecommendations = ({
   );
 };
 
-function MetricCard({ icon: Icon, label, value, description, tone }) {
+function MetricCard({
+  icon: Icon,
+  label,
+  value,
+  description,
+  tone,
+}) {
   return (
-    <Card className="rounded-2xl border-slate-200 bg-white shadow-sm">
-      <CardContent className="flex items-center gap-4 p-5">
+    <Card className="h-full rounded-2xl border-slate-200 bg-white shadow-sm">
+      <CardContent className="flex h-full items-center gap-4 p-5">
         <div
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${tone}`}
         >
           <Icon className="h-5 w-5" />
         </div>
 
-        <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-[0.13em] text-slate-400">
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-bold uppercase leading-4 tracking-[0.13em] text-slate-400">
             {label}
           </p>
-          <p className="mt-1 truncate text-lg font-bold text-slate-950">
+
+          <p className="mt-1 text-lg font-bold leading-6 text-slate-950">
             {value}
           </p>
-          <p className="mt-0.5 truncate text-xs text-slate-500">
+
+          <p className="mt-0.5 whitespace-normal text-xs leading-4 text-slate-500">
             {description}
           </p>
         </div>
@@ -790,7 +798,6 @@ function MetricCard({ icon: Icon, label, value, description, tone }) {
     </Card>
   );
 }
-
 function ObjectiveCard({
   objective,
   canManage = false,
