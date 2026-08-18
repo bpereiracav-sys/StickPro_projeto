@@ -1227,8 +1227,32 @@ export default function PlayerObjectives() {
 
   const enriched = useMemo(() => {
     /*
-     * Apenas objetivos pertencentes ao ciclo atual do PID.
+     * ========================================================
+     * C3.6.6D.4B.3C
+     * FONTE ÚNICA DE VERDADE — BACKEND
+     * ========================================================
+     *
+     * O frontend deixa de reconstruir historicamente:
+     * - valor de conclusão;
+     * - avaliação de conclusão;
+     * - progresso formal;
+     * - estado longitudinal.
+     *
+     * O backend fornece agora:
+     *
+     * formal_state
+     *   -> fotografia oficial do objetivo
+     *
+     * longitudinal_state
+     *   -> estado atual da competência
+     *
+     * Para objetivos concluídos:
+     *   o cartão usa formal_state.
+     *
+     * Para objetivos ainda em acompanhamento:
+     *   o cartão usa longitudinal_state.
      */
+  
     const scopedObjectives =
       effectivePIDId
         ? objectives.filter(
@@ -1270,351 +1294,145 @@ export default function PlayerObjectives() {
           };
   
         const baseline = Number(
-          objective.baseline_value ??
-            criterion?.scale_min ??
-            1
+          objective?.formal_state
+            ?.baseline_value ??
+          objective?.baseline_value ??
+          criterion?.scale_min ??
+          1
         );
   
         const target = Number(
-          objective.target_value
+          objective?.formal_state
+            ?.target_value ??
+          objective?.target_value
         );
   
-        const criterionHistory =
-          evaluationHistoryByCriterion.get(
-            objective.criterion_id
-          ) || [];
-  
-        /*
-         * A avaliação que originou o objetivo representa
-         * o BASELINE e nunca deve ser interpretada como
-         * progresso posterior.
-         *
-         * Para objetivos novos, source_evaluation_id é
-         * a associação preferencial.
-         */
-        const sourceEvaluationId =
-          objective?.source_evaluation_id ||
-          objective?.sourceEvaluationId ||
-          null;
-  
-        /*
-         * Fallback temporal para objetivos antigos.
-         *
-         * created_at representa o momento em que o objetivo
-         * passou a existir. Só avaliações posteriores podem
-         * alterar o valor atual.
-         */
-        const objectiveStartRaw =
-          objective?.activated_at ||
-          objective?.created_at ||
-          null;
-  
-        const objectiveStartTimestamp =
-          objectiveStartRaw
-            ? new Date(
-                objectiveStartRaw
-              ).getTime()
-            : NaN;
-  
-        let sourceEvaluationIndex = -1;
-  
-        if (sourceEvaluationId) {
-          sourceEvaluationIndex =
-            criterionHistory.findIndex(
-              (entry) =>
-                String(
-                  entry.evaluationId ||
-                    ''
-                ) ===
-                String(
-                  sourceEvaluationId
-                )
-            );
-        }
-  
-        let subsequentEvaluations = [];
-  
-        /*
-         * REGRA 1:
-         * Se conhecemos exatamente a avaliação que criou
-         * o baseline, só contam as avaliações seguintes
-         * desse critério.
-         */
-        if (
-          sourceEvaluationIndex >= 0
-        ) {
-          subsequentEvaluations =
-            criterionHistory.slice(
-              sourceEvaluationIndex + 1
-            );
-        } else if (
-          Number.isFinite(
-            objectiveStartTimestamp
-          )
-        ) {
-          /*
-           * REGRA 2:
-           * Compatibilidade com objetivos históricos que
-           * ainda não possuem source_evaluation_id.
-           */
-          subsequentEvaluations =
-            criterionHistory.filter(
-              (entry) =>
-                Number.isFinite(
-                  entry.timestamp
-                ) &&
-                entry.timestamp >
-                  objectiveStartTimestamp
-            );
-        }
-  
-        /*
-         * A última reavaliação válida posterior ao baseline
-         * representa o estado atual.
-         *
-         * Sem reavaliação posterior:
-         * Atual = baseline
-         * Progresso = 0%
-         */
-        const latestSubsequentEvaluation =
-          subsequentEvaluations.length
-            ? subsequentEvaluations[
-                subsequentEvaluations.length -
-                  1
-              ]
-            : null;
-  
-        /*
-         * ====================================================
-         * C3.6.6D.4B.3C
-         * SNAPSHOT FORMAL DE CONCLUSÃO
-         * ====================================================
-         *
-         * Um objetivo formalmente concluído representa um
-         * marco histórico do PID.
-         *
-         * Avaliações posteriores da mesma competência podem
-         * continuar a existir e alimentar a evolução
-         * longitudinal do atleta, mas NÃO podem alterar
-         * retroativamente o resultado com que o objetivo
-         * foi concluído.
-         *
-         * Prioridade dos dados:
-         *
-         * 1. Objetivo concluído:
-         *    utilizar o snapshot persistido no backend.
-         *
-         * 2. Objetivo ainda ativo:
-         *    utilizar a avaliação longitudinal mais recente.
-         */
         const isCompleted =
           objective?.status ===
           'completed';
-
-        const longitudinalCurrentValue =
-          latestSubsequentEvaluation &&
-          Number.isFinite(
-            latestSubsequentEvaluation.score
-          )
-            ? latestSubsequentEvaluation.score
-            : baseline;
-
-        /*
-         * O backend pode ter snapshots provenientes de
-         * diferentes gerações do PID.
-         *
-         * current_value/current_score são o snapshot formal
-         * principal.
-         *
-         * Os campos completion_* ficam disponíveis como
-         * compatibilidade caso existam em dados posteriores.
-         */
-        
-        /*
-         * ====================================================
-         * C3.6.6D.4B.3C
-         * RECUPERAÇÃO DO SNAPSHOT DE CONCLUSÃO
-         * ====================================================
-         *
-         * Para objetivos concluídos:
-         *
-         * 1. usar primeiro o snapshot formal persistido;
-         * 2. se for objetivo histórico, procurar a avaliação
-         *    utilizada na validação técnica;
-         * 3. se essa associação ainda não existir, procurar
-         *    no histórico a última avaliação até à data de
-         *    conclusão em que a meta tenha sido atingida;
-         * 4. só no último caso usar os campos antigos
-         *    current_value/current_score.
-         */
-
-        const completionEvaluationId =
-          objective?.completion_validation_evaluation_id ||
-          objective?.completed_evaluation_id ||
-          objective?.completion_evaluation_id ||
-          null;
-
-        /*
-         * Caso ideal:
-         * temos o ID exato da avaliação que suportou
-         * a conclusão técnica.
-         */
-        const completionEvaluationEntry =
-          completionEvaluationId
-            ? criterionHistory.find(
-                (entry) =>
-                  String(
-                    entry?.evaluationId ||
-                      ''
-                  ) ===
-                  String(
-                    completionEvaluationId
-                  )
-              )
-            : null;
-
-        /*
-         * Compatibilidade com objetivos históricos anteriores
-         * ao armazenamento de completion_validation_evaluation_id.
-         *
-         * Procuramos apenas avaliações:
-         * - do mesmo critério;
-         * - até ao momento em que o objetivo foi concluído;
-         * - com resultado igual ou superior à meta.
-         *
-         * Escolhemos a mais recente dessas avaliações.
-         */
-        const completedAtRaw =
-          objective?.completion_validation_at ||
-          objective?.completed_at ||
-          null;
-
-        const completedAtTimestamp =
-          completedAtRaw
-            ? new Date(
-                completedAtRaw
-              ).getTime()
-            : NaN;
-
-        const historicalCompletionEntry =
-          !completionEvaluationEntry &&
-          Number.isFinite(
-            completedAtTimestamp
-          ) &&
-          Number.isFinite(target)
-            ? [...criterionHistory]
-                .reverse()
-                .find(
-                  (entry) =>
-                    Number.isFinite(
-                      entry?.timestamp
-                    ) &&
-                    entry.timestamp <=
-                      completedAtTimestamp &&
-                    Number.isFinite(
-                      entry?.score
-                    ) &&
-                    entry.score >=
-                      target
-                )
-            : null;
-
-        const explicitCompletionValueCandidates = [
-          objective?.completion_value,
-          objective?.completion_score,
-          objective?.completed_value,
-          objective?.completed_score,
-        ];
-
-        const explicitCompletionValue =
-          explicitCompletionValueCandidates
-            .map((value) =>
-              Number(value)
-            )
-            .find((value) =>
-              Number.isFinite(value)
-            );
-
-        const historicalCompletionValue =
+  
+        const formalValue = Number(
+          objective?.formal_state
+            ?.value
+        );
+  
+        const formalProgress = Number(
+          objective?.formal_state
+            ?.progress
+        );
+  
+        const longitudinalValue =
           Number(
-            completionEvaluationEntry?.score ??
-            historicalCompletionEntry?.score
+            objective
+              ?.longitudinal_state
+              ?.value
           );
-
-        const legacyCurrentValue =
+  
+        const longitudinalProgress =
           Number(
-            objective?.current_value ??
-            objective?.current_score
+            objective
+              ?.longitudinal_state
+              ?.progress
           );
-
-        const completionValue =
-          Number.isFinite(
-            explicitCompletionValue
-          )
-            ? explicitCompletionValue
-            : Number.isFinite(
-                  historicalCompletionValue
-                )
-              ? historicalCompletionValue
-              : Number.isFinite(
-                    legacyCurrentValue
-                  )
-                ? legacyCurrentValue
-                : null;
-        
-        const currentValue =
+  
+        /*
+         * ----------------------------------------------------
+         * VALOR APRESENTADO
+         * ----------------------------------------------------
+         *
+         * Concluído:
+         *   sempre formal_state.value.
+         *
+         * Não concluído:
+         *   sempre longitudinal_state.value.
+         *
+         * Os restantes campos são apenas fallback temporário
+         * para compatibilidade com dados anteriores.
+         */
+  
+        let currentValue = null;
+  
+        if (
           isCompleted &&
           Number.isFinite(
-            completionValue
+            formalValue
           )
-            ? completionValue
-            : longitudinalCurrentValue;
+        ) {
+          currentValue =
+            formalValue;
+        } else if (
+          !isCompleted &&
+          Number.isFinite(
+            longitudinalValue
+          )
+        ) {
+          currentValue =
+            longitudinalValue;
+        } else {
+          const fallbackValue =
+            Number(
+              objective?.completed_value ??
+              objective?.completed_score ??
+              objective?.current_value ??
+              objective?.current_score ??
+              baseline
+            );
+  
+          currentValue =
+            Number.isFinite(
+              fallbackValue
+            )
+              ? fallbackValue
+              : null;
+        }
+  
+        /*
+         * ----------------------------------------------------
+         * PROGRESSO APRESENTADO
+         * ----------------------------------------------------
+         */
+  
         let progress = 0;
-
-        if (isCompleted) {
+  
+        if (
+          isCompleted &&
+          Number.isFinite(
+            formalProgress
+          )
+        ) {
+          progress =
+            formalProgress;
+        } else if (
+          isCompleted
+        ) {
           /*
-           * A conclusão já foi formalmente validada.
-           *
-           * O progresso histórico desse objetivo fica
-           * definitivamente congelado em 100%.
+           * Compatibilidade com objetivos concluídos
+           * anteriores ao formal_state.
            */
           progress = 100;
         } else if (
           Number.isFinite(
-            currentValue
-          ) &&
-          Number.isFinite(target) &&
-          Number.isFinite(baseline)
+            longitudinalProgress
+          )
         ) {
-          /*
-           * Objetivos ainda em acompanhamento continuam
-           * com cálculo longitudinal normal.
-           *
-           * baseline 2
-           * target   3
-           *
-           * atual 2   =>   0%
-           * atual 2.5 =>  50%
-           * atual 3   => 100%
-           */
-          if (target > baseline) {
-            progress =
-              ((currentValue -
-                baseline) /
-                (target -
-                  baseline)) *
-              100;
-          } else {
-            /*
-             * Meta igual ou inferior ao baseline.
-             */
-            progress =
-              currentValue >= target
-                ? 100
-                : 0;
-          }
+          progress =
+            longitudinalProgress;
+        } else {
+          const fallbackProgress =
+            Number(
+              objective
+                ?.progress_percentage ??
+              objective?.progress
+            );
+  
+          progress =
+            Number.isFinite(
+              fallbackProgress
+            )
+              ? fallbackProgress
+              : 0;
         }
-
+  
         const normalizedProgress =
           Math.max(
             0,
@@ -1622,28 +1440,49 @@ export default function PlayerObjectives() {
               100,
               progress
             )
-          );  
+          );
+  
         /*
-         * Delta é mantido separadamente.
-         *
-         * Assim uma regressão não produz uma barra negativa,
-         * mas pode posteriormente alimentar Insights/PID.
+         * O delta longitudinal continua separado do snapshot
+         * formal de conclusão.
          */
+  
+        const backendEvolutionDelta =
+          Number(
+            objective
+              ?.longitudinal_state
+              ?.evolution_delta
+          );
+  
         const evolutionDelta =
           Number.isFinite(
-            currentValue
-          ) &&
-          Number.isFinite(
-            baseline
+            backendEvolutionDelta
           )
-            ? currentValue -
-              baseline
-            : 0;
+            ? backendEvolutionDelta
+            : (
+                Number.isFinite(
+                  longitudinalValue
+                ) &&
+                Number.isFinite(
+                  baseline
+                )
+                  ? longitudinalValue -
+                    baseline
+                  : 0
+              );
   
         return {
           ...objective,
   
           criterion,
+  
+          /*
+           * Estes campos continuam disponíveis para o
+           * ObjectiveCard atual.
+           *
+           * A diferença é que já não são calculados pelo
+           * frontend.
+           */
   
           currentValue,
   
@@ -1654,17 +1493,35 @@ export default function PlayerObjectives() {
   
           hasLongitudinalEvaluation:
             Boolean(
-              latestSubsequentEvaluation
+              objective
+                ?.longitudinal_state
+                ?.evaluation_id
             ),
   
           latestProgressEvaluationId:
-            latestSubsequentEvaluation
-              ?.evaluationId ||
+            objective
+              ?.longitudinal_state
+              ?.evaluation_id ||
             null,
   
           latestProgressEvaluationDate:
-            latestSubsequentEvaluation
-              ?.date ||
+            objective
+              ?.longitudinal_state
+              ?.evaluation_at ||
+            null,
+  
+          /*
+           * Mantemos os dois estados também disponíveis
+           * explicitamente para futuras componentes.
+           */
+  
+          formalState:
+            objective?.formal_state ||
+            null,
+  
+          longitudinalState:
+            objective
+              ?.longitudinal_state ||
             null,
         };
       }
@@ -1672,7 +1529,6 @@ export default function PlayerObjectives() {
   }, [
     objectives,
     criteriaMap,
-    evaluationHistoryByCriterion,
     effectivePIDId,
   ]);
 
