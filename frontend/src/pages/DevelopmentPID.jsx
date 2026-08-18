@@ -235,17 +235,167 @@ const getEvaluationCriterionScores = (evaluation) => {
     );
 };
 
-const getObjectiveProgress = (objective) => {
+// ============================================================
+// C3.6.6D.4B.3D
+// OBJECTIVE STATE — FONTE ÚNICA DE VERDADE
+// ============================================================
+
+const getObjectiveLongitudinalValue = (
+  objective
+) => {
+  if (!objective) {
+    return null;
+  }
+
+  const backendValue = Number(
+    objective
+      ?.longitudinal_state
+      ?.value
+  );
+
+  if (
+    Number.isFinite(
+      backendValue
+    )
+  ) {
+    return backendValue;
+  }
+
+  /*
+   * Fallback temporário para dados anteriores
+   * ao contrato formal_state / longitudinal_state.
+   */
+  const legacyValue = Number(
+    objective?.current_value ??
+    objective?.current_score
+  );
+
+  return Number.isFinite(
+    legacyValue
+  )
+    ? legacyValue
+    : null;
+};
+
+
+const getObjectiveFormalValue = (
+  objective
+) => {
+  if (!objective) {
+    return null;
+  }
+
+  const backendValue = Number(
+    objective
+      ?.formal_state
+      ?.value
+  );
+
+  if (
+    Number.isFinite(
+      backendValue
+    )
+  ) {
+    return backendValue;
+  }
+
+  /*
+   * Compatibilidade temporária com snapshots
+   * persistidos antes de formal_state.
+   */
+  const legacyValue = Number(
+    objective?.completed_value ??
+    objective?.completed_score ??
+    objective?.current_value ??
+    objective?.current_score
+  );
+
+  return Number.isFinite(
+    legacyValue
+  )
+    ? legacyValue
+    : null;
+};
+
+
+const getObjectiveTargetValue = (
+  objective
+) => {
+  if (!objective) {
+    return null;
+  }
+
+  const backendTarget = Number(
+    objective
+      ?.formal_state
+      ?.target_value
+  );
+
+  if (
+    Number.isFinite(
+      backendTarget
+    )
+  ) {
+    return backendTarget;
+  }
+
+  const legacyTarget = Number(
+    objective?.target_value ??
+    objective?.target_score
+  );
+
+  return Number.isFinite(
+    legacyTarget
+  )
+    ? legacyTarget
+    : null;
+};
+
+
+const getObjectiveProgress = (
+  objective
+) => {
   if (!objective) {
     return 0;
   }
 
+  /*
+   * Para objetivos não concluídos, o estado longitudinal
+   * do backend é a fonte oficial.
+   */
+  const backendProgress = Number(
+    objective
+      ?.longitudinal_state
+      ?.progress
+  );
+
+  if (
+    Number.isFinite(
+      backendProgress
+    )
+  ) {
+    return Math.max(
+      0,
+      Math.min(
+        100,
+        backendProgress
+      )
+    );
+  }
+
+  /*
+   * Compatibilidade temporária.
+   */
   const direct = Number(
     objective?.progress_percentage ??
     objective?.progress
   );
 
-  if (Number.isFinite(direct)) {
+  if (
+    Number.isFinite(
+      direct
+    )
+  ) {
     return Math.max(
       0,
       Math.min(
@@ -255,55 +405,94 @@ const getObjectiveProgress = (objective) => {
     );
   }
 
-  const current = Number(
-    objective?.current_value ??
-    objective?.current_score
-  );
-
-  const target = Number(
-    objective?.target_value ??
-    objective?.target_score
-  );
-
-  if (
-    Number.isFinite(current) &&
-    Number.isFinite(target) &&
-    target > 0
-  ) {
-    return Math.max(
-      0,
-      Math.min(
-        100,
-        (current / target) * 100
-      )
-    );
-  }
-
   return 0;
 };
 
-const getObjectiveDisplayCurrentValue = (objective) => {
-  if (!objective) return null;
 
-  if (objective?.status === 'completed') {
-    const completedValue = Number(
-      objective?.completed_value ??
-      objective?.completed_score
-    );
-
-    if (Number.isFinite(completedValue)) {
-      return completedValue;
-    }
+const getObjectiveDisplayCurrentValue = (
+  objective
+) => {
+  if (!objective) {
+    return null;
   }
 
-  const currentValue = Number(
-    objective?.current_value ??
-    objective?.current_score
-  );
+  if (
+    objective?.status ===
+    'completed'
+  ) {
+    return getObjectiveFormalValue(
+      objective
+    );
+  }
 
-  return Number.isFinite(currentValue)
-    ? currentValue
-    : null;
+  return getObjectiveLongitudinalValue(
+    objective
+  );
+};
+
+
+const getObjectiveDisplayProgress = (
+  objective
+) => {
+  if (!objective) {
+    return 0;
+  }
+
+  if (
+    objective?.status ===
+    'completed'
+  ) {
+    const formalProgress = Number(
+      objective
+        ?.formal_state
+        ?.progress
+    );
+
+    if (
+      Number.isFinite(
+        formalProgress
+      )
+    ) {
+      return Math.max(
+        0,
+        Math.min(
+          100,
+          formalProgress
+        )
+      );
+    }
+
+    /*
+     * Compatibilidade com snapshots anteriores.
+     */
+    const legacyProgress = Number(
+      objective?.completed_progress
+    );
+
+    if (
+      Number.isFinite(
+        legacyProgress
+      )
+    ) {
+      return Math.max(
+        0,
+        Math.min(
+          100,
+          legacyProgress
+        )
+      );
+    }
+
+    /*
+     * Um objetivo formalmente concluído representa
+     * sempre 100% do seu percurso formal.
+     */
+    return 100;
+  }
+
+  return getObjectiveProgress(
+    objective
+  );
 };
 
 
@@ -677,25 +866,21 @@ function ObjectiveCard({
   const completed =
     objective?.status ===
     'completed';
-
+  
   const progress =
-    completed
-      ? getObjectiveDisplayProgress(
-          objective
-        )
-      : getObjectiveProgress(
-          objective
-        );
-
+    getObjectiveDisplayProgress(
+      objective
+    );
+  
   const displayCurrentValue =
-    completed
-      ? getObjectiveDisplayCurrentValue(
-          objective
-        )
-      : Number(
-          objective?.current_value ??
-          objective?.current_score
-        );
+    getObjectiveDisplayCurrentValue(
+      objective
+    );
+  
+  const displayTargetValue =
+    getObjectiveTargetValue(
+      objective
+    );
 
   const title =
     objective?.title ||
@@ -816,9 +1001,11 @@ function ObjectiveCard({
           </p>
 
           <p className="mt-1 font-bold text-slate-800">
-            {objective?.target_score ??
-              objective?.target_value ??
-              '—'}
+            {Number.isFinite(
+              displayTargetValue
+            )
+              ? displayTargetValue
+              : '—'}
           </p>
         </div>
       </div>
@@ -1312,45 +1499,6 @@ export default function DevelopmentPID() {
   useEffect(() => {
     loadPIDData(playerId);
   }, [playerId, loadPIDData]);
-
-  useEffect(() => {
-    if (!playerId) return;
-  
-    const runPIDCriterionDebug = async () => {
-      try {
-        const response =
-          await evaluationsApi.debugPIDObjectiveCriterion(
-            playerId
-          );
-  
-        console.log(
-          '========== PID OBJECTIVE DEBUG =========='
-        );
-  
-        console.log(
-          'PLAYER ID:',
-          playerId
-        );
-  
-        console.log(
-          'DEBUG RESULT:',
-          response?.data
-        );
-  
-        console.log(
-          '========================================='
-        );
-      } catch (error) {
-        console.error(
-          'PID OBJECTIVE DEBUG ERROR:',
-          error?.response?.data ||
-            error
-        );
-      }
-    };
-  
-    runPIDCriterionDebug();
-  }, [playerId]);
   
   useEffect(() => {
     const params = {};
@@ -1512,17 +1660,12 @@ export default function DevelopmentPID() {
       ...validationObjectives,
       ...completedObjectives,
     ]
-      .map((objective) =>
-        objective?.status ===
-        'completed'
-          ? getObjectiveDisplayProgress(
-              objective
-            )
-          : getObjectiveProgress(
-              objective
-            )
+      .map(
+        getObjectiveDisplayProgress
       )
-      .filter(Number.isFinite);
+      .filter(
+        Number.isFinite
+      );
   
     const averageProgress =
       progressValues.length
