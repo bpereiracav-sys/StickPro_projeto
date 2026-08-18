@@ -26428,6 +26428,52 @@ async def decide_objective_completion(
         decision.action
         == "complete"
     ):
+        # ====================================================
+        # Conclusão formal do objetivo
+        #
+        # O valor existente neste momento passa a representar
+        # o resultado oficial da conclusão e não poderá ser
+        # reescrito por avaliações futuras.
+        # ====================================================
+
+        try:
+            completion_value = float(
+                objective.get(
+                    "current_value"
+                )
+                if objective.get(
+                    "current_value"
+                )
+                is not None
+                else objective.get(
+                    "current_score"
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            completion_value = None
+
+        try:
+            completion_progress = float(
+                objective.get(
+                    "progress_percentage"
+                )
+                if objective.get(
+                    "progress_percentage"
+                )
+                is not None
+                else objective.get(
+                    "progress"
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            completion_progress = 100.0
+
         update_data[
             "status"
         ] = "completed"
@@ -26439,6 +26485,59 @@ async def decide_objective_completion(
         update_data[
             "completion_reason"
         ] = "technical_validation"
+
+        # ----------------------------------------------------
+        # Snapshot histórico da conclusão
+        # ----------------------------------------------------
+
+        update_data[
+            "completed_value"
+        ] = completion_value
+
+        update_data[
+            "completed_score"
+        ] = completion_value
+
+        update_data[
+            "completed_progress"
+        ] = completion_progress
+
+        update_data[
+            "completed_evaluation_id"
+        ] = evaluation_id
+
+        update_data[
+            "completed_by"
+        ] = current_user.get(
+            "id"
+        )
+
+        # ----------------------------------------------------
+        # Garantir consistência visual/formal.
+        # Se a conclusão foi validada com a meta atingida,
+        # o objetivo fica formalmente a 100%.
+        # ----------------------------------------------------
+
+        if completion_value is not None:
+            update_data[
+                "current_value"
+            ] = completion_value
+
+            update_data[
+                "current_score"
+            ] = completion_value
+
+        update_data[
+            "progress"
+        ] = 100.0
+
+        update_data[
+            "progress_percentage"
+        ] = 100.0
+
+        update_data[
+            "target_reached"
+        ] = True
 
     # ========================================================
     # DECISÃO 2 — manter em desenvolvimento
