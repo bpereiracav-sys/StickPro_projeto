@@ -235,6 +235,53 @@ const getEvaluationCriterionScores = (evaluation) => {
     );
 };
 
+const getObjectiveProgress = (objective) => {
+  if (!objective) {
+    return 0;
+  }
+
+  const direct = Number(
+    objective?.progress_percentage ??
+    objective?.progress
+  );
+
+  if (Number.isFinite(direct)) {
+    return Math.max(
+      0,
+      Math.min(
+        100,
+        direct
+      )
+    );
+  }
+
+  const current = Number(
+    objective?.current_value ??
+    objective?.current_score
+  );
+
+  const target = Number(
+    objective?.target_value ??
+    objective?.target_score
+  );
+
+  if (
+    Number.isFinite(current) &&
+    Number.isFinite(target) &&
+    target > 0
+  ) {
+    return Math.max(
+      0,
+      Math.min(
+        100,
+        (current / target) * 100
+      )
+    );
+  }
+
+  return 0;
+};
+
 const getObjectiveDisplayCurrentValue = (objective) => {
   if (!objective) return null;
 
@@ -755,9 +802,11 @@ function ObjectiveCard({
           </p>
 
           <p className="mt-1 font-bold text-slate-800">
-            {objective?.current_score ??
-              objective?.current_value ??
-              '—'}
+            {Number.isFinite(
+              displayCurrentValue
+            )
+              ? displayCurrentValue
+              : '—'}
           </p>
         </div>
 
@@ -1463,7 +1512,16 @@ export default function DevelopmentPID() {
       ...validationObjectives,
       ...completedObjectives,
     ]
-      .map(getObjectiveProgress)
+      .map((objective) =>
+        objective?.status ===
+        'completed'
+          ? getObjectiveDisplayProgress(
+              objective
+            )
+          : getObjectiveProgress(
+              objective
+            )
+      )
       .filter(Number.isFinite);
   
     const averageProgress =
