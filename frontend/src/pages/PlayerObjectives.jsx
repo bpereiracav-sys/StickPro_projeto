@@ -1384,17 +1384,88 @@ export default function PlayerObjectives() {
               ]
             : null;
   
-        const currentValue =
+        /*
+         * ====================================================
+         * C3.6.6D.4B.3C
+         * SNAPSHOT FORMAL DE CONCLUSÃO
+         * ====================================================
+         *
+         * Um objetivo formalmente concluído representa um
+         * marco histórico do PID.
+         *
+         * Avaliações posteriores da mesma competência podem
+         * continuar a existir e alimentar a evolução
+         * longitudinal do atleta, mas NÃO podem alterar
+         * retroativamente o resultado com que o objetivo
+         * foi concluído.
+         *
+         * Prioridade dos dados:
+         *
+         * 1. Objetivo concluído:
+         *    utilizar o snapshot persistido no backend.
+         *
+         * 2. Objetivo ainda ativo:
+         *    utilizar a avaliação longitudinal mais recente.
+         */
+        const isCompleted =
+          objective?.status ===
+          'completed';
+
+        const longitudinalCurrentValue =
           latestSubsequentEvaluation &&
           Number.isFinite(
             latestSubsequentEvaluation.score
           )
             ? latestSubsequentEvaluation.score
             : baseline;
-  
+
+        /*
+         * O backend pode ter snapshots provenientes de
+         * diferentes gerações do PID.
+         *
+         * current_value/current_score são o snapshot formal
+         * principal.
+         *
+         * Os campos completion_* ficam disponíveis como
+         * compatibilidade caso existam em dados posteriores.
+         */
+        const completionValueCandidates = [
+          objective?.completion_value,
+          objective?.completion_score,
+          objective?.completed_value,
+          objective?.completed_score,
+          objective?.current_value,
+          objective?.current_score,
+        ];
+
+        const completionValue =
+          completionValueCandidates
+            .map((value) =>
+              Number(value)
+            )
+            .find((value) =>
+              Number.isFinite(value)
+            );
+
+        const currentValue =
+          isCompleted &&
+          Number.isFinite(
+            completionValue
+          )
+            ? completionValue
+            : longitudinalCurrentValue;
+
         let progress = 0;
-  
-        if (
+
+        if (isCompleted) {
+          /*
+           * A conclusão já foi formalmente validada.
+           *
+           * O progresso histórico desse objetivo fica
+           * definitivamente congelado em 100%.
+           */
+          progress = 100;
+        } else if (
           Number.isFinite(
             currentValue
           ) &&
@@ -1402,7 +1473,8 @@ export default function PlayerObjectives() {
           Number.isFinite(baseline)
         ) {
           /*
-           * Caso normal:
+           * Objetivos ainda em acompanhamento continuam
+           * com cálculo longitudinal normal.
            *
            * baseline 2
            * target   3
@@ -1421,8 +1493,6 @@ export default function PlayerObjectives() {
           } else {
             /*
              * Meta igual ou inferior ao baseline.
-             * Pode ocorrer em objetivos de manutenção
-             * ou em dados históricos.
              */
             progress =
               currentValue >= target
@@ -1430,7 +1500,7 @@ export default function PlayerObjectives() {
                 : 0;
           }
         }
-  
+
         const normalizedProgress =
           Math.max(
             0,
@@ -1438,8 +1508,7 @@ export default function PlayerObjectives() {
               100,
               progress
             )
-          );
-  
+          );  
         /*
          * Delta é mantido separadamente.
          *
