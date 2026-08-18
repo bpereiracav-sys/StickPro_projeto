@@ -20627,6 +20627,10 @@ async def decide_pid_renewal(
 
     # --------------------------------------------------------
     # Ajustar proposta
+    #
+    # Um ajuste NÃO é uma decisão final.
+    # A proposta permanece pendente até nova confirmação
+    # explícita da equipa técnica.
     # --------------------------------------------------------
 
     if action == "adjust":
@@ -20684,24 +20688,66 @@ async def decide_pid_renewal(
                 ),
             )
 
+        # Nova meta proposta pela equipa técnica.
         renewal_proposal[
             "suggestedTarget"
         ] = adjusted_target
 
+        # Continua pendente de confirmação.
         renewal_proposal[
             "status"
         ] = "pending_confirmation"
-        
+
         renewal_proposal[
             "decision"
         ] = "adjust"
-        
+
+        # Auditoria específica do ajuste.
+        renewal_proposal[
+            "adjustedAt"
+        ] = now.isoformat()
+
+        renewal_proposal[
+            "adjustedBy"
+        ] = current_user.get(
+            "id"
+        )
+
+        renewal_proposal[
+            "adjustmentNote"
+        ] = (
+            str(
+                decision.note
+            ).strip()
+            if decision.note
+            else None
+        )
+
+        # Garantir que um simples ajuste nunca fica
+        # marcado como decisão final.
+        renewal_proposal.pop(
+            "decidedAt",
+            None,
+        )
+
+        renewal_proposal.pop(
+            "decidedBy",
+            None,
+        )
+
+        renewal_proposal.pop(
+            "decisionNote",
+            None,
+        )
+
         renewal_status = (
             "proposal_pending"
         )
 
     # --------------------------------------------------------
     # Aprovar proposta
+    #
+    # Esta é uma decisão final.
     # --------------------------------------------------------
 
     elif action == "approve":
@@ -20713,12 +20759,34 @@ async def decide_pid_renewal(
             "decision"
         ] = "approve"
 
+        renewal_proposal[
+            "decidedAt"
+        ] = now.isoformat()
+
+        renewal_proposal[
+            "decidedBy"
+        ] = current_user.get(
+            "id"
+        )
+
+        renewal_proposal[
+            "decisionNote"
+        ] = (
+            str(
+                decision.note
+            ).strip()
+            if decision.note
+            else None
+        )
+
         renewal_status = (
             "approved"
         )
 
     # --------------------------------------------------------
     # Rejeitar proposta
+    #
+    # Esta é igualmente uma decisão final.
     # --------------------------------------------------------
 
     elif action == "reject":
@@ -20729,6 +20797,26 @@ async def decide_pid_renewal(
         renewal_proposal[
             "decision"
         ] = "reject"
+
+        renewal_proposal[
+            "decidedAt"
+        ] = now.isoformat()
+
+        renewal_proposal[
+            "decidedBy"
+        ] = current_user.get(
+            "id"
+        )
+
+        renewal_proposal[
+            "decisionNote"
+        ] = (
+            str(
+                decision.note
+            ).strip()
+            if decision.note
+            else None
+        )
 
         renewal_status = (
             "rejected"
@@ -20743,28 +20831,8 @@ async def decide_pid_renewal(
         )
 
     # --------------------------------------------------------
-    # Auditoria da decisão
+    # Atualizar Plano Inteligente
     # --------------------------------------------------------
-
-    renewal_proposal[
-        "decidedAt"
-    ] = now.isoformat()
-
-    renewal_proposal[
-        "decidedBy"
-    ] = current_user.get(
-        "id"
-    )
-
-    renewal_proposal[
-        "decisionNote"
-    ] = (
-        str(
-            decision.note
-        ).strip()
-        if decision.note
-        else None
-    )
 
     intelligent_plan[
         "renewalProposal"
@@ -20774,15 +20842,43 @@ async def decide_pid_renewal(
         "renewalStatus"
     ] = renewal_status
 
-    intelligent_plan[
-        "renewalDecidedAt"
-    ] = now.isoformat()
+    # --------------------------------------------------------
+    # Auditoria ao nível do Plano Inteligente
+    # --------------------------------------------------------
 
-    intelligent_plan[
-        "renewalDecidedBy"
-    ] = current_user.get(
-        "id"
-    )
+    if action == "adjust":
+        intelligent_plan[
+            "renewalAdjustedAt"
+        ] = now.isoformat()
+
+        intelligent_plan[
+            "renewalAdjustedBy"
+        ] = current_user.get(
+            "id"
+        )
+
+        # Um ajuste não pode deixar vestígios de
+        # decisão final no estado corrente.
+        intelligent_plan.pop(
+            "renewalDecidedAt",
+            None,
+        )
+
+        intelligent_plan.pop(
+            "renewalDecidedBy",
+            None,
+        )
+
+    else:
+        intelligent_plan[
+            "renewalDecidedAt"
+        ] = now.isoformat()
+
+        intelligent_plan[
+            "renewalDecidedBy"
+        ] = current_user.get(
+            "id"
+        )
 
     # --------------------------------------------------------
     # Persistir decisão
