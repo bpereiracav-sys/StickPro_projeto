@@ -1429,14 +1429,138 @@ export default function PlayerObjectives() {
          * Os campos completion_* ficam disponíveis como
          * compatibilidade caso existam em dados posteriores.
          */
-        const completionValueCandidates = [
+        
+        /*
+         * ====================================================
+         * C3.6.6D.4B.3C
+         * RECUPERAÇÃO DO SNAPSHOT DE CONCLUSÃO
+         * ====================================================
+         *
+         * Para objetivos concluídos:
+         *
+         * 1. usar primeiro o snapshot formal persistido;
+         * 2. se for objetivo histórico, procurar a avaliação
+         *    utilizada na validação técnica;
+         * 3. se essa associação ainda não existir, procurar
+         *    no histórico a última avaliação até à data de
+         *    conclusão em que a meta tenha sido atingida;
+         * 4. só no último caso usar os campos antigos
+         *    current_value/current_score.
+         */
+
+        const completionEvaluationId =
+          objective?.completion_validation_evaluation_id ||
+          objective?.completed_evaluation_id ||
+          objective?.completion_evaluation_id ||
+          null;
+
+        /*
+         * Caso ideal:
+         * temos o ID exato da avaliação que suportou
+         * a conclusão técnica.
+         */
+        const completionEvaluationEntry =
+          completionEvaluationId
+            ? criterionHistory.find(
+                (entry) =>
+                  String(
+                    entry?.evaluationId ||
+                      ''
+                  ) ===
+                  String(
+                    completionEvaluationId
+                  )
+              )
+            : null;
+
+        /*
+         * Compatibilidade com objetivos históricos anteriores
+         * ao armazenamento de completion_validation_evaluation_id.
+         *
+         * Procuramos apenas avaliações:
+         * - do mesmo critério;
+         * - até ao momento em que o objetivo foi concluído;
+         * - com resultado igual ou superior à meta.
+         *
+         * Escolhemos a mais recente dessas avaliações.
+         */
+        const completedAtRaw =
+          objective?.completion_validation_at ||
+          objective?.completed_at ||
+          null;
+
+        const completedAtTimestamp =
+          completedAtRaw
+            ? new Date(
+                completedAtRaw
+              ).getTime()
+            : NaN;
+
+        const historicalCompletionEntry =
+          !completionEvaluationEntry &&
+          Number.isFinite(
+            completedAtTimestamp
+          ) &&
+          Number.isFinite(target)
+            ? [...criterionHistory]
+                .reverse()
+                .find(
+                  (entry) =>
+                    Number.isFinite(
+                      entry?.timestamp
+                    ) &&
+                    entry.timestamp <=
+                      completedAtTimestamp &&
+                    Number.isFinite(
+                      entry?.score
+                    ) &&
+                    entry.score >=
+                      target
+                )
+            : null;
+
+        const explicitCompletionValueCandidates = [
           objective?.completion_value,
           objective?.completion_score,
           objective?.completed_value,
           objective?.completed_score,
-          objective?.current_value,
-          objective?.current_score,
         ];
+
+        const explicitCompletionValue =
+          explicitCompletionValueCandidates
+            .map((value) =>
+              Number(value)
+            )
+            .find((value) =>
+              Number.isFinite(value)
+            );
+
+        const historicalCompletionValue =
+          Number(
+            completionEvaluationEntry?.score ??
+            historicalCompletionEntry?.score
+          );
+
+        const legacyCurrentValue =
+          Number(
+            objective?.current_value ??
+            objective?.current_score
+          );
+
+        const completionValue =
+          Number.isFinite(
+            explicitCompletionValue
+          )
+            ? explicitCompletionValue
+            : Number.isFinite(
+                  historicalCompletionValue
+                )
+              ? historicalCompletionValue
+              : Number.isFinite(
+                    legacyCurrentValue
+                  )
+                ? legacyCurrentValue
+                : null;
 
         const completionValue =
           completionValueCandidates
