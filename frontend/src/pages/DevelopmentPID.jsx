@@ -2797,114 +2797,160 @@ export default function DevelopmentPID() {
                     </div>
                   )}
                   
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
-                          Execução do plano
-                        </p>
-                  
-                        <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                          <p className="font-heading text-3xl text-slate-950">
-                            {completedSessions}
-                            <span className="ml-1 text-base font-normal text-slate-400">
-                              / {totalSessions}
-                            </span>
+                  {showIntelligentPlanExecution ? (
+                    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div>
+                          <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
+                            Execução do plano
                           </p>
                   
-                          <p className="text-sm text-slate-500">
-                            sessões realizadas
+                          <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                            <p className="font-heading text-3xl text-slate-950">
+                              {completedSessions}
+                  
+                              <span className="ml-1 text-base font-normal text-slate-400">
+                                / {totalSessions}
+                              </span>
+                            </p>
+                  
+                            <p className="text-sm text-slate-500">
+                              sessões realizadas
+                            </p>
+                          </div>
+                        </div>
+                  
+                        <div className="text-left lg:text-right">
+                          <p className="font-heading text-3xl text-slate-950">
+                            {operationalProgressPercentage.toFixed(
+                              1
+                            )}
+                            %
+                          </p>
+                  
+                          <p className="text-xs text-slate-500">
+                            progresso operacional
                           </p>
                         </div>
                       </div>
                   
-                      <div className="text-left lg:text-right">
-                        <p className="font-heading text-3xl text-slate-950">
-                          {operationalProgressPercentage.toFixed(
-                            1
-                          )}
-                          %
-                        </p>
-                  
-                        <p className="text-xs text-slate-500">
-                          progresso operacional
-                        </p>
+                      <div className="mt-4">
+                        <div className="h-2.5 overflow-hidden rounded-full bg-white">
+                          <div
+                            className="h-full rounded-full bg-cyan-500 transition-all duration-500"
+                            style={{
+                              width: `${Math.max(
+                                0,
+                                Math.min(
+                                  100,
+                                  operationalProgressPercentage
+                                )
+                              )}%`,
+                            }}
+                          />
+                        </div>
                       </div>
-                    </div>
                   
-                    <div className="mt-4">
-                      <div className="h-2.5 overflow-hidden rounded-full bg-white">
-                        <div
-                          className="h-full rounded-full bg-cyan-500 transition-all duration-500"
-                          style={{
-                            width: `${Math.max(
-                              0,
-                              Math.min(
-                                100,
-                                operationalProgressPercentage
-                              )
-                            )}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
+                      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                            Fase atual
+                          </p>
                   
-                    <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-                          Fase atual
-                        </p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {intelligentPlan
+                              ?.planStatus ===
+                            'decision_pending'
+                              ? 'Execução suspensa para decisão'
+                              : currentPhase
+                                  ?.label ||
+                                (
+                                  intelligentPlan
+                                    ?.planStatus ===
+                                  'completed'
+                                    ? 'Plano concluído'
+                                    : 'Por iniciar'
+                                )}
+                          </p>
+                        </div>
                   
-                        <p className="mt-1 font-semibold text-slate-900">
-                          {intelligentPlan
-                            ?.planStatus ===
-                          'decision_pending'
-                            ? 'Execução suspensa para decisão'
-                            : currentPhase
-                                ?.label ||
-                              (
-                                intelligentPlan
-                                  ?.planStatus ===
-                                'completed'
-                                  ? 'Plano concluído'
-                                  : 'Por iniciar'
+                        {canManage &&
+                          ![
+                            'completed',
+                            'decision_pending',
+                          ].includes(
+                            intelligentPlan
+                              ?.planStatus
+                          ) && (
+                            <Button
+                              type="button"
+                              onClick={
+                                handleRegisterSession
+                              }
+                              disabled={
+                                registeringSession
+                              }
+                              className="rounded-full bg-cyan-600 text-white hover:bg-cyan-700"
+                            >
+                              {registeringSession ? (
+                                <>
+                                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                  A registar...
+                                </>
+                              ) : (
+                                <>
+                                  <CheckCircle2 className="mr-2 h-4 w-4" />
+                                  Registar sessão realizada
+                                </>
                               )}
-                        </p>
+                            </Button>
+                          )}
                       </div>
-                  
-                      {canManage &&
-                        ![
-                          'completed',
-                          'decision_pending',
-                        ].includes(
-                          intelligentPlan
-                            ?.planStatus
-                        ) && (
-                          <Button
-                            type="button"
-                            onClick={
-                              handleRegisterSession
-                            }
-                            disabled={
-                              registeringSession
-                            }
-                            className="rounded-full bg-cyan-600 text-white hover:bg-cyan-700"
-                          >
-                            {registeringSession ? (
-                              <>
-                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                A registar...
-                              </>
-                            ) : (
-                              <>
-                                <CheckCircle2 className="mr-2 h-4 w-4" />
-                                Registar sessão realizada
-                              </>
-                            )}
-                          </Button>
-                        )}
                     </div>
-                  </div>
+                  ) : (
+                    <div className="rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 via-white to-slate-50 p-4 sm:p-5">
+                      <div className="flex items-start gap-3">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700">
+                          <CheckCircle2 className="h-5 w-5" />
+                        </div>
+                  
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold uppercase tracking-wide text-violet-500">
+                            Estado operacional
+                          </p>
+                  
+                          <p className="mt-1 font-semibold text-violet-950">
+                            Ciclo operacional encerrado
+                          </p>
+                  
+                          <p className="mt-2 text-sm leading-6 text-slate-600">
+                            As sessões e fases deste ciclo deixaram de estar em execução
+                            porque o objetivo associado já foi formalmente concluído.
+                            O plano encontra-se agora em revisão para definição do
+                            próximo ciclo de desenvolvimento.
+                          </p>
+                  
+                          <div className="mt-4 flex flex-wrap gap-2">
+                            <Badge
+                              variant="outline"
+                              className="border-violet-200 bg-white text-violet-700"
+                            >
+                              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                              Objetivo concluído
+                            </Badge>
+                  
+                            <Badge
+                              variant="outline"
+                              className="border-amber-200 bg-amber-50 text-amber-700"
+                            >
+                              <Clock3 className="mr-1.5 h-3.5 w-3.5" />
+                              Aguarda próximo ciclo
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   
                   <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-400">
