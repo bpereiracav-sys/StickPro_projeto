@@ -20751,6 +20751,20 @@ async def decide_pid_renewal(
     # --------------------------------------------------------
 
     elif action == "approve":
+        # ====================================================
+        # C3.6.6D.4B.3H.2
+        # Aprovação da transição para novo ciclo
+        # ====================================================
+        #
+        # A aprovação NÃO substitui nem reabre o ciclo atual.
+        #
+        # O ciclo atualmente guardado em intelligent_plan
+        # continua a representar o ciclo anterior.
+        #
+        # A aprovação apenas autoriza a preparação do próximo
+        # ciclo, que será materializado numa etapa seguinte.
+        # ====================================================
+
         renewal_proposal[
             "status"
         ] = "approved"
@@ -20777,6 +20791,111 @@ async def decide_pid_renewal(
             ).strip()
             if decision.note
             else None
+        )
+
+        # ----------------------------------------------------
+        # Identificador imutável da transição aprovada.
+        #
+        # Será utilizado no 3H.3 para garantir idempotência:
+        # a mesma aprovação nunca poderá criar dois ciclos.
+        # ----------------------------------------------------
+
+        transition_id = (
+            renewal_proposal.get(
+                "transitionId"
+            )
+            or str(
+                uuid.uuid4()
+            )
+        )
+
+        renewal_proposal[
+            "transitionId"
+        ] = transition_id
+
+        renewal_proposal[
+            "transitionStatus"
+        ] = "approved_pending_creation"
+
+        renewal_proposal[
+            "transitionApprovedAt"
+        ] = now.isoformat()
+
+        renewal_proposal[
+            "transitionApprovedBy"
+        ] = current_user.get(
+            "id"
+        )
+
+        # ----------------------------------------------------
+        # Snapshot da origem.
+        #
+        # Guardamos explicitamente qual ciclo está a dar origem
+        # à próxima transição, sem modificar esse ciclo.
+        # ----------------------------------------------------
+
+        renewal_proposal[
+            "sourceIntelligentPlanId"
+        ] = (
+            intelligent_plan.get(
+                "id"
+            )
+            or intelligent_plan.get(
+                "sourceRecommendationId"
+            )
+            or renewal_proposal.get(
+                "sourceIntelligentPlanId"
+            )
+        )
+
+        renewal_proposal[
+            "sourcePIDVersion"
+        ] = int(
+            pid.get(
+                "current_version",
+                1,
+            )
+            or 1
+        )
+
+        renewal_proposal[
+            "sourcePlanStatus"
+        ] = (
+            intelligent_plan.get(
+                "planStatus"
+            )
+            or pid.get(
+                "intelligent_plan_status"
+            )
+        )
+
+        # ----------------------------------------------------
+        # O plano atual continua em revisão.
+        #
+        # Ainda NÃO passamos para active, porque o novo ciclo
+        # ainda não foi criado.
+        # ----------------------------------------------------
+
+        intelligent_plan[
+            "planStatus"
+        ] = "review"
+
+        intelligent_plan[
+            "nextCycleStatus"
+        ] = "approved_pending_creation"
+
+        intelligent_plan[
+            "nextCycleTransitionId"
+        ] = transition_id
+
+        intelligent_plan[
+            "nextCycleApprovedAt"
+        ] = now.isoformat()
+
+        intelligent_plan[
+            "nextCycleApprovedBy"
+        ] = current_user.get(
+            "id"
         )
 
         renewal_status = (
