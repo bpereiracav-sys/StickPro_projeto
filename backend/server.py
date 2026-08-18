@@ -26037,25 +26037,53 @@ async def sync_intelligent_pid_objective(
 
     # --------------------------------------------------------
     # Meta
+    # C3.6.6D.4B.3H.3A
     #
-    # Mantém a mesma filosofia usada pelo motor PID:
-    # evolução de aproximadamente +1 ponto na escala,
-    # sem ultrapassar o máximo do critério.
+    # Regra:
+    #
+    # 1. Se o plano trouxer uma meta explicitamente aprovada
+    #    para o novo ciclo, essa meta é a fonte oficial.
+    #
+    # 2. Caso contrário mantém-se o comportamento histórico:
+    #    baseline + 1, limitado ao máximo da escala.
     # --------------------------------------------------------
 
-    target_value = min(
-        scale_max,
-        baseline_value + 1.0,
+    explicit_target = (
+        plan.get(
+            "approvedTarget"
+        )
+        or plan.get(
+            "targetValue"
+        )
+        or plan.get(
+            "target_value"
+        )
     )
 
-    # Se já estiver no máximo, a meta é manutenção.
-    if (
-        target_value <
-        scale_min
+    if NumberLike(
+        explicit_target
     ):
-        target_value = (
-            scale_min
+        target_value = float(
+            explicit_target
         )
+
+    else:
+        target_value = min(
+            scale_max,
+            baseline_value + 1.0,
+        )
+
+    # --------------------------------------------------------
+    # Garantir limites da escala.
+    # --------------------------------------------------------
+
+    target_value = max(
+        scale_min,
+        min(
+            scale_max,
+            target_value,
+        ),
+    )
 
     validate_objective_target(
         target_value,
