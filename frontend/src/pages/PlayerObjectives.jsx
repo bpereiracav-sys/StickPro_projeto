@@ -2218,10 +2218,12 @@ export default function PlayerObjectives() {
                     stats.attention,
                   ],
                   [
-                    'Progresso',
-                    `${Math.round(
-                      stats.progress
-                    )}%`,
+                    'Progresso em curso',
+                    stats.active > 0
+                      ? `${Math.round(
+                          stats.progress
+                        )}%`
+                      : '—',
                   ],
                 ].map(
                   ([label, value]) => (
