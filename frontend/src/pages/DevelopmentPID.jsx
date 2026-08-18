@@ -235,28 +235,94 @@ const getEvaluationCriterionScores = (evaluation) => {
     );
 };
 
-const getObjectiveProgress = (objective) => {
+const getObjectiveDisplayCurrentValue = (objective) => {
+  if (!objective) return null;
+
+  if (objective?.status === 'completed') {
+    const completedValue = Number(
+      objective?.completed_value ??
+      objective?.completed_score
+    );
+
+    if (Number.isFinite(completedValue)) {
+      return completedValue;
+    }
+  }
+
+  const currentValue = Number(
+    objective?.current_value ??
+    objective?.current_score
+  );
+
+  return Number.isFinite(currentValue)
+    ? currentValue
+    : null;
+};
+
+
+const getObjectiveDisplayProgress = (objective) => {
+  if (!objective) return 0;
+
+  if (objective?.status === 'completed') {
+    const completedProgress = Number(
+      objective?.completed_progress
+    );
+
+    if (Number.isFinite(completedProgress)) {
+      return Math.max(
+        0,
+        Math.min(
+          100,
+          completedProgress
+        )
+      );
+    }
+
+    // Compatibilidade com objetivos históricos anteriores
+    // à implementação do snapshot formal.
+    return 100;
+  }
+
   const direct = Number(
-    objective?.progress ?? objective?.progress_percentage
+    objective?.progress_percentage ??
+    objective?.progress
   );
 
   if (Number.isFinite(direct)) {
-    return Math.max(0, Math.min(100, direct));
+    return Math.max(
+      0,
+      Math.min(
+        100,
+        direct
+      )
+    );
   }
 
   const current = Number(
-    objective?.current_score ?? objective?.current_value
+    objective?.current_value ??
+    objective?.current_score
   );
 
   const target = Number(
-    objective?.target_score ?? objective?.target_value
+    objective?.target_value ??
+    objective?.target_score
   );
 
-  if (Number.isFinite(current) && Number.isFinite(target) && target > 0) {
-    return Math.max(0, Math.min(100, (current / target) * 100));
+  if (
+    Number.isFinite(current) &&
+    Number.isFinite(target) &&
+    target > 0
+  ) {
+    return Math.max(
+      0,
+      Math.min(
+        100,
+        (current / target) * 100
+      )
+    );
   }
 
-  return objective?.status === 'completed' ? 100 : 0;
+  return 0;
 };
 
 const buildPIDRecommendations = ({
@@ -561,20 +627,34 @@ function ObjectiveCard({
   decidingObjectiveId = null,
   onCompletionDecision = null,
 }) {
+  const completed =
+    objective?.status ===
+    'completed';
+
   const progress =
-    getObjectiveProgress(
-      objective
-    );
+    completed
+      ? getObjectiveDisplayProgress(
+          objective
+        )
+      : getObjectiveProgress(
+          objective
+        );
+
+  const displayCurrentValue =
+    completed
+      ? getObjectiveDisplayCurrentValue(
+          objective
+        )
+      : Number(
+          objective?.current_value ??
+          objective?.current_score
+        );
 
   const title =
     objective?.title ||
     objective?.criterion_name ||
     objective?.name ||
     'Objetivo de desenvolvimento';
-
-  const completed =
-    objective?.status ===
-    'completed';
 
   const awaitingValidation =
     objective?.status ===
