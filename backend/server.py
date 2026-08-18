@@ -24418,48 +24418,70 @@ async def sync_pid_objective_from_latest_review(
     # Meta atingida ≠ conclusão automática
     # Sprint C3.6.6D.4B.3B.3
     #
-    # A reavaliação apenas identifica se a meta foi atingida.
-    # A conclusão formal depende sempre de validação técnica.
+    # IMPORTANTE:
+    # - objetivos concluídos preservam integralmente o estado
+    #   formal da conclusão;
+    # - avaliações posteriores apenas atualizam os campos
+    #   longitudinais definidos acima;
+    # - objetivos ainda ativos podem atingir a meta e ficar
+    #   a aguardar validação técnica.
     # --------------------------------------------------------
-    
-    objective_update[
-        "target_reached"
-    ] = objective_completed
-    
-    objective_update[
-        "target_reached_at"
-    ] = (
-        review_date
-        if objective_completed
-        else None
-    )
-    
-    if (
-        objective.get(
-            "status"
-        )
-        == "completed"
-    ):
-        # Objetivos já formalmente concluídos
-        # não voltam ao estado ativo.
+
+    if objective_is_completed:
+        # ----------------------------------------------------
+        # Objetivo formalmente concluído.
+        #
+        # Não alterar:
+        # - status
+        # - current_value
+        # - current_score
+        # - progress
+        # - progress_percentage
+        # - target_reached
+        # - target_reached_at
+        # - completed_at
+        #
+        # A nova avaliação já ficou registada nos campos
+        # latest_longitudinal_*.
+        # ----------------------------------------------------
+
         objective_update[
             "completion_validation_required"
         ] = False
-    
+
     else:
+        # ----------------------------------------------------
+        # Objetivo ainda em desenvolvimento.
+        # A avaliação atualiza o progresso e pode indicar que
+        # a meta foi atingida.
+        #
+        # Mesmo atingindo a meta, o objetivo permanece ativo
+        # até decisão formal da equipa técnica.
+        # ----------------------------------------------------
+
+        objective_update[
+            "target_reached"
+        ] = objective_completed
+
+        objective_update[
+            "target_reached_at"
+        ] = (
+            review_date
+            if objective_completed
+            else None
+        )
+
         objective_update[
             "status"
         ] = "active"
-    
+
         objective_update[
             "completed_at"
         ] = None
-    
+
         objective_update[
             "completion_validation_required"
-        ] = (
-            objective_completed
-        )
+        ] = objective_completed
 
     # --------------------------------------------------------
     # Guardar atualização do objetivo
