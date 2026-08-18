@@ -3207,31 +3207,32 @@ export default function DevelopmentPID() {
                     </div>
                   </div>
           
-                  {intelligentPlanStatus !==
-                    'completed' &&
+                  {!intelligentPlanAwaitingNewCycle &&
+                    intelligentPlanStatus !==
+                      'completed' &&
                     intelligentPlan
                       ?.review
                       ?.reason && (
-                    <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
-                      <div className="flex items-start gap-3">
-                        <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
-          
-                        <div>
-                          <p className="font-semibold text-slate-900">
-                            Reavaliação inteligente
-                          </p>
-          
-                          <p className="mt-1 text-sm leading-6 text-slate-600">
-                            {
-                              intelligentPlan
-                                .review
-                                .reason
-                            }
-                          </p>
+                      <div className="rounded-2xl border border-amber-100 bg-amber-50/50 p-4">
+                        <div className="flex items-start gap-3">
+                          <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+                  
+                          <div>
+                            <p className="font-semibold text-slate-900">
+                              Reavaliação inteligente
+                            </p>
+                  
+                            <p className="mt-1 text-sm leading-6 text-slate-600">
+                              {
+                                intelligentPlan
+                                  .review
+                                  .reason
+                              }
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </CardContent>
               </Card>
             </section>
