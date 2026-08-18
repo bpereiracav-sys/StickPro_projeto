@@ -632,63 +632,146 @@ export default function AthletePIDCard({
 
   const enriched =
     useMemo(() => {
+      /*
+       * ======================================================
+       * C3.6.6D.4B.3E
+       * DASHBOARD DO ATLETA — FONTE ÚNICA DE VERDADE
+       * ======================================================
+       *
+       * O backend fornece:
+       *
+       * formal_state
+       *   -> estado oficial do objetivo
+       *
+       * longitudinal_state
+       *   -> estado atual da competência
+       *
+       * O dashboard deixa de reconstruir o progresso através
+       * do histórico de avaliações.
+       */
+  
       return objectives.map(
         (objective) => {
-          const currentValue =
-            latestScores.get(
-              objective.criterion_id
+          const isCompleted =
+            objective?.status ===
+            'completed';
+  
+          const formalValue = Number(
+            objective
+              ?.formal_state
+              ?.value
+          );
+  
+          const formalProgress = Number(
+            objective
+              ?.formal_state
+              ?.progress
+          );
+  
+          const longitudinalValue =
+            Number(
+              objective
+                ?.longitudinal_state
+                ?.value
             );
-
-          const target = Number(
-            objective.target_value
-          );
-
-          const baseline = Number(
-            objective.baseline_value ??
-              1
-          );
-
-          let progress = 0;
-
+  
+          const longitudinalProgress =
+            Number(
+              objective
+                ?.longitudinal_state
+                ?.progress
+            );
+  
+          let currentValue = null;
+  
           if (
+            isCompleted &&
             Number.isFinite(
-              currentValue
-            ) &&
-            Number.isFinite(target)
+              formalValue
+            )
+          ) {
+            currentValue =
+              formalValue;
+          } else if (
+            !isCompleted &&
+            Number.isFinite(
+              longitudinalValue
+            )
+          ) {
+            currentValue =
+              longitudinalValue;
+          } else {
+            const fallbackValue =
+              Number(
+                objective?.completed_value ??
+                objective?.completed_score ??
+                objective?.current_value ??
+                objective?.current_score
+              );
+  
+            currentValue =
+              Number.isFinite(
+                fallbackValue
+              )
+                ? fallbackValue
+                : null;
+          }
+  
+          let progress = 0;
+  
+          if (
+            isCompleted &&
+            Number.isFinite(
+              formalProgress
+            )
           ) {
             progress =
-              target <= baseline
-                ? currentValue >=
-                  target
-                  ? 100
-                  : 0
-                : ((currentValue -
-                    baseline) /
-                    (target -
-                      baseline)) *
-                  100;
+              formalProgress;
+          } else if (
+            isCompleted
+          ) {
+            progress = 100;
+          } else if (
+            Number.isFinite(
+              longitudinalProgress
+            )
+          ) {
+            progress =
+              longitudinalProgress;
+          } else {
+            const fallbackProgress =
+              Number(
+                objective
+                  ?.progress_percentage ??
+                objective?.progress
+              );
+  
+            progress =
+              Number.isFinite(
+                fallbackProgress
+              )
+                ? fallbackProgress
+                : 0;
           }
-
+  
           return {
             ...objective,
+  
             currentValue,
+  
             progress:
-              objective.status ===
-              'completed'
-                ? 100
-                : Math.max(
-                    0,
-                    Math.min(
-                      100,
-                      progress
-                    )
-                  ),
+              Math.max(
+                0,
+                Math.min(
+                  100,
+                  progress
+                )
+              ),
           };
         }
       );
     }, [
       objectives,
-      latestScores,
     ]);
 
   const activeObjectives =
@@ -770,13 +853,7 @@ export default function AthletePIDCard({
     ).length;
 
   const progressObjectives =
-    enriched.filter(
-      (objective) =>
-        objective.status ===
-          'active' ||
-        objective.status ===
-          'completed'
-    );
+    activeObjectives;
   
   const averageProgress =
     progressObjectives.length
@@ -790,7 +867,7 @@ export default function AthletePIDCard({
           0
         ) /
         progressObjectives.length
-      : 0;
+      : null;
 
   const attention =
     activeObjectives.filter(
@@ -930,15 +1007,18 @@ export default function AthletePIDCard({
                     <p className="text-xs text-slate-500">
                       {tr(
                         'objectives.progress',
-                        'Progresso'
+                        'Progresso em curso'
                       )}
                     </p>
-
+                    
                     <p className="font-heading text-2xl text-slate-950">
-                      {Math.round(
+                      {Number.isFinite(
                         averageProgress
-                      )}
-                      %
+                      )
+                        ? `${Math.round(
+                            averageProgress
+                          )}%`
+                        : '—'}
                     </p>
                   </div>
 
