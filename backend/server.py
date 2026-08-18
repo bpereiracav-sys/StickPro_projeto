@@ -26255,6 +26255,547 @@ async def create_player_objective(
     return objective
 
 # ============================================================
+# TEMPORARY MIGRATION
+# Recover historical completed objective values
+# C3.6.6 — historical objective repair
+# ============================================================
+
+@api_router.post(
+    "/evaluations/debug/recover-completed-objectives/{player_id}"
+)
+async def recover_completed_objectives(
+    player_id: str,
+    current_user: dict = Depends(
+        get_current_user
+    ),
+):
+    """
+    Recupera objetivos concluídos cujo valor formal foi
+    posteriormente reescrito por avaliações mais recentes.
+
+    Fonte de verdade:
+    completion_validation_evaluation_id
+
+    Regras de segurança:
+    - apenas admin/equipa técnica;
+    - atua apenas no atleta indicado;
+    - apenas objetivos status=completed;
+    - apenas conclusões técnicas;
+    - exige completion_validation_evaluation_id;
+    - exige correspondência exata do criterion_id;
+    - não altera objetivos sem prova histórica;
+    - não altera objetivos que já apresentam o valor correto.
+    """
+
+    checker = get_permission_checker(
+        current_user
+    )
+
+    if (
+        not checker.is_admin
+        and not checker.is_staff
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail="Sem permissão",
+        )
+
+    # --------------------------------------------------------
+    # Confirmar acesso ao atleta
+    # --------------------------------------------------------
+
+    await get_objective_player_and_check_access(
+        player_id,
+        current_user,
+    )
+
+    objectives = (
+        await db.evaluation_objectives.find(
+            {
+                "player_id":
+                    player_id,
+
+                "status":
+                    "completed",
+
+                "completion_validation_status":
+                    "completed",
+
+                "completion_validation_evaluation_id": {
+                    "$nin": [
+                        None,
+                        "",
+                    ]
+                },
+
+                "archived": {
+                    "$ne":
+                        True,
+                },
+            },
+            {
+                "_id": 0,
+            },
+        )
+        .sort(
+            "completed_at",
+            1,
+        )
+        .to_list(
+            500
+        )
+    )
+
+    repaired = []
+    already_correct = []
+    skipped = []
+
+    now = datetime.now(
+        timezone.utc
+    ).isoformat()
+
+    for objective in objectives:
+        objective_id = (
+            objective.get(
+                "id"
+            )
+        )
+
+        criterion_id = (
+            objective.get(
+                "criterion_id"
+            )
+        )
+
+        evaluation_id = (
+            objective.get(
+                "completion_validation_evaluation_id"
+            )
+        )
+
+        if (
+            not objective_id
+            or not criterion_id
+            or not evaluation_id
+        ):
+            skipped.append(
+                {
+                    "objective_id":
+                        objective_id,
+
+                    "title":
+                        objective.get(
+                            "title"
+                        ),
+
+                    "reason":
+                        "missing_required_identity",
+                }
+            )
+
+            continue
+
+        # ----------------------------------------------------
+        # Recuperar exatamente a avaliação utilizada na
+        # decisão técnica de conclusão.
+        # ----------------------------------------------------
+
+        evaluation = (
+            await db.player_evaluations.find_one(
+                {
+                    "id":
+                        evaluation_id,
+
+                    "player_id":
+                        player_id,
+                },
+                {
+                    "_id": 0,
+                },
+            )
+        )
+
+        if not evaluation:
+            skipped.append(
+                {
+                    "objective_id":
+                        objective_id,
+
+                    "title":
+                        objective.get(
+                            "title"
+                        ),
+
+                    "evaluation_id":
+                        evaluation_id,
+
+                    "reason":
+                        "completion_evaluation_not_found",
+                }
+            )
+
+            continue
+
+        completion_score = (
+            get_evaluation_criterion_score(
+                evaluation,
+                criterion_id,
+            )
+        )
+
+        if completion_score is None:
+            skipped.append(
+                {
+                    "objective_id":
+                        objective_id,
+
+                    "title":
+                        objective.get(
+                            "title"
+                        ),
+
+                    "criterion_id":
+                        criterion_id,
+
+                    "evaluation_id":
+                        evaluation_id,
+
+                    "reason":
+                        "criterion_score_not_found",
+                }
+            )
+
+            continue
+
+        # ----------------------------------------------------
+        # Uma conclusão técnica válida deve ter ocorrido com
+        # a meta atingida.
+        # ----------------------------------------------------
+
+        try:
+            target_value = float(
+                objective.get(
+                    "target_value"
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            target_value = None
+
+        if target_value is None:
+            skipped.append(
+                {
+                    "objective_id":
+                        objective_id,
+
+                    "title":
+                        objective.get(
+                            "title"
+                        ),
+
+                    "reason":
+                        "missing_target_value",
+                }
+            )
+
+            continue
+
+        if float(
+            completion_score
+        ) < float(
+            target_value
+        ):
+            skipped.append(
+                {
+                    "objective_id":
+                        objective_id,
+
+                    "title":
+                        objective.get(
+                            "title"
+                        ),
+
+                    "completion_score":
+                        completion_score,
+
+                    "target_value":
+                        target_value,
+
+                    "reason":
+                        "historical_score_below_target",
+                }
+            )
+
+            continue
+
+        # ----------------------------------------------------
+        # Calcular o progresso histórico real.
+        # ----------------------------------------------------
+
+        try:
+            baseline_value = float(
+                objective.get(
+                    "baseline_value"
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            baseline_value = (
+                completion_score
+            )
+
+        completion_progress = (
+            calculate_pid_objective_progress(
+                baseline_value=
+                    baseline_value,
+
+                current_value=
+                    completion_score,
+
+                target_value=
+                    target_value,
+            )
+        )
+
+        # Por definição, se foi formalmente concluído,
+        # o snapshot deve ser 100%.
+        completion_progress = max(
+            100.0,
+            float(
+                completion_progress
+            ),
+        )
+
+        # ----------------------------------------------------
+        # Verificar se visualmente já está correto.
+        # ----------------------------------------------------
+
+        try:
+            current_value = float(
+                objective.get(
+                    "current_value"
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            current_value = None
+
+        try:
+            current_progress = float(
+                objective.get(
+                    "progress_percentage"
+                )
+                if objective.get(
+                    "progress_percentage"
+                )
+                is not None
+                else objective.get(
+                    "progress"
+                )
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            current_progress = None
+
+        is_already_correct = (
+            current_value
+            is not None
+            and abs(
+                current_value
+                - completion_score
+            ) < 0.0001
+            and current_progress
+            is not None
+            and current_progress
+            >= 100.0
+        )
+
+        if is_already_correct:
+            already_correct.append(
+                {
+                    "objective_id":
+                        objective_id,
+
+                    "title":
+                        objective.get(
+                            "title"
+                        ),
+
+                    "value":
+                        current_value,
+
+                    "target_value":
+                        target_value,
+                }
+            )
+
+            continue
+
+        # ----------------------------------------------------
+        # Guardar snapshot histórico correto.
+        # ----------------------------------------------------
+
+        update_data = {
+            "current_value":
+                completion_score,
+
+            "current_score":
+                completion_score,
+
+            "progress":
+                100.0,
+
+            "progress_percentage":
+                100.0,
+
+            "target_reached":
+                True,
+
+            "completed_value":
+                completion_score,
+
+            "completed_score":
+                completion_score,
+
+            "completed_progress":
+                100.0,
+
+            "completed_evaluation_id":
+                evaluation_id,
+
+            "historical_recovery_at":
+                now,
+
+            "historical_recovery_by":
+                current_user.get(
+                    "id"
+                ),
+
+            "historical_recovery_source":
+                "completion_validation_evaluation",
+
+            "updated_at":
+                now,
+
+            "updated_by":
+                current_user.get(
+                    "id"
+                ),
+        }
+
+        # ----------------------------------------------------
+        # Não alteramos:
+        # - completed_at
+        # - completion_validation_at
+        # - status
+        # - completion_reason
+        #
+        # São dados históricos válidos.
+        # ----------------------------------------------------
+
+        result = (
+            await db.evaluation_objectives.update_one(
+                {
+                    "id":
+                        objective_id,
+
+                    "player_id":
+                        player_id,
+
+                    "status":
+                        "completed",
+                },
+                {
+                    "$set":
+                        update_data,
+                },
+            )
+        )
+
+        if result.modified_count:
+            repaired.append(
+                {
+                    "objective_id":
+                        objective_id,
+
+                    "title":
+                        objective.get(
+                            "title"
+                        ),
+
+                    "old_value":
+                        current_value,
+
+                    "recovered_value":
+                        completion_score,
+
+                    "target_value":
+                        target_value,
+
+                    "evaluation_id":
+                        evaluation_id,
+                }
+            )
+
+        else:
+            skipped.append(
+                {
+                    "objective_id":
+                        objective_id,
+
+                    "title":
+                        objective.get(
+                            "title"
+                        ),
+
+                    "reason":
+                        "database_not_modified",
+                }
+            )
+
+    return {
+        "player_id":
+            player_id,
+
+        "objectives_checked":
+            len(
+                objectives
+            ),
+
+        "repaired_count":
+            len(
+                repaired
+            ),
+
+        "already_correct_count":
+            len(
+                already_correct
+            ),
+
+        "skipped_count":
+            len(
+                skipped
+            ),
+
+        "repaired":
+            repaired,
+
+        "already_correct":
+            already_correct,
+
+        "skipped":
+            skipped,
+    }
+
+# ============================================================
 # Objective Completion Technical Validation
 # Sprint C3.6.6D.4B.3B.3
 # ============================================================
