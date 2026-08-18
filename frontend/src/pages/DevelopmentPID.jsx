@@ -3055,8 +3055,10 @@ export default function DevelopmentPID() {
                                 <Badge
                                   variant="outline"
                                   className={
-                                    phase.status ===
-                                    'completed'
+                                    intelligentPlanAwaitingNewCycle
+                                      ? 'border-violet-200 bg-violet-50 text-violet-700'
+                                      : phase.status ===
+                                        'completed'
                                       ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
                                       : phase.status ===
                                         'active'
@@ -3064,8 +3066,10 @@ export default function DevelopmentPID() {
                                       : 'border-slate-200 bg-slate-50 text-slate-500'
                                   }
                                 >
-                                  {phase.status ===
-                                  'completed'
+                                  {intelligentPlanAwaitingNewCycle
+                                    ? 'Ciclo anterior'
+                                    : phase.status ===
+                                      'completed'
                                     ? 'Concluída'
                                     : phase.status ===
                                       'active'
@@ -3088,8 +3092,10 @@ export default function DevelopmentPID() {
                               <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
                                 <div
                                   className={
-                                    phase.status ===
-                                    'completed'
+                                    intelligentPlanAwaitingNewCycle
+                                      ? 'h-full rounded-full bg-violet-400'
+                                      : phase.status ===
+                                        'completed'
                                       ? 'h-full rounded-full bg-emerald-500'
                                       : phase.status ===
                                         'active'
