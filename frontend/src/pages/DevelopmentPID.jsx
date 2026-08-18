@@ -1589,18 +1589,34 @@ export default function DevelopmentPID() {
           'completed'
       );
   
+    // ============================================================
+    // C3.6.6D.4B.3F
+    // PROGRESSO MÉDIO — APENAS OBJETIVOS EM CURSO
+    // ============================================================
+    //
+    // Esta métrica representa exclusivamente o progresso dos
+    // objetivos que estão efetivamente em desenvolvimento.
+    //
+    // Não entram no cálculo:
+    // - objetivos concluídos;
+    // - objetivos pausados.
+    //
+    // Os objetivos que atingiram a meta e aguardam validação
+    // continuam a ser objetivos ativos e entram com o progresso
+    // longitudinal devolvido pelo backend.
+    // ============================================================
+    
     const progressValues = [
       ...activeObjectives,
       ...validationObjectives,
-      ...completedObjectives,
     ]
       .map(
-        getObjectiveDisplayProgress
+        getObjectiveProgress
       )
       .filter(
         Number.isFinite
       );
-  
+    
     const averageProgress =
       progressValues.length
         ? progressValues.reduce(
@@ -1609,7 +1625,7 @@ export default function DevelopmentPID() {
             0
           ) /
           progressValues.length
-        : 0;
+        : null;
   
     const orderedEvaluations = [
       ...evaluations,
@@ -2176,9 +2192,23 @@ export default function DevelopmentPID() {
 
             <MetricCard
               icon={TrendingUp}
-              label="Progresso médio"
-              value={`${Math.round(summary.averageProgress)}%`}
-              description="Objetivos atualmente ativos"
+              label="Progresso em curso"
+              value={
+                Number.isFinite(
+                  summary.averageProgress
+                )
+                  ? `${Math.round(
+                      summary.averageProgress
+                    )}%`
+                  : '—'
+              }
+              description={
+                summary.activeObjectives.length +
+                  summary.validationObjectives.length >
+                0
+                  ? 'Objetivos atualmente ativos'
+                  : 'Sem objetivos atualmente ativos'
+              }
               tone="bg-cyan-50 text-cyan-700"
             />
 
